@@ -1,7 +1,7 @@
 # Downhill Roguelite — Claude Code instructions
 
 Third-person descent roguelite in Godot 4.6+ (.NET) with C#. Full plan: see the "Downhill Roguelite — Development Plan" doc.
-Current milestone: M2 Balance built, waiting for the director's play-test sign-off (M1 not yet signed off either) (update this line as we progress).
+Current milestone: M3 Packing (I1 + I2) built; M1–M3 all waiting for the director's play-test sign-off. Proposed next: M4 sprint/stamina, jump, health from ragdoll impacts (update this line as we progress).
 
 ## Build and run
 - Build C#: `dotnet build`

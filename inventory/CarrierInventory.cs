@@ -59,7 +59,9 @@ public partial class CarrierInventory : Node
             }
         }
 
-        if (AutoPackOnStart)
+        // For rendered checks: `-- --start-unpacked` leaves everything on the mat.
+        bool startUnpacked = System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--start-unpacked") >= 0;
+        if (AutoPackOnStart && !startUnpacked)
         {
             List<ItemDefinition> heaviestFirst = new(_loose);
             heaviestFirst.Sort((a, b) => b.MassKg.CompareTo(a.MassKg));

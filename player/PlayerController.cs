@@ -87,7 +87,7 @@ public partial class PlayerController : CharacterBody3D
         float dt = (float)delta;
         Vector3 input = ReadInputDirection();
         bool braking = InputEnabled && Input.IsActionPressed(ActionBrake);
-        if (_balanceState == BalanceState.Fallen || _bracing)
+        if (_balanceState == BalanceState.Fallen || _bracing || GameEvents.IsPacking)
         {
             input = Vector3.Zero;
         }

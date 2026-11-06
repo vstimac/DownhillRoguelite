@@ -49,8 +49,10 @@ public partial class BalanceDebugOverlay : CanvasLayer
             return;
         }
 
-        _label.Visible = DebugDraw3D.Enabled;
-        if (!DebugDraw3D.Enabled)
+        // Text would cover the packing view.
+        bool show = DebugDraw3D.Enabled && !GameEvents.IsPacking;
+        _label.Visible = show;
+        if (!show)
         {
             return;
         }
