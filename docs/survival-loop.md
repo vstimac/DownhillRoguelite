@@ -76,13 +76,25 @@ Values live in `DifficultySettings` resources and are tuned by play-testing.
 
 ## Revised roadmap
 
+## Weather (built in M8)
+
+- **Circles** are 1,800 m of depth each (three stations; `core/circles.tres`). Limbo, Lust, Gluttony, Greed, Wrath, Heresy, Violence, Fraud, Treachery, then "beyond".
+- Weather comes in **fronts** of 5 in-game hours that blend into each other over the last 1.5 hours. Each circle has a profile (`environment/weather/default_weather.tres`) weighting the fronts: Limbo mostly fog, Lust wind, Gluttony rain, Greed mixed, Wrath fog and rain, Heresy and Violence heat (Violence windy), Fraud fog, Treachery snow and wind, beyond everything at full strength. Near a circle's end its weather blends into the next circle's.
+- The seed decides the fronts, so the same mountain has the same weather. **Night** makes fog, rain, snow and wind up to 40–60% worse and cools heat to a third.
+- **Effects:**
+  - **Visibility:** fog and the mist of rain or snow thicken the fog and dim the sun.
+  - **Grip:** rain costs up to 35% grip on every surface, snow 45%. Snow also slows walking by up to 30%, and cairn estimates include that.
+  - **Balance:** wind pushes body and pack with gusts. A bigger, higher pack catches more, so lean into it.
+  - **Needs:** rain, snow and strong wind chill you even by day: they add to night cold and slow stamina recovery (estimates include that too). Heat doubles thirst and slows recovery a little. Shelter keeps the chill off.
+- Debug: F4 cycles forced weather; `-- --weather=rain` forces a front for render checks.
+
 M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain). From here:
 
 | Milestone | Scope |
 | --- | --- |
 | **M6 Survival core** (built) | Game clock and difficulty; item categories; hunger and thirst; eating and drinking; endurance stamina; empty starting pack; supplies scattered along the route; picking up with E; death restarts the run |
 | **M7 Day, night and stations** (built) | Visible day/night cycle (sun, sky, darkness); a station every 600 m of depth on a level terrace with fire, lean-to, bedroll and beacon; stone cairns every 120 m showing the estimate (distance, time with rests, stamina, arrival against nightfall); sleeping from 16:00 skips to dawn, heals 40% and refills stamina; night cold outside a shelter; packing only at stations |
-| **M8 Weather** | Fog, rain, snow, wind, heat per circle and time; effects on visibility, grip, balance and needs |
+| **M8 Weather** (built) | Fog, rain, snow, wind, heat per circle and time; effects on visibility, grip, balance and needs |
 | **M9 Wildlife** | The approved wildlife plan (animals per circle, fleeing, scattering on falls), reusing M6's world spawner |
 | **M10 Routes** | Branching paths from each shelter's lookout; route types (safe, hazardous, supply-rich) |
 | **M11 Narrator** | The voiced companion: the 500 lines triggered by game events, then NobodyWho for live conversation |

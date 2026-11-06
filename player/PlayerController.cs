@@ -300,6 +300,8 @@ public partial class PlayerController : CharacterBody3D
             Grip = surface.Grip;
             _surfaceName = surface.DisplayName;
         }
+        // Rain and snow make every surface slicker.
+        Grip *= GameEvents.CurrentWeather.GripFactor;
     }
 
     /// <summary>What the body stands or slides on and where it touches; false in the air (keeps the last surface).</summary>
@@ -384,7 +386,7 @@ public partial class PlayerController : CharacterBody3D
 
     /// <summary>
     /// Normal walking speed (no sprint or brake) on ground of <paramref name="grade"/> (+ downhill),
-    /// including injury: what route estimates assume.
+    /// including injury and deep snow: what route estimates assume.
     /// </summary>
     public float WalkingSpeed(float grade)
     {
@@ -397,7 +399,13 @@ public partial class PlayerController : CharacterBody3D
         {
             speed *= Mathf.Max(Settings.MinUphillSpeedFactor, 1.0f + Settings.UphillSpeedPenalty * grade);
         }
-        return Mathf.Min(speed * InjuryFactor(), Settings.MaxSpeed);
+        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor(), Settings.MaxSpeed);
+    }
+
+    /// <summary>Snow underfoot slows every stride.</summary>
+    public float WeatherSpeedFactor()
+    {
+        return Mathf.Max(0.0f, 1.0f - Settings.SnowSpeedPenalty * GameEvents.CurrentWeather.Snow);
     }
 
     private float TargetSpeed(bool braking, float grade)
@@ -424,7 +432,7 @@ public partial class PlayerController : CharacterBody3D
             speed *= Mathf.Max(Settings.MinUphillSpeedFactor, 1.0f + Settings.UphillSpeedPenalty * grade);
         }
 
-        return Mathf.Min(speed * InjuryFactor(), Settings.MaxSpeed);
+        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor(), Settings.MaxSpeed);
     }
 
     private float DecelerationRate(bool braking, float grade)

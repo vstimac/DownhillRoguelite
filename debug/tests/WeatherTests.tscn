@@ -1,0 +1,46 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/WeatherTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://terrain/TerrainStreamer.cs" id="2_streamer"]
+[ext_resource type="Resource" path="res://terrain/default_terrain.tres" id="3_terrain_settings"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="4_player"]
+[ext_resource type="Script" path="res://environment/weather/WeatherSystem.cs" id="5_weather"]
+[ext_resource type="Resource" path="res://environment/weather/default_weather.tres" id="6_table"]
+[ext_resource type="Script" path="res://environment/DayNightCycle.cs" id="7_daynight"]
+[ext_resource type="Script" path="res://environment/weather/WeatherParticles.cs" id="8_particles"]
+
+[sub_resource type="Environment" id="Environment_test"]
+fog_enabled = true
+fog_density = 0.012
+
+[node name="WeatherTests" type="Node3D" node_paths=PackedStringArray("PlayerBody", "Streamer", "Weather", "DayNight", "Particles")]
+script = ExtResource("1_tests")
+PlayerBody = NodePath("Player")
+Streamer = NodePath("Terrain")
+Weather = NodePath("Weather")
+DayNight = NodePath("DayNight")
+Particles = NodePath("WeatherParticles")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_test")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+light_energy = 0.75
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_streamer")
+Settings = ExtResource("3_terrain_settings")
+
+[node name="Weather" type="Node" parent="."]
+script = ExtResource("5_weather")
+Table = ExtResource("6_table")
+
+[node name="DayNight" type="Node" parent="." node_paths=PackedStringArray("Sun", "World")]
+script = ExtResource("7_daynight")
+Sun = NodePath("../Sun")
+World = NodePath("../WorldEnvironment")
+
+[node name="WeatherParticles" type="Node3D" parent="."]
+script = ExtResource("8_particles")
+
+[node name="Player" parent="." instance=ExtResource("4_player")]

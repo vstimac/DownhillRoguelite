@@ -124,6 +124,26 @@ public static class GameEvents
         RouteEstimateUpdated?.Invoke(estimate);
     }
 
+    /// <summary>The weather where the carrier is, updated every physics frame.</summary>
+    public static WeatherSnapshot CurrentWeather { get; private set; } = WeatherSnapshot.Calm;
+
+    /// <summary>Raised every physics frame by the weather system.</summary>
+    public static event Action<WeatherSnapshot>? WeatherUpdated;
+
+    /// <summary>Raised when the dominant weather changes (narrator lines, later sounds).</summary>
+    public static event Action<WeatherKind>? WeatherChanged;
+
+    public static void PublishWeather(WeatherSnapshot weather)
+    {
+        WeatherKind previous = CurrentWeather.Kind;
+        CurrentWeather = weather;
+        WeatherUpdated?.Invoke(weather);
+        if (weather.Kind != previous)
+        {
+            WeatherChanged?.Invoke(weather.Kind);
+        }
+    }
+
     /// <summary>Raised by terrain when the deepest point reached this run grows, in metres below the start.</summary>
     public static event Action<float>? DepthChanged;
 

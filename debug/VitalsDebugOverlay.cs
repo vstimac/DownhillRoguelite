@@ -33,6 +33,7 @@ public partial class VitalsDebugOverlay : CanvasLayer
     private ColorRect? _thirstFill;
     private Label? _label;
     private WorldClock? _clock;
+    private RunState? _run;
 
     public override void _Ready()
     {
@@ -45,6 +46,7 @@ public partial class VitalsDebugOverlay : CanvasLayer
         _thirstBack = AddRect(BackColor);
         _thirstFill = AddRect(ThirstColor);
         _clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
+        _run = GetNodeOrNull<RunState>("/root/RunState");
         _label = new Label();
         _label.AddThemeFontSizeOverride("font_size", FontSize);
         _label.AddThemeColorOverride("font_outline_color", Colors.Black);
@@ -127,6 +129,13 @@ public partial class VitalsDebugOverlay : CanvasLayer
             int minute = Mathf.FloorToInt((_clock.TimeOfDay - hour) * 60.0f);
             clock = $"Day {_clock.Day}  {hour:00}:{minute:00}    F eat · Q drink · E pick up\n";
         }
+        WeatherSnapshot weather = GameEvents.CurrentWeather;
+        string circle = "";
+        if (_run != null)
+        {
+            circle = _run.Circles.NameOf(_run.Circles.CircleAt(_run.Depth)) + "  ·  ";
+        }
+        clock += $"{circle}{weather.Kind}  fog {weather.Fog:0.0} rain {weather.Rain:0.0} snow {weather.Snow:0.0} heat {weather.Heat:0.0}  wind {weather.WindSpeed:0} m/s  grip ×{weather.GripFactor:0.00}  (F4)\n";
         _label.Text = $"{clock}Hunger {vitals.Hunger:0}  ·  Thirst {vitals.Thirst:0}\nHP {vitals.Health:0}/{vitals.MaxHealth:0}{hit}\nStamina {vitals.Stamina:0}{status}";
         _label.Position = new Vector2(Margin.X + BarSize.X + 12.0f, hungerPosition.Y - 4.0f);
     }

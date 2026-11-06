@@ -8,7 +8,8 @@ namespace DownhillRoguelite.Player;
 /// sprinting or heavily loaded, scaled by difficulty. Below LowThreshold, thirst slows stamina
 /// recovery and hunger lowers maximum stamina; at 0 they drain health. Out at night without
 /// shelter the cold drains health and slows recovery; sleep uses food and water more slowly
-/// and refills stamina. F eats and Q drinks: the
+/// and refills stamina. Weather adds to it: rain, snow and wind chill (even by day), heat makes
+/// thirsty and slows recovery; shelter keeps the chill off. F eats and Q drinks: the
 /// request goes out as an event and the inventory consumes the best-fitting item.
 /// See docs/survival-loop.md.
 /// </summary>
@@ -39,6 +40,21 @@ public partial class CarrierNeeds : Node
     /// <summary>Health lost per in-game hour for each need at zero.</summary>
     [Export] public float EmptyHealthPerHour { get; set; } = 8.0f;
 
+    [ExportGroup("Weather")]
+    /// <summary>Extra thirst drain in full heat (1 = twice as fast).</summary>
+    [Export] public float HeatThirst { get; set; } = 1.0f;
+    /// <summary>Stamina recovery multiplier in full heat.</summary>
+    [Export] public float HeatRecovery { get; set; } = 0.8f;
+    /// <summary>Chill from full rain, added to the night's cold.</summary>
+    [Export] public float RainChill { get; set; } = 0.2f;
+    /// <summary>Chill from full snow.</summary>
+    [Export] public float SnowChill { get; set; } = 0.35f;
+    /// <summary>Wind below this speed doesn't chill, in m/s.</summary>
+    [Export] public float WindChillFrom { get; set; } = 4.0f;
+    /// <summary>Chill per m/s of wind above WindChillFrom, up to WindChillMax.</summary>
+    [Export] public float WindChillPerMs { get; set; } = 0.02f;
+    [Export] public float WindChillMax { get; set; } = 0.25f;
+
     [ExportGroup("Night and sleep")]
     /// <summary>Health lost per in-game hour out in the cold of full night (× difficulty harshness).</summary>
     [Export] public float ColdHealthPerHour { get; set; } = 6.0f;
@@ -51,8 +67,10 @@ public partial class CarrierNeeds : Node
 
     public float Hunger { get; private set; } = Full;
     public float Thirst { get; private set; } = Full;
-    /// <summary>How cold the carrier is: 0 in daylight or shelter, up to 1 out in full night.</summary>
+    /// <summary>How cold the carrier is: 0 in shelter, up to 1 out in full night or bad weather.</summary>
     public float Cold { get; private set; }
+    /// <summary>The weather's part of Cold (rain, snow, wind), before shelter.</summary>
+    public float Chill { get; private set; }
 
     private WorldClock? _clock;
     private RunState? _run;
@@ -112,22 +130,29 @@ public partial class CarrierNeeds : Node
         float hours = _clock.HoursPerSecond * (float)delta;
         float rate = DrainMultiplier();
         Hunger = Mathf.Max(0.0f, Hunger - HungerPerHour * rate * hours);
-        Thirst = Mathf.Max(0.0f, Thirst - ThirstPerHour * rate * hours);
+        WeatherSnapshot weather = GameEvents.CurrentWeather;
+        float heat = Mathf.Clamp(weather.Heat, 0.0f, 1.0f);
+        Thirst = Mathf.Max(0.0f, Thirst - ThirstPerHour * rate * (1.0f + HeatThirst * heat) * hours);
 
+        Chill = weather.Rain * RainChill + weather.Snow * SnowChill + Mathf.Clamp((weather.WindSpeed - WindChillFrom) * WindChillPerMs, 0.0f, WindChillMax);
         Cold = 0.0f;
-        if (_clock.IsNight && !GameEvents.InShelter)
+        if (!GameEvents.InShelter)
         {
-            float harshness = 1.0f;
-            if (_run != null)
+            if (_clock.IsNight)
             {
-                harshness = _run.DifficultySettings.NightHarshness;
+                float harshness = 1.0f;
+                if (_run != null)
+                {
+                    harshness = _run.DifficultySettings.NightHarshness;
+                }
+                Cold = (1.0f - _clock.Daylight) * harshness;
             }
-            Cold = (1.0f - _clock.Daylight) * harshness;
+            Cold = Mathf.Clamp(Cold + Chill, 0.0f, 1.0f);
         }
 
         if (Stamina != null)
         {
-            Stamina.RecoveryMultiplier = Mathf.Lerp(1.0f, ColdRecovery, Cold);
+            Stamina.RecoveryMultiplier = Mathf.Lerp(1.0f, ColdRecovery, Cold) * Mathf.Lerp(1.0f, HeatRecovery, heat);
             if (Thirst < LowThreshold)
             {
                 Stamina.RecoveryMultiplier *= ThirstyRecovery;

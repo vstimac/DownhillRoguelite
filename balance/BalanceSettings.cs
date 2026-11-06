@@ -61,6 +61,16 @@ public partial class BalanceSettings : Resource
     /// <summary>Fraction of a footfall jolt that pitches forward, per unit of downhill slope.</summary>
     [Export] public float StepPitchJoltFraction { get; set; } = 1.0f;
 
+    [ExportGroup("Wind")]
+    /// <summary>Wind force per m² of exposed area per (m/s)² of wind speed: half air density times drag coefficient.</summary>
+    [Export] public float WindDrag { get; set; } = 0.6f;
+    /// <summary>Carrier's own area facing the wind, in m².</summary>
+    [Export] public float WindBodyArea { get; set; } = 0.25f;
+    /// <summary>Height the wind pushes the body at, in m.</summary>
+    [Export] public float WindBodyHeight { get; set; } = 1.0f;
+    /// <summary>Extra area per kg of load (a bigger pack catches more wind), in m²; pushed at the load's height.</summary>
+    [Export] public float WindAreaPerKg { get; set; } = 0.012f;
+
     [ExportGroup("Support")]
     [Export] public float FootHalfWidth { get; set; } = 0.05f;
     [Export] public float FootHalfLength { get; set; } = 0.13f;
