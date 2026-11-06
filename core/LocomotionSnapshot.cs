@@ -16,6 +16,7 @@ namespace DownhillRoguelite.Core;
 /// <param name="State">High-level movement state.</param>
 /// <param name="Surface">Display name of the surface underfoot.</param>
 /// <param name="Grip">Grip of the surface underfoot, 0 to 1.</param>
+/// <param name="Forward">Direction the carrier faces, horizontal and normalized.</param>
 public readonly record struct LocomotionSnapshot(
     Vector3 Position,
     Vector3 Velocity,
@@ -26,4 +27,5 @@ public readonly record struct LocomotionSnapshot(
     Vector3 InputDirection,
     LocomotionState State,
     string Surface,
-    float Grip);
+    float Grip,
+    Vector3 Forward);

@@ -6,6 +6,9 @@
 [ext_resource type="PackedScene" path="res://art/characters/quaternius_ual/UAL_Mannequin.glb" id="4_model"]
 [ext_resource type="Script" path="res://player/CharacterAnimator.cs" id="5_animator"]
 [ext_resource type="Script" path="res://player/FootIK.cs" id="6_foot_ik"]
+[ext_resource type="Script" path="res://balance/BalanceController.cs" id="7_balance"]
+[ext_resource type="Resource" path="res://balance/default_balance.tres" id="8_balance_settings"]
+[ext_resource type="Script" path="res://player/SpineLean.cs" id="9_spine_lean"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.3
@@ -22,6 +25,9 @@ shape = SubResource("CapsuleShape3D_body")
 [node name="Model" parent="." instance=ExtResource("4_model")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
+[node name="SpineLean" type="SkeletonModifier3D" parent="Model/Rig/Skeleton3D"]
+script = ExtResource("9_spine_lean")
+
 [node name="Animator" type="Node" parent="." node_paths=PackedStringArray("Body", "Animations", "Visual")]
 script = ExtResource("5_animator")
 Body = NodePath("..")
@@ -32,6 +38,10 @@ Visual = NodePath("../Model")
 script = ExtResource("6_foot_ik")
 Body = NodePath("..")
 Skeleton = NodePath("../Model/Rig/Skeleton3D")
+
+[node name="Balance" type="Node" parent="."]
+script = ExtResource("7_balance")
+Settings = ExtResource("8_balance_settings")
 
 [node name="CameraRig" type="Node3D" parent="." node_paths=PackedStringArray("Target", "Arm", "Camera")]
 script = ExtResource("3_camera")

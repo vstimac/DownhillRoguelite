@@ -1,7 +1,7 @@
 # Downhill Roguelite — Claude Code instructions
 
 Third-person descent roguelite in Godot 4.6+ (.NET) with C#. Full plan: see the "Downhill Roguelite — Development Plan" doc.
-Current milestone: M1 Movement built (M1.1–M1.4), waiting for the director's play-test sign-off before M2 (update this line as we progress).
+Current milestone: M2 Balance built, waiting for the director's play-test sign-off (M1 not yet signed off either) (update this line as we progress).
 
 ## Build and run
 - Build C#: `dotnet build`
@@ -24,6 +24,7 @@ Current milestone: M1 Movement built (M1.1–M1.4), waiting for the director's p
 - Every gameplay system gets a debug scene in debug/ and a debug overlay (COM, foot targets, forces).
 - No flat UI during runs: interfaces are 3D objects in the world (debug overlays excepted).
 - Inventory is a snapped 3D cell grid with 90° rotations, not free placement; carried cargo is calculated, not simulated. Read docs/inventory-design.md before any inventory or balance work.
+- Balance: read docs/balance-model.md before changing balance/; keep debug/tests/BalanceTests passing (the A-vs-B test is the core check).
 
 ## Workflow
 - Work one milestone at a time; propose scope in plan mode before large changes.

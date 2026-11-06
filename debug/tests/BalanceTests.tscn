@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/BalanceTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://debug/TestCourseBuilder.cs" id="2_course"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="3_player"]
+[ext_resource type="Script" path="res://debug/LoadCycler.cs" id="4_loads"]
+
+[node name="BalanceTests" type="Node3D" node_paths=PackedStringArray("PlayerBody", "Course", "Loads")]
+script = ExtResource("1_tests")
+PlayerBody = NodePath("Player")
+Course = NodePath("Course")
+Loads = NodePath("Loads")
+
+[node name="Course" type="Node3D" parent="."]
+script = ExtResource("2_course")
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, -88)
+
+[node name="Loads" type="Node" parent="."]
+script = ExtResource("4_loads")

@@ -98,6 +98,16 @@ public partial class LocomotionSettings : Resource
     /// <summary>Downhill creep at zero grip on a vertical face; scaled by (1 - grip) and the slope's sine, in m/s.</summary>
     [Export] public float SurfaceCreepSpeed { get; set; } = 1.5f;
 
+    [ExportGroup("Balance response")]
+    /// <summary>Target speed multiplier while stumbling.</summary>
+    [Export] public float StumbleSpeedFactor { get; set; } = 0.5f;
+    /// <summary>Speed of the lurch toward the tilt while stumbling, in m/s.</summary>
+    [Export] public float StumbleLurchSpeed { get; set; } = 0.8f;
+    /// <summary>Deceleration while bracing, in m/s².</summary>
+    [Export] public float BraceDeceleration { get; set; } = 12.0f;
+    /// <summary>Deceleration after a fall, in m/s².</summary>
+    [Export] public float FallDeceleration { get; set; } = 15.0f;
+
     [ExportGroup("Air and sliding")]
     /// <summary>Multiplier on the project's default gravity.</summary>
     [Export] public float GravityScale { get; set; } = 1.0f;
