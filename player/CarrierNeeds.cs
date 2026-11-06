@@ -6,7 +6,9 @@ namespace DownhillRoguelite.Player;
 /// <summary>
 /// Hunger and thirst, 100 (fine) to 0, draining over in-game hours (WorldClock) — faster when
 /// sprinting or heavily loaded, scaled by difficulty. Below LowThreshold, thirst slows stamina
-/// recovery and hunger lowers maximum stamina; at 0 they drain health. F eats and Q drinks: the
+/// recovery and hunger lowers maximum stamina; at 0 they drain health. Out at night without
+/// shelter the cold drains health and slows recovery; sleep uses food and water more slowly
+/// and refills stamina. F eats and Q drinks: the
 /// request goes out as an event and the inventory consumes the best-fitting item.
 /// See docs/survival-loop.md.
 /// </summary>
@@ -37,10 +39,20 @@ public partial class CarrierNeeds : Node
     /// <summary>Health lost per in-game hour for each need at zero.</summary>
     [Export] public float EmptyHealthPerHour { get; set; } = 8.0f;
 
+    [ExportGroup("Night and sleep")]
+    /// <summary>Health lost per in-game hour out in the cold of full night (× difficulty harshness).</summary>
+    [Export] public float ColdHealthPerHour { get; set; } = 6.0f;
+    /// <summary>Stamina recovery multiplier in the cold of full night.</summary>
+    [Export] public float ColdRecovery { get; set; } = 0.5f;
+    /// <summary>Hunger and thirst drain while asleep, as a fraction of waking drain.</summary>
+    [Export] public float SleepDrainFactor { get; set; } = 0.3f;
+
     public const float Full = 100.0f;
 
     public float Hunger { get; private set; } = Full;
     public float Thirst { get; private set; } = Full;
+    /// <summary>How cold the carrier is: 0 in daylight or shelter, up to 1 out in full night.</summary>
+    public float Cold { get; private set; }
 
     private WorldClock? _clock;
     private RunState? _run;
@@ -51,12 +63,14 @@ public partial class CarrierNeeds : Node
         _run = GetNodeOrNull<RunState>("/root/RunState");
         GameEvents.ItemConsumed += OnItemConsumed;
         GameEvents.RespawnRequested += Refill;
+        GameEvents.Slept += OnSlept;
     }
 
     public override void _ExitTree()
     {
         GameEvents.ItemConsumed -= OnItemConsumed;
         GameEvents.RespawnRequested -= Refill;
+        GameEvents.Slept -= OnSlept;
     }
 
     public void Refill()
@@ -100,12 +114,23 @@ public partial class CarrierNeeds : Node
         Hunger = Mathf.Max(0.0f, Hunger - HungerPerHour * rate * hours);
         Thirst = Mathf.Max(0.0f, Thirst - ThirstPerHour * rate * hours);
 
+        Cold = 0.0f;
+        if (_clock.IsNight && !GameEvents.InShelter)
+        {
+            float harshness = 1.0f;
+            if (_run != null)
+            {
+                harshness = _run.DifficultySettings.NightHarshness;
+            }
+            Cold = (1.0f - _clock.Daylight) * harshness;
+        }
+
         if (Stamina != null)
         {
-            Stamina.RecoveryMultiplier = 1.0f;
+            Stamina.RecoveryMultiplier = Mathf.Lerp(1.0f, ColdRecovery, Cold);
             if (Thirst < LowThreshold)
             {
-                Stamina.RecoveryMultiplier = ThirstyRecovery;
+                Stamina.RecoveryMultiplier *= ThirstyRecovery;
             }
             Stamina.MaxMultiplier = 1.0f;
             if (Hunger < LowThreshold)
@@ -124,6 +149,10 @@ public partial class CarrierNeeds : Node
             {
                 Health.TakeDamage(EmptyHealthPerHour * hours, "thirst");
             }
+            if (Cold > 0.0f)
+            {
+                Health.TakeDamage(ColdHealthPerHour * Cold * hours, "cold");
+            }
         }
     }
 
@@ -139,6 +168,19 @@ public partial class CarrierNeeds : Node
             rate *= _run.DifficultySettings.NeedsDrainMultiplier;
         }
         return rate;
+    }
+
+    /// <summary>Asleep, the body still uses food and water, only more slowly; the rest restores stamina.</summary>
+    private void OnSlept(float hours)
+    {
+        float rate = SleepDrainFactor;
+        if (_run != null)
+        {
+            rate *= _run.DifficultySettings.NeedsDrainMultiplier;
+        }
+        Hunger = Mathf.Max(0.0f, Hunger - HungerPerHour * rate * hours);
+        Thirst = Mathf.Max(0.0f, Thirst - ThirstPerHour * rate * hours);
+        Stamina?.Refill();
     }
 
     private void OnItemConsumed(SupplyNeed need, string itemId, float restore)

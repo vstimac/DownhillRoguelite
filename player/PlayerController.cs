@@ -382,6 +382,24 @@ public partial class PlayerController : CharacterBody3D
         return Mathf.Lerp(Settings.InjuredSpeedFactor, 1.0f, fraction / Settings.InjuredHealthFraction);
     }
 
+    /// <summary>
+    /// Normal walking speed (no sprint or brake) on ground of <paramref name="grade"/> (+ downhill),
+    /// including injury: what route estimates assume.
+    /// </summary>
+    public float WalkingSpeed(float grade)
+    {
+        float speed = Settings.StrideSpeed;
+        if (grade > 0.0f)
+        {
+            speed *= 1.0f + Settings.DownhillSpeedBonus * grade;
+        }
+        else
+        {
+            speed *= Mathf.Max(Settings.MinUphillSpeedFactor, 1.0f + Settings.UphillSpeedPenalty * grade);
+        }
+        return Mathf.Min(speed * InjuryFactor(), Settings.MaxSpeed);
+    }
+
     private float TargetSpeed(bool braking, float grade)
     {
         float speed = Settings.StrideSpeed;

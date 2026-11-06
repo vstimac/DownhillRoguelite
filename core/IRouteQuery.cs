@@ -13,4 +13,10 @@ public interface IRouteQuery
 
     /// <summary>The route's point (on the ground) at <paramref name="z"/>.</summary>
     Vector3 RoutePoint(float z);
+
+    /// <summary>Centre of station <paramref name="index"/> on the route (1 = first below the start).</summary>
+    Vector3 Station(int index);
+
+    /// <summary>Index of the first station downhill of <paramref name="z"/>.</summary>
+    int NextStationIndex(float z);
 }

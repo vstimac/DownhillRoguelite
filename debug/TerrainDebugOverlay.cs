@@ -29,6 +29,7 @@ public partial class TerrainDebugOverlay : CanvasLayer
 
     private Label? _label;
     private LocomotionSnapshot _locomotion;
+    private WorldClock? _clock;
 
     public override void _Ready()
     {
@@ -38,6 +39,22 @@ public partial class TerrainDebugOverlay : CanvasLayer
         _label.AddThemeConstantOverride("outline_size", FontSize / 4);
         AddChild(_label);
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
+        _clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
+    }
+
+    private string Situation()
+    {
+        string where = "outside";
+        if (GameEvents.InShelter)
+        {
+            where = "in a station's shelter (Tab packs, E on the bedroll sleeps)";
+        }
+        string time = "day";
+        if (_clock != null && _clock.IsNight)
+        {
+            time = "NIGHT";
+        }
+        return $"{time} · {where} · T skips an hour";
     }
 
     public override void _ExitTree()
@@ -81,7 +98,9 @@ public partial class TerrainDebugOverlay : CanvasLayer
             $"Seed {generator.Seed}   F2 new mountain\n" +
             $"Depth {Streamer.Depth:0} m   Circle {circle + 1}: {circleName}\n" +
             $"Ground {generator.SlopeDegrees(position.X, position.Z):0}°  {_locomotion.Surface}   spine {spineOffset:+0.0;-0.0} m\n" +
-            $"Chunks {Streamer.LoadedCount}   build {Streamer.LastBuildMilliseconds:0} ms   add {Streamer.LastApplyMilliseconds:0.0} ms (max {Streamer.MaxApplyMilliseconds:0.0})";
+            $"Chunks {Streamer.LoadedCount}   build {Streamer.LastBuildMilliseconds:0} ms   add {Streamer.LastApplyMilliseconds:0.0} ms (max {Streamer.MaxApplyMilliseconds:0.0})\n" +
+            Situation() + "\n" +
+            Map.WaypointCairn.Describe(GameEvents.LatestEstimate, _clock).Replace("\n", "   ");
         _label.Position = new Vector2((GetViewport().GetVisibleRect().Size.X - TextWidth) * 0.5f, TextTop);
     }
 

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DownhillRoguelite.Core;
 using System.Diagnostics;
 using Godot;
@@ -40,6 +41,15 @@ public sealed class TerrainGenerator
     private readonly GradientNoise _mud;
     private readonly GradientNoise _scree;
     private readonly float _gradeTangent;
+    private readonly float _clearingSlopeTangent;
+    private readonly float _startHeight;
+    private readonly object _stationLock = new();
+    // Replaced, never modified, so readers on other threads can use it without the lock.
+    private volatile Vector3[] _stations = System.Array.Empty<Vector3>();
+    // Metres between samples when searching down the route for the next station.
+    private const float StationSearchStep = 2.0f;
+    // Stations computed at a time when the mountain is explored beyond the known ones.
+    private const int StationGrowth = 4;
 
     public TerrainGenerator(TerrainSettings settings, ulong seed)
     {
@@ -54,6 +64,110 @@ public sealed class TerrainGenerator
         _mud = new GradientNoise(SplitMix64.Mix(seed, MudSalt));
         _scree = new GradientNoise(SplitMix64.Mix(seed, ScreeSalt));
         _gradeTangent = Mathf.Tan(Mathf.DegToRad(settings.Grade));
+        _clearingSlopeTangent = Mathf.Tan(Mathf.DegToRad(settings.ClearingSlope));
+        float spawnX = SpineX(settings.SpawnZ);
+        _startHeight = RawHeight(spawnX, settings.SpawnZ);
+        EnsureStations(settings.PrecomputedStations);
+    }
+
+    /// <summary>Route height at the start of the run, before any clearing.</summary>
+    public float StartHeight => _startHeight;
+
+    /// <summary>
+    /// Centre of station <paramref name="index"/> (1 = the first below the start): on the spine where
+    /// the route first drops StationDepthInterval × index below the start. Thread-safe.
+    /// </summary>
+    public Vector3 Station(int index)
+    {
+        Vector3[] stations = EnsureStations(index);
+        return stations[index - 1];
+    }
+
+    /// <summary>The first station whose centre is downhill of <paramref name="z"/>.</summary>
+    public int NextStationIndex(float z)
+    {
+        int index = 1;
+        while (Station(index).Z >= z)
+        {
+            index++;
+        }
+        return index;
+    }
+
+    private Vector3[] EnsureStations(int count)
+    {
+        Vector3[] stations = _stations;
+        if (stations.Length >= count)
+        {
+            return stations;
+        }
+        lock (_stationLock)
+        {
+            List<Vector3> list = new(_stations);
+            float z = _settings.SpawnZ;
+            if (list.Count > 0)
+            {
+                z = list[^1].Z;
+            }
+            while (list.Count < count)
+            {
+                float target = _startHeight - _settings.StationDepthInterval * (list.Count + 1);
+                do
+                {
+                    z -= StationSearchStep;
+                }
+                while (RawHeight(SpineX(z), z) > target);
+                list.Add(new Vector3(SpineX(z), RawHeight(SpineX(z), z), z));
+            }
+            _stations = list.ToArray();
+            return _stations;
+        }
+    }
+
+    /// <summary>Blends a point toward the terrace of a station within reach, if any.</summary>
+    private float ApplyClearings(float x, float z, float height)
+    {
+        float reach = _settings.ClearingRadius + _settings.ClearingBlend;
+        Vector3[] stations = EnsureStationsBelow(z - reach);
+        // Stations are ordered by descending z; find the first one at or below z + reach.
+        int low = 0;
+        int high = stations.Length;
+        while (low < high)
+        {
+            int mid = (low + high) / 2;
+            if (stations[mid].Z > z + reach)
+            {
+                low = mid + 1;
+            }
+            else
+            {
+                high = mid;
+            }
+        }
+        for (int i = low; i < stations.Length && stations[i].Z >= z - reach; i++)
+        {
+            Vector3 station = stations[i];
+            float distance = new Vector2(x - station.X, z - station.Z).Length();
+            if (distance >= reach)
+            {
+                continue;
+            }
+            // A gentle terrace following the descent, so the ramps in and out stay walkable.
+            float terrace = station.Y + (z - station.Z) * _clearingSlopeTangent;
+            float weight = 1.0f - Mathf.SmoothStep(_settings.ClearingRadius, reach, distance);
+            height = Mathf.Lerp(height, terrace, weight);
+        }
+        return height;
+    }
+
+    private Vector3[] EnsureStationsBelow(float z)
+    {
+        Vector3[] stations = _stations;
+        while (stations.Length == 0 || stations[^1].Z > z)
+        {
+            stations = EnsureStations(stations.Length + StationGrowth);
+        }
+        return stations;
     }
 
     public ulong Seed { get; }
@@ -73,6 +187,12 @@ public sealed class TerrainGenerator
     }
 
     public float Height(float x, float z)
+    {
+        return ApplyClearings(x, z, RawHeight(x, z));
+    }
+
+    /// <summary>Height before station clearings are cut in.</summary>
+    private float RawHeight(float x, float z)
     {
         float descent = z * _gradeTangent
             + _settings.BaseVariationAmplitude * _base.Sample(z / _settings.BaseVariationWavelength, LineOffset);

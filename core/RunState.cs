@@ -14,6 +14,9 @@ public partial class RunState : Node
     /// <summary>Deepest point reached this run, in metres below the start.</summary>
     public int Depth { get; set; }
 
+    /// <summary>Highest station reached this run (0 before the first).</summary>
+    public int Stage { get; set; }
+
     public Difficulty Difficulty
     {
         get => _difficulty;
@@ -44,6 +47,19 @@ public partial class RunState : Node
     public override void _Ready()
     {
         GameEvents.DepthChanged += OnDepthChanged;
+        GameEvents.StationReached += OnStationReached;
+        GameEvents.RespawnRequested += OnRespawnRequested;
+    }
+
+    private void OnStationReached(int station)
+    {
+        Stage = Mathf.Max(Stage, station);
+    }
+
+    private void OnRespawnRequested()
+    {
+        Stage = 0;
+        Depth = 0;
     }
 
     private void OnDepthChanged(float depth)
@@ -54,6 +70,8 @@ public partial class RunState : Node
     public override void _ExitTree()
     {
         GameEvents.DepthChanged -= OnDepthChanged;
+        GameEvents.StationReached -= OnStationReached;
+        GameEvents.RespawnRequested -= OnRespawnRequested;
         _difficultySettings = null;
         Route = null;
 

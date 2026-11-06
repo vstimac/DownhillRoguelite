@@ -20,4 +20,15 @@ public sealed class TerrainRoute : IRouteQuery
         float x = _generator.SpineX(z);
         return new Vector3(x, _generator.Height(x, z), z);
     }
+
+    public Vector3 Station(int index)
+    {
+        Vector3 centre = _generator.Station(index);
+        return new Vector3(centre.X, _generator.Height(centre.X, centre.Z), centre.Z);
+    }
+
+    public int NextStationIndex(float z)
+    {
+        return _generator.NextStationIndex(z);
+    }
 }

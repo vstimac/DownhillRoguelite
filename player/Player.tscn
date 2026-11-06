@@ -15,6 +15,7 @@
 [ext_resource type="Script" path="res://player/HurtVignette.cs" id="13_vignette"]
 [ext_resource type="Script" path="res://player/CarrierNeeds.cs" id="14_needs"]
 [ext_resource type="Script" path="res://player/PickupInteractor.cs" id="15_interactor"]
+[ext_resource type="Script" path="res://player/RouteEstimator.cs" id="16_estimator"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.3
@@ -90,3 +91,8 @@ Health = NodePath("../Health")
 [node name="Interactor" type="Node" parent="." node_paths=PackedStringArray("Body")]
 script = ExtResource("15_interactor")
 Body = NodePath("..")
+
+[node name="RouteEstimator" type="Node" parent="." node_paths=PackedStringArray("Body", "Stamina")]
+script = ExtResource("16_estimator")
+Body = NodePath("..")
+Stamina = NodePath("../Stamina")

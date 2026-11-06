@@ -24,7 +24,14 @@ Added from the director's follow-up: stamina is the resource that decides whethe
 - Hunger lowers the maximum and thirst halves recovery, so food and water are part of the same budget.
 - All of it uses one formula (`CarrierStamina.WalkDrainPerSecond`), which the waypoint estimates (M7) use too.
 
-## Waypoints and the estimate (M7)
+## Stations and nights (built in M7)
+
+- A **station** stands on the route every 600 m of descent (tunable), on a gently tilted terrace with a fire, a lean-to, a bedroll and a light beacon visible from far away. Inside its shelter (9 m) you can pack (Tab) and, from 16:00 or at night, sleep (E on the bedroll).
+- **Sleeping** skips to dawn of the next day: 40% of maximum health back, full stamina, and hunger and thirst drain at a third of the waking rate for the hours slept.
+- **Night** (20:00–06:00, an hour of twilight each side): the light fades to faint moonlight and fog closes in. Outside a shelter the cold drains health and halves stamina recovery, scaled by darkness and the difficulty's night harshness.
+- Debug: T skips an hour.
+
+## Waypoints and the estimate (built in M7)
 
 Waypoints toward the next station show, in the world, the distance, the estimated time including rests, the stamina it will take and whether you'd arrive before nightfall. That's what lets you decide between picking up the supplies over there and descending faster. The estimate uses the carrier's current load, needs and stamina, and the route's slope.
 
@@ -74,7 +81,7 @@ M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain
 | Milestone | Scope |
 | --- | --- |
 | **M6 Survival core** (built) | Game clock and difficulty; item categories; hunger and thirst; eating and drinking; endurance stamina; empty starting pack; supplies scattered along the route; picking up with E; death restarts the run |
-| **M7 Day, night and stations** | Visible day/night cycle (sun, sky, darkness); stages ending at stations (shelters); waypoints with time, stamina and nightfall estimates; sleeping skips the night and heals; night cold; packing only at stations |
+| **M7 Day, night and stations** (built) | Visible day/night cycle (sun, sky, darkness); a station every 600 m of depth on a level terrace with fire, lean-to, bedroll and beacon; stone cairns every 120 m showing the estimate (distance, time with rests, stamina, arrival against nightfall); sleeping from 16:00 skips to dawn, heals 40% and refills stamina; night cold outside a shelter; packing only at stations |
 | **M8 Weather** | Fog, rain, snow, wind, heat per circle and time; effects on visibility, grip, balance and needs |
 | **M9 Wildlife** | The approved wildlife plan (animals per circle, fleeing, scattering on falls), reusing M6's world spawner |
 | **M10 Routes** | Branching paths from each shelter's lookout; route types (safe, hazardous, supply-rich) |

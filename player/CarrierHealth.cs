@@ -4,8 +4,8 @@ using Godot;
 namespace DownhillRoguelite.Player;
 
 /// <summary>
-/// The carrier's health. Damage comes from physical impacts while ragdolling (PlayerRagdoll). No
-/// regeneration during a run. At zero the carrier is dead: it stays down, and after RespawnDelay a
+/// The carrier's health. Damage comes from physical impacts while ragdolling (PlayerRagdoll), hunger,
+/// thirst and night cold. No regeneration during the day; a night's sleep at a station heals part. At zero the carrier is dead: it stays down, and after RespawnDelay a
 /// respawn is requested (debug stand-in until runs and a fail state exist). Publishes a
 /// VitalsSnapshot with stamina every physics frame.
 /// </summary>
@@ -17,6 +17,8 @@ public partial class CarrierHealth : Node
     [Export] public float Max { get; set; } = 100.0f;
     /// <summary>Seconds dead before a respawn is requested.</summary>
     [Export] public float RespawnDelay { get; set; } = 4.0f;
+    /// <summary>Fraction of maximum health a night's sleep in a station restores.</summary>
+    [Export] public float SleepHealFraction { get; set; } = 0.4f;
 
     public float Current { get; private set; }
     public bool Dead { get; private set; }
@@ -29,11 +31,28 @@ public partial class CarrierHealth : Node
     {
         Current = Max;
         GameEvents.RespawnRequested += OnRespawnRequested;
+        GameEvents.Slept += OnSlept;
     }
 
     public override void _ExitTree()
     {
         GameEvents.RespawnRequested -= OnRespawnRequested;
+        GameEvents.Slept -= OnSlept;
+    }
+
+    /// <summary>Health doesn't regenerate on its own; only sleep (and later medicine) heals.</summary>
+    public void Heal(float amount)
+    {
+        if (Dead || amount <= 0.0f)
+        {
+            return;
+        }
+        Current = Mathf.Min(Max, Current + amount);
+    }
+
+    private void OnSlept(float hours)
+    {
+        Heal(Max * SleepHealFraction);
     }
 
     public void TakeDamage(float amount, string source)
