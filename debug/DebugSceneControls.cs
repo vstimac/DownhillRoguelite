@@ -6,13 +6,14 @@ namespace DownhillRoguelite.Debug;
 
 /// <summary>
 /// Shared controls for debug scenes with a player: F1 swaps between the player camera and the
-/// free-fly camera, R respawns at the player's starting point, and falling below KillHeight
+/// free-fly camera, R respawns at the player's starting point, T skips an hour, and falling below KillHeight
 /// respawns automatically.
 /// </summary>
 public partial class DebugSceneControls : Node
 {
     private static readonly StringName ActionToggleFly = "debug_toggle_fly_camera";
     private static readonly StringName ActionRespawn = "debug_respawn";
+    private static readonly StringName ActionSkipHour = "debug_skip_hour";
 
     [Export] public PlayerController? PlayerBody { get; set; }
     [Export] public Camera3D? PlayerCamera { get; set; }
@@ -67,6 +68,10 @@ public partial class DebugSceneControls : Node
         else if (@event.IsActionPressed(ActionRespawn))
         {
             Respawn();
+        }
+        else if (@event.IsActionPressed(ActionSkipHour))
+        {
+            GetNodeOrNull<WorldClock>("/root/WorldClock")?.AdvanceHours(1.0f);
         }
     }
 

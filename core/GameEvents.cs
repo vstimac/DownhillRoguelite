@@ -85,6 +85,45 @@ public static class GameEvents
         ItemPickedUp?.Invoke(itemId, category);
     }
 
+    /// <summary>Whether the carrier is inside a station's shelter (warm, can pack and sleep).</summary>
+    public static bool InShelter { get; private set; }
+
+    /// <summary>The carrier entered (true) or left (false) a station's shelter: (inside, station index).</summary>
+    public static event Action<bool, int>? ShelterChanged;
+
+    /// <summary>The carrier reached a station for the first time this run: (station index).</summary>
+    public static event Action<int>? StationReached;
+
+    /// <summary>The carrier slept through the night: (hours slept).</summary>
+    public static event Action<float>? Slept;
+
+    /// <summary>The latest estimate to the next station, from the carrier's route estimator.</summary>
+    public static event Action<RouteEstimate>? RouteEstimateUpdated;
+
+    public static RouteEstimate LatestEstimate { get; private set; }
+
+    public static void PublishShelter(bool inside, int station)
+    {
+        InShelter = inside;
+        ShelterChanged?.Invoke(inside, station);
+    }
+
+    public static void PublishStationReached(int station)
+    {
+        StationReached?.Invoke(station);
+    }
+
+    public static void PublishSlept(float hours)
+    {
+        Slept?.Invoke(hours);
+    }
+
+    public static void PublishRouteEstimate(RouteEstimate estimate)
+    {
+        LatestEstimate = estimate;
+        RouteEstimateUpdated?.Invoke(estimate);
+    }
+
     /// <summary>Raised by terrain when the deepest point reached this run grows, in metres below the start.</summary>
     public static event Action<float>? DepthChanged;
 

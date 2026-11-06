@@ -5,7 +5,8 @@ using Godot;
 namespace DownhillRoguelite.Inventory;
 
 /// <summary>
-/// Repacking in the world. Tab sets the pack down in front of the carrier with a close-up camera;
+/// Repacking in the world, at a station's shelter (or anywhere with AllowAnywhere). Tab sets the pack
+/// down in front of the carrier with a close-up camera;
 /// click an item (in the pack or on the mat) to pick it up, aim at a column of the pack and click
 /// to drop it in at the lowest spot it fits (ghost: green fits, red doesn't). Q/E turn it, R/F tip
 /// it, right click puts it back on the mat. Tab again puts the pack back on.
@@ -25,6 +26,8 @@ public partial class PackingMode : Node3D
     [Export] public PlayerController? PlayerBody { get; set; }
     /// <summary>Camera to return to when the pack goes back on.</summary>
     [Export] public Camera3D? PlayerCamera { get; set; }
+    /// <summary>Allow packing anywhere (debug scenes without stations); otherwise only in a station's shelter.</summary>
+    [Export] public bool AllowAnywhere { get; set; }
 
     [ExportGroup("Station")]
     /// <summary>How far in front of the carrier the pack is set down, in m.</summary>
@@ -155,9 +158,32 @@ public partial class PackingMode : Node3D
         _view.ShowGhost(_ghostOrigin, size, _ghostValid);
     }
 
+    /// <summary>Opens packing if allowed here (station shelter, or AllowAnywhere); returns whether it opened.</summary>
+    public bool TryOpen()
+    {
+        if (!Active)
+        {
+            TryEnter();
+        }
+        return Active;
+    }
+
+    /// <summary>Puts the pack back on.</summary>
+    public void Close()
+    {
+        if (Active)
+        {
+            Exit();
+        }
+    }
+
     private void TryEnter()
     {
         if (Inventory?.Backpack == null || Inventory.Grid == null || PlayerBody == null)
+        {
+            return;
+        }
+        if (!AllowAnywhere && !GameEvents.InShelter)
         {
             return;
         }

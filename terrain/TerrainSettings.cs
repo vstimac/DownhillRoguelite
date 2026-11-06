@@ -48,6 +48,18 @@ public partial class TerrainSettings : Resource
     /// <summary>Z where the run starts.</summary>
     [Export] public float SpawnZ { get; set; } = 0.0f;
 
+    [ExportGroup("Stations")]
+    /// <summary>Metres of descent between stations (one day's stage).</summary>
+    [Export] public float StationDepthInterval { get; set; } = 600.0f;
+    /// <summary>Radius of a station's level terrace, in m.</summary>
+    [Export] public float ClearingRadius { get; set; } = 8.0f;
+    /// <summary>Length of the ramp blending the terrace into the slope, in m.</summary>
+    [Export] public float ClearingBlend { get; set; } = 70.0f;
+    /// <summary>The terrace keeps a gentle tilt down the mountain, in degrees.</summary>
+    [Export] public float ClearingSlope { get; set; } = 10.0f;
+    /// <summary>Stations worked out when the mountain is generated; more are added as needed.</summary>
+    [Export] public int PrecomputedStations { get; set; } = 16;
+
     [ExportGroup("Surfaces")]
     [Export] public float RockSlope { get; set; } = 38.0f;
     [Export] public float ScreeSlope { get; set; } = 28.0f;

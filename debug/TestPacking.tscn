@@ -76,6 +76,7 @@ script = ExtResource("10_balance_overlay")
 
 [node name="Packing" type="Node3D" parent="." node_paths=PackedStringArray("Inventory", "PlayerBody", "PlayerCamera")]
 script = ExtResource("12_packing")
+AllowAnywhere = true
 Inventory = NodePath("../Player/Inventory")
 PlayerBody = NodePath("../Player")
 PlayerCamera = NodePath("../Player/CameraRig/SpringArm/Camera")
