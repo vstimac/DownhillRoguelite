@@ -57,10 +57,10 @@ public partial class ChaseCamera : Node3D
         PhysicsInterpolationMode = PhysicsInterpolationModeEnum.Off;
         _pitchDegrees = DefaultPitch;
 
-        if (Target != null)
+        SnapBehindTarget();
+        if (Target is PlayerController controller)
         {
-            _yawDegrees = Mathf.RadToDeg(Target.GlobalRotation.Y);
-            GlobalPosition = PivotOf(Target);
+            controller.Teleported += SnapBehindTarget;
         }
 
         if (Arm != null)
@@ -83,6 +83,28 @@ public partial class ChaseCamera : Node3D
             }
         }
 
+        ApplyRotation();
+    }
+
+    public override void _ExitTree()
+    {
+        if (Target is PlayerController controller)
+        {
+            controller.Teleported -= SnapBehindTarget;
+        }
+    }
+
+    /// <summary>Puts the camera straight behind the target at the default pitch, e.g. after a respawn.</summary>
+    private void SnapBehindTarget()
+    {
+        if (Target == null)
+        {
+            return;
+        }
+        _yawDegrees = Mathf.RadToDeg(Target.GlobalRotation.Y);
+        _pitchDegrees = DefaultPitch;
+        _timeSinceLook = 0.0f;
+        GlobalPosition = PivotOf(Target);
         ApplyRotation();
     }
 

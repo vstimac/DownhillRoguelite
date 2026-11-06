@@ -143,11 +143,18 @@ public partial class PlayerController : CharacterBody3D
             Stamina!.DrainSprint(dt, GameEvents.CurrentLoad.Mass);
         }
 
-        float downwardSpeed = -Velocity.Y;
+        // Only a real flight counts as a landing: sliding off a steep face onto flat ground doesn't.
+        bool wasAirborne = State == LocomotionState.Airborne;
+        Vector3 preMoveVelocity = Velocity;
         MoveAndSlide();
-        if (!grounded && IsOnFloor() && downwardSpeed >= Settings.MinReportedLanding)
+        if (wasAirborne && !grounded && IsOnFloor())
         {
-            GameEvents.PublishLanded(downwardSpeed);
+            // Speed into the surface, not raw vertical speed, so landing on a slope going with it is softer.
+            float impactSpeed = -preMoveVelocity.Dot(GetFloorNormal());
+            if (impactSpeed >= Settings.MinReportedLanding)
+            {
+                GameEvents.PublishLanded(impactSpeed);
+            }
         }
 
         UpdateSurface();

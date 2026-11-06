@@ -476,6 +476,7 @@ public partial class LocomotionTests : Node3D
     {
         // Lift slightly so the capsule never starts inside the surface; it settles before measuring.
         player.Teleport(position + Vector3.Up * 0.05f, 0.0f);
+        player.Health?.Refill();
         await WaitSeconds(SettleTime);
     }
 

@@ -245,7 +245,14 @@ public partial class BalanceTests : Node3D
             Check("no movement while fallen", speed <= MaxFallenSpeed && player.State == LocomotionState.Fallen,
                 $"speed {speed:0.00} m/s, locomotion {player.State}");
 
-            bool up = await WaitForState(balance, BalanceState.Stable, balance.Settings.FallDuration + 0.5f);
+            // Falls are ragdolls now: the carrier is up once the body settles, at most MaxDownTime.
+            float getUpTimeout = balance.Settings.FallDuration + 0.5f;
+            PlayerRagdoll? ragdoll = player.GetNodeOrNull<PlayerRagdoll>("Ragdoll");
+            if (ragdoll != null)
+            {
+                getUpTimeout = ragdoll.MaxDownTime + ragdoll.GetUpBlendTime + 0.5f;
+            }
+            bool up = await WaitForState(balance, BalanceState.Stable, getUpTimeout);
             await WaitSeconds(0.1f);
             Check("gets back up after a fall", up && player.State != LocomotionState.Fallen, $"balance {balance.State}, locomotion {player.State}");
         }
@@ -264,6 +271,7 @@ public partial class BalanceTests : Node3D
     {
         loads.Publish(load);
         player.Teleport(position + Vector3.Up * 0.05f, 0.0f);
+        player.Health?.Refill();
         _balance?.ResetBalance();
         await WaitSeconds(SettleTime);
         _samples.Clear();

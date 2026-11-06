@@ -207,6 +207,7 @@ public partial class PackingTests : Node3D
     private async Task<(float Peak, BalanceState Worst)> RunDescent(PlayerController player, TestCourseBuilder course)
     {
         player.Teleport(course.LanePoint(DescentLane, 3.0f) + Vector3.Up * 0.05f, 0.0f);
+        player.Health?.Refill();
         player.GetNodeOrNull<BalanceController>("Balance")?.ResetBalance();
         await WaitSeconds(SettleTime);
         _samples.Clear();
