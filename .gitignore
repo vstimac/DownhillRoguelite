@@ -1,0 +1,15 @@
+# Godot generated cache
+.godot/
+.mono/
+
+# .NET build output
+bin/
+obj/
+*.user
+
+# IDEs
+.vs/
+.idea/
+
+# Claude Code per-user settings
+.claude/settings.local.json
