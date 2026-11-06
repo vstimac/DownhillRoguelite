@@ -1,0 +1,54 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/TestCourseBuilder.cs" id="1_course"]
+[ext_resource type="Shader" path="res://debug/checker.gdshader" id="2_checker"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="3_player"]
+[ext_resource type="Script" path="res://debug/FreeFlyCamera.cs" id="4_fly"]
+[ext_resource type="Script" path="res://debug/DebugSceneControls.cs" id="5_controls"]
+[ext_resource type="Script" path="res://debug/LocomotionDebugOverlay.cs" id="6_overlay"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+
+[sub_resource type="Sky" id="Sky_main"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 2
+sky = SubResource("Sky_main")
+ambient_light_source = 3
+reflected_light_source = 2
+tonemap_mode = 2
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_checker"]
+render_priority = 0
+shader = ExtResource("2_checker")
+
+[node name="TestLocomotion" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.453154, 0.211309, 0, 0.422618, 0.906308, -0.5, -0.784886, 0.365998, 0, 100, 0)
+shadow_enabled = true
+directional_shadow_max_distance = 120.0
+
+[node name="Course" type="Node3D" parent="."]
+script = ExtResource("1_course")
+SurfaceMaterial = SubResource("ShaderMaterial_checker")
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 15.05, 10)
+
+[node name="FlyCamera" type="Camera3D" parent="."]
+far = 1000.0
+script = ExtResource("4_fly")
+
+[node name="DebugControls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "PlayerCamera", "FlyCamera")]
+script = ExtResource("5_controls")
+PlayerBody = NodePath("../Player")
+PlayerCamera = NodePath("../Player/CameraRig/SpringArm/Camera")
+FlyCamera = NodePath("../FlyCamera")
+
+[node name="LocomotionOverlay" type="CanvasLayer" parent="."]
+script = ExtResource("6_overlay")

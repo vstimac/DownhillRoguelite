@@ -99,7 +99,21 @@ else
     fail ".NET runtime did not initialize"
 fi
 
-# --- 6. Reminder about generated files that should be committed.
+# --- 6. Automated test scenes: every debug/tests/*.tscn must exit 0. They print PASS/FAIL lines.
+for TEST_SCENE in debug/tests/*.tscn; do
+    [ -e "$TEST_SCENE" ] || continue
+    TEST_NAME="$(basename "$TEST_SCENE" .tscn)"
+    "$GODOT_BIN" --headless --path . --fixed-fps 60 --quit-after 20000 "res://$TEST_SCENE" > "$LOG_DIR/$TEST_NAME.log" 2>&1
+    TEST_EXIT=$?
+    if [ "$TEST_EXIT" -eq 0 ] && ! grep -qE "^FAIL|ERROR|Unhandled exception" "$LOG_DIR/$TEST_NAME.log"; then
+        pass "$TEST_NAME ($(grep -c '^PASS' "$LOG_DIR/$TEST_NAME.log") checks)"
+    else
+        fail "$TEST_NAME (exit $TEST_EXIT):"
+        grep -E "^FAIL|ERROR|Unhandled exception" "$LOG_DIR/$TEST_NAME.log" | sed 's/^/      /'
+    fi
+done
+
+# --- 7. Reminder about generated files that should be committed.
 UNTRACKED_UIDS="$(git status --porcelain --untracked-files=all 2>/dev/null | grep -E '^\?\? .*\.uid$' | cut -c4-)"
 if [ -n "$UNTRACKED_UIDS" ]; then
     echo "NOTE  Untracked .uid files (commit them with their resources):"

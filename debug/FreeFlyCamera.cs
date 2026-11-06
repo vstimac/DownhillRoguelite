@@ -34,19 +34,32 @@ public partial class FreeFlyCamera : Camera3D
 
     public override void _Ready()
     {
+        // Moved in _Process, so physics interpolation would only add lag.
+        PhysicsInterpolationMode = PhysicsInterpolationModeEnum.Off;
+        ResetLook();
+    }
+
+    /// <summary>Re-reads yaw and pitch from the current rotation, e.g. after copying another camera's transform.</summary>
+    public void ResetLook()
+    {
         _pitchDegrees = RotationDegrees.X;
         _yawDegrees = RotationDegrees.Y;
     }
 
     public override void _Process(double delta)
     {
+        if (!Current)
+        {
+            return;
+        }
+
         UpdateMouseCapture();
         Move((float)delta);
     }
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (Input.MouseMode != Input.MouseModeEnum.Captured)
+        if (!Current || Input.MouseMode != Input.MouseModeEnum.Captured)
         {
             return;
         }
