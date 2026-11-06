@@ -6,4 +6,5 @@
 script = ExtResource("1_surface")
 DisplayName = "Scree"
 Grip = 0.4
+Hardness = 0.8
 DebugColor = Color(0.68, 0.6, 0.48, 1)
