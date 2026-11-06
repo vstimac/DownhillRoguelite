@@ -1,7 +1,8 @@
 # Downhill Roguelite — Claude Code instructions
 
 Third-person descent roguelite in Godot 4.6+ (.NET) with C#. Full plan: see the "Downhill Roguelite — Development Plan" doc.
-Current milestone: M4 sprint/stamina, jump, health from ragdoll impacts — built on branch wip/m4-vitals-ragdoll, tests passing, not yet merged to main. M1–M4 all waiting for the director's play-test sign-off (update this line as we progress).
+Story and setting: docs/narrative.md (endless descent through Dante's nine circles toward an unreachable godhood).
+Current milestone: M4 sprint/stamina, jump, health from ragdoll impacts — built and merged to main. M1–M4 all waiting for the director's play-test sign-off (update this line as we progress).
 This folder (`downhill-roguelite-(copy)`) is the active project; `D:\Game dev\DownhillRoguelite` is the older copy without the addon.
 
 ## Build and run
