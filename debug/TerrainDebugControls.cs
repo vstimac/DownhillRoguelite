@@ -1,3 +1,4 @@
+using DownhillRoguelite.Core;
 using DownhillRoguelite.Player;
 using DownhillRoguelite.Terrain;
 using Godot;

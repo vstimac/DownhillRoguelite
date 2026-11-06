@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "water_skin"
+DisplayName = "Water skin"
+MassKg = 1.3
+Category = 1
+Hydration = 55.0
+SizeCells = Vector3i(2, 3, 1)
+Tags = 2
+Orientation = 1
+DebugColor = Color(0.45, 0.55, 0.75, 1)

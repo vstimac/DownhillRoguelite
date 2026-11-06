@@ -7,6 +7,7 @@ script = ExtResource("1_item")
 ItemId = "med_kit"
 DisplayName = "Med kit"
 MassKg = 0.8
+Category = 2
 SizeCells = Vector3i(2, 2, 2)
 Tags = 1
 Orientation = 0

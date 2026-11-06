@@ -53,6 +53,38 @@ public static class GameEvents
     /// <summary>Raised when the carrier died and should be brought back (debug respawn until runs exist).</summary>
     public static event Action? RespawnRequested;
 
+    /// <summary>The carrier wants to eat or drink: (need, how much is missing, 0 to 100). The inventory answers.</summary>
+    public static event Action<SupplyNeed, float>? ConsumeRequested;
+
+    /// <summary>An item was eaten or drunk: (need, item id, how much it restores).</summary>
+    public static event Action<SupplyNeed, string, float>? ItemConsumed;
+
+    /// <summary>The carrier tried to eat or drink with nothing suitable packed.</summary>
+    public static event Action<SupplyNeed>? ConsumeFailed;
+
+    /// <summary>An item went into the pack from the world: (item id, category name).</summary>
+    public static event Action<string, string>? ItemPickedUp;
+
+    public static void RequestConsume(SupplyNeed need, float deficit)
+    {
+        ConsumeRequested?.Invoke(need, deficit);
+    }
+
+    public static void PublishItemConsumed(SupplyNeed need, string itemId, float restore)
+    {
+        ItemConsumed?.Invoke(need, itemId, restore);
+    }
+
+    public static void PublishConsumeFailed(SupplyNeed need)
+    {
+        ConsumeFailed?.Invoke(need);
+    }
+
+    public static void PublishItemPickedUp(string itemId, string category)
+    {
+        ItemPickedUp?.Invoke(itemId, category);
+    }
+
     /// <summary>Raised by terrain when the deepest point reached this run grows, in metres below the start.</summary>
     public static event Action<float>? DepthChanged;
 

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="SupplyTable" format=3]
+
+[ext_resource type="Script" path="res://inventory/world/SupplyTable.cs" id="1_table"]
+
+[resource]
+script = ExtResource("1_table")
+ItemPaths = PackedStringArray("res://inventory/items/ration.tres", "res://inventory/items/dried_fruit.tres", "res://inventory/items/food_bag.tres", "res://inventory/items/water_flask.tres", "res://inventory/items/water_skin.tres", "res://inventory/items/water_bottle.tres", "res://inventory/items/med_kit.tres", "res://inventory/items/rope.tres", "res://inventory/items/stove.tres", "res://inventory/items/fuel_canister.tres", "res://inventory/items/cookware.tres", "res://inventory/items/ore_sample.tres")
+Weights = PackedFloat32Array(4, 4, 1.5, 4, 2.5, 1.5, 1, 0.6, 0.4, 0.6, 0.4, 0.5)
+MinDepths = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 150)
+RoutePerKm = 8.0
+Density = 0.03

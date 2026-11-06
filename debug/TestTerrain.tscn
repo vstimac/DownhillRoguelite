@@ -15,6 +15,8 @@
 [ext_resource type="Resource" path="res://terrain/default_terrain.tres" id="15_terrain_settings"]
 [ext_resource type="Script" path="res://debug/TerrainDebugControls.cs" id="16_terrain_controls"]
 [ext_resource type="Script" path="res://debug/TerrainDebugOverlay.cs" id="17_terrain_overlay"]
+[ext_resource type="Script" path="res://inventory/world/SupplySpawner.cs" id="18_supplies"]
+[ext_resource type="Resource" path="res://inventory/world/default_supplies.tres" id="19_supply_table"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_top_color = Color(0.32, 0.33, 0.36, 1)
@@ -56,12 +58,18 @@ directional_shadow_max_distance = 120.0
 script = ExtResource("14_streamer")
 Settings = ExtResource("15_terrain_settings")
 
+[node name="Supplies" type="Node3D" parent="."]
+script = ExtResource("18_supplies")
+Table = ExtResource("19_supply_table")
+
 [node name="Player" parent="." instance=ExtResource("3_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.75, 15.05, 10)
 
 [node name="Inventory" type="Node" parent="Player"]
 script = ExtResource("8_inventory")
 Backpack = ExtResource("11_backpack")
+StartingItemPaths = PackedStringArray()
+AutoPackOnStart = false
 
 [node name="LoadVisual" type="Node3D" parent="Player"]
 script = ExtResource("9_load_visual")

@@ -2,7 +2,7 @@
 
 Third-person descent roguelite in Godot 4.6+ (.NET) with C#. Full plan: see the "Downhill Roguelite — Development Plan" doc.
 Story and setting: docs/narrative.md (endless descent through Dante's nine circles toward an unreachable godhood).
-Current milestone: M5 procedural terrain (endless streamed mountain, walkable spine, surfaces, obstacles, Circle 1 look) built; main scene is debug/TestTerrain. M1–M5 all waiting for the director's play-test sign-off (update this line as we progress).
+Current milestone: M6 survival core built (clock, difficulty, needs, endurance stamina, supplies, pickups, death restarts the run); next M7 day/night, stations and waypoints. Design: docs/survival-loop.md. M1–M6 all waiting for the director's play-test sign-off (update this line as we progress).
 This folder (`downhill-roguelite-(copy)`) is the active project; `D:\Game dev\DownhillRoguelite` is the older copy without the addon.
 
 ## Build and run

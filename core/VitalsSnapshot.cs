@@ -10,6 +10,8 @@ namespace DownhillRoguelite.Core;
 /// <param name="Dead">Health reached zero.</param>
 /// <param name="LastDamage">Size of the most recent hit.</param>
 /// <param name="LastDamageSource">What the most recent hit was against (surface name).</param>
+/// <param name="Hunger">Fullness, 100 = fed, 0 = starving.</param>
+/// <param name="Thirst">Hydration, 100 = quenched, 0 = dehydrated.</param>
 public readonly record struct VitalsSnapshot(
     float Health,
     float MaxHealth,
@@ -19,4 +21,6 @@ public readonly record struct VitalsSnapshot(
     bool Sprinting,
     bool Dead,
     float LastDamage,
-    string LastDamageSource);
+    string LastDamageSource,
+    float Hunger,
+    float Thirst);

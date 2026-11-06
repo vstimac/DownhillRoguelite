@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "water_flask"
+DisplayName = "Water flask"
+MassKg = 0.8
+Category = 1
+Hydration = 35.0
+SizeCells = Vector3i(1, 3, 1)
+Tags = 2
+Orientation = 1
+DebugColor = Color(0.35, 0.65, 0.9, 1)

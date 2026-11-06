@@ -19,6 +19,12 @@ public partial class ItemDefinition : Resource
     /// <summary>Centre of mass relative to the box centre, in m, in the default orientation.</summary>
     [Export] public Vector3 CenterOfMassOffset { get; set; } = Vector3.Zero;
 
+    [Export] public ItemCategory Category { get; set; } = ItemCategory.Supply;
+    /// <summary>Hunger restored when eaten (Food), out of 100.</summary>
+    [Export] public float Nutrition { get; set; }
+    /// <summary>Thirst restored when drunk (Water), out of 100.</summary>
+    [Export] public float Hydration { get; set; }
+
     [Export] public ItemTags Tags { get; set; } = ItemTags.None;
     [Export] public OrientationRule Orientation { get; set; } = OrientationRule.Any;
 

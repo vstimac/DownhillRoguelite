@@ -1,4 +1,4 @@
-namespace DownhillRoguelite.Terrain;
+namespace DownhillRoguelite.Core;
 
 /// <summary>
 /// Small deterministic random generator (SplitMix64). Same seed, same sequence on every machine and
