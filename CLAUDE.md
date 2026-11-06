@@ -20,6 +20,7 @@ Current milestone: M0 Project setup (update this line as we progress).
 - Systems communicate through C# events / signals and the RunState autoload — no direct cross-system references.
 - Every gameplay system gets a debug scene in debug/ and a debug overlay (COM, foot targets, forces).
 - No flat UI during runs: interfaces are 3D objects in the world (debug overlays excepted).
+- Inventory is a snapped 3D cell grid with 90° rotations, not free placement; carried cargo is calculated, not simulated. Read docs/inventory-design.md before any inventory or balance work.
 
 ## Workflow
 - Work one milestone at a time; propose scope in plan mode before large changes.
