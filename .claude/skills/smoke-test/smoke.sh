@@ -63,9 +63,16 @@ fi
 
 # --- 3. Import: refreshes the .godot cache and generates .uid files for new resources.
 "$GODOT_BIN" --headless --path . --import > "$LOG_DIR/import.log" 2>&1
-if grep -qiE "error" "$LOG_DIR/import.log"; then
+# A reloadable GDExtension (nobodywho) is loaded in the editor from a "~" copy of its library.
+# While the Godot editor has this project open, that copy is locked and an editor-mode import
+# can't load the addon. That only means "editor is open"; the runtime load is checked below.
+LOCK_PATTERN="addons/[^ ]*/~|Error copying library|Can't open GDExtension dynamic library|Error loading extension"
+IMPORT_ERRORS="$(grep -iE "error" "$LOG_DIR/import.log" | grep -vE "$LOCK_PATTERN")"
+if [ -n "$IMPORT_ERRORS" ]; then
     fail "Import reported errors:"
-    grep -iE "error" "$LOG_DIR/import.log" | sed 's/^/      /'
+    echo "$IMPORT_ERRORS" | sed 's/^/      /'
+elif grep -qE "$LOCK_PATTERN" "$LOG_DIR/import.log"; then
+    echo "NOTE  Import: addon library locked (Godot editor has this project open); runtime load checked below"
 else
     pass "Import"
 fi
@@ -99,6 +106,16 @@ if grep -q "\.NET: GodotPlugins initialized" "$LOG_DIR/verbose.log"; then
 else
     fail ".NET runtime did not initialize"
 fi
+
+# Every GDExtension in addons/ must load at runtime (headless runs use the library directly).
+for EXTENSION in addons/*/*.gdextension; do
+    [ -e "$EXTENSION" ] || continue
+    if grep -qE "Error loading extension: 'res://$EXTENSION'|Can't open GDExtension dynamic library: 'res://$EXTENSION'" "$LOG_DIR/verbose.log"; then
+        fail "GDExtension failed to load at runtime: $EXTENSION"
+    else
+        pass "GDExtension loaded at runtime: $EXTENSION"
+    fi
+done
 
 # --- 6. Automated test scenes: every debug/tests/*.tscn must exit 0. They print PASS/FAIL lines.
 for TEST_SCENE in debug/tests/*.tscn; do

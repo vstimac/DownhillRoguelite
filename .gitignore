@@ -13,3 +13,12 @@ obj/
 
 # Claude Code per-user settings
 .claude/settings.local.json
+
+# NobodyWho prebuilt libraries (~140 MB each, over GitHub's 100 MB file limit).
+# Reinstall the addon to restore them; see addons/README.md.
+addons/nobodywho/*.dll
+addons/nobodywho/*.pdb
+addons/nobodywho/*.so
+addons/nobodywho/*.dylib
+# Leftover copies Windows makes of locked DLLs
+addons/**/~*
