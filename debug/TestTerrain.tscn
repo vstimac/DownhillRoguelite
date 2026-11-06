@@ -22,16 +22,18 @@
 [ext_resource type="Script" path="res://environment/weather/WeatherSystem.cs" id="22_weather"]
 [ext_resource type="Resource" path="res://environment/weather/default_weather.tres" id="23_weather_table"]
 [ext_resource type="Script" path="res://environment/weather/WeatherParticles.cs" id="24_weather_particles"]
+[ext_resource type="Shader" path="res://environment/sky/descent_sky.gdshader" id="25_sky_shader"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
-sky_top_color = Color(0.32, 0.33, 0.36, 1)
-sky_horizon_color = Color(0.55, 0.55, 0.56, 1)
-ground_bottom_color = Color(0.12, 0.12, 0.13, 1)
-ground_horizon_color = Color(0.55, 0.55, 0.56, 1)
-sun_angle_max = 8.0
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
+shader = ExtResource("25_sky_shader")
+shader_parameter/top_color = Color(0.3, 0.36, 0.46, 1)
+shader_parameter/horizon_color = Color(0.62, 0.62, 0.62, 1)
+shader_parameter/ground_color = Color(0.12, 0.12, 0.13, 1)
 
 [sub_resource type="Sky" id="Sky_main"]
-sky_material = SubResource("ProceduralSkyMaterial_sky")
+sky_material = SubResource("ShaderMaterial_sky")
+process_mode = 3
+radiance_size = 1
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 2
