@@ -74,7 +74,8 @@ public partial class VitalsDebugOverlay : CanvasLayer
             return;
         }
 
-        Visible = DebugDraw3D.Enabled && !GameEvents.IsPacking;
+        // The bars double as the demo's HUD, so F3 doesn't hide them.
+        Visible = !GameEvents.IsPacking;
         if (!Visible)
         {
             return;

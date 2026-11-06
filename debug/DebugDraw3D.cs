@@ -14,8 +14,14 @@ public partial class DebugDraw3D : Node3D
     private static readonly List<(Vector3 From, Vector3 To, Color Color)> Lines = new();
     private static bool _dirty;
 
-    /// <summary>Whether debug drawing and debug overlays are shown.</summary>
-    public static bool Enabled { get; private set; } = true;
+    /// <summary>Whether debug drawing and debug overlays are shown: on in debug builds, off in a release export.</summary>
+    public static bool Enabled { get; private set; } = OS.IsDebugBuild();
+
+    public static void SetEnabled(bool enabled)
+    {
+        Enabled = enabled;
+        _dirty = true;
+    }
 
     private ImmediateMesh? _mesh;
     private StandardMaterial3D? _material;
