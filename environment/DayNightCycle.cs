@@ -10,7 +10,9 @@ namespace DownhillRoguelite.Environment;
 /// difficulty's NightHarshness (easy nights are brighter). Day values are read from the scene's
 /// own light and environment at start, so each circle keeps its look. Weather (from
 /// GameEvents.CurrentWeather) comes on top: fog and precipitation thicken the fog and dim the sun
-/// under an overcast grey; heat tints the haze.
+/// under an overcast grey; heat tints the haze. The sky is either a ProceduralSkyMaterial or the
+/// descent sky shader (environment/sky/descent_sky.gdshader: stars, sun and moon disc, clouds
+/// that thicken with overcast and drift with the wind).
 /// </summary>
 public partial class DayNightCycle : Node
 {
@@ -50,6 +52,12 @@ public partial class DayNightCycle : Node
     [Export] public Color HeatHazeColor { get; set; } = new(0.8f, 0.6f, 0.42f);
     [Export] public Color HeatSunColor { get; set; } = new(1.0f, 0.8f, 0.6f);
 
+    [ExportGroup("Sky shader")]
+    /// <summary>Cloud drift per m/s of wind, in cloud-texture units per second.</summary>
+    [Export] public float CloudDrift { get; set; } = 0.004f;
+    /// <summary>Cloud drift with no wind, so the sky never stands still.</summary>
+    [Export] public Vector2 CloudIdleDrift { get; set; } = new(0.003f, 0.001f);
+
     /// <summary>0 = full day look, 1 = full night look; for tests and other systems.</summary>
     public float Darkness { get; private set; }
     /// <summary>0 = clear sky, 1 = fully overcast (from weather).</summary>
@@ -65,6 +73,9 @@ public partial class DayNightCycle : Node
     private Color _daySkyTop = Colors.SkyBlue;
     private Color _daySkyHorizon = Colors.LightGray;
     private ProceduralSkyMaterial? _sky;
+    private ShaderMaterial? _skyShader;
+    private Vector2 _cloudOffset;
+    private float _twinkle;
 
     public override void _Ready()
     {
@@ -82,10 +93,16 @@ public partial class DayNightCycle : Node
             _dayFogDensity = environment.FogDensity;
             _dayFogColor = environment.FogLightColor;
             _sky = environment.Sky?.SkyMaterial as ProceduralSkyMaterial;
+            _skyShader = environment.Sky?.SkyMaterial as ShaderMaterial;
             if (_sky != null)
             {
                 _daySkyTop = _sky.SkyTopColor;
                 _daySkyHorizon = _sky.SkyHorizonColor;
+            }
+            else if (_skyShader != null)
+            {
+                _daySkyTop = (Color)_skyShader.GetShaderParameter("top_color");
+                _daySkyHorizon = (Color)_skyShader.GetShaderParameter("horizon_color");
             }
         }
         Apply();
@@ -93,6 +110,10 @@ public partial class DayNightCycle : Node
 
     public override void _Process(double delta)
     {
+        float dt = (float)delta;
+        Vector3 wind = GameEvents.CurrentWeather.Wind;
+        _cloudOffset += (new Vector2(wind.X, wind.Z) * CloudDrift + CloudIdleDrift) * dt;
+        _twinkle += dt;
         Apply();
     }
 
@@ -145,13 +166,22 @@ public partial class DayNightCycle : Node
             Color dayFogColor = _dayFogColor.Lerp(OvercastColor, Overcast * 0.6f).Lerp(HeatHazeColor, heat * 0.5f);
             environment.FogLightColor = dayFogColor.Lerp(NightFogColor, Darkness);
         }
+        Color top = _daySkyTop.Lerp(OvercastColor.Darkened(0.2f), Overcast * 0.7f).Lerp(HeatHazeColor, heat * 0.3f);
+        Color horizon = _daySkyHorizon.Lerp(OvercastColor, Overcast * 0.7f).Lerp(HeatHazeColor, heat * 0.4f);
         if (_sky != null)
         {
-            Color top = _daySkyTop.Lerp(OvercastColor.Darkened(0.2f), Overcast * 0.7f).Lerp(HeatHazeColor, heat * 0.3f);
-            Color horizon = _daySkyHorizon.Lerp(OvercastColor, Overcast * 0.7f).Lerp(HeatHazeColor, heat * 0.4f);
             _sky.SkyTopColor = top.Lerp(NightSkyTop, Darkness);
             _sky.SkyHorizonColor = horizon.Lerp(NightSkyHorizon, Darkness);
             _sky.GroundHorizonColor = horizon.Lerp(NightSkyHorizon, Darkness);
+        }
+        else if (_skyShader != null)
+        {
+            _skyShader.SetShaderParameter("top_color", top.Lerp(NightSkyTop, Darkness));
+            _skyShader.SetShaderParameter("horizon_color", horizon.Lerp(NightSkyHorizon, Darkness));
+            _skyShader.SetShaderParameter("darkness", Darkness);
+            _skyShader.SetShaderParameter("overcast", Overcast);
+            _skyShader.SetShaderParameter("cloud_offset", _cloudOffset);
+            _skyShader.SetShaderParameter("twinkle_time", _twinkle);
         }
     }
 }

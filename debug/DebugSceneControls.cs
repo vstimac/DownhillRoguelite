@@ -50,9 +50,13 @@ public partial class DebugSceneControls : Node
         {
             Input.ActionPress("player_brake");
         }
-        // `--weather=rain` (or fog, snow, wind, heat, clear) forces a front.
+        // `--weather=rain` (or fog, snow, wind, heat, clear) forces a front; `--hour=22` sets the clock.
         foreach (string arg in args)
         {
+            if (arg.StartsWith("--hour=") && float.TryParse(arg.Substring("--hour=".Length), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float hour))
+            {
+                GetNodeOrNull<WorldClock>("/root/WorldClock")?.SetTimeOfDay(hour);
+            }
             if (Weather != null && arg.StartsWith("--weather=") && System.Enum.TryParse(arg.Substring("--weather=".Length), true, out WeatherKind kind))
             {
                 Weather.Forced = kind;
