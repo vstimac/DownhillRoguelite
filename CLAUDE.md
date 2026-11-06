@@ -2,7 +2,7 @@
 
 Third-person descent roguelite in Godot 4.6+ (.NET) with C#. Full plan: see the "Downhill Roguelite — Development Plan" doc.
 Story and setting: docs/narrative.md (endless descent through Dante's nine circles toward an unreachable godhood).
-Current milestone: M7 day/night, stations, sleep, night cold and waypoint estimates built; next M8 weather. Design: docs/survival-loop.md. The director play-tested M7 and approved it; M1–M6 still waiting for detailed sign-off (update this line as we progress).
+Current milestone: M8 weather built (fronts per circle, grip, wind on balance, chill and heat); next M9 wildlife, M11 narrator companion. Design: docs/survival-loop.md. The director play-tested M7 and approved it; M8 waits for a play-test; M1–M6 still waiting for detailed sign-off (update this line as we progress).
 This folder (`downhill-roguelite-(copy)`) is the active project; `D:\Game dev\DownhillRoguelite` is the older copy without the addon.
 
 ## Build and run

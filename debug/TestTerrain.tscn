@@ -19,6 +19,9 @@
 [ext_resource type="Resource" path="res://inventory/world/default_supplies.tres" id="19_supply_table"]
 [ext_resource type="Script" path="res://environment/DayNightCycle.cs" id="20_daynight"]
 [ext_resource type="Script" path="res://map/StationManager.cs" id="21_stations"]
+[ext_resource type="Script" path="res://environment/weather/WeatherSystem.cs" id="22_weather"]
+[ext_resource type="Resource" path="res://environment/weather/default_weather.tres" id="23_weather_table"]
+[ext_resource type="Script" path="res://environment/weather/WeatherParticles.cs" id="24_weather_particles"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_top_color = Color(0.32, 0.33, 0.36, 1)
@@ -65,6 +68,13 @@ script = ExtResource("20_daynight")
 Sun = NodePath("../Sun")
 World = NodePath("../WorldEnvironment")
 
+[node name="Weather" type="Node" parent="."]
+script = ExtResource("22_weather")
+Table = ExtResource("23_weather_table")
+
+[node name="WeatherParticles" type="Node3D" parent="."]
+script = ExtResource("24_weather_particles")
+
 [node name="Stations" type="Node3D" parent="."]
 script = ExtResource("21_stations")
 
@@ -93,12 +103,13 @@ script = ExtResource("16_terrain_controls")
 Streamer = NodePath("../Terrain")
 PlayerBody = NodePath("../Player")
 
-[node name="DebugControls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "PlayerCamera", "FlyCamera")]
+[node name="DebugControls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "PlayerCamera", "FlyCamera", "Weather")]
 script = ExtResource("5_controls")
 KillHeight = -1e+09
 PlayerBody = NodePath("../Player")
 PlayerCamera = NodePath("../Player/CameraRig/SpringArm/Camera")
 FlyCamera = NodePath("../FlyCamera")
+Weather = NodePath("../Weather")
 
 [node name="LocomotionOverlay" type="CanvasLayer" parent="."]
 script = ExtResource("6_overlay")

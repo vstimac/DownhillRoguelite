@@ -38,11 +38,22 @@ public partial class RunState : Node
         }
     }
 
+    /// <summary>How depth maps to circles, from core/circles.tres.</summary>
+    public CircleTable Circles
+    {
+        get
+        {
+            _circles ??= ResourceLoader.Load("res://core/circles.tres") as CircleTable ?? new CircleTable();
+            return _circles;
+        }
+    }
+
     /// <summary>The walkable route through the world, set by terrain; null until terrain exists.</summary>
     public IRouteQuery? Route { get; set; }
 
     private Difficulty _difficulty = Difficulty.Normal;
     private DifficultySettings? _difficultySettings;
+    private CircleTable? _circles;
 
     public override void _Ready()
     {
@@ -73,6 +84,7 @@ public partial class RunState : Node
         GameEvents.StationReached -= OnStationReached;
         GameEvents.RespawnRequested -= OnRespawnRequested;
         _difficultySettings = null;
+        _circles = null;
         Route = null;
 
         // Autoloads leave the tree last. Collect now so managed wrappers that still reference Godot

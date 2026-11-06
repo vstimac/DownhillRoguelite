@@ -8,7 +8,9 @@ namespace DownhillRoguelite.Environment;
 /// sky; through dusk everything dims; at night only a faint moonlight is left and the fog closes in
 /// to a few dozen metres, so the slope ahead can't be read. Night darkness scales with the
 /// difficulty's NightHarshness (easy nights are brighter). Day values are read from the scene's
-/// own light and environment at start, so each circle keeps its look.
+/// own light and environment at start, so each circle keeps its look. Weather (from
+/// GameEvents.CurrentWeather) comes on top: fog and precipitation thicken the fog and dim the sun
+/// under an overcast grey; heat tints the haze.
 /// </summary>
 public partial class DayNightCycle : Node
 {
@@ -35,8 +37,23 @@ public partial class DayNightCycle : Node
     [Export] public Color NightSkyTop { get; set; } = new(0.01f, 0.012f, 0.025f);
     [Export] public Color NightSkyHorizon { get; set; } = new(0.04f, 0.045f, 0.06f);
 
+    [ExportGroup("Weather")]
+    /// <summary>Fog density added by full weather fog (by day; half of it at night, which is already thick).</summary>
+    [Export] public float WeatherFogDensity { get; set; } = 0.05f;
+    /// <summary>Fog density added by full rain or snow.</summary>
+    [Export] public float PrecipitationFogDensity { get; set; } = 0.012f;
+    /// <summary>How much a full overcast dims the sun.</summary>
+    [Export] public float OvercastDimming { get; set; } = 0.6f;
+    /// <summary>How much a full overcast dims ambient light.</summary>
+    [Export] public float OvercastAmbientDimming { get; set; } = 0.3f;
+    [Export] public Color OvercastColor { get; set; } = new(0.56f, 0.57f, 0.6f);
+    [Export] public Color HeatHazeColor { get; set; } = new(0.8f, 0.6f, 0.42f);
+    [Export] public Color HeatSunColor { get; set; } = new(1.0f, 0.8f, 0.6f);
+
     /// <summary>0 = full day look, 1 = full night look; for tests and other systems.</summary>
     public float Darkness { get; private set; }
+    /// <summary>0 = clear sky, 1 = fully overcast (from weather).</summary>
+    public float Overcast { get; private set; }
 
     private WorldClock? _clock;
     private RunState? _run;
@@ -94,6 +111,10 @@ public partial class DayNightCycle : Node
         }
         Darkness = 1.0f - daylight;
         float mild = 1.0f - harshness;
+        WeatherSnapshot weather = GameEvents.CurrentWeather;
+        Overcast = Mathf.Clamp(Mathf.Max(weather.Fog, Mathf.Max(weather.Rain, weather.Snow)), 0.0f, 1.0f);
+        float heat = Mathf.Clamp(weather.Heat, 0.0f, 1.0f);
+        float weatherFog = weather.Fog * WeatherFogDensity + (weather.Rain + weather.Snow) * PrecipitationFogDensity;
 
         if (Sun != null)
         {
@@ -103,27 +124,34 @@ public partial class DayNightCycle : Node
             float yaw = Mathf.Lerp(Azimuth.X, Azimuth.Y, progress);
             // Low sun warms toward dusk colour; at night the same light becomes faint moonlight.
             float lowSun = 1.0f - Mathf.Clamp(sunElevation / (MaxElevation * 0.5f), 0.0f, 1.0f);
-            Color sunColor = _dayLightColor.Lerp(DuskColor, lowSun * 0.7f);
+            Color sunColor = _dayLightColor.Lerp(DuskColor, lowSun * 0.7f).Lerp(HeatSunColor, heat * 0.5f);
+            float dayEnergy = _dayEnergy * (1.0f - OvercastDimming * Overcast);
             float moon = Mathf.Lerp(MoonEnergy.X, MoonEnergy.Y, mild);
 
             float elevation = Mathf.Lerp(sunElevation, MoonElevation, Darkness);
             Sun.Basis = new Basis(Vector3.Up, Mathf.DegToRad(yaw)) * new Basis(Vector3.Right, Mathf.DegToRad(-elevation));
             Sun.LightColor = sunColor.Lerp(MoonColor, Darkness);
-            Sun.LightEnergy = Mathf.Lerp(_dayEnergy, moon, Darkness);
+            Sun.LightEnergy = Mathf.Lerp(dayEnergy, moon * (1.0f - OvercastDimming * Overcast * 0.5f), Darkness);
         }
 
         Godot.Environment? environment = World?.Environment;
         if (environment != null)
         {
-            environment.AmbientLightEnergy = Mathf.Lerp(_dayAmbient, _dayAmbient * Mathf.Lerp(NightAmbient.X, NightAmbient.Y, mild), Darkness);
-            environment.FogDensity = Mathf.Lerp(_dayFogDensity, Mathf.Lerp(NightFogDensity.X, NightFogDensity.Y, mild), Darkness);
-            environment.FogLightColor = _dayFogColor.Lerp(NightFogColor, Darkness);
+            float ambient = _dayAmbient * (1.0f - OvercastAmbientDimming * Overcast);
+            environment.AmbientLightEnergy = Mathf.Lerp(ambient, ambient * Mathf.Lerp(NightAmbient.X, NightAmbient.Y, mild), Darkness);
+            float dayFog = _dayFogDensity + weatherFog;
+            float nightFog = Mathf.Lerp(NightFogDensity.X, NightFogDensity.Y, mild) + weatherFog * 0.5f;
+            environment.FogDensity = Mathf.Lerp(dayFog, nightFog, Darkness);
+            Color dayFogColor = _dayFogColor.Lerp(OvercastColor, Overcast * 0.6f).Lerp(HeatHazeColor, heat * 0.5f);
+            environment.FogLightColor = dayFogColor.Lerp(NightFogColor, Darkness);
         }
         if (_sky != null)
         {
-            _sky.SkyTopColor = _daySkyTop.Lerp(NightSkyTop, Darkness);
-            _sky.SkyHorizonColor = _daySkyHorizon.Lerp(NightSkyHorizon, Darkness);
-            _sky.GroundHorizonColor = _daySkyHorizon.Lerp(NightSkyHorizon, Darkness);
+            Color top = _daySkyTop.Lerp(OvercastColor.Darkened(0.2f), Overcast * 0.7f).Lerp(HeatHazeColor, heat * 0.3f);
+            Color horizon = _daySkyHorizon.Lerp(OvercastColor, Overcast * 0.7f).Lerp(HeatHazeColor, heat * 0.4f);
+            _sky.SkyTopColor = top.Lerp(NightSkyTop, Darkness);
+            _sky.SkyHorizonColor = horizon.Lerp(NightSkyHorizon, Darkness);
+            _sky.GroundHorizonColor = horizon.Lerp(NightSkyHorizon, Darkness);
         }
     }
 }

@@ -1,4 +1,5 @@
 using DownhillRoguelite.Core;
+using DownhillRoguelite.Environment;
 using DownhillRoguelite.Player;
 using Godot;
 
@@ -6,7 +7,8 @@ namespace DownhillRoguelite.Debug;
 
 /// <summary>
 /// Shared controls for debug scenes with a player: F1 swaps between the player camera and the
-/// free-fly camera, R respawns at the player's starting point, T skips an hour, and falling below KillHeight
+/// free-fly camera, R respawns at the player's starting point, T skips an hour, F4 cycles forced
+/// weather (forecast, then each kind), and falling below KillHeight
 /// respawns automatically.
 /// </summary>
 public partial class DebugSceneControls : Node
@@ -14,10 +16,12 @@ public partial class DebugSceneControls : Node
     private static readonly StringName ActionToggleFly = "debug_toggle_fly_camera";
     private static readonly StringName ActionRespawn = "debug_respawn";
     private static readonly StringName ActionSkipHour = "debug_skip_hour";
+    private static readonly StringName ActionCycleWeather = "debug_cycle_weather";
 
     [Export] public PlayerController? PlayerBody { get; set; }
     [Export] public Camera3D? PlayerCamera { get; set; }
     [Export] public FreeFlyCamera? FlyCamera { get; set; }
+    [Export] public WeatherSystem? Weather { get; set; }
 
     /// <summary>Respawn when the player falls below this height, in m.</summary>
     [Export] public float KillHeight { get; set; } = -30.0f;
@@ -46,6 +50,14 @@ public partial class DebugSceneControls : Node
         {
             Input.ActionPress("player_brake");
         }
+        // `--weather=rain` (or fog, snow, wind, heat, clear) forces a front.
+        foreach (string arg in args)
+        {
+            if (Weather != null && arg.StartsWith("--weather=") && System.Enum.TryParse(arg.Substring("--weather=".Length), true, out WeatherKind kind))
+            {
+                Weather.Forced = kind;
+            }
+        }
     }
 
     public override void _ExitTree()
@@ -72,6 +84,10 @@ public partial class DebugSceneControls : Node
         else if (@event.IsActionPressed(ActionSkipHour))
         {
             GetNodeOrNull<WorldClock>("/root/WorldClock")?.AdvanceHours(1.0f);
+        }
+        else if (@event.IsActionPressed(ActionCycleWeather))
+        {
+            Weather?.CycleForced();
         }
     }
 

@@ -94,6 +94,7 @@ public partial class BalanceDebugOverlay : CanvasLayer
             $"Torque     gravity {Format(snapshot.GravityTorque)}\n" +
             $"           inertial {Format(snapshot.InertialTorque)}\n" +
             $"           slope {Format(snapshot.SlopeTorque)}\n" +
+            $"           wind {Format(snapshot.WindTorque)}\n" +
             $"           correction {Format(snapshot.CorrectionTorque)}\n" +
             "\nLMB / RMB lean · both brace · L cycle load";
 

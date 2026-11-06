@@ -88,6 +88,10 @@ public partial class LocomotionSettings : Resource
     /// <summary>Below this speed the carrier counts as idle, in m/s.</summary>
     [Export] public float IdleSpeed { get; set; } = 0.1f;
 
+    [ExportGroup("Weather")]
+    /// <summary>Walking speed lost in full snow (0.3 = 30 % slower); route estimates include it.</summary>
+    [Export] public float SnowSpeedPenalty { get; set; } = 0.3f;
+
     [ExportGroup("Surface")]
     /// <summary>Grip used on geometry without a SurfaceType.</summary>
     [Export] public float DefaultGrip { get; set; } = 1.0f;

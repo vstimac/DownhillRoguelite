@@ -9,7 +9,8 @@ namespace DownhillRoguelite.Balance;
 /// sideways load offset adds a constant push, the carrier's acceleration and the slope underfoot
 /// add disturbances that grow with load height, and footfalls jolt it. The carrier's muscles pull
 /// the tilt toward a target: forward/back load offset is leaned into automatically, sideways
-/// mostly isn't, so the player counter-leans (lean buttons) or braces (both buttons).
+/// mostly isn't, so the player counter-leans (lean buttons) or braces (both buttons). Wind
+/// (GameEvents.CurrentWeather) pushes body and pack; a bigger, higher load catches more.
 /// Imbalance is the centre of mass over the support area, as a fraction of its half size, and
 /// drives stable → wobbling → stumbling → fallen.
 /// Reads LocomotionSnapshot, FootPlacementSnapshot and LoadSnapshot events; publishes BalanceSnapshot.
@@ -204,6 +205,7 @@ public partial class BalanceController : Node
         Vector2 gravityTorque = Vector2.Zero;
         Vector2 inertialTorque = Vector2.Zero;
         Vector2 slopeTorque = Vector2.Zero;
+        Vector2 windTorque = Vector2.Zero;
         Vector2 correctionTorque = Vector2.Zero;
 
         if (State == BalanceState.Fallen)
@@ -257,6 +259,8 @@ public partial class BalanceController : Node
                 normal.Dot(right) * Settings.SlopeRollFactor,
                 normal.Dot(forward) * Settings.SlopePitchFactor);
 
+            windTorque = WindTorque(forward, right, loadMass, loadHeight);
+
             float effectiveStiffness = Mathf.Max(stiffness - loadWeight * loadHeight, Settings.MinEffectiveStiffness);
             Vector2 damping = new(
                 2.0f * Settings.DampingRatio * Mathf.Sqrt(effectiveStiffness * inertia.X),
@@ -276,7 +280,7 @@ public partial class BalanceController : Node
                 correctionTorque -= _stumbleDirection * Settings.RecoveryTorque * effort;
             }
 
-            Vector2 torque = gravityTorque + inertialTorque + slopeTorque + correctionTorque;
+            Vector2 torque = gravityTorque + inertialTorque + slopeTorque + windTorque + correctionTorque;
             _tiltVelocity += new Vector2(torque.X / inertia.X, torque.Y / inertia.Y) * dt + _pendingImpulse;
             _pendingImpulse = Vector2.Zero;
 
@@ -309,6 +313,7 @@ public partial class BalanceController : Node
             gravityTorque,
             inertialTorque,
             slopeTorque,
+            windTorque,
             correctionTorque,
             _load.Name,
             _load.Mass);
@@ -381,6 +386,21 @@ public partial class BalanceController : Node
     {
         State = state;
         _stateTime = 0.0f;
+    }
+
+    /// <summary>Drag of the wind on body and load as torque about the feet, in carrier axes (roll, pitch).</summary>
+    private Vector2 WindTorque(Vector3 forward, Vector3 right, float loadMass, float loadHeight)
+    {
+        Vector3 wind = GameEvents.CurrentWeather.Wind;
+        float speed = wind.Length();
+        if (speed < Mathf.Epsilon)
+        {
+            return Vector2.Zero;
+        }
+        // Force per unit area along the wind, then area times lever arm for body and load.
+        Vector3 pressure = wind * (Settings.WindDrag * speed);
+        float moment = Settings.WindBodyArea * Settings.WindBodyHeight + Settings.WindAreaPerKg * loadMass * loadHeight;
+        return new Vector2(pressure.Dot(right), pressure.Dot(forward)) * moment;
     }
 
     /// <summary>Support half size from how far apart the feet stand, smoothed.</summary>

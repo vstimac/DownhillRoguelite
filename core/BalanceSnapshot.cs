@@ -21,6 +21,7 @@ namespace DownhillRoguelite.Core;
 /// <param name="GravityTorque">Toppling torque from gravity and load offset, in N·m.</param>
 /// <param name="InertialTorque">Torque from the carrier's acceleration, in N·m.</param>
 /// <param name="SlopeTorque">Torque from the ground's slope under the feet, in N·m.</param>
+/// <param name="WindTorque">Torque from the wind on body and load, in N·m.</param>
 /// <param name="CorrectionTorque">The carrier's own correcting torque, including player lean, in N·m.</param>
 /// <param name="LoadName">Name of the current load.</param>
 /// <param name="LoadMass">Mass of the current load, in kg.</param>
@@ -40,6 +41,7 @@ public readonly record struct BalanceSnapshot(
     Vector2 GravityTorque,
     Vector2 InertialTorque,
     Vector2 SlopeTorque,
+    Vector2 WindTorque,
     Vector2 CorrectionTorque,
     string LoadName,
     float LoadMass)
