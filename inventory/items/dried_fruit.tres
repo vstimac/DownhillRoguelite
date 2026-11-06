@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "dried_fruit"
+DisplayName = "Dried fruit"
+MassKg = 0.3
+Category = 0
+Nutrition = 20.0
+SizeCells = Vector3i(2, 1, 1)
+Tags = 0
+Orientation = 0
+DebugColor = Color(0.85, 0.4, 0.3, 1)

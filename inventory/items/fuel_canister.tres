@@ -7,6 +7,7 @@ script = ExtResource("1_item")
 ItemId = "fuel_canister"
 DisplayName = "Fuel canister"
 MassKg = 0.6
+Category = 2
 SizeCells = Vector3i(2, 2, 2)
 Tags = 2
 Orientation = 1

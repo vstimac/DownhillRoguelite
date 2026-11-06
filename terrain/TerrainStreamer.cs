@@ -71,6 +71,11 @@ public partial class TerrainStreamer : Node3D
     public override void _ExitTree()
     {
         GameEvents.LocomotionUpdated -= OnLocomotionUpdated;
+        RunState? run = GetNodeOrNull<RunState>("/root/RunState");
+        if (run != null)
+        {
+            run.Route = null;
+        }
         _generation++;
         _pending = null;
         _chunks.Clear();
@@ -109,6 +114,7 @@ public partial class TerrainStreamer : Node3D
         if (run != null)
         {
             run.Seed = seed;
+            run.Route = new TerrainRoute(Generator);
         }
 
         foreach (Vector2I coord in Window(Generator.ChunkAt(_focus.X, _focus.Z)))

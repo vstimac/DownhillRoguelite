@@ -7,6 +7,7 @@ script = ExtResource("1_item")
 ItemId = "cookware"
 DisplayName = "Cookware"
 MassKg = 1.5
+Category = 2
 SizeCells = Vector3i(3, 2, 4)
 Tags = 0
 Orientation = 0

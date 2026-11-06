@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="DifficultySettings" format=3]
+
+[ext_resource type="Script" path="res://core/DifficultySettings.cs" id="1_difficulty"]
+
+[resource]
+script = ExtResource("1_difficulty")
+DisplayName = "Easy"
+DayLengthMinutes = 48.0
+NeedsDrainMultiplier = 0.7
+SupplyMultiplier = 1.4
+NightHarshness = 0.5

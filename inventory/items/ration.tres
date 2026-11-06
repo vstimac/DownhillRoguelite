@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "ration"
+DisplayName = "Ration"
+MassKg = 0.5
+Category = 0
+Nutrition = 35.0
+SizeCells = Vector3i(2, 1, 2)
+Tags = 0
+Orientation = 0
+DebugColor = Color(0.75, 0.55, 0.3, 1)

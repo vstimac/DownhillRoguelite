@@ -4,8 +4,9 @@ using Godot;
 namespace DownhillRoguelite.Debug;
 
 /// <summary>
-/// Debug health and stamina bars (bottom-left) with the last hit's size and surface. Reads
-/// VitalsSnapshot events only. Hidden with F3 and while packing. Debug only: the final
+/// Debug health, stamina, hunger and thirst bars (bottom-left) with the last hit's size and
+/// surface, and the clock (day and time). Reads VitalsSnapshot events and the WorldClock
+/// autoload. Hidden with F3 and while packing. Debug only: the final
 /// presentation of vitals is still to be decided (no flat UI during runs).
 /// </summary>
 public partial class VitalsDebugOverlay : CanvasLayer
@@ -19,12 +20,19 @@ public partial class VitalsDebugOverlay : CanvasLayer
     [Export] public Color StaminaColor { get; set; } = new(0.3f, 0.75f, 1.0f);
     [Export] public Color ExhaustedColor { get; set; } = new(0.45f, 0.45f, 0.5f);
     [Export] public Color BackColor { get; set; } = new(0.0f, 0.0f, 0.0f, 0.5f);
+    [Export] public Color HungerColor { get; set; } = new(0.9f, 0.65f, 0.25f);
+    [Export] public Color ThirstColor { get; set; } = new(0.35f, 0.55f, 1.0f);
 
     private ColorRect? _healthBack;
     private ColorRect? _healthFill;
     private ColorRect? _staminaBack;
     private ColorRect? _staminaFill;
+    private ColorRect? _hungerBack;
+    private ColorRect? _hungerFill;
+    private ColorRect? _thirstBack;
+    private ColorRect? _thirstFill;
     private Label? _label;
+    private WorldClock? _clock;
 
     public override void _Ready()
     {
@@ -32,6 +40,11 @@ public partial class VitalsDebugOverlay : CanvasLayer
         _healthFill = AddRect(HealthColor);
         _staminaBack = AddRect(BackColor);
         _staminaFill = AddRect(StaminaColor);
+        _hungerBack = AddRect(BackColor);
+        _hungerFill = AddRect(HungerColor);
+        _thirstBack = AddRect(BackColor);
+        _thirstFill = AddRect(ThirstColor);
+        _clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
         _label = new Label();
         _label.AddThemeFontSizeOverride("font_size", FontSize);
         _label.AddThemeColorOverride("font_outline_color", Colors.Black);
@@ -70,6 +83,13 @@ public partial class VitalsDebugOverlay : CanvasLayer
         Vector2 healthPosition = new(Margin.X, staminaPosition.Y - BarGap);
         PlaceBar(_healthBack, _healthFill, healthPosition, Fraction(vitals.Health, vitals.MaxHealth));
         PlaceBar(_staminaBack, _staminaFill, staminaPosition, Fraction(vitals.Stamina, vitals.MaxStamina));
+        Vector2 thirstPosition = new(Margin.X, healthPosition.Y - BarGap);
+        Vector2 hungerPosition = new(Margin.X, thirstPosition.Y - BarGap);
+        if (_hungerBack != null && _hungerFill != null && _thirstBack != null && _thirstFill != null)
+        {
+            PlaceBar(_hungerBack, _hungerFill, hungerPosition, Fraction(vitals.Hunger, 100.0f));
+            PlaceBar(_thirstBack, _thirstFill, thirstPosition, Fraction(vitals.Thirst, 100.0f));
+        }
 
         if (vitals.Exhausted)
         {
@@ -100,8 +120,15 @@ public partial class VitalsDebugOverlay : CanvasLayer
             hit = $"   last hit {vitals.LastDamage:0.0} on {vitals.LastDamageSource}";
         }
 
-        _label.Text = $"HP {vitals.Health:0}/{vitals.MaxHealth:0}{hit}\nStamina {vitals.Stamina:0}{status}";
-        _label.Position = new Vector2(Margin.X + BarSize.X + 12.0f, healthPosition.Y - 4.0f);
+        string clock = "";
+        if (_clock != null)
+        {
+            int hour = Mathf.FloorToInt(_clock.TimeOfDay);
+            int minute = Mathf.FloorToInt((_clock.TimeOfDay - hour) * 60.0f);
+            clock = $"Day {_clock.Day}  {hour:00}:{minute:00}    F eat · Q drink · E pick up\n";
+        }
+        _label.Text = $"{clock}Hunger {vitals.Hunger:0}  ·  Thirst {vitals.Thirst:0}\nHP {vitals.Health:0}/{vitals.MaxHealth:0}{hit}\nStamina {vitals.Stamina:0}{status}";
+        _label.Position = new Vector2(Margin.X + BarSize.X + 12.0f, hungerPosition.Y - 4.0f);
     }
 
     private void PlaceBar(ColorRect back, ColorRect fill, Vector2 position, float fraction)

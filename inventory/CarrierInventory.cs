@@ -6,7 +6,9 @@ namespace DownhillRoguelite.Inventory;
 
 /// <summary>
 /// The carrier's backpack and the items not in it. Publishes a LoadSnapshot through GameEvents
-/// whenever the packing changes; balance reads that. Lives on the player.
+/// whenever the packing changes; balance reads that. Takes items picked up in the world (TryAdd),
+/// answers eat/drink requests with the best-fitting packed item, and empties when the carrier dies
+/// (a new run starts with an empty pack). Lives on the player.
 /// </summary>
 public partial class CarrierInventory : Node
 {
@@ -30,6 +32,12 @@ public partial class CarrierInventory : Node
     /// <summary>Pack the starting items automatically, heaviest first, low and centred.</summary>
     [Export] public bool AutoPackOnStart { get; set; } = true;
 
+    /// <summary>Empty the pack when the carrier dies: a new run starts with nothing.</summary>
+    [Export] public bool ClearOnDeath { get; set; } = true;
+
+    /// <summary>Side of the pack picked-up items are placed toward (0 left, 0.5 centre, 1 right).</summary>
+    [Export] public float PickupPreferredX { get; set; } = 0.5f;
+
     public BackpackGrid? Grid { get; private set; }
     public IReadOnlyList<ItemDefinition> LooseItems => _loose;
     public IReadOnlyList<ItemDefinition> AllItems => _all;
@@ -46,6 +54,8 @@ public partial class CarrierInventory : Node
         }
 
         Grid = new BackpackGrid(Backpack.GridSize);
+        GameEvents.ConsumeRequested += OnConsumeRequested;
+        GameEvents.RespawnRequested += OnRespawnRequested;
         foreach (string path in StartingItemPaths)
         {
             if (ResourceLoader.Load(path) is ItemDefinition item)
@@ -75,6 +85,8 @@ public partial class CarrierInventory : Node
 
     public override void _ExitTree()
     {
+        GameEvents.ConsumeRequested -= OnConsumeRequested;
+        GameEvents.RespawnRequested -= OnRespawnRequested;
         // Managed references keep resources alive until the GC runs; drop them with the node.
         _loose.Clear();
         _all.Clear();
@@ -125,6 +137,107 @@ public partial class CarrierInventory : Node
         _loose.AddRange(unplaced);
         Publish();
         return unplaced;
+    }
+
+    /// <summary>Packs an item from the world into the best free spot; false if there's no room.</summary>
+    public bool TryAdd(ItemDefinition item)
+    {
+        if (Grid == null || !AutoPacker.TryBestSpot(Grid, item, PickupPreferredX, out Vector3I origin, out int orientation)
+            || Grid.Place(item, origin, orientation) == null)
+        {
+            return false;
+        }
+        _all.Add(item);
+        Publish();
+        GameEvents.PublishItemPickedUp(item.ItemId, item.Category.ToString());
+        return true;
+    }
+
+    /// <summary>
+    /// The packed item of a category that best covers <paramref name="deficit"/>: the smallest one
+    /// that covers it all, or the biggest if none does. Null if there's nothing of that category.
+    /// </summary>
+    public PackedItem? BestConsumable(ItemCategory category, float deficit)
+    {
+        if (Grid == null)
+        {
+            return null;
+        }
+        PackedItem? covering = null;
+        PackedItem? biggest = null;
+        foreach (PackedItem item in Grid.Items)
+        {
+            if (item.Definition.Category != category)
+            {
+                continue;
+            }
+            float restore = RestoreOf(item.Definition);
+            if (restore >= deficit && (covering == null || restore < RestoreOf(covering.Definition)))
+            {
+                covering = item;
+            }
+            if (biggest == null || restore > RestoreOf(biggest.Definition))
+            {
+                biggest = item;
+            }
+        }
+        return covering ?? biggest;
+    }
+
+    /// <summary>Removes a packed item for good (eaten, drunk, used up).</summary>
+    public void Consume(PackedItem item)
+    {
+        if (Grid == null)
+        {
+            return;
+        }
+        Grid.Remove(item);
+        _all.Remove(item.Definition);
+        Publish();
+    }
+
+    /// <summary>Removes everything: pack, loose items and the record of owned items.</summary>
+    public void Clear()
+    {
+        Grid?.Clear();
+        _loose.Clear();
+        _all.Clear();
+        Publish();
+    }
+
+    private void OnConsumeRequested(SupplyNeed need, float deficit)
+    {
+        ItemCategory category = ItemCategory.Water;
+        if (need == SupplyNeed.Hunger)
+        {
+            category = ItemCategory.Food;
+        }
+
+        PackedItem? item = BestConsumable(category, deficit);
+        if (item == null)
+        {
+            GameEvents.PublishConsumeFailed(need);
+            return;
+        }
+        Consume(item);
+        GameEvents.PublishItemConsumed(need, item.Definition.ItemId, RestoreOf(item.Definition));
+    }
+
+    private void OnRespawnRequested()
+    {
+        if (ClearOnDeath)
+        {
+            Clear();
+        }
+    }
+
+    private static float RestoreOf(ItemDefinition item)
+    {
+        if (item.Category == ItemCategory.Food)
+        {
+            return item.Nutrition;
+        }
+        return item.Hydration;
     }
 
     public void Publish()

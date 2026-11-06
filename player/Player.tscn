@@ -13,6 +13,8 @@
 [ext_resource type="Script" path="res://player/CarrierHealth.cs" id="11_health"]
 [ext_resource type="Script" path="res://player/PlayerRagdoll.cs" id="12_ragdoll"]
 [ext_resource type="Script" path="res://player/HurtVignette.cs" id="13_vignette"]
+[ext_resource type="Script" path="res://player/CarrierNeeds.cs" id="14_needs"]
+[ext_resource type="Script" path="res://player/PickupInteractor.cs" id="15_interactor"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.3
@@ -64,10 +66,11 @@ far = 1000.0
 [node name="Stamina" type="Node" parent="."]
 script = ExtResource("10_stamina")
 
-[node name="Health" type="Node" parent="." node_paths=PackedStringArray("Stamina", "Body")]
+[node name="Health" type="Node" parent="." node_paths=PackedStringArray("Stamina", "Body", "Needs")]
 script = ExtResource("11_health")
 Stamina = NodePath("../Stamina")
 Body = NodePath("..")
+Needs = NodePath("../Needs")
 
 [node name="Ragdoll" type="Node" parent="." node_paths=PackedStringArray("Body", "Skeleton", "Health")]
 script = ExtResource("12_ragdoll")
@@ -77,3 +80,13 @@ Health = NodePath("../Health")
 
 [node name="HurtVignette" type="CanvasLayer" parent="."]
 script = ExtResource("13_vignette")
+
+[node name="Needs" type="Node" parent="." node_paths=PackedStringArray("Body", "Stamina", "Health")]
+script = ExtResource("14_needs")
+Body = NodePath("..")
+Stamina = NodePath("../Stamina")
+Health = NodePath("../Health")
+
+[node name="Interactor" type="Node" parent="." node_paths=PackedStringArray("Body")]
+script = ExtResource("15_interactor")
+Body = NodePath("..")

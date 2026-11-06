@@ -52,6 +52,8 @@ public partial class PlayerController : CharacterBody3D
     public float Grip { get; private set; }
 
     private float _gravity;
+    // Grade of the ground along this frame's walk (+ downhill), for stamina drain.
+    private float _moveGrade;
     private Vector3 _previousVelocity;
     private string _surfaceName = DefaultSurfaceName;
     // Surface creep and stumble lurch, kept apart from the carrier's own velocity so they don't accumulate.
@@ -115,11 +117,14 @@ public partial class PlayerController : CharacterBody3D
 
         Vector3 input = ReadInputDirection();
         bool braking = InputEnabled && Input.IsActionPressed(ActionBrake);
-        bool held = _balanceState == BalanceState.Fallen || _bracing || GameEvents.IsPacking;
+        // Exhausted carriers can't walk until they've rested.
+        bool exhausted = Stamina != null && Stamina.Exhausted;
+        bool held = _balanceState == BalanceState.Fallen || _bracing || GameEvents.IsPacking || exhausted;
         if (held)
         {
             input = Vector3.Zero;
         }
+        _moveGrade = 0.0f;
         FloorMaxAngle = Mathf.DegToRad(WalkableAngle());
 
         bool grounded = IsOnFloor();
@@ -144,9 +149,10 @@ public partial class PlayerController : CharacterBody3D
             Velocity = ComputeAirVelocity(input, dt);
         }
 
-        if (Sprinting)
+        // Walking under your own power costs stamina; standing still lets it recover.
+        if (grounded && Stamina != null && input.Length() > SprintInputThreshold && IntendedVelocity().Length() >= Settings.IdleSpeed)
         {
-            Stamina!.DrainSprint(dt, GameEvents.CurrentLoad.Mass);
+            Stamina.DrainMovement(dt, GameEvents.CurrentLoad.Mass, _moveGrade, braking, Sprinting);
         }
 
         // Only a real flight counts as a landing: sliding off a steep face onto flat ground doesn't.
@@ -226,6 +232,7 @@ public partial class PlayerController : CharacterBody3D
             direction = TurnToward(direction, desired, speed, dt);
 
             float grade = direction.Dot(fallLine) * sinSlope;
+            _moveGrade = grade;
             float alignment = Mathf.Max(0.0f, direction.Dot(desired));
             float target = TargetSpeed(braking, grade) * inputAmount * Mathf.Lerp(1.0f, alignment, Settings.TurnSlowdown);
             if (_balanceState == BalanceState.Stumbling)

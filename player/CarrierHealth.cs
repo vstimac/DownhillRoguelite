@@ -13,6 +13,7 @@ public partial class CarrierHealth : Node
 {
     [Export] public CarrierStamina? Stamina { get; set; }
     [Export] public PlayerController? Body { get; set; }
+    [Export] public CarrierNeeds? Needs { get; set; }
     [Export] public float Max { get; set; } = 100.0f;
     /// <summary>Seconds dead before a respawn is requested.</summary>
     [Export] public float RespawnDelay { get; set; } = 4.0f;
@@ -84,7 +85,14 @@ public partial class CarrierHealth : Node
             exhausted = Stamina.Exhausted;
         }
         bool sprinting = Body != null && Body.Sprinting;
-        GameEvents.PublishVitals(new VitalsSnapshot(Current, Max, stamina, maxStamina, exhausted, sprinting, Dead, _lastDamage, _lastSource));
+        float hunger = CarrierNeeds.Full;
+        float thirst = CarrierNeeds.Full;
+        if (Needs != null)
+        {
+            hunger = Needs.Hunger;
+            thirst = Needs.Thirst;
+        }
+        GameEvents.PublishVitals(new VitalsSnapshot(Current, Max, stamina, maxStamina, exhausted, sprinting, Dead, _lastDamage, _lastSource, hunger, thirst));
     }
 
     private void OnRespawnRequested()

@@ -1,3 +1,5 @@
+using DownhillRoguelite.Core;
+
 namespace DownhillRoguelite.Terrain;
 
 /// <summary>
