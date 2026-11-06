@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://player/ChaseCamera.cs" id="3_camera"]
 [ext_resource type="PackedScene" path="res://art/characters/quaternius_ual/UAL_Mannequin.glb" id="4_model"]
 [ext_resource type="Script" path="res://player/CharacterAnimator.cs" id="5_animator"]
+[ext_resource type="Script" path="res://player/FootIK.cs" id="6_foot_ik"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.3
@@ -21,10 +22,16 @@ shape = SubResource("CapsuleShape3D_body")
 [node name="Model" parent="." instance=ExtResource("4_model")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
-[node name="Animator" type="Node" parent="." node_paths=PackedStringArray("Body", "Animations")]
+[node name="Animator" type="Node" parent="." node_paths=PackedStringArray("Body", "Animations", "Visual")]
 script = ExtResource("5_animator")
 Body = NodePath("..")
 Animations = NodePath("../Model/AnimationPlayer")
+Visual = NodePath("../Model")
+
+[node name="FootIK" type="Node3D" parent="." node_paths=PackedStringArray("Body", "Skeleton")]
+script = ExtResource("6_foot_ik")
+Body = NodePath("..")
+Skeleton = NodePath("../Model/Rig/Skeleton3D")
 
 [node name="CameraRig" type="Node3D" parent="." node_paths=PackedStringArray("Target", "Arm", "Camera")]
 script = ExtResource("3_camera")

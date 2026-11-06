@@ -62,6 +62,18 @@ public partial class LocomotionTests : Node3D
     [Export] public string LeftToeBone { get; set; } = "DEF-toe.L";
     [Export] public string RightToeBone { get; set; } = "DEF-toe.R";
 
+    [ExportGroup("Foot IK")]
+    [Export] public float ContactRunTime { get; set; } = 4.0f;
+    [Export] public int ContactStairIndex { get; set; } = 1;
+    /// <summary>Median speed of a locked ankle after IK, in m/s.</summary>
+    [Export] public float MaxPlantedSlip { get; set; } = 0.05f;
+    /// <summary>Median distance between a planted ankle's height above the ground and its rest height, in m.</summary>
+    [Export] public float MaxContactError { get; set; } = 0.03f;
+    /// <summary>On the braked slope the hips must drop at least this much on average, in m.</summary>
+    [Export] public float MinSlopeHipDrop { get; set; } = 0.03f;
+    [Export] public float SlideBlendOutTime { get; set; } = 1.0f;
+    [Export] public float MaxSlidingIkWeight { get; set; } = 0.05f;
+
     private readonly List<string> _failures = new();
 
     private struct RunStats
@@ -93,6 +105,13 @@ public partial class LocomotionTests : Node3D
         await TestRockField(PlayerBody, Course);
         await TestFootSlip(PlayerBody, false);
         await TestFootSlip(PlayerBody, true);
+
+        await TestFootContact(PlayerBody, "flat stride", FootSlipStart, ContactRunTime, false);
+        await TestFootContact(PlayerBody, $"{Course.LaneAngles[SpeedTestLane]:0}° downhill stride", Course.LanePoint(SpeedTestLane, 3.0f), ContactRunTime, false);
+        await TestFootContact(PlayerBody, $"{Course.LaneAngles[CrestTestLane]:0}° downhill brake", Course.LanePoint(CrestTestLane, 3.0f), ContactRunTime, true);
+        await TestFootContact(PlayerBody, $"stairs {Course.StepHeights[ContactStairIndex] * 100.0f:0} cm", Course.StairStart(ContactStairIndex), ContactRunTime, false);
+        await TestFootContact(PlayerBody, "rock field", Course.RockFieldStart(), ContactRunTime, false);
+        await TestIkBlendsOutWhenSliding(PlayerBody, Course);
 
         if (_failures.Count == 0)
         {
@@ -265,6 +284,119 @@ public partial class LocomotionTests : Node3D
         float median = slips[slips.Count / 2];
         Check($"foot slip {mode}", median <= MaxFootSlip,
             $"median planted-toe speed {median:0.00} m/s ({slips.Count} samples, body {bodySpeed:0.00} m/s)");
+    }
+
+    /// <summary>
+    /// Checks the final pose after foot IK: planted ankles stay put and sit at their rest height
+    /// above the ground along its normal. Poses are read on SkeletonUpdated, after all modifiers.
+    /// </summary>
+    private async Task TestFootContact(PlayerController player, string name, Vector3 start, float seconds, bool brake)
+    {
+        FootIK? footIk = player.GetNodeOrNull<FootIK>("FootIK");
+        Skeleton3D? skeleton = FindSkeleton(player);
+        if (footIk == null || skeleton == null || footIk.Feet.Count < 2)
+        {
+            Check($"foot contact {name}", false, "FootIK or Skeleton3D missing");
+            return;
+        }
+
+        await Place(player, start);
+
+        PhysicsDirectSpaceState3D space = player.GetWorld3D().DirectSpaceState;
+        Godot.Collections.Array<Rid> exclude = new() { player.GetRid() };
+        float dt = 1.0f / Engine.PhysicsTicksPerSecond;
+        List<float> slips = new();
+        List<float> errors = new();
+        float hipOffsetSum = 0.0f;
+        int hipSamples = 0;
+        Vector3[] previous = new Vector3[footIk.Feet.Count];
+        bool[] wasPlanted = new bool[footIk.Feet.Count];
+        int[] toeIndices = { skeleton.FindBone(LeftToeBone), skeleton.FindBone(RightToeBone) };
+
+        void OnSkeletonUpdated()
+        {
+            Transform3D skeletonWorld = skeleton.GetGlobalTransformInterpolated();
+            for (int i = 0; i < footIk.Feet.Count; i++)
+            {
+                FootState foot = footIk.Feet[i];
+                Vector3 ankle = (skeletonWorld * skeleton.GetBoneGlobalPose(foot.FootIndex)).Origin;
+                bool planted = foot.Planted && foot.PlantWeight >= 1.0f && foot.GroundWeight >= 1.0f && footIk.IkWeight >= 1.0f;
+
+                if (planted && wasPlanted[i])
+                {
+                    slips.Add(Flat(ankle - previous[i]).Length() / dt);
+                }
+                if (planted)
+                {
+                    // A planted sole touches through the heel or the toe, whichever is lower; a lifted
+                    // heel during stance is correct motion, not a contact error.
+                    Vector3 toe = (skeletonWorld * skeleton.GetBoneGlobalPose(toeIndices[i])).Origin;
+                    float ankleGap = HeightAboveGround(space, exclude, ankle) - skeleton.GetBoneGlobalRest(foot.FootIndex).Origin.Y;
+                    float toeGap = HeightAboveGround(space, exclude, toe) - skeleton.GetBoneGlobalRest(toeIndices[i]).Origin.Y;
+                    float gap = Mathf.Min(ankleGap, toeGap);
+                    if (!float.IsNaN(gap))
+                    {
+                        errors.Add(Mathf.Abs(gap));
+                    }
+                }
+
+                wasPlanted[i] = planted;
+                previous[i] = ankle;
+            }
+            hipOffsetSum += footIk.HipOffset;
+            hipSamples++;
+        }
+
+        skeleton.SkeletonUpdated += OnSkeletonUpdated;
+        await Run(player, seconds, true, brake);
+        skeleton.SkeletonUpdated -= OnSkeletonUpdated;
+
+        if (slips.Count == 0 || errors.Count == 0)
+        {
+            Check($"foot contact {name}", false, "no planted-foot samples");
+            return;
+        }
+
+        slips.Sort();
+        errors.Sort();
+        float slip = slips[slips.Count / 2];
+        float error = errors[errors.Count / 2];
+        Check($"planted slip {name}", slip <= MaxPlantedSlip, $"median {slip:0.000} m/s ({slips.Count} samples)");
+        Check($"contact error {name}", error <= MaxContactError, $"median {error * 100.0f:0.0} cm, 90th pct {errors[errors.Count * 9 / 10] * 100.0f:0.0} cm");
+
+        if (brake)
+        {
+            float averageHip = hipOffsetSum / Mathf.Max(1, hipSamples);
+            Check($"hips lower {name}", averageHip <= -MinSlopeHipDrop, $"average hip offset {averageHip * 100.0f:0.0} cm");
+        }
+    }
+
+    private async Task TestIkBlendsOutWhenSliding(PlayerController player, TestCourseBuilder course)
+    {
+        FootIK? footIk = player.GetNodeOrNull<FootIK>("FootIK");
+        if (footIk == null)
+        {
+            Check("IK blends out when sliding", false, "FootIK missing");
+            return;
+        }
+
+        int steepLane = course.LaneAngles.Length - 1;
+        await Place(player, course.LanePoint(steepLane, course.LaneLength(steepLane) * 0.3f));
+        await WaitSeconds(SlideBlendOutTime);
+        Check($"IK blends out sliding on {course.LaneAngles[steepLane]:0}°", footIk.IkWeight <= MaxSlidingIkWeight,
+            $"IK weight {footIk.IkWeight:0.00} while {player.State}");
+    }
+
+    /// <summary>Distance from a point to the ground below it, along the ground's normal; NaN if no ground.</summary>
+    private static float HeightAboveGround(PhysicsDirectSpaceState3D space, Godot.Collections.Array<Rid> exclude, Vector3 point)
+    {
+        PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(point + Vector3.Up * 0.5f, point + Vector3.Down * 0.5f, uint.MaxValue, exclude);
+        Godot.Collections.Dictionary hit = space.IntersectRay(query);
+        if (hit.Count == 0)
+        {
+            return float.NaN;
+        }
+        return (point - hit["position"].AsVector3()).Dot(hit["normal"].AsVector3());
     }
 
     private static Skeleton3D? FindSkeleton(Node root)

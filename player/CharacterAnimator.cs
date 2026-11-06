@@ -16,6 +16,12 @@ public partial class CharacterAnimator : Node
     /// <summary>The model's AnimationPlayer. The tree is created next to it so track paths resolve.</summary>
     [Export] public AnimationPlayer? Animations { get; set; }
 
+    /// <summary>The model root, offset to hide the instant jump of a step-up.</summary>
+    [Export] public Node3D? Visual { get; set; }
+
+    /// <summary>How quickly the model catches up with the body after a step-up.</summary>
+    [Export] public float StepSmoothSharpness { get; set; } = 18.0f;
+
     [ExportGroup("Clips")]
     [Export] public StringName IdleClip { get; set; } = "Idle";
     [Export] public StringName WalkClip { get; set; } = "Walk";
@@ -62,9 +68,15 @@ public partial class CharacterAnimator : Node
     private float _speed;
     private float _brakeWeight;
     private float _brakeToWalkCycleRatio = 1.0f;
+    private Vector3 _stepOffset;
 
     public override void _Ready()
     {
+        if (Body != null)
+        {
+            Body.SteppedUp += OnSteppedUp;
+        }
+
         if (Animations == null)
         {
             GD.PushError("CharacterAnimator: Animations is not assigned.");
@@ -82,6 +94,19 @@ public partial class CharacterAnimator : Node
         _tree.Active = true;
     }
 
+    public override void _ExitTree()
+    {
+        if (Body != null)
+        {
+            Body.SteppedUp -= OnSteppedUp;
+        }
+    }
+
+    private void OnSteppedUp(Vector3 jump)
+    {
+        _stepOffset -= jump;
+    }
+
     public override void _Process(double delta)
     {
         if (_tree == null || Body == null)
@@ -90,6 +115,11 @@ public partial class CharacterAnimator : Node
         }
 
         float dt = (float)delta;
+        _stepOffset = _stepOffset.Lerp(Vector3.Zero, 1.0f - Mathf.Exp(-StepSmoothSharpness * dt));
+        if (Visual != null)
+        {
+            Visual.Position = Body.GlobalBasis.Inverse() * _stepOffset;
+        }
         Vector3 velocity = Body.Velocity;
         float targetSpeed = new Vector2(velocity.X, velocity.Z).Length();
         _speed = Mathf.Lerp(_speed, targetSpeed, 1.0f - Mathf.Exp(-SpeedSharpness * dt));

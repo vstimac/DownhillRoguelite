@@ -11,8 +11,16 @@ public static class GameEvents
     /// <summary>Raised by the player controller once per physics frame.</summary>
     public static event Action<LocomotionSnapshot>? LocomotionUpdated;
 
+    /// <summary>Raised by the foot IK once per rendered frame, after the feet are placed.</summary>
+    public static event Action<FootPlacementSnapshot>? FootPlacementUpdated;
+
     public static void PublishLocomotion(LocomotionSnapshot snapshot)
     {
         LocomotionUpdated?.Invoke(snapshot);
+    }
+
+    public static void PublishFootPlacement(FootPlacementSnapshot snapshot)
+    {
+        FootPlacementUpdated?.Invoke(snapshot);
     }
 }
