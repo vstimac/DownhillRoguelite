@@ -21,7 +21,7 @@ This folder (`downhill-roguelite-(copy)`) is the active project; `D:\Game dev\Do
 - Tunable values go in `[Export]` fields or Resource files, never magic numbers in logic.
 
 ## Architecture rules
-- Folders: core/, player/, balance/, inventory/, terrain/, map/, progression/, world_ui/, debug/, art/, audio/
+- Folders: core/, player/, balance/, inventory/, terrain/, map/, progression/, world_ui/, narrative/, debug/, art/, audio/
 - Systems communicate through C# events / signals and the RunState autoload — no direct cross-system references.
 - Every gameplay system gets a debug scene in debug/ and a debug overlay (COM, foot targets, forces).
 - No flat UI during runs: interfaces are 3D objects in the world (debug overlays excepted).
