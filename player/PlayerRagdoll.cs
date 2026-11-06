@@ -347,14 +347,11 @@ public partial class PlayerRagdoll : Node
 
             float hardness = DefaultHardness;
             string surface = "obstacle";
-            if (hit["collider"].AsGodotObject() is GodotObject collider && collider.HasMeta(SurfaceType.MetaKey))
+            SurfaceType? type = SurfaceLookup.Find(hit["collider"].AsGodotObject(), hit["position"].AsVector3());
+            if (type != null)
             {
-                using Variant meta = collider.GetMeta(SurfaceType.MetaKey);
-                if (meta.AsGodotObject() is SurfaceType type)
-                {
-                    hardness = type.Hardness;
-                    surface = type.DisplayName;
-                }
+                hardness = type.Hardness;
+                surface = type.DisplayName;
             }
 
             float hurt = (impact - SafeImpactSpeed) * DamagePerSpeed * hardness * bone.DamageMultiplier * bone.MassShare;

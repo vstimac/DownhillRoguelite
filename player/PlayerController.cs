@@ -36,6 +36,12 @@ public partial class PlayerController : CharacterBody3D
     public LocomotionState State { get; private set; } = LocomotionState.Idle;
     public bool Sprinting { get; private set; }
 
+    /// <summary>
+    /// Steering for tests and automation: a world-space direction used instead of player input
+    /// while set (length = input strength). Not used in normal play.
+    /// </summary>
+    public Vector3? DirectionOverride { get; set; }
+
     /// <summary>Raised after a step-up moves the body instantly, with the world-space jump, so visuals can smooth it.</summary>
     public event System.Action<Vector3>? SteppedUp;
 
@@ -165,6 +171,10 @@ public partial class PlayerController : CharacterBody3D
 
     private Vector3 ReadInputDirection()
     {
+        if (DirectionOverride.HasValue)
+        {
+            return Flatten(DirectionOverride.Value, false).LimitLength(1.0f);
+        }
         if (!InputEnabled)
         {
             return Vector3.Zero;
@@ -270,27 +280,23 @@ public partial class PlayerController : CharacterBody3D
     /// <summary>Reads the SurfaceType of whatever the body stands or slides on; keeps the last one in the air.</summary>
     private void UpdateSurface()
     {
-        GodotObject? ground = FindGroundCollider();
-        if (ground == null)
+        if (!FindGround(out GodotObject? ground, out Vector3 point))
         {
             return;
         }
 
         Grip = Settings.DefaultGrip;
         _surfaceName = DefaultSurfaceName;
-        if (ground.HasMeta(SurfaceType.MetaKey))
+        SurfaceType? surface = SurfaceLookup.Find(ground, point);
+        if (surface != null)
         {
-            // Dispose the Variant now: undisposed, it holds the resource until the GC runs.
-            using Variant meta = ground.GetMeta(SurfaceType.MetaKey);
-            if (meta.AsGodotObject() is SurfaceType surface)
-            {
-                Grip = surface.Grip;
-                _surfaceName = surface.DisplayName;
-            }
+            Grip = surface.Grip;
+            _surfaceName = surface.DisplayName;
         }
     }
 
-    private GodotObject? FindGroundCollider()
+    /// <summary>What the body stands or slides on and where it touches; false in the air (keeps the last surface).</summary>
+    private bool FindGround(out GodotObject? collider, out Vector3 point)
     {
         // Floor snapping often moves the body without a slide collision, so probe the floor directly.
         if (IsOnFloor())
@@ -298,9 +304,13 @@ public partial class PlayerController : CharacterBody3D
             KinematicCollision3D probe = new();
             if (TestMove(GlobalTransform, Vector3.Down * Settings.FloorSnapLength, probe))
             {
-                return probe.GetCollider();
+                collider = probe.GetCollider();
+                point = probe.GetPosition();
+                return true;
             }
-            return null;
+            collider = null;
+            point = Vector3.Zero;
+            return false;
         }
 
         float maxSlide = Mathf.DegToRad(Settings.MaxSlideAngle);
@@ -309,10 +319,14 @@ public partial class PlayerController : CharacterBody3D
             KinematicCollision3D contact = GetSlideCollision(i);
             if (contact.GetNormal().AngleTo(Vector3.Up) <= maxSlide)
             {
-                return contact.GetCollider();
+                collider = contact.GetCollider();
+                point = contact.GetPosition();
+                return true;
             }
         }
-        return null;
+        collider = null;
+        point = Vector3.Zero;
+        return false;
     }
 
     private Vector3 TurnToward(Vector3 current, Vector3 desired, float speed, float dt)
