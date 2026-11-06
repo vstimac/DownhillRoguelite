@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "ore_sample"
+DisplayName = "Ore sample"
+MassKg = 6.0
+SizeCells = Vector3i(2, 2, 2)
+Tags = 8
+Orientation = 0
+DebugColor = Color(0.95, 0.75, 0.15, 1)
