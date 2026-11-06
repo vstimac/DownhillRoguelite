@@ -84,6 +84,6 @@ public partial class LocomotionDebugOverlay : CanvasLayer
             $"FPS        {Engine.GetFramesPerSecond():0}\n" +
             "\n" +
             "green velocity · blue normal · orange fall line · white input\n" +
-            "Space brake · F1 fly camera · F3 overlay · R respawn · Esc free mouse";
+            "C brake · Space jump · Shift sprint · F1 fly camera · F3 overlay · R respawn · Esc free mouse";
     }
 }

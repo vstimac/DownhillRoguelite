@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="8_inventory"]
 [ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="11_backpack"]
 [ext_resource type="Script" path="res://inventory/interaction/PackingMode.cs" id="12_packing"]
+[ext_resource type="Script" path="res://debug/VitalsDebugOverlay.cs" id="13_vitals"]
 [ext_resource type="Script" path="res://debug/LoadDebugVisual.cs" id="9_load_visual"]
 [ext_resource type="Script" path="res://debug/BalanceDebugOverlay.cs" id="10_balance_overlay"]
 
@@ -78,3 +79,6 @@ script = ExtResource("12_packing")
 Inventory = NodePath("../Player/Inventory")
 PlayerBody = NodePath("../Player")
 PlayerCamera = NodePath("../Player/CameraRig/SpringArm/Camera")
+
+[node name="VitalsOverlay" type="CanvasLayer" parent="."]
+script = ExtResource("13_vitals")

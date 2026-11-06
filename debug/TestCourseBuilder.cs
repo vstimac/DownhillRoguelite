@@ -71,6 +71,25 @@ public partial class TestCourseBuilder : Node3D
     [Export] public float RockBuryFraction { get; set; } = 0.25f;
     [Export] public ulong RockSeed { get; set; } = 1234;
 
+    [ExportGroup("Drop zone")]
+    /// <summary>Surfaces of the landing pads, one row of towers each.</summary>
+    [Export] public string[] DropSurfacePaths { get; set; } =
+    {
+        "res://terrain/surfaces/grass.tres",
+        "res://terrain/surfaces/rock.tres",
+    };
+    [Export] public float[] DropHeights { get; set; } = { 2.0f, 4.0f, 6.0f };
+    /// <summary>X of the first tower in the first row.</summary>
+    [Export] public float DropZoneX { get; set; } = -40.0f;
+    /// <summary>Z of the towers' centres; pads lie toward -Z.</summary>
+    [Export] public float DropZoneZ { get; set; } = -190.0f;
+    [Export] public float DropTowerSize { get; set; } = 3.0f;
+    [Export] public float DropTowerSpacing { get; set; } = 8.0f;
+    /// <summary>Gap in X between the surface rows.</summary>
+    [Export] public float DropRowSpacing { get; set; } = 30.0f;
+    [Export] public Vector2 DropPadSize { get; set; } = new(7.0f, 9.0f);
+    [Export] public float DropPadThickness { get; set; } = 0.1f;
+
     [ExportGroup("Labels")]
     [Export] public float LabelHeight { get; set; } = 1.5f;
     [Export] public int LabelFontSize { get; set; } = 96;
@@ -79,6 +98,7 @@ public partial class TestCourseBuilder : Node3D
     private Node3D? _generated;
     private SurfaceType? _defaultSurface;
     private readonly List<SurfaceType> _surfaceLaneTypes = new();
+    private readonly List<SurfaceType> _dropSurfaces = new();
     private readonly Dictionary<SurfaceType, Material> _surfaceMaterials = new();
 
     public override void _Ready()
@@ -97,6 +117,7 @@ public partial class TestCourseBuilder : Node3D
         }
         _surfaceMaterials.Clear();
         _surfaceLaneTypes.Clear();
+        _dropSurfaces.Clear();
         _defaultSurface = null;
     }
 
@@ -113,6 +134,7 @@ public partial class TestCourseBuilder : Node3D
         BuildCrossSlope();
         BuildRockField();
         BuildSurfaceLanes();
+        BuildDropZone();
     }
 
     public IReadOnlyList<SurfaceType> SurfaceLaneTypes => _surfaceLaneTypes;
@@ -193,6 +215,32 @@ public partial class TestCourseBuilder : Node3D
     }
 
     /// <summary>Ground point just in front of the rock field's +Z edge.</summary>
+    public IReadOnlyList<SurfaceType> DropSurfaces => _dropSurfaces;
+
+    /// <summary>Index of the drop-zone row with this surface display name, or -1.</summary>
+    public int DropSurfaceIndex(string displayName)
+    {
+        for (int i = 0; i < _dropSurfaces.Count; i++)
+        {
+            if (_dropSurfaces[i].DisplayName == displayName)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private Vector3 DropTowerCentre(int surface, int height)
+    {
+        return new Vector3(DropZoneX + surface * DropRowSpacing + height * DropTowerSpacing, 0.0f, DropZoneZ);
+    }
+
+    /// <summary>Top of a tower, a short walk back from the edge that drops onto its pad (walk toward -Z).</summary>
+    public Vector3 DropStart(int surface, int height)
+    {
+        return DropTowerCentre(surface, height) + new Vector3(0.0f, DropHeights[height], DropTowerSize * 0.25f);
+    }
+
     public Vector3 RockFieldStart()
     {
         return new Vector3(RockFieldCenter.X, 0.0f, RockFieldCenter.Z + RockFieldSize.Y * 0.5f + 2.0f);
@@ -206,6 +254,15 @@ public partial class TestCourseBuilder : Node3D
     private void LoadSurfaces()
     {
         _defaultSurface = LoadSurface(DefaultSurfacePath);
+        _dropSurfaces.Clear();
+        foreach (string path in DropSurfacePaths)
+        {
+            SurfaceType? surface = LoadSurface(path);
+            if (surface != null)
+            {
+                _dropSurfaces.Add(surface);
+            }
+        }
         _surfaceLaneTypes.Clear();
         foreach (string path in SurfaceLanePaths)
         {
@@ -305,6 +362,25 @@ public partial class TestCourseBuilder : Node3D
         AddBox("CrossSlope", new Vector3(CrossSlopeSize.X, SlabThickness, CrossSlopeSize.Y), new Transform3D(basis, center));
 
         AddLabel($"{CrossSlopeAngle:0}° cross", CrossSlopeStart() + Vector3.Up * LabelHeight);
+    }
+
+    private void BuildDropZone()
+    {
+        for (int row = 0; row < _dropSurfaces.Count; row++)
+        {
+            SurfaceType pad = _dropSurfaces[row];
+            for (int i = 0; i < DropHeights.Length; i++)
+            {
+                float height = DropHeights[i];
+                Vector3 centre = DropTowerCentre(row, i);
+                AddBox($"DropTower{pad.DisplayName}{height:0}m", new Vector3(DropTowerSize, height, DropTowerSize),
+                    new Transform3D(Basis.Identity, centre + Vector3.Up * height * 0.5f));
+                Vector3 padCentre = centre + new Vector3(0.0f, DropPadThickness * 0.5f, -DropTowerSize * 0.5f - DropPadSize.Y * 0.5f);
+                AddBox($"DropPad{pad.DisplayName}{height:0}m", new Vector3(DropPadSize.X, DropPadThickness, DropPadSize.Y),
+                    new Transform3D(Basis.Identity, padCentre), pad);
+                AddLabel($"{height:0} m onto {pad.DisplayName}", centre + Vector3.Up * (height + LabelHeight));
+            }
+        }
     }
 
     private void BuildRockField()
