@@ -27,6 +27,9 @@ public partial class PlayerController : CharacterBody3D
 
     public LocomotionState State { get; private set; } = LocomotionState.Idle;
 
+    /// <summary>Raised after a step-up moves the body instantly, with the world-space jump, so visuals can smooth it.</summary>
+    public event System.Action<Vector3>? SteppedUp;
+
     private float _gravity;
     private Vector3 _previousVelocity;
 
@@ -253,7 +256,9 @@ public partial class PlayerController : CharacterBody3D
             return;
         }
 
-        GlobalPosition = advanced.Origin + ground.GetTravel();
+        Vector3 landing = advanced.Origin + ground.GetTravel();
+        SteppedUp?.Invoke(landing - start.Origin);
+        GlobalPosition = landing;
     }
 
     private void UpdateState(bool braking)

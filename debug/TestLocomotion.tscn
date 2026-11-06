@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://debug/FreeFlyCamera.cs" id="4_fly"]
 [ext_resource type="Script" path="res://debug/DebugSceneControls.cs" id="5_controls"]
 [ext_resource type="Script" path="res://debug/LocomotionDebugOverlay.cs" id="6_overlay"]
+[ext_resource type="Script" path="res://debug/FootPlacementDebugOverlay.cs" id="7_foot_overlay"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 
@@ -38,7 +39,7 @@ script = ExtResource("1_course")
 SurfaceMaterial = SubResource("ShaderMaterial_checker")
 
 [node name="Player" parent="." instance=ExtResource("3_player")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 15.05, 10)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.75, 15.05, 10)
 
 [node name="FlyCamera" type="Camera3D" parent="."]
 far = 1000.0
@@ -52,3 +53,6 @@ FlyCamera = NodePath("../FlyCamera")
 
 [node name="LocomotionOverlay" type="CanvasLayer" parent="."]
 script = ExtResource("6_overlay")
+
+[node name="FootOverlay" type="Node" parent="."]
+script = ExtResource("7_foot_overlay")
