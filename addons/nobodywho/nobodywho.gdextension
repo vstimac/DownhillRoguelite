@@ -1,0 +1,34 @@
+[configuration]
+entry_symbol = "gdext_rust_init"
+compatibility_minimum = 4.6
+reloadable = true
+
+[libraries]
+linux.debug.x86_64 =     "res://addons/nobodywho/libnobodywho-godot-x86_64-unknown-linux-gnu-release.so"
+linux.release.x86_64 =   "res://addons/nobodywho/libnobodywho-godot-x86_64-unknown-linux-gnu-release.so"
+linux.debug.arm64 =      "res://addons/nobodywho/libnobodywho-godot-aarch64-unknown-linux-gnu-release.so"
+linux.release.arm64 =    "res://addons/nobodywho/libnobodywho-godot-aarch64-unknown-linux-gnu-release.so"
+windows.debug.x86_64 =   "res://addons/nobodywho/libnobodywho-godot-x86_64-pc-windows-msvc-release.dll"
+windows.release.x86_64 = "res://addons/nobodywho/libnobodywho-godot-x86_64-pc-windows-msvc-release.dll"
+macos.debug =            "res://addons/nobodywho/libnobodywho-godot-x86_64-apple-darwin-release.dylib"
+macos.release =          "res://addons/nobodywho/libnobodywho-godot-x86_64-apple-darwin-release.dylib"
+macos.debug.arm64 =      "res://addons/nobodywho/libnobodywho-godot-aarch64-apple-darwin-release.dylib"
+macos.release.arm64 =    "res://addons/nobodywho/libnobodywho-godot-aarch64-apple-darwin-release.dylib"
+android.debug.arm64 =      "res://addons/nobodywho/libnobodywho-godot-aarch64-linux-android-release.so"
+android.release.arm64 =    "res://addons/nobodywho/libnobodywho-godot-aarch64-linux-android-release.so"
+
+[icons]
+NobodyWhoModel =            "res://addons/nobodywho/icon.svg"
+NobodyWhoChat =             "res://addons/nobodywho/icon.svg"
+NobodyWhoTokenStream =      "res://addons/nobodywho/icon.svg"
+NobodyWhoTool =             "res://addons/nobodywho/icon.svg"
+NobodyWhoSamplerConfig =    "res://addons/nobodywho/icon.svg"
+NobodyWhoSamplerBuilder =   "res://addons/nobodywho/icon.svg"
+NobodyWhoSamplerPresets =   "res://addons/nobodywho/icon.svg"
+NobodyWho =                 "res://addons/nobodywho/icon.svg"
+NobodyWhoSpeechToText =     "res://addons/nobodywho/icon.svg"
+NobodyWhoTextToSpeech =     "res://addons/nobodywho/icon.svg"
+NobodyWhoEncoder =             "res://addons/nobodywho/icon.svg"
+NobodyWhoCrossEncoder =             "res://addons/nobodywho/icon.svg"
+NobodyWhoPrompt =             "res://addons/nobodywho/icon.svg"
+NobodyWhoVoiceActivityDetection = "res://addons/nobodywho/icon.svg"

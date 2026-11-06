@@ -1,14 +1,15 @@
 # Downhill Roguelite — Claude Code instructions
 
 Third-person descent roguelite in Godot 4.6+ (.NET) with C#. Full plan: see the "Downhill Roguelite — Development Plan" doc.
-Current milestone: M3 Packing (I1 + I2) built; M1–M3 all waiting for the director's play-test sign-off. Proposed next: M4 sprint/stamina, jump, health from ragdoll impacts (update this line as we progress).
+Current milestone: M4 sprint/stamina, jump, health from ragdoll impacts — built on branch wip/m4-vitals-ragdoll, tests passing, not yet merged to main. M1–M4 all waiting for the director's play-test sign-off (update this line as we progress).
+This folder (`downhill-roguelite-(copy)`) is the active project; `D:\Game dev\DownhillRoguelite` is the older copy without the addon.
 
 ## Build and run
 - Build C#: `dotnet build`
 - Run the game: `godot --path .` (Godot .NET binary must be on PATH as `godot`)
 - Headless smoke test: `godot --headless --path . --quit-after 300` — check the output for errors
-- After every change: build, then run the smoke test, and report errors with file and line
-- All of the above in one go: `bash .claude/skills/smoke-test/smoke.sh` (the `smoke-test` skill) — use it before every commit
+- Build and smoke-test after major changes only (new systems, scene or project-settings changes, anything touching several files), not after every small edit; report errors with file and line
+- All of the above in one go: `bash .claude/skills/smoke-test/smoke.sh` (the `smoke-test` skill) — run it before committing a major change
 - Visual check (headless can't render): `godot --path . --resolution 1280x720 --write-movie <scratch dir>/frame.png --quit-after 30`, then look at the last frame
 - Hand-written `.tscn` `Transform3D(...)` lists the basis row by row (x.x, y.x, z.x, x.y, ...), not as column vectors. Verify any orientation with a visual check.
 
@@ -30,3 +31,4 @@ Current milestone: M3 Packing (I1 + I2) built; M1–M3 all waiting for the direc
 - Work one milestone at a time; propose scope in plan mode before large changes.
 - Commit after each working step with a clear message. Never push without asking.
 - Never edit files in .godot/ (generated cache).
+- addons/nobodywho (local LLM GDExtension) is installed; its binaries aren't in git (see addons/README.md). Don't edit addon files.
