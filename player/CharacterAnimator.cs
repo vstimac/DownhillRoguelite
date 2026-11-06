@@ -29,6 +29,10 @@ public partial class CharacterAnimator : Node
     [Export] public StringName SprintClip { get; set; } = "Sprint";
     [Export] public StringName BrakeIdleClip { get; set; } = "Crouch_Idle";
     [Export] public StringName BrakeWalkClip { get; set; } = "Crouch_Fwd";
+    /// <summary>Played once when balance is lost. Placeholder until a proper fall and get-up exist.</summary>
+    [Export] public StringName FallClip { get; set; } = "Death01";
+    [Export] public float FallFadeIn { get; set; } = 0.15f;
+    [Export] public float FallFadeOut { get; set; } = 0.4f;
 
     [ExportGroup("Native clip speeds (m/s)")]
     [Export] public float WalkClipSpeed { get; set; } = 1.05f;
@@ -62,6 +66,8 @@ public partial class CharacterAnimator : Node
     private const string ToSprintNode = "to_sprint";
     private const string BrakeMoveNode = "brake_move";
     private const string BrakeNode = "brake";
+    private const string FallNode = "fall";
+    private const string FallShotNode = "fall_shot";
     private const string RateSuffix = "_rate";
 
     private AnimationTree? _tree;
@@ -69,6 +75,7 @@ public partial class CharacterAnimator : Node
     private float _brakeWeight;
     private float _brakeToWalkCycleRatio = 1.0f;
     private Vector3 _stepOffset;
+    private bool _wasFallen;
 
     public override void _Ready()
     {
@@ -124,6 +131,17 @@ public partial class CharacterAnimator : Node
         float targetSpeed = new Vector2(velocity.X, velocity.Z).Length();
         _speed = Mathf.Lerp(_speed, targetSpeed, 1.0f - Mathf.Exp(-SpeedSharpness * dt));
 
+        bool fallen = Body.State == LocomotionState.Fallen;
+        if (fallen && !_wasFallen)
+        {
+            _tree.Set($"parameters/{FallShotNode}/request", (int)AnimationNodeOneShot.OneShotRequest.Fire);
+        }
+        else if (!fallen && _wasFallen)
+        {
+            _tree.Set($"parameters/{FallShotNode}/request", (int)AnimationNodeOneShot.OneShotRequest.FadeOut);
+        }
+        _wasFallen = fallen;
+
         float targetBrake = 0.0f;
         if (Body.State == LocomotionState.Braking || Body.State == LocomotionState.Sliding)
         {
@@ -163,7 +181,12 @@ public partial class CharacterAnimator : Node
         AddBlend(tree, BrakeMoveNode, BrakeIdleNode, BrakeWalkNode + RateSuffix);
         AddBlend(tree, BrakeNode, ToSprintNode, BrakeMoveNode);
 
-        tree.ConnectNode("output", 0, BrakeNode);
+        tree.AddNode(FallNode, new AnimationNodeAnimation { Animation = FallClip });
+        tree.AddNode(FallShotNode, new AnimationNodeOneShot { FadeInTime = FallFadeIn, FadeOutTime = FallFadeOut });
+        tree.ConnectNode(FallShotNode, 0, BrakeNode);
+        tree.ConnectNode(FallShotNode, 1, FallNode);
+
+        tree.ConnectNode("output", 0, FallShotNode);
         return tree;
     }
 

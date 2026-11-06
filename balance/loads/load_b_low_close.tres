@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="LoadProfile" format=3]
+
+[ext_resource type="Script" path="res://balance/LoadProfile.cs" id="1_load"]
+
+[resource]
+script = ExtResource("1_load")
+DisplayName = "B: 20 kg low and close"
+ItemMasses = PackedFloat32Array(10, 6, 4)
+ItemPositions = PackedVector3Array(0, 1, -0.14, 0.04, 1.08, -0.15, -0.04, 1.12, -0.16)
+ItemSizes = PackedVector3Array(0.3, 0.3, 0.25, 0.25, 0.25, 0.2, 0.2, 0.2, 0.2)

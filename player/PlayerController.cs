@@ -38,8 +38,13 @@ public partial class PlayerController : CharacterBody3D
     private float _gravity;
     private Vector3 _previousVelocity;
     private string _surfaceName = DefaultSurfaceName;
-    // Downhill creep on low-grip ground, kept apart from the carrier's own velocity so it doesn't accumulate.
-    private Vector3 _creep;
+    // Surface creep and stumble lurch, kept apart from the carrier's own velocity so they don't accumulate.
+    private Vector3 _externalVelocity;
+
+    // Latest balance, from GameEvents: a stumble slows and lurches, bracing stops, a fall disables input.
+    private BalanceState _balanceState = BalanceState.Stable;
+    private bool _bracing;
+    private Vector3 _lurchDirection;
 
     public override void _Ready()
     {
@@ -50,6 +55,19 @@ public partial class PlayerController : CharacterBody3D
         FloorStopOnSlope = true;
         FloorConstantSpeed = true;
         FloorBlockOnWall = true;
+        GameEvents.BalanceUpdated += OnBalanceUpdated;
+    }
+
+    public override void _ExitTree()
+    {
+        GameEvents.BalanceUpdated -= OnBalanceUpdated;
+    }
+
+    private void OnBalanceUpdated(BalanceSnapshot snapshot)
+    {
+        _balanceState = snapshot.State;
+        _bracing = snapshot.Bracing;
+        _lurchDirection = Flatten(snapshot.Right * snapshot.Imbalance.X + snapshot.Forward * snapshot.Imbalance.Y);
     }
 
     /// <summary>Moves the carrier instantly and clears its momentum.</summary>
@@ -59,7 +77,7 @@ public partial class PlayerController : CharacterBody3D
         Rotation = new Vector3(0.0f, yawRadians, 0.0f);
         Velocity = Vector3.Zero;
         _previousVelocity = Vector3.Zero;
-        _creep = Vector3.Zero;
+        _externalVelocity = Vector3.Zero;
         State = LocomotionState.Idle;
         ResetPhysicsInterpolation();
     }
@@ -69,6 +87,10 @@ public partial class PlayerController : CharacterBody3D
         float dt = (float)delta;
         Vector3 input = ReadInputDirection();
         bool braking = InputEnabled && Input.IsActionPressed(ActionBrake);
+        if (_balanceState == BalanceState.Fallen || _bracing)
+        {
+            input = Vector3.Zero;
+        }
         FloorMaxAngle = Mathf.DegToRad(WalkableAngle());
 
         if (IsOnFloor())
@@ -79,7 +101,7 @@ public partial class PlayerController : CharacterBody3D
         }
         else
         {
-            _creep = Vector3.Zero;
+            _externalVelocity = Vector3.Zero;
             Velocity = ComputeAirVelocity(input, dt);
         }
 
@@ -146,6 +168,10 @@ public partial class PlayerController : CharacterBody3D
             float grade = direction.Dot(fallLine) * sinSlope;
             float alignment = Mathf.Max(0.0f, direction.Dot(desired));
             float target = TargetSpeed(braking, grade) * inputAmount * Mathf.Lerp(1.0f, alignment, Settings.TurnSlowdown);
+            if (_balanceState == BalanceState.Stumbling)
+            {
+                target *= Settings.StumbleSpeedFactor;
+            }
 
             float rate = Settings.Acceleration;
             if (speed > target)
@@ -157,19 +183,32 @@ public partial class PlayerController : CharacterBody3D
         else
         {
             float grade = direction.Dot(fallLine) * sinSlope;
-            speed = Mathf.MoveToward(speed, 0.0f, DecelerationRate(braking, grade) * traction * dt);
+            float rate = DecelerationRate(braking, grade);
+            if (_balanceState == BalanceState.Fallen)
+            {
+                rate = Settings.FallDeceleration;
+            }
+            else if (_bracing)
+            {
+                rate = Settings.BraceDeceleration;
+            }
+            speed = Mathf.MoveToward(speed, 0.0f, rate * traction * dt);
         }
 
-        _creep = fallLine * Settings.SurfaceCreepSpeed * (1.0f - Grip) * sinSlope;
+        _externalVelocity = fallLine * Settings.SurfaceCreepSpeed * (1.0f - Grip) * sinSlope;
+        if (_balanceState == BalanceState.Stumbling)
+        {
+            _externalVelocity += _lurchDirection * Settings.StumbleLurchSpeed;
+        }
 
         // Horizontal only: floor snap and constant floor speed keep the body on the surface.
-        return direction * speed + _creep;
+        return direction * speed + _externalVelocity;
     }
 
-    /// <summary>Horizontal velocity the carrier is producing, without surface creep.</summary>
+    /// <summary>Horizontal velocity the carrier is producing, without surface creep or stumble lurch.</summary>
     private Vector3 IntendedVelocity()
     {
-        return Flatten(Velocity, false) - _creep;
+        return Flatten(Velocity, false) - _externalVelocity;
     }
 
     /// <summary>Walkable angle for the current grip: low grip slides on gentler slopes.</summary>
@@ -339,7 +378,11 @@ public partial class PlayerController : CharacterBody3D
 
     private void UpdateState(bool braking)
     {
-        if (IsOnFloor())
+        if (_balanceState == BalanceState.Fallen)
+        {
+            State = LocomotionState.Fallen;
+        }
+        else if (IsOnFloor())
         {
             float speed = IntendedVelocity().Length();
             if (speed < Settings.IdleSpeed)
@@ -408,7 +451,8 @@ public partial class PlayerController : CharacterBody3D
             input,
             State,
             _surfaceName,
-            Grip));
+            Grip,
+            Flatten(-GlobalBasis.Z)));
     }
 
     /// <summary>Finds a too-steep-to-walk but not wall-like surface touched during the last move.</summary>

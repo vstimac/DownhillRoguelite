@@ -8,4 +8,6 @@ public enum LocomotionState
     Braking,
     Sliding,
     Airborne,
+    /// <summary>Down after a balance fall; no movement until the carrier gets up.</summary>
+    Fallen,
 }
