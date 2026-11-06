@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://player/CarrierStamina.cs" id="10_stamina"]
 [ext_resource type="Script" path="res://player/CarrierHealth.cs" id="11_health"]
 [ext_resource type="Script" path="res://player/PlayerRagdoll.cs" id="12_ragdoll"]
+[ext_resource type="Script" path="res://player/HurtVignette.cs" id="13_vignette"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.3
@@ -73,3 +74,6 @@ script = ExtResource("12_ragdoll")
 Body = NodePath("..")
 Skeleton = NodePath("../Model/Rig/Skeleton3D")
 Health = NodePath("../Health")
+
+[node name="HurtVignette" type="CanvasLayer" parent="."]
+script = ExtResource("13_vignette")

@@ -32,6 +32,9 @@ public partial class DebugSceneControls : Node
             _spawnYaw = PlayerBody.GlobalRotation.Y;
         }
 
+        // Until runs have a real fail state, death sends the carrier back to the start.
+        GameEvents.RespawnRequested += Respawn;
+
         // For rendered checks (--write-movie): `-- --autowalk` holds forward, `--autobrake` also brakes.
         string[] args = OS.GetCmdlineUserArgs();
         if (System.Array.IndexOf(args, "--autowalk") >= 0)
@@ -42,6 +45,11 @@ public partial class DebugSceneControls : Node
         {
             Input.ActionPress("player_brake");
         }
+    }
+
+    public override void _ExitTree()
+    {
+        GameEvents.RespawnRequested -= Respawn;
     }
 
     public override void _UnhandledInput(InputEvent @event)

@@ -23,9 +23,21 @@ public partial class LoadCycler : Node
     [Export] public int StartIndex { get; set; }
 
     private int _index;
+    // Loaded once and held: reloading every time let the GC finalize a profile's managed wrapper
+    // on its thread while the main thread re-wrapped the same resource (fatal gchandle error).
+    private readonly System.Collections.Generic.List<LoadProfile?> _profiles = new();
 
     public override void _Ready()
     {
+        foreach (string path in LoadPaths)
+        {
+            LoadProfile? profile = ResourceLoader.Load(path) as LoadProfile;
+            if (profile == null)
+            {
+                GD.PushWarning($"LoadCycler: {path} is not a LoadProfile.");
+            }
+            _profiles.Add(profile);
+        }
         _index = StartIndex;
         // Deferred so every system has subscribed before the first load goes out.
         CallDeferred(MethodName.PublishCurrent);
@@ -49,18 +61,20 @@ public partial class LoadCycler : Node
 
     private void PublishCurrent()
     {
-        if (_index < 0 || _index >= LoadPaths.Length)
+        if (_index < 0 || _index >= _profiles.Count)
         {
             return;
         }
 
-        if (ResourceLoader.Load(LoadPaths[_index]) is LoadProfile profile)
+        LoadProfile? profile = _profiles[_index];
+        if (profile != null)
         {
             GameEvents.PublishLoad(profile.ToSnapshot());
         }
-        else
-        {
-            GD.PushWarning($"LoadCycler: {LoadPaths[_index]} is not a LoadProfile.");
-        }
+    }
+
+    public override void _ExitTree()
+    {
+        _profiles.Clear();
     }
 }
