@@ -88,6 +88,16 @@ public partial class LocomotionSettings : Resource
     /// <summary>Below this speed the carrier counts as idle, in m/s.</summary>
     [Export] public float IdleSpeed { get; set; } = 0.1f;
 
+    [ExportGroup("Surface")]
+    /// <summary>Grip used on geometry without a SurfaceType.</summary>
+    [Export] public float DefaultGrip { get; set; } = 1.0f;
+    /// <summary>Walkable angle at zero grip; MaxWalkableAngle applies at full grip, in degrees.</summary>
+    [Export] public float LowGripWalkableAngle { get; set; } = 20.0f;
+    /// <summary>Fraction of acceleration and braking left at zero grip.</summary>
+    [Export] public float MinTraction { get; set; } = 0.2f;
+    /// <summary>Downhill creep at zero grip on a vertical face; scaled by (1 - grip) and the slope's sine, in m/s.</summary>
+    [Export] public float SurfaceCreepSpeed { get; set; } = 1.5f;
+
     [ExportGroup("Air and sliding")]
     /// <summary>Multiplier on the project's default gravity.</summary>
     [Export] public float GravityScale { get; set; } = 1.0f;

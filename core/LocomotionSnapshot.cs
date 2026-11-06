@@ -14,6 +14,8 @@ namespace DownhillRoguelite.Core;
 /// <param name="FallLine">Horizontal, normalized downhill direction; zero on flat ground.</param>
 /// <param name="InputDirection">Camera-relative movement input in world space, length 0 to 1.</param>
 /// <param name="State">High-level movement state.</param>
+/// <param name="Surface">Display name of the surface underfoot.</param>
+/// <param name="Grip">Grip of the surface underfoot, 0 to 1.</param>
 public readonly record struct LocomotionSnapshot(
     Vector3 Position,
     Vector3 Velocity,
@@ -22,4 +24,6 @@ public readonly record struct LocomotionSnapshot(
     float SlopeDegrees,
     Vector3 FallLine,
     Vector3 InputDirection,
-    LocomotionState State);
+    LocomotionState State,
+    string Surface,
+    float Grip);

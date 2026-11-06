@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="SurfaceType" format=3]
+
+[ext_resource type="Script" path="res://core/SurfaceType.cs" id="1_surface"]
+
+[resource]
+script = ExtResource("1_surface")
+DisplayName = "Grass"
+Grip = 0.85
+DebugColor = Color(0.42, 0.62, 0.3, 1)

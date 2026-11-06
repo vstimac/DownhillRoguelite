@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using DownhillRoguelite.Core;
 using DownhillRoguelite.Player;
 using Godot;
 
@@ -74,6 +75,17 @@ public partial class LocomotionTests : Node3D
     [Export] public float SlideBlendOutTime { get; set; } = 1.0f;
     [Export] public float MaxSlidingIkWeight { get; set; } = 0.05f;
 
+    [ExportGroup("Surfaces")]
+    [Export] public string GripSurface { get; set; } = "Rock";
+    [Export] public string LooseSurface { get; set; } = "Scree";
+    /// <summary>Min drift standing still on the loose surface lane, in m.</summary>
+    [Export] public float MinLooseCreep { get; set; } = 0.4f;
+    /// <summary>Stride time before releasing input in the stopping test, in s.</summary>
+    [Export] public float StopTestStrideTime { get; set; } = 3.5f;
+    [Export] public float StopTestMaxTime { get; set; } = 6.0f;
+    /// <summary>Loose-surface stopping distance must be at least this multiple of the grip surface's.</summary>
+    [Export] public float MinLooseStopRatio { get; set; } = 1.5f;
+
     private readonly List<string> _failures = new();
 
     private struct RunStats
@@ -112,6 +124,7 @@ public partial class LocomotionTests : Node3D
         await TestFootContact(PlayerBody, $"stairs {Course.StepHeights[ContactStairIndex] * 100.0f:0} cm", Course.StairStart(ContactStairIndex), ContactRunTime, false);
         await TestFootContact(PlayerBody, "rock field", Course.RockFieldStart(), ContactRunTime, false);
         await TestIkBlendsOutWhenSliding(PlayerBody, Course);
+        await TestSurfaces(PlayerBody, Course);
 
         if (_failures.Count == 0)
         {
@@ -385,6 +398,49 @@ public partial class LocomotionTests : Node3D
         await WaitSeconds(SlideBlendOutTime);
         Check($"IK blends out sliding on {course.LaneAngles[steepLane]:0}°", footIk.IkWeight <= MaxSlidingIkWeight,
             $"IK weight {footIk.IkWeight:0.00} while {player.State}");
+    }
+
+    /// <summary>Same slope, different footing: the loose surface creeps and takes longer to stop.</summary>
+    private async Task TestSurfaces(PlayerController player, TestCourseBuilder course)
+    {
+        int grip = course.SurfaceLaneIndex(GripSurface);
+        int loose = course.SurfaceLaneIndex(LooseSurface);
+        if (grip < 0 || loose < 0)
+        {
+            Check("surfaces", false, $"surface lanes '{GripSurface}' / '{LooseSurface}' not found");
+            return;
+        }
+        string slope = $"{course.SurfaceLaneAngle:0}°";
+
+        await Place(player, course.SurfaceLanePoint(grip, course.SurfaceLaneLength() * 0.5f));
+        RunStats gripHold = await Run(player, SlopeHoldTime, false, false);
+        float gripDrift = Flat(gripHold.End - gripHold.Start).Length();
+        Check($"{GripSurface} {slope} holds still", gripDrift < MaxHoldDrift, $"drifted {gripDrift:0.00} m, grip {player.Grip:0.00}");
+
+        await Place(player, course.SurfaceLanePoint(loose, course.SurfaceLaneLength() * 0.5f));
+        RunStats looseHold = await Run(player, SlopeHoldTime, false, false);
+        float looseDrift = Flat(looseHold.End - looseHold.Start).Length();
+        Check($"{LooseSurface} {slope} creeps", looseDrift > MinLooseCreep, $"crept {looseDrift:0.00} m, grip {player.Grip:0.00}");
+
+        float gripStop = await StoppingDistance(player, course.SurfaceLanePoint(grip, 3.0f));
+        float looseStop = await StoppingDistance(player, course.SurfaceLanePoint(loose, 3.0f));
+        Check($"{LooseSurface} stops longer than {GripSurface} on {slope}", looseStop >= gripStop * MinLooseStopRatio,
+            $"{LooseSurface} {looseStop:0.0} m vs {GripSurface} {gripStop:0.0} m");
+    }
+
+    /// <summary>Strides downhill, releases input, and measures the distance until the carrier is idle.</summary>
+    private async Task<float> StoppingDistance(PlayerController player, Vector3 start)
+    {
+        await Place(player, start);
+        await Run(player, StopTestStrideTime, true, false);
+
+        Vector3 released = player.GlobalPosition;
+        float dt = 1.0f / Engine.PhysicsTicksPerSecond;
+        for (float elapsed = 0.0f; elapsed < StopTestMaxTime && player.State != LocomotionState.Idle; elapsed += dt)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+        }
+        return Flat(player.GlobalPosition - released).Length();
     }
 
     /// <summary>Distance from a point to the ground below it, along the ground's normal; NaN if no ground.</summary>
