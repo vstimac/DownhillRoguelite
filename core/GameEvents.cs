@@ -53,6 +53,14 @@ public static class GameEvents
     /// <summary>Raised when the carrier died and should be brought back (debug respawn until runs exist).</summary>
     public static event Action? RespawnRequested;
 
+    /// <summary>Raised by terrain when the deepest point reached this run grows, in metres below the start.</summary>
+    public static event Action<float>? DepthChanged;
+
+    public static void PublishDepth(float depth)
+    {
+        DepthChanged?.Invoke(depth);
+    }
+
     public static void PublishLanded(float downwardSpeed)
     {
         Landed?.Invoke(downwardSpeed);
