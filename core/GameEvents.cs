@@ -23,6 +23,18 @@ public static class GameEvents
     /// <summary>The most recent load, so systems created after the last change can catch up.</summary>
     public static LoadSnapshot CurrentLoad { get; private set; } = LoadSnapshot.Empty;
 
+    /// <summary>Raised when the carrier sets the pack down to repack it (true) or puts it back on (false).</summary>
+    public static event Action<bool>? PackingModeChanged;
+
+    /// <summary>Whether the carrier is packing; movement, balance input and debug keys stand down.</summary>
+    public static bool IsPacking { get; private set; }
+
+    public static void PublishPackingMode(bool packing)
+    {
+        IsPacking = packing;
+        PackingModeChanged?.Invoke(packing);
+    }
+
     public static void PublishLoad(LoadSnapshot snapshot)
     {
         CurrentLoad = snapshot;

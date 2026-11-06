@@ -1,3 +1,4 @@
+using DownhillRoguelite.Core;
 using DownhillRoguelite.Player;
 using Godot;
 
@@ -45,6 +46,12 @@ public partial class DebugSceneControls : Node
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        // Packing uses some of the same keys (R tips an item).
+        if (GameEvents.IsPacking)
+        {
+            return;
+        }
+
         if (@event.IsActionPressed(ActionToggleFly))
         {
             ToggleFlyCamera();

@@ -65,6 +65,9 @@ public partial class LoadDebugVisual : Node3D
 
     public override void _Process(double delta)
     {
+        // The pack is on the ground while packing.
+        Visible = !GameEvents.IsPacking;
+
         // Same rotation as the balance model: roll about forward (-Z), pitch about -right.
         Quaternion lean = new Quaternion(Vector3.Forward, _tilt.X) * new Quaternion(Vector3.Right, -_tilt.Y);
         for (int i = 0; i < _boxes.Count && i < _positions.Length; i++)
