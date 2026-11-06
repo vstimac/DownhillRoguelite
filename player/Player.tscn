@@ -3,20 +3,12 @@
 [ext_resource type="Script" path="res://player/PlayerController.cs" id="1_controller"]
 [ext_resource type="Resource" path="res://player/default_locomotion.tres" id="2_settings"]
 [ext_resource type="Script" path="res://player/ChaseCamera.cs" id="3_camera"]
+[ext_resource type="PackedScene" path="res://art/characters/quaternius_ual/UAL_Mannequin.glb" id="4_model"]
+[ext_resource type="Script" path="res://player/CharacterAnimator.cs" id="5_animator"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.3
 height = 1.8
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
-radius = 0.3
-height = 1.8
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_body"]
-albedo_color = Color(0.85, 0.45, 0.2, 1)
-
-[sub_resource type="BoxMesh" id="BoxMesh_nose"]
-size = Vector3(0.2, 0.12, 0.25)
 
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_controller")
@@ -26,15 +18,13 @@ Settings = ExtResource("2_settings")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 shape = SubResource("CapsuleShape3D_body")
 
-[node name="Body" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
-mesh = SubResource("CapsuleMesh_body")
-surface_material_override/0 = SubResource("StandardMaterial3D_body")
+[node name="Model" parent="." instance=ExtResource("4_model")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
-[node name="Nose" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -0.3)
-mesh = SubResource("BoxMesh_nose")
-surface_material_override/0 = SubResource("StandardMaterial3D_body")
+[node name="Animator" type="Node" parent="." node_paths=PackedStringArray("Body", "Animations")]
+script = ExtResource("5_animator")
+Body = NodePath("..")
+Animations = NodePath("../Model/AnimationPlayer")
 
 [node name="CameraRig" type="Node3D" parent="." node_paths=PackedStringArray("Target", "Arm", "Camera")]
 script = ExtResource("3_camera")

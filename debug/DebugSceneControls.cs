@@ -30,6 +30,17 @@ public partial class DebugSceneControls : Node
             _spawnPosition = PlayerBody.GlobalPosition;
             _spawnYaw = PlayerBody.GlobalRotation.Y;
         }
+
+        // For rendered checks (--write-movie): `-- --autowalk` holds forward, `--autobrake` also brakes.
+        string[] args = OS.GetCmdlineUserArgs();
+        if (System.Array.IndexOf(args, "--autowalk") >= 0)
+        {
+            Input.ActionPress("player_move_forward");
+        }
+        if (System.Array.IndexOf(args, "--autobrake") >= 0)
+        {
+            Input.ActionPress("player_brake");
+        }
     }
 
     public override void _UnhandledInput(InputEvent @event)

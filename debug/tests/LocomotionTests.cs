@@ -50,6 +50,18 @@ public partial class LocomotionTests : Node3D
     [Export] public float MinCrossSlopeDistance { get; set; } = 8.0f;
     [Export] public float MinRockFieldDistance { get; set; } = 6.0f;
 
+    [ExportGroup("Foot slip")]
+    /// <summary>Flat-ground start point with a clear run toward -Z.</summary>
+    [Export] public Vector3 FootSlipStart { get; set; } = new(0.0f, 0.0f, -88.0f);
+    [Export] public float FootSlipWarmup { get; set; } = 2.0f;
+    [Export] public float FootSlipMeasureTime { get; set; } = 2.0f;
+    /// <summary>A toe lower than this above the ground counts as planted, in m.</summary>
+    [Export] public float PlantedToeHeight { get; set; } = 0.04f;
+    /// <summary>Median planted-toe speed allowed, in m/s.</summary>
+    [Export] public float MaxFootSlip { get; set; } = 0.35f;
+    [Export] public string LeftToeBone { get; set; } = "DEF-toe.L";
+    [Export] public string RightToeBone { get; set; } = "DEF-toe.R";
+
     private readonly List<string> _failures = new();
 
     private struct RunStats
@@ -79,6 +91,8 @@ public partial class LocomotionTests : Node3D
         await TestCrest(PlayerBody, Course);
         await TestCrossSlope(PlayerBody, Course);
         await TestRockField(PlayerBody, Course);
+        await TestFootSlip(PlayerBody, false);
+        await TestFootSlip(PlayerBody, true);
 
         if (_failures.Count == 0)
         {
@@ -183,6 +197,91 @@ public partial class LocomotionTests : Node3D
         Check("rock field not stuck", distance >= MinRockFieldDistance, $"walked {distance:0.0} m");
         Check("rock field no launch", stats.MaxUpwardSpeed <= MaxRockUpwardSpeed, $"max upward {stats.MaxUpwardSpeed:0.00} m/s");
         Check("rock field stays grounded", stats.MaxAirTime <= MaxRockAirTime, $"longest air time {stats.MaxAirTime:0.00} s");
+    }
+
+    /// <summary>
+    /// Walks on flat ground and measures how fast each toe moves in world space while it is
+    /// planted. Animation playback matched to body speed keeps this low; foot IK (M1.3) pins it.
+    /// </summary>
+    private async Task TestFootSlip(PlayerController player, bool brake)
+    {
+        string mode = "stride";
+        if (brake)
+        {
+            mode = "brake";
+        }
+
+        Skeleton3D? skeleton = FindSkeleton(player);
+        if (skeleton == null)
+        {
+            Check($"foot slip {mode}", false, "no Skeleton3D under the player");
+            return;
+        }
+        int[] toes = { skeleton.FindBone(LeftToeBone), skeleton.FindBone(RightToeBone) };
+        if (toes[0] < 0 || toes[1] < 0)
+        {
+            Check($"foot slip {mode}", false, "toe bones not found");
+            return;
+        }
+
+        await Place(player, FootSlipStart);
+        Input.ActionPress(ActionForward);
+        if (brake)
+        {
+            Input.ActionPress(ActionBrake);
+        }
+        await WaitSeconds(FootSlipWarmup);
+
+        float dt = 1.0f / Engine.PhysicsTicksPerSecond;
+        float groundY = player.GlobalPosition.Y;
+        Vector3[] previous = { ToeWorld(skeleton, toes[0]), ToeWorld(skeleton, toes[1]) };
+        List<float> slips = new();
+
+        for (float elapsed = 0.0f; elapsed < FootSlipMeasureTime; elapsed += dt)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+            for (int i = 0; i < toes.Length; i++)
+            {
+                Vector3 toe = ToeWorld(skeleton, toes[i]);
+                if (toe.Y - groundY < PlantedToeHeight)
+                {
+                    slips.Add(Flat(toe - previous[i]).Length() / dt);
+                }
+                previous[i] = toe;
+            }
+        }
+
+        float bodySpeed = Flat(player.Velocity).Length();
+        Input.ActionRelease(ActionForward);
+        Input.ActionRelease(ActionBrake);
+
+        if (slips.Count == 0)
+        {
+            Check($"foot slip {mode}", false, "no planted toe samples");
+            return;
+        }
+
+        slips.Sort();
+        float median = slips[slips.Count / 2];
+        Check($"foot slip {mode}", median <= MaxFootSlip,
+            $"median planted-toe speed {median:0.00} m/s ({slips.Count} samples, body {bodySpeed:0.00} m/s)");
+    }
+
+    private static Skeleton3D? FindSkeleton(Node root)
+    {
+        foreach (Node node in root.FindChildren("*", "Skeleton3D", true, false))
+        {
+            if (node is Skeleton3D skeleton)
+            {
+                return skeleton;
+            }
+        }
+        return null;
+    }
+
+    private static Vector3 ToeWorld(Skeleton3D skeleton, int bone)
+    {
+        return (skeleton.GlobalTransform * skeleton.GetBoneGlobalPose(bone)).Origin;
     }
 
     private async Task Place(PlayerController player, Vector3 position)
