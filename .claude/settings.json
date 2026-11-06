@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build *)",
+      "Bash(dotnet test *)",
+      "Bash(dotnet restore *)",
+      "Bash(godot --headless *)",
+      "Bash(godot --path *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "WebFetch(domain:docs.godotengine.org)",
+      "WebFetch(domain:github.com)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git reset *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Edit(/.godot/**)",
+      "Bash(rm -rf *)"
+    ]
+  }
+}
