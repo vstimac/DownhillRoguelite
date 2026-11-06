@@ -6,7 +6,8 @@ namespace DownhillRoguelite.Player;
 /// <summary>
 /// Kinematic carrier controller. Slope-aware walking with hold-to-brake, downhill momentum that
 /// makes stopping harder, speed-dependent turning, step-up onto ledges and sliding on surfaces
-/// steeper than the walkable limit. Publishes a LocomotionSnapshot every physics frame.
+/// steeper than the walkable limit. Surface grip (core SurfaceType) scales traction, lowers the
+/// walkable limit and adds a downhill creep. Publishes a LocomotionSnapshot every physics frame.
 /// The node's origin is at the feet.
 /// </summary>
 public partial class PlayerController : CharacterBody3D
@@ -19,6 +20,7 @@ public partial class PlayerController : CharacterBody3D
 
     // Angle tolerance so a surface exactly at the walkable limit still counts as walkable.
     private const float WalkableAngleTolerance = 0.01f;
+    private const string DefaultSurfaceName = "Default";
 
     [Export] public LocomotionSettings Settings { get; set; } = new();
 
@@ -30,13 +32,20 @@ public partial class PlayerController : CharacterBody3D
     /// <summary>Raised after a step-up moves the body instantly, with the world-space jump, so visuals can smooth it.</summary>
     public event System.Action<Vector3>? SteppedUp;
 
+    /// <summary>Grip of the surface underfoot, 0 to 1.</summary>
+    public float Grip { get; private set; }
+
     private float _gravity;
     private Vector3 _previousVelocity;
+    private string _surfaceName = DefaultSurfaceName;
+    // Downhill creep on low-grip ground, kept apart from the carrier's own velocity so it doesn't accumulate.
+    private Vector3 _creep;
 
     public override void _Ready()
     {
         _gravity = ProjectSettings.GetSetting("physics/3d/default_gravity").AsSingle();
-        FloorMaxAngle = Mathf.DegToRad(Settings.MaxWalkableAngle);
+        Grip = Settings.DefaultGrip;
+        FloorMaxAngle = Mathf.DegToRad(WalkableAngle());
         FloorSnapLength = Settings.FloorSnapLength;
         FloorStopOnSlope = true;
         FloorConstantSpeed = true;
@@ -50,6 +59,7 @@ public partial class PlayerController : CharacterBody3D
         Rotation = new Vector3(0.0f, yawRadians, 0.0f);
         Velocity = Vector3.Zero;
         _previousVelocity = Vector3.Zero;
+        _creep = Vector3.Zero;
         State = LocomotionState.Idle;
         ResetPhysicsInterpolation();
     }
@@ -59,6 +69,7 @@ public partial class PlayerController : CharacterBody3D
         float dt = (float)delta;
         Vector3 input = ReadInputDirection();
         bool braking = InputEnabled && Input.IsActionPressed(ActionBrake);
+        FloorMaxAngle = Mathf.DegToRad(WalkableAngle());
 
         if (IsOnFloor())
         {
@@ -68,11 +79,13 @@ public partial class PlayerController : CharacterBody3D
         }
         else
         {
+            _creep = Vector3.Zero;
             Velocity = ComputeAirVelocity(input, dt);
         }
 
         MoveAndSlide();
 
+        UpdateSurface();
         UpdateState(braking);
         UpdateFacing(input, dt);
         Publish(input, dt);
@@ -112,8 +125,9 @@ public partial class PlayerController : CharacterBody3D
 
     private Vector3 ComputeGroundVelocity(Vector3 input, bool braking, Vector3 groundNormal, float dt)
     {
-        Vector3 horizontal = Flatten(Velocity, false);
+        Vector3 horizontal = IntendedVelocity();
         float speed = horizontal.Length();
+        float traction = Mathf.Lerp(Settings.MinTraction, 1.0f, Grip);
         Vector3 direction = Vector3.Zero;
         if (speed > Mathf.Epsilon)
         {
@@ -138,16 +152,76 @@ public partial class PlayerController : CharacterBody3D
             {
                 rate = DecelerationRate(braking, grade);
             }
-            speed = Mathf.MoveToward(speed, target, rate * dt);
+            speed = Mathf.MoveToward(speed, target, rate * traction * dt);
         }
         else
         {
             float grade = direction.Dot(fallLine) * sinSlope;
-            speed = Mathf.MoveToward(speed, 0.0f, DecelerationRate(braking, grade) * dt);
+            speed = Mathf.MoveToward(speed, 0.0f, DecelerationRate(braking, grade) * traction * dt);
         }
 
+        _creep = fallLine * Settings.SurfaceCreepSpeed * (1.0f - Grip) * sinSlope;
+
         // Horizontal only: floor snap and constant floor speed keep the body on the surface.
-        return direction * speed;
+        return direction * speed + _creep;
+    }
+
+    /// <summary>Horizontal velocity the carrier is producing, without surface creep.</summary>
+    private Vector3 IntendedVelocity()
+    {
+        return Flatten(Velocity, false) - _creep;
+    }
+
+    /// <summary>Walkable angle for the current grip: low grip slides on gentler slopes.</summary>
+    private float WalkableAngle()
+    {
+        return Mathf.Lerp(Settings.LowGripWalkableAngle, Settings.MaxWalkableAngle, Grip);
+    }
+
+    /// <summary>Reads the SurfaceType of whatever the body stands or slides on; keeps the last one in the air.</summary>
+    private void UpdateSurface()
+    {
+        GodotObject? ground = FindGroundCollider();
+        if (ground == null)
+        {
+            return;
+        }
+
+        if (ground.HasMeta(SurfaceType.MetaKey) && ground.GetMeta(SurfaceType.MetaKey).AsGodotObject() is SurfaceType surface)
+        {
+            Grip = surface.Grip;
+            _surfaceName = surface.DisplayName;
+        }
+        else
+        {
+            Grip = Settings.DefaultGrip;
+            _surfaceName = DefaultSurfaceName;
+        }
+    }
+
+    private GodotObject? FindGroundCollider()
+    {
+        // Floor snapping often moves the body without a slide collision, so probe the floor directly.
+        if (IsOnFloor())
+        {
+            KinematicCollision3D probe = new();
+            if (TestMove(GlobalTransform, Vector3.Down * Settings.FloorSnapLength, probe))
+            {
+                return probe.GetCollider();
+            }
+            return null;
+        }
+
+        float maxSlide = Mathf.DegToRad(Settings.MaxSlideAngle);
+        for (int i = 0; i < GetSlideCollisionCount(); i++)
+        {
+            KinematicCollision3D contact = GetSlideCollision(i);
+            if (contact.GetNormal().AngleTo(Vector3.Up) <= maxSlide)
+            {
+                return contact.GetCollider();
+            }
+        }
+        return null;
     }
 
     private Vector3 TurnToward(Vector3 current, Vector3 desired, float speed, float dt)
@@ -265,7 +339,7 @@ public partial class PlayerController : CharacterBody3D
     {
         if (IsOnFloor())
         {
-            float speed = Flatten(Velocity, false).Length();
+            float speed = IntendedVelocity().Length();
             if (speed < Settings.IdleSpeed)
             {
                 State = LocomotionState.Idle;
@@ -291,7 +365,7 @@ public partial class PlayerController : CharacterBody3D
 
     private void UpdateFacing(Vector3 input, float dt)
     {
-        Vector3 look = Flatten(Velocity, false);
+        Vector3 look = IntendedVelocity();
         if (look.Length() < Settings.FacingMinSpeed)
         {
             look = input;
@@ -330,7 +404,9 @@ public partial class PlayerController : CharacterBody3D
             Mathf.RadToDeg(normal.AngleTo(Vector3.Up)),
             HorizontalFallLine(normal),
             input,
-            State));
+            State,
+            _surfaceName,
+            Grip));
     }
 
     /// <summary>Finds a too-steep-to-walk but not wall-like surface touched during the last move.</summary>
@@ -353,7 +429,7 @@ public partial class PlayerController : CharacterBody3D
 
     private bool IsWalkable(Vector3 normal)
     {
-        return normal.AngleTo(Vector3.Up) <= Mathf.DegToRad(Settings.MaxWalkableAngle) + WalkableAngleTolerance;
+        return normal.AngleTo(Vector3.Up) <= Mathf.DegToRad(WalkableAngle()) + WalkableAngleTolerance;
     }
 
     private static Vector3 HorizontalFallLine(Vector3 normal)

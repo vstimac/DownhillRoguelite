@@ -76,6 +76,7 @@ public partial class LocomotionDebugOverlay : CanvasLayer
             $"Speed      {speed:0.00} m/s  ({speed * 3.6f:0.0} km/h)\n" +
             $"Vertical   {snapshot.Velocity.Y:+0.00;-0.00} m/s\n" +
             $"Slope      {snapshot.SlopeDegrees:0.0}°\n" +
+            $"Surface    {snapshot.Surface}  (grip {snapshot.Grip:0.00})\n" +
             $"Grade      {grade:+0.00;-0.00}  (+ = downhill)\n" +
             $"Accel      {horizontalAcceleration.Length():0.0} m/s²\n" +
             $"FPS        {Engine.GetFramesPerSecond():0}\n" +
