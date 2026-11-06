@@ -9,14 +9,19 @@
 [ext_resource type="Script" path="res://balance/BalanceController.cs" id="7_balance"]
 [ext_resource type="Resource" path="res://balance/default_balance.tres" id="8_balance_settings"]
 [ext_resource type="Script" path="res://player/SpineLean.cs" id="9_spine_lean"]
+[ext_resource type="Script" path="res://player/CarrierStamina.cs" id="10_stamina"]
+[ext_resource type="Script" path="res://player/CarrierHealth.cs" id="11_health"]
+[ext_resource type="Script" path="res://player/PlayerRagdoll.cs" id="12_ragdoll"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.3
 height = 1.8
 
-[node name="Player" type="CharacterBody3D"]
+[node name="Player" type="CharacterBody3D" node_paths=PackedStringArray("Stamina", "Health")]
 script = ExtResource("1_controller")
 Settings = ExtResource("2_settings")
+Stamina = NodePath("Stamina")
+Health = NodePath("Health")
 
 [node name="Collision" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
@@ -54,3 +59,17 @@ Camera = NodePath("SpringArm/Camera")
 [node name="Camera" type="Camera3D" parent="CameraRig/SpringArm"]
 current = true
 far = 1000.0
+
+[node name="Stamina" type="Node" parent="."]
+script = ExtResource("10_stamina")
+
+[node name="Health" type="Node" parent="." node_paths=PackedStringArray("Stamina", "Body")]
+script = ExtResource("11_health")
+Stamina = NodePath("../Stamina")
+Body = NodePath("..")
+
+[node name="Ragdoll" type="Node" parent="." node_paths=PackedStringArray("Body", "Skeleton", "Health")]
+script = ExtResource("12_ragdoll")
+Body = NodePath("..")
+Skeleton = NodePath("../Model/Rig/Skeleton3D")
+Health = NodePath("../Health")

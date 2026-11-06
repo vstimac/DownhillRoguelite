@@ -17,7 +17,7 @@ public partial class LocomotionSettings : Resource
     [Export] public float BrakeSpeed { get; set; } = 1.2f;
 
     /// <summary>Hard cap on ground speed, in m/s.</summary>
-    [Export] public float MaxSpeed { get; set; } = 6.0f;
+    [Export] public float MaxSpeed { get; set; } = 7.5f;
 
     /// <summary>Extra target speed per unit of downhill grade (sine of the slope along the movement direction). Not applied while braking.</summary>
     [Export] public float DownhillSpeedBonus { get; set; } = 1.0f;
@@ -97,6 +97,24 @@ public partial class LocomotionSettings : Resource
     [Export] public float MinTraction { get; set; } = 0.2f;
     /// <summary>Downhill creep at zero grip on a vertical face; scaled by (1 - grip) and the slope's sine, in m/s.</summary>
     [Export] public float SurfaceCreepSpeed { get; set; } = 1.5f;
+
+    [ExportGroup("Sprint and jump")]
+    /// <summary>Target speed on flat ground while sprinting, in m/s.</summary>
+    [Export] public float SprintSpeed { get; set; } = 5.5f;
+    /// <summary>Take-off speed of a jump with no load, in m/s (about 0.5 m high).</summary>
+    [Export] public float JumpSpeed { get; set; } = 3.2f;
+    /// <summary>Load at which the jump is cut to MinJumpFactor, in kg.</summary>
+    [Export] public float JumpLoadForMinimum { get; set; } = 40.0f;
+    /// <summary>Fraction of the jump left at JumpLoadForMinimum or more.</summary>
+    [Export] public float MinJumpFactor { get; set; } = 0.4f;
+    /// <summary>Landings slower than this aren't reported (stepping off kerbs), in m/s.</summary>
+    [Export] public float MinReportedLanding { get; set; } = 1.0f;
+
+    [ExportGroup("Injury")]
+    /// <summary>Below this fraction of health the carrier slows down.</summary>
+    [Export] public float InjuredHealthFraction { get; set; } = 0.5f;
+    /// <summary>Speed multiplier at zero health.</summary>
+    [Export] public float InjuredSpeedFactor { get; set; } = 0.7f;
 
     [ExportGroup("Balance response")]
     /// <summary>Target speed multiplier while stumbling.</summary>

@@ -17,20 +17,30 @@ public partial class PlayerController : CharacterBody3D
     private static readonly StringName ActionLeft = "player_move_left";
     private static readonly StringName ActionRight = "player_move_right";
     private static readonly StringName ActionBrake = "player_brake";
+    private static readonly StringName ActionSprint = "player_sprint";
+    private static readonly StringName ActionJump = "player_jump";
 
     // Angle tolerance so a surface exactly at the walkable limit still counts as walkable.
     private const float WalkableAngleTolerance = 0.01f;
     private const string DefaultSurfaceName = "Default";
+    // Input below this length doesn't count as moving for sprinting.
+    private const float SprintInputThreshold = 0.1f;
 
     [Export] public LocomotionSettings Settings { get; set; } = new();
+    [Export] public CarrierStamina? Stamina { get; set; }
+    [Export] public CarrierHealth? Health { get; set; }
 
     /// <summary>When false, movement input is ignored, e.g. while a debug camera is active.</summary>
     [Export] public bool InputEnabled { get; set; } = true;
 
     public LocomotionState State { get; private set; } = LocomotionState.Idle;
+    public bool Sprinting { get; private set; }
 
     /// <summary>Raised after a step-up moves the body instantly, with the world-space jump, so visuals can smooth it.</summary>
     public event System.Action<Vector3>? SteppedUp;
+
+    /// <summary>Raised after Teleport, so anything holding world positions (ragdoll, planted feet) can reset.</summary>
+    public event System.Action? Teleported;
 
     /// <summary>Grip of the surface underfoot, 0 to 1.</summary>
     public float Grip { get; private set; }
@@ -80,24 +90,47 @@ public partial class PlayerController : CharacterBody3D
         _externalVelocity = Vector3.Zero;
         State = LocomotionState.Idle;
         ResetPhysicsInterpolation();
+        Teleported?.Invoke();
     }
 
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta;
+        if (GameEvents.IsDowned)
+        {
+            // The ragdoll carries the body around; stand still and report being down.
+            Velocity = Vector3.Zero;
+            _externalVelocity = Vector3.Zero;
+            Sprinting = false;
+            State = LocomotionState.Fallen;
+            Publish(Vector3.Zero, dt);
+            return;
+        }
+
         Vector3 input = ReadInputDirection();
         bool braking = InputEnabled && Input.IsActionPressed(ActionBrake);
-        if (_balanceState == BalanceState.Fallen || _bracing || GameEvents.IsPacking)
+        bool held = _balanceState == BalanceState.Fallen || _bracing || GameEvents.IsPacking;
+        if (held)
         {
             input = Vector3.Zero;
         }
         FloorMaxAngle = Mathf.DegToRad(WalkableAngle());
 
-        if (IsOnFloor())
+        bool grounded = IsOnFloor();
+        Sprinting = grounded && InputEnabled && !held && !braking
+            && input.Length() > SprintInputThreshold
+            && Input.IsActionPressed(ActionSprint)
+            && Stamina != null && Stamina.CanSprint;
+
+        if (grounded)
         {
             Vector3 groundNormal = GetFloorNormal();
             Velocity = ComputeGroundVelocity(input, braking, groundNormal, dt);
             TryStepUp(dt);
+            if (!held)
+            {
+                TryJump();
+            }
         }
         else
         {
@@ -105,7 +138,17 @@ public partial class PlayerController : CharacterBody3D
             Velocity = ComputeAirVelocity(input, dt);
         }
 
+        if (Sprinting)
+        {
+            Stamina!.DrainSprint(dt, GameEvents.CurrentLoad.Mass);
+        }
+
+        float downwardSpeed = -Velocity.Y;
         MoveAndSlide();
+        if (!grounded && IsOnFloor() && downwardSpeed >= Settings.MinReportedLanding)
+        {
+            GameEvents.PublishLanded(downwardSpeed);
+        }
 
         UpdateSurface();
         UpdateState(braking);
@@ -279,9 +322,45 @@ public partial class PlayerController : CharacterBody3D
         return current.Rotated(Vector3.Up, Mathf.Clamp(angle, -maxTurn, maxTurn));
     }
 
+    /// <summary>Jumps if the button was just pressed and there is stamina for it; a heavier load jumps lower.</summary>
+    private void TryJump()
+    {
+        if (!InputEnabled || !Input.IsActionJustPressed(ActionJump))
+        {
+            return;
+        }
+        if (Stamina != null && !Stamina.TrySpend(Stamina.JumpCost))
+        {
+            return;
+        }
+
+        float loadFraction = Mathf.Clamp(GameEvents.CurrentLoad.Mass / Settings.JumpLoadForMinimum, 0.0f, 1.0f);
+        float speed = Settings.JumpSpeed * Mathf.Lerp(1.0f, Settings.MinJumpFactor, loadFraction);
+        Velocity = new Vector3(Velocity.X, speed, Velocity.Z);
+    }
+
+    /// <summary>Speed multiplier from injuries: 1 above InjuredHealthFraction, down to InjuredSpeedFactor at zero.</summary>
+    private float InjuryFactor()
+    {
+        if (Health == null || Health.Max <= 0.0f)
+        {
+            return 1.0f;
+        }
+        float fraction = Health.Current / Health.Max;
+        if (fraction >= Settings.InjuredHealthFraction)
+        {
+            return 1.0f;
+        }
+        return Mathf.Lerp(Settings.InjuredSpeedFactor, 1.0f, fraction / Settings.InjuredHealthFraction);
+    }
+
     private float TargetSpeed(bool braking, float grade)
     {
         float speed = Settings.StrideSpeed;
+        if (Sprinting)
+        {
+            speed = Settings.SprintSpeed;
+        }
         if (braking)
         {
             speed = Settings.BrakeSpeed;
@@ -299,7 +378,7 @@ public partial class PlayerController : CharacterBody3D
             speed *= Mathf.Max(Settings.MinUphillSpeedFactor, 1.0f + Settings.UphillSpeedPenalty * grade);
         }
 
-        return Mathf.Min(speed, Settings.MaxSpeed);
+        return Mathf.Min(speed * InjuryFactor(), Settings.MaxSpeed);
     }
 
     private float DecelerationRate(bool braking, float grade)

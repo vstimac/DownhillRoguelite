@@ -56,6 +56,8 @@ public partial class BalanceSettings : Resource
     [Export] public float StepJolt { get; set; } = 0.15f;
     /// <summary>Footfall jolt multiplier added at zero grip: jolt × (1 + this × (1 - grip)).</summary>
     [Export] public float LowGripJoltMultiplier { get; set; } = 2.0f;
+    /// <summary>Landing angular impulse per (m/s of landing speed · kg·m of load height moment), in N·m·s; pitches forward.</summary>
+    [Export] public float LandingJolt { get; set; } = 0.05f;
     /// <summary>Fraction of a footfall jolt that pitches forward, per unit of downhill slope.</summary>
     [Export] public float StepPitchJoltFraction { get; set; } = 1.0f;
 

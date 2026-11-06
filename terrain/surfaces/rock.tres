@@ -6,4 +6,5 @@
 script = ExtResource("1_surface")
 DisplayName = "Rock"
 Grip = 1.0
+Hardness = 1.0
 DebugColor = Color(0.56, 0.57, 0.6, 1)

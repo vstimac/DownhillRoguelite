@@ -59,6 +59,8 @@ public partial class BalanceController : Node
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
         GameEvents.FootPlacementUpdated += OnFootPlacementUpdated;
         GameEvents.LoadChanged += OnLoadChanged;
+        GameEvents.DownedChanged += OnDownedChanged;
+        GameEvents.Landed += OnLanded;
     }
 
     public override void _ExitTree()
@@ -66,6 +68,36 @@ public partial class BalanceController : Node
         GameEvents.LocomotionUpdated -= OnLocomotionUpdated;
         GameEvents.FootPlacementUpdated -= OnFootPlacementUpdated;
         GameEvents.LoadChanged -= OnLoadChanged;
+        GameEvents.DownedChanged -= OnDownedChanged;
+        GameEvents.Landed -= OnLanded;
+    }
+
+    /// <summary>A ragdoll fall (from anything) holds balance at Fallen until the carrier is up again.</summary>
+    private void OnDownedChanged(bool downed)
+    {
+        if (downed)
+        {
+            if (State != BalanceState.Fallen)
+            {
+                _fallDirection = FallDirection(_tilt);
+                EnterState(BalanceState.Fallen);
+            }
+        }
+        else
+        {
+            ResetBalance();
+        }
+    }
+
+    /// <summary>Landing pitches the load forward, harder for a heavier, higher load.</summary>
+    private void OnLanded(float downwardSpeed)
+    {
+        if (_load.Mass <= 0.0f || State == BalanceState.Fallen)
+        {
+            return;
+        }
+        float impulse = Settings.LandingJolt * downwardSpeed * _load.Mass * _load.CenterOfMass.Y;
+        _pendingImpulse += new Vector2(0.0f, impulse / Inertia().Y);
     }
 
     /// <summary>Adds an instant change of tilt velocity, in rad/s (roll, pitch). Used for knocks and tests.</summary>
@@ -329,7 +361,8 @@ public partial class BalanceController : Node
         Vector2 fallen = _fallDirection * Mathf.DegToRad(Settings.FallTiltAngle);
         _tilt = _tilt.MoveToward(fallen, Settings.FallTiltSpeed * dt);
 
-        if (_stateTime >= Settings.FallDuration)
+        // A ragdoll fall ends when the ragdoll stands up (DownedChanged), not on a timer.
+        if (!GameEvents.IsDowned && _stateTime >= Settings.FallDuration)
         {
             ResetBalance();
         }
