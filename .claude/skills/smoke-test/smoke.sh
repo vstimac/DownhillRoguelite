@@ -48,16 +48,8 @@ else
     fail "Godot $GODOT_NUMERIC does not match Godot.NET.Sdk/$SDK_VERSION in the .csproj"
 fi
 
-# --- 2. Import: refreshes the .godot cache and generates .uid files for new resources.
-"$GODOT_BIN" --headless --path . --import > "$LOG_DIR/import.log" 2>&1
-if grep -qiE "error" "$LOG_DIR/import.log"; then
-    fail "Import reported errors:"
-    grep -iE "error" "$LOG_DIR/import.log" | sed 's/^/      /'
-else
-    pass "Import"
-fi
-
-# --- 3. dotnet build: zero errors, zero warnings.
+# --- 2. dotnet build: zero errors, zero warnings. Runs before the import, because the import
+# executes [Tool] scripts and must use the current assembly, not the last one built.
 dotnet build > "$LOG_DIR/build.log" 2>&1
 BUILD_EXIT=$?
 WARNINGS="$(grep -oE '[0-9]+ Warning\(s\)' "$LOG_DIR/build.log" | tail -1 | cut -d' ' -f1)"
@@ -67,6 +59,15 @@ if [ "$BUILD_EXIT" -eq 0 ] && [ "${WARNINGS:-1}" = "0" ] && [ "${ERRORS:-1}" = "
 else
     fail "dotnet build (exit $BUILD_EXIT, ${WARNINGS:-?} warnings, ${ERRORS:-?} errors):"
     grep -E ": (error|warning) [A-Z]+[0-9]+" "$LOG_DIR/build.log" | sort -u | sed 's/^/      /'
+fi
+
+# --- 3. Import: refreshes the .godot cache and generates .uid files for new resources.
+"$GODOT_BIN" --headless --path . --import > "$LOG_DIR/import.log" 2>&1
+if grep -qiE "error" "$LOG_DIR/import.log"; then
+    fail "Import reported errors:"
+    grep -iE "error" "$LOG_DIR/import.log" | sed 's/^/      /'
+else
+    pass "Import"
 fi
 
 # --- 4. Headless run of the main scene; any engine/script error or warning fails.

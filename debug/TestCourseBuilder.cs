@@ -89,8 +89,14 @@ public partial class TestCourseBuilder : Node3D
     public override void _ExitTree()
     {
         // Managed references keep Godot resources alive until the GC runs, which can be after exit.
-        _surfaceLaneTypes.Clear();
+        // Script resources (SurfaceType) are owned by Godot, so only drop them; the engine-class
+        // material wrappers hold a reference of their own, so release it.
+        foreach (Material material in _surfaceMaterials.Values)
+        {
+            material.Dispose();
+        }
         _surfaceMaterials.Clear();
+        _surfaceLaneTypes.Clear();
         _defaultSurface = null;
     }
 

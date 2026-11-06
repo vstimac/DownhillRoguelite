@@ -187,15 +187,17 @@ public partial class PlayerController : CharacterBody3D
             return;
         }
 
-        if (ground.HasMeta(SurfaceType.MetaKey) && ground.GetMeta(SurfaceType.MetaKey).AsGodotObject() is SurfaceType surface)
+        Grip = Settings.DefaultGrip;
+        _surfaceName = DefaultSurfaceName;
+        if (ground.HasMeta(SurfaceType.MetaKey))
         {
-            Grip = surface.Grip;
-            _surfaceName = surface.DisplayName;
-        }
-        else
-        {
-            Grip = Settings.DefaultGrip;
-            _surfaceName = DefaultSurfaceName;
+            // Dispose the Variant now: undisposed, it holds the resource until the GC runs.
+            using Variant meta = ground.GetMeta(SurfaceType.MetaKey);
+            if (meta.AsGodotObject() is SurfaceType surface)
+            {
+                Grip = surface.Grip;
+                _surfaceName = surface.DisplayName;
+            }
         }
     }
 
