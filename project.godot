@@ -13,6 +13,10 @@ config_version=5
 config/name="DownhillRoguelite"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
+[autoload]
+
+RunState="*res://core/RunState.cs"
+
 [dotnet]
 
 project/assembly_name="DownhillRoguelite"
