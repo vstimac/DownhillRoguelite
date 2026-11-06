@@ -23,6 +23,11 @@
 [ext_resource type="Resource" path="res://environment/weather/default_weather.tres" id="23_weather_table"]
 [ext_resource type="Script" path="res://environment/weather/WeatherParticles.cs" id="24_weather_particles"]
 [ext_resource type="Shader" path="res://environment/sky/descent_sky.gdshader" id="25_sky_shader"]
+[ext_resource type="Script" path="res://audio/MusicPlayer.cs" id="26_music"]
+[ext_resource type="AudioStream" path="res://audio/music/descent_day.wav" id="27_day_track"]
+[ext_resource type="AudioStream" path="res://audio/music/descent_night.wav" id="28_night_track"]
+[ext_resource type="Script" path="res://narrative/NarratorDirector.cs" id="29_narrator"]
+[ext_resource type="Script" path="res://world_ui/PauseMenu.cs" id="30_pause"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
@@ -135,3 +140,14 @@ script = ExtResource("13_vitals")
 [node name="TerrainOverlay" type="CanvasLayer" parent="." node_paths=PackedStringArray("Streamer")]
 script = ExtResource("17_terrain_overlay")
 Streamer = NodePath("../Terrain")
+
+[node name="Music" type="Node" parent="."]
+script = ExtResource("26_music")
+DayTrack = ExtResource("27_day_track")
+NightTrack = ExtResource("28_night_track")
+
+[node name="Narrator" type="Node" parent="."]
+script = ExtResource("29_narrator")
+
+[node name="PauseMenu" type="CanvasLayer" parent="."]
+script = ExtResource("30_pause")

@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/NarratorTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://narrative/NarratorDirector.cs" id="2_narrator"]
+
+[node name="NarratorTests" type="Node" node_paths=PackedStringArray("Narrator")]
+script = ExtResource("1_tests")
+Narrator = NodePath("Narrator")
+
+[node name="Narrator" type="Node" parent="."]
+script = ExtResource("2_narrator")
+OpeningDelay = 1000.0
+PlayAudio = false

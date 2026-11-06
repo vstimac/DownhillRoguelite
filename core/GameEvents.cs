@@ -124,6 +124,27 @@ public static class GameEvents
         RouteEstimateUpdated?.Invoke(estimate);
     }
 
+    /// <summary>True while a narrator line is playing (music ducks under it).</summary>
+    public static bool IsNarrating { get; private set; }
+
+    /// <summary>Raised when the narrator starts a line: its id and text (for subtitles later).</summary>
+    public static event Action<string, string>? NarrationStarted;
+
+    /// <summary>Raised when the narrator's line ends.</summary>
+    public static event Action? NarrationFinished;
+
+    public static void PublishNarrationStarted(string id, string text)
+    {
+        IsNarrating = true;
+        NarrationStarted?.Invoke(id, text);
+    }
+
+    public static void PublishNarrationFinished()
+    {
+        IsNarrating = false;
+        NarrationFinished?.Invoke();
+    }
+
     /// <summary>The weather where the carrier is, updated every physics frame.</summary>
     public static WeatherSnapshot CurrentWeather { get; private set; } = WeatherSnapshot.Calm;
 
