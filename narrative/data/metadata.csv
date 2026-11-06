@@ -1,0 +1,501 @@
+id,category,trigger,circle_context,narrative_phase,priority,cooldown_seconds,max_plays_per_run,once_per_save,max_words,dialogue,tags
+NARR_001,exploration,area_entered,any,curiosity,4,180,3,false,17,"Somewhere new. I always like the first few steps, before we know what it wants from us.",new_area;first_steps;exploration;discovery
+NARR_002,exploration,area_entered,any,curiosity,4,180,3,false,17,"The ground here has a different temper. Softer underfoot, I think, but I wouldn't trust it yet.",new_area;footing;exploration;discovery
+NARR_003,exploration,area_entered,any,familiarity,4,180,3,false,13,Another valley that has never heard of us. There's something restful about that.,new_area;anonymity;exploration;discovery
+NARR_004,exploration,area_entered,any,doubt,4,180,3,false,15,"Strange. I keep expecting to recognise places, and I keep being wrong in new ways.",new_area;recognition;exploration;discovery
+NARR_005,exploration,area_entered,any,acceptance,4,180,3,false,15,New ground again. I've stopped asking where it leads and started asking how it feels.,new_area;feeling;exploration;discovery
+NARR_006,exploration,area_entered,any,familiarity,4,180,3,false,13,This stretch is quieter. Even the wind seems to be choosing its words.,new_area;quiet;exploration;discovery
+NARR_007,exploration,vista_seen,any,curiosity,4,180,3,false,13,From up here the path looks almost reasonable. Distance is generous like that.,view;distance;exploration;discovery
+NARR_008,exploration,vista_seen,any,familiarity,4,180,3,false,13,Take a moment. Views like this rarely wait for us to be ready.,view;moment;exploration;discovery
+NARR_009,exploration,vista_seen,any,doubt,4,180,3,false,15,"The further we see, the more there seems to be. I'm not sure that's encouraging.",view;depth;exploration;discovery
+NARR_010,exploration,vista_seen,any,acceptance,4,180,3,false,13,It's a fine view. I don't think it needs to mean anything else.,view;calm;exploration;discovery
+NARR_011,exploration,vista_seen,any,curiosity,4,180,3,false,13,"All of that, downhill. You'd think the hard part would be going up.",view;descent;exploration;discovery
+NARR_012,exploration,terrain_changed,any,curiosity,4,180,3,false,14,"Rock now. Honest stuff, rock. It tells you exactly how much it will hurt.",terrain;rock;exploration;discovery
+NARR_013,exploration,terrain_changed,any,curiosity,4,180,3,false,9,"Snow. Quiet, pretty, and entirely uninterested in your footing.",terrain;snow;exploration;discovery
+NARR_014,exploration,terrain_changed,any,familiarity,4,180,3,false,14,Grass again. I'd forgotten how kind a slope can be when it wants to.,terrain;grass;exploration;discovery
+NARR_015,exploration,terrain_changed,any,familiarity,4,180,3,false,16,"Loose stone ahead. Small steps, I'd suggest. This hill likes to take part in every decision.",terrain;scree;exploration;discovery
+NARR_016,exploration,terrain_changed,any,doubt,4,180,3,false,16,"Mud. It doesn't stop you, exactly. It just keeps a little of you with every step.",terrain;mud;exploration;discovery
+NARR_017,exploration,landmark_seen,any,curiosity,4,180,3,false,18,Is that shape natural? It's hard to tell anymore what the mountain made and what someone else did.,landmark;shape;exploration;discovery
+NARR_018,exploration,landmark_seen,any,familiarity,4,180,3,false,11,Good. Something to walk toward. It helps more than it should.,landmark;orientation;exploration;discovery
+NARR_019,exploration,landmark_seen,any,doubt,4,180,3,false,15,"That looks like something we passed hours ago. It can't be, of course. Can it?",landmark;repetition;exploration;discovery
+NARR_020,exploration,landmark_seen,any,acceptance,4,180,3,false,14,"I'll remember that one, I think. Not for any reason. Some places simply stay.",landmark;memory;exploration;discovery
+NARR_021,route_decisions,route_choice_presented,any,curiosity,3,60,3,false,13,Two ways down. Neither one looks like it would tell us the truth.,two_paths;honesty;route;choice;map
+NARR_022,route_decisions,route_choice_presented,any,curiosity,3,60,3,false,15,"Choose whichever you like. I've noticed the mountain rarely punishes the choice, only the hurry.",caution;hurry;route;choice;map
+NARR_023,route_decisions,route_choice_presented,any,familiarity,3,60,3,false,11,You usually go left when you're tired. I'm only mentioning it.,habit;fatigue;route;choice;map
+NARR_024,route_decisions,route_choice_presented,any,doubt,3,60,3,false,21,I used to think the paths led to different places. Now I suspect they just lead to different versions of us.,paths;identity;route;choice;map
+NARR_025,route_decisions,route_choice_presented,any,acceptance,3,60,3,false,12,"Take your time. Whichever path we choose, we'll walk all of it.",patience;commitment;route;choice;map
+NARR_026,route_decisions,route_choice_presented,any,familiarity,3,60,3,false,10,Your feet seem to have decided already. I'd let them.,instinct;feet;route;choice;map
+NARR_027,route_decisions,route_chosen_safe,any,curiosity,3,60,3,false,7,The gentler way. Nothing wrong with arriving.,safe_route;prudence;route;choice;map
+NARR_028,route_decisions,route_chosen_safe,any,familiarity,3,60,3,false,11,Sensible. I've never heard a mountain complain about being walked slowly.,safe_route;pace;route;choice;map
+NARR_029,route_decisions,route_chosen_safe,any,doubt,3,60,3,false,15,The safe road. I do wonder sometimes what we keep missing on the other one.,safe_route;missed;route;choice;map
+NARR_030,route_decisions,route_chosen_hazardous,any,curiosity,3,60,3,false,12,The steep way. I hope whatever's down there is worth the knees.,hazard_route;reward;route;choice;map
+NARR_031,route_decisions,route_chosen_hazardous,any,familiarity,3,60,3,false,12,"The hard route again. I admire the stubbornness, if not the arithmetic.",hazard_route;stubbornness;route;choice;map
+NARR_032,route_decisions,route_chosen_hazardous,any,doubt,3,60,3,false,15,"Is it the reward you want, or just the proof that you could take it?",hazard_route;motive;route;choice;map
+NARR_033,route_decisions,route_chosen_hazardous,any,acceptance,3,60,3,false,8,"Fine. If we fall, we fall somewhere interesting.",hazard_route;acceptance;route;choice;map
+NARR_034,route_decisions,route_chosen_hazardous,any,curiosity,3,60,3,false,11,"Brave choice. I'll be right behind you, at a respectful distance.",hazard_route;companionship;route;choice;map
+NARR_035,route_decisions,map_viewed,any,curiosity,3,60,3,false,9,The map makes it look tidy. Maps are optimists.,map;optimism;route;choice
+NARR_036,route_decisions,map_viewed,any,familiarity,3,60,3,false,17,I've stopped asking who drew these paths. I just notice they never quite agree with the ground.,map;disagreement;route;choice
+NARR_037,route_decisions,map_viewed,any,doubt,3,60,3,false,14,There's always more map below the bottom of the map. Have you noticed that?,map;edges;route;choice
+NARR_038,route_decisions,map_viewed,any,acceptance,3,60,3,false,13,We could study it all evening. It won't make the walk any shorter.,map;letting_go;route;choice
+NARR_039,cargo_found,cargo_found,any,curiosity,3,45,3,false,15,Someone set that down carefully. People don't usually set down things they meant to forget.,left_behind;care;cargo;finding;collecting
+NARR_040,cargo_found,cargo_found,any,curiosity,3,45,3,false,11,Something to carry. I suppose that's how all of this begins.,beginning;burden;cargo;finding;collecting
+NARR_041,cargo_found,cargo_found,any,familiarity,3,45,3,false,9,More things. The mountain is very generous with things.,abundance;temptation;cargo;finding;collecting
+NARR_042,cargo_found,cargo_found,any,doubt,3,45,3,false,12,"I wonder who left it here, and whether they were lighter afterwards.",origin;previous_owner;cargo;finding;collecting
+NARR_043,cargo_found,cargo_found,any,acceptance,3,45,3,false,10,Take it or leave it. Both are perfectly honest answers.,choice;honesty;cargo;finding;collecting
+NARR_044,cargo_found,cargo_found,any,familiarity,3,45,3,false,13,"Old workmanship. Whoever made this had time, which is more than we have.",craft;age;cargo;finding;collecting
+NARR_045,cargo_found,cargo_found_valuable,any,curiosity,3,45,3,false,12,That one looks important. Important things are always heavier than they look.,valuable;weight;cargo;finding;collecting
+NARR_046,cargo_found,cargo_found_valuable,any,familiarity,3,45,3,false,12,"Valuable, yes. Valuable to whom is the question nobody asks down here.",valuable;worth;cargo;finding;collecting
+NARR_047,cargo_found,cargo_found_valuable,any,doubt,3,45,3,false,10,You picked that up faster than anything else today. Interesting.,valuable;eagerness;cargo;finding;collecting
+NARR_048,cargo_found,cargo_found_valuable,any,acceptance,3,45,3,false,14,"It glitters. I've grown fond of things that don't, but I understand the appeal.",valuable;appeal;cargo;finding;collecting
+NARR_049,cargo_found,cargo_found_valuable,any,curiosity,3,45,3,false,14,"Lying in the open like that? Either we're lucky, or someone wanted it found.",valuable;suspicion;cargo;finding;collecting
+NARR_050,cargo_found,cargo_found_fragile,any,curiosity,3,45,3,false,8,"Fragile. Well, now every step is a promise.",fragile;promise;cargo;finding;collecting
+NARR_051,cargo_found,cargo_found_fragile,any,familiarity,3,45,3,false,15,"Something delicate, in a place like this. Someone trusted the mountain more than I would.",fragile;trust;cargo;finding;collecting
+NARR_052,cargo_found,cargo_found_fragile,any,doubt,3,45,3,false,12,You don't have to take the breakable things. You just always do.,fragile;responsibility;cargo;finding;collecting
+NARR_053,cargo_found,cargo_picked_up,any,curiosity,3,45,3,false,8,"There. It's yours now, for better or worse.",pickup;ownership;cargo;finding;collecting
+NARR_054,cargo_found,cargo_picked_up,any,familiarity,3,45,3,false,15,Into the pack it goes. You have a gift for finding room that isn't there.,pickup;space;cargo;finding;collecting
+NARR_055,cargo_found,cargo_picked_up,any,doubt,3,45,3,false,12,Every object we pick up becomes a small reason to be careful.,pickup;caution;cargo;finding;collecting
+NARR_056,cargo_found,cargo_picked_up,any,acceptance,3,45,3,false,17,Carry it while it's useful. Put it down when it isn't. It sounds so easy said aloud.,pickup;letting_go;cargo;finding;collecting
+NARR_057,packing,packing_opened,any,curiosity,4,90,3,false,12,Let's see what we're actually carrying. It's always more than I remember.,inventory;honesty;backpack;packing;arrangement
+NARR_058,packing,packing_opened,any,familiarity,4,90,3,false,9,The pack again. I find this part oddly calming.,ritual;calm;backpack;packing;arrangement
+NARR_059,packing,packing_opened,any,doubt,4,90,3,false,14,"Everything we own, laid out on a mat. It looks smaller than it feels.",belongings;scale;backpack;packing;arrangement
+NARR_060,packing,packing_item_placed,any,curiosity,4,90,3,false,13,"Heavy things low and close. Old advice, but the mountain still believes it.",heavy_low;advice;backpack;packing;arrangement
+NARR_061,packing,packing_item_placed,any,familiarity,4,90,3,false,12,That fits nicely. There's a quiet pleasure in a corner filled well.,fit;satisfaction;backpack;packing;arrangement
+NARR_062,packing,packing_item_placed,any,familiarity,4,90,3,false,14,"Close to the back. Your spine will thank you later, though not out loud.",close_to_back;posture;backpack;packing;arrangement
+NARR_063,packing,packing_item_placed,any,doubt,4,90,3,false,11,Funny how the important things always end up at the bottom.,priority;bottom;backpack;packing;arrangement
+NARR_064,packing,packing_item_placed,any,doubt,4,90,3,false,14,Up at the top? Brave. The mountain will want to discuss that with you.,heavy_high;risk;backpack;packing;arrangement
+NARR_065,packing,packing_rearranged,any,curiosity,4,90,3,false,12,Moving it again? Good. The first arrangement is rarely the honest one.,rearrange;first_try;backpack;packing;arrangement
+NARR_066,packing,packing_rearranged,any,familiarity,4,90,3,false,8,"You keep rearranging. I'm not complaining, merely counting.",rearrange;counting;backpack;packing;arrangement
+NARR_067,packing,packing_rearranged,any,doubt,4,90,3,false,15,I suspect rearranging is how we feel in charge of a weight we can't reduce.,rearrange;control;backpack;packing;arrangement
+NARR_068,packing,packing_rearranged,any,acceptance,4,90,3,false,11,"It won't get lighter, but it can get kinder. That's something.",rearrange;kindness;backpack;packing;arrangement
+NARR_069,packing,packing_no_fit,any,curiosity,4,90,3,false,10,"It doesn't fit. The pack has opinions, it turns out.",full;opinions;backpack;packing;arrangement
+NARR_070,packing,packing_no_fit,any,familiarity,4,90,3,false,12,No room. Perhaps the pack is telling us something we already know.,full;limits;backpack;packing;arrangement
+NARR_071,packing,packing_no_fit,any,doubt,4,90,3,false,9,"Something has to stay behind. It usually does, eventually.",full;leaving_behind;backpack;packing;arrangement
+NARR_072,packing,packing_closed,any,curiosity,4,90,3,false,11,"All right. Shoulders back, and let's see what we got wrong.",departure;mistakes;backpack;packing;arrangement
+NARR_073,packing,packing_closed,any,familiarity,4,90,3,false,13,"Packed. It always feels a little lighter just after, doesn't it? It isn't.",ready;illusion;backpack;packing;arrangement
+NARR_074,packing,packing_closed,any,acceptance,4,90,3,false,11,Good enough. Perfect packing is mostly a way of not leaving.,ready;good_enough;backpack;packing;arrangement
+NARR_075,heavy_cargo,cargo_weight_high,any,curiosity,3,120,2,false,13,That's a serious load. I hope at least some of it is necessary.,necessity;weight;burden;overloaded
+NARR_076,heavy_cargo,cargo_weight_high,any,curiosity,3,120,2,false,9,Heavy pack. Ambition always does weigh about this much.,ambition;weight;burden;overloaded
+NARR_077,heavy_cargo,cargo_weight_high,any,familiarity,3,120,2,false,11,"You walk differently with all that on. Slower, but more decided.",gait;resolve;weight;burden;overloaded
+NARR_078,heavy_cargo,cargo_weight_high,any,familiarity,3,120,2,false,10,Preparation or hoarding. From the outside they look exactly alike.,preparation;hoarding;weight;burden;overloaded
+NARR_079,heavy_cargo,cargo_weight_high,any,doubt,3,120,2,false,22,"Some of this is for the journey. Some of it, I suspect, is for the version of you that hopes to arrive.",hope;future_self;weight;burden;overloaded
+NARR_080,heavy_cargo,cargo_weight_high,any,doubt,3,120,2,false,16,"Do you carry all this because you need it, or because you'd feel lost without it?",attachment;need;weight;burden;overloaded
+NARR_081,heavy_cargo,cargo_weight_high,any,acceptance,3,120,2,false,10,It's heavy. That's allowed. Not everything has to be solved.,acceptance;permission;weight;burden;overloaded
+NARR_082,heavy_cargo,cargo_weight_high,any,curiosity,3,120,2,false,10,Everything you add is something you'll have to balance later.,balance;consequence;weight;burden;overloaded
+NARR_083,heavy_cargo,cargo_weight_high,any,familiarity,3,120,2,false,13,The hill notices weight. It's the only thing it ever seems to notice.,slope;notice;weight;burden;overloaded
+NARR_084,heavy_cargo,cargo_weight_high,any,acceptance,3,120,2,false,12,We'll carry it as far as it makes sense. Then we'll see.,companionship;patience;weight;burden;overloaded
+NARR_085,heavy_cargo,cargo_weight_critical,any,curiosity,3,120,2,false,12,This is too much. I say that with respect for your shoulders.,too_much;respect;weight;burden;overloaded
+NARR_086,heavy_cargo,cargo_weight_critical,any,familiarity,3,120,2,false,13,One more thing and the slope will start making your decisions for you.,too_much;slope;weight;burden;overloaded
+NARR_087,heavy_cargo,cargo_weight_critical,any,doubt,3,120,2,false,15,"At some point, carrying more stops being strength and starts being a kind of argument.",too_much;pride;weight;burden;overloaded
+NARR_088,heavy_cargo,cargo_weight_critical,any,acceptance,3,120,2,false,13,You could leave something. Nobody down here keeps score of what we drop.,too_much;release;weight;burden;overloaded
+NARR_089,heavy_cargo,cargo_weight_critical,any,curiosity,3,120,2,false,11,I can almost hear your knees drafting a letter of complaint.,too_much;knees;weight;burden;overloaded
+NARR_090,heavy_cargo,stamina_exhausted_loaded,any,curiosity,3,120,2,false,10,Breathe. The weight will wait for you. It's very patient.,exhaustion;patience;weight;burden;overloaded
+NARR_091,heavy_cargo,stamina_exhausted_loaded,any,familiarity,3,120,2,false,14,Out of breath again. Perhaps a walking pace is the pace of this place.,exhaustion;pace;weight;burden;overloaded
+NARR_092,heavy_cargo,stamina_exhausted_loaded,any,doubt,3,120,2,false,14,Your legs are telling you something. They tend to be right before you are.,exhaustion;body;weight;burden;overloaded
+NARR_093,heavy_cargo,jump_loaded,any,curiosity,3,120,2,false,10,Not much of a jump. The pack voted against it.,jump;pack;weight;burden;overloaded
+NARR_094,heavy_cargo,jump_loaded,any,familiarity,3,120,2,false,11,"With that load, I'd call that a firm step with ambitions.",jump;humor;weight;burden;overloaded
+NARR_095,cargo_lost,cargo_lost,any,curiosity,2,60,3,false,8,Gone. Strange how quickly something stops being ours.,ownership;speed;loss;cargo;possession
+NARR_096,cargo_lost,cargo_lost,any,curiosity,2,60,3,false,11,"The mountain took that one. It doesn't ask, it just collects.",mountain;taking;loss;cargo;possession
+NARR_097,cargo_lost,cargo_lost,any,familiarity,2,60,3,false,14,You'll miss it for a while. Then you'll only miss the idea of it.,attachment;missing;loss;cargo;possession
+NARR_098,cargo_lost,cargo_lost,any,doubt,2,60,3,false,15,"Was it valuable, or did we just carry it long enough to believe it was?",value;belief;loss;cargo;possession
+NARR_099,cargo_lost,cargo_lost,any,acceptance,2,60,3,false,11,Let it go. It was always only passing through our hands.,release;passing;loss;cargo;possession
+NARR_100,cargo_lost,cargo_lost,any,familiarity,2,60,3,false,10,Things everywhere. Let's gather what matters and forgive the rest.,scattered;gathering;loss;cargo;possession
+NARR_101,cargo_lost,cargo_lost,any,doubt,2,60,3,false,12,I notice you keep looking back at the spot where it fell.,looking_back;loss;cargo;possession
+NARR_102,cargo_lost,cargo_dropped,any,curiosity,2,60,3,false,8,You dropped something. Not a disaster. Not yet.,accident;loss;cargo;possession
+NARR_103,cargo_lost,cargo_dropped,any,familiarity,2,60,3,false,13,It's just there. Whether it's worth the walk back is entirely your call.,retrieve;choice;loss;cargo;possession
+NARR_104,cargo_lost,cargo_dropped,any,doubt,2,60,3,false,7,Sometimes our hands decide before we do.,hands;decision;loss;cargo;possession
+NARR_105,cargo_lost,cargo_broken,any,curiosity,2,60,3,false,9,"That was the fragile one, wasn't it. I'm sorry.",fragile;sorrow;loss;cargo;possession
+NARR_106,cargo_lost,cargo_broken,any,familiarity,2,60,3,false,12,"Broken. We were careful, mostly. Mostly isn't a word the mountain respects.",fragile;care;loss;cargo;possession
+NARR_107,cargo_lost,cargo_broken,any,doubt,2,60,3,false,13,"Funny. It's worth less now, and I find I care about it more.",fragile;value;loss;cargo;possession
+NARR_108,cargo_lost,cargo_broken,any,acceptance,2,60,3,false,15,Everything breaks somewhere along the way. This one simply broke where we could see it.,fragile;impermanence;loss;cargo;possession
+NARR_109,cargo_lost,cargo_abandoned,any,curiosity,2,60,3,false,13,Leaving it behind? You'll walk easier. Whether you'll think easier is another matter.,lighter;thinking;loss;cargo;possession
+NARR_110,cargo_lost,cargo_abandoned,any,familiarity,2,60,3,false,9,Lighter already. Notice how your shoulders forgave you immediately.,lighter;relief;loss;cargo;possession
+NARR_111,cargo_lost,cargo_abandoned,any,doubt,2,60,3,false,11,"Someone will find it, I suppose. Maybe they'll wonder about us.",finder;guilt;loss;cargo;possession
+NARR_112,cargo_lost,cargo_abandoned,any,acceptance,2,60,3,false,10,Good. Not everything that comes with us needs to arrive.,lighter;wisdom;loss;cargo;possession
+NARR_113,balance,balance_wobbling,any,curiosity,4,90,3,false,9,"You're listing. I'd say something, but you've clearly noticed.",listing;notice;balance;posture;sway
+NARR_114,balance,balance_wobbling,any,curiosity,4,90,3,false,14,Easy. Your load wants to go one way and you want to go another.,load;direction;balance;posture;sway
+NARR_115,balance,balance_wobbling,any,curiosity,4,90,3,false,5,That was almost graceful. Almost.,grace;humor;balance;posture;sway
+NARR_116,balance,balance_wobbling,any,familiarity,4,90,3,false,14,"That sway again. We know each other quite well by now, it and I.",familiar;sway;balance;posture
+NARR_117,balance,balance_wobbling,any,familiarity,4,90,3,false,10,The slope tilts and so do we. Fair is fair.,slope;fairness;balance;posture;sway
+NARR_118,balance,balance_wobbling,any,doubt,4,90,3,false,12,"Everything feels a bit loose today. The ground, the pack, my opinions.",uncertainty;opinions;balance;posture;sway
+NARR_119,balance,balance_wobbling,any,doubt,4,90,3,false,7,"Faster isn't steadier, I'm afraid. I've checked.",speed;steadiness;balance;posture;sway
+NARR_120,balance,balance_wobbling,any,acceptance,4,90,3,false,12,A little unsteady. That's all right. Steady was never really the plan.,calm;plans;balance;posture;sway
+NARR_121,balance,balance_counter_lean,any,curiosity,4,90,3,false,8,Good. You found where the weight is hiding.,counter_lean;weight;balance;posture;sway
+NARR_122,balance,balance_counter_lean,any,familiarity,4,90,3,false,10,Nicely caught. You're getting better at arguing with the load.,counter_lean;skill;balance;posture;sway
+NARR_123,balance,balance_counter_lean,any,doubt,4,90,3,false,16,We spend half our strength just staying upright. I wonder what the other half is for.,counter_lean;effort;balance;posture;sway
+NARR_124,balance,balance_counter_lean,any,acceptance,4,90,3,false,14,You and the weight have come to an understanding. I'd hate to interrupt it.,counter_lean;understanding;balance;posture;sway
+NARR_125,balance,balance_bracing,any,curiosity,4,90,3,false,11,Planting your feet. Sensible. Even the mountain pauses now and then.,brace;pause;balance;posture;sway
+NARR_126,balance,balance_bracing,any,curiosity,4,90,3,false,4,Holding firm. Good instinct.,brace;instinct;balance;posture;sway
+NARR_127,balance,balance_bracing,any,familiarity,4,90,3,false,11,Stand still for a moment. Nothing below us is going anywhere.,brace;stillness;balance;posture;sway
+NARR_128,balance,balance_bracing,any,doubt,4,90,3,false,10,"You brace earlier than you used to. Experience, or nerves?",brace;nerves;balance;posture;sway
+NARR_129,balance,balance_bracing,any,acceptance,4,90,3,false,7,Stillness suits you more than you'd think.,brace;stillness;balance;posture;sway
+NARR_130,balance,balance_unstable_long,any,curiosity,4,90,3,false,16,The pack has been tugging at you for a while now. It might have a point.,unstable;pack;balance;posture;sway
+NARR_131,balance,balance_unstable_long,any,familiarity,4,90,3,false,16,You've been leaning into that weight for some time. A camp would let you reconsider it.,unstable;repack;balance;posture;sway
+NARR_132,balance,balance_unstable_long,any,doubt,4,90,3,false,14,"Fighting the same lean for this long is a kind of devotion, I suppose.",unstable;devotion;balance;posture;sway
+NARR_133,stumbling,player_stumbled,any,curiosity,3,45,4,false,8,Careful. The ground shifted its opinion of you.,footing;ground;stumble;near_fall
+NARR_134,stumbling,player_stumbled,any,curiosity,3,45,4,false,8,That one came from nowhere. They usually do.,surprise;stumble;near_fall;footing
+NARR_135,stumbling,player_stumbled,any,curiosity,3,45,4,false,9,Loose stone. It never looks loose until it's moving.,loose_stone;stumble;near_fall;footing
+NARR_136,stumbling,player_stumbled,any,familiarity,3,45,4,false,10,Another stumble. The mountain seems to enjoy keeping you humble.,humility;stumble;near_fall;footing
+NARR_137,stumbling,player_stumbled,any,familiarity,3,45,4,false,11,The pack shifted before you did. It usually wins those races.,pack;shift;stumble;near_fall;footing
+NARR_138,stumbling,player_stumbled,any,doubt,3,45,4,false,11,You're tiring. The stumbles always arrive just before you admit it.,fatigue;admission;stumble;near_fall;footing
+NARR_139,stumbling,player_stumbled,any,doubt,3,45,4,false,9,"Your mind's somewhere else. Mine too, if it helps.",attention;distraction;stumble;near_fall;footing
+NARR_140,stumbling,player_stumbled,any,acceptance,3,45,4,false,12,A stumble isn't a fall. It's just a question the ground asks.,calm;question;stumble;near_fall;footing
+NARR_141,stumbling,stumble_recovered,any,curiosity,3,45,4,false,12,Caught it. Your feet are cleverer than you give them credit for.,reflex;feet;stumble;near_fall;footing
+NARR_142,stumbling,stumble_recovered,any,curiosity,3,45,4,false,5,"There. Still upright, still ours.",relief;upright;stumble;near_fall;footing
+NARR_143,stumbling,stumble_recovered,any,curiosity,3,45,4,false,9,Good. Let's take the next stretch a little slower.,pace;caution;stumble;near_fall;footing
+NARR_144,stumbling,stumble_recovered,any,familiarity,3,45,4,false,6,Neatly done. You barely broke stride.,skill;stride;stumble;near_fall;footing
+NARR_145,stumbling,stumble_recovered,any,familiarity,3,45,4,false,11,"I was about to look away politely. No need, it seems.",humor;politeness;stumble;near_fall;footing
+NARR_146,stumbling,stumble_recovered,any,doubt,3,45,4,false,13,Was that skill or luck? I've stopped being able to tell the difference.,luck;skill;stumble;near_fall;footing
+NARR_147,stumbling,stumble_recovered,any,acceptance,3,45,4,false,10,"Saved. Not elegantly, but the mountain doesn't judge on style.",grace;style;stumble;near_fall;footing
+NARR_148,stumbling,near_fall,any,curiosity,3,45,4,false,11,That was close. Your heart will catch up in a moment.,adrenaline;heart;stumble;near_fall;footing
+NARR_149,stumbling,near_fall,any,curiosity,3,45,4,false,13,"I'd rather not do that again, if it's all the same to you.",edge;reluctance;stumble;near_fall;footing
+NARR_150,stumbling,near_fall,any,familiarity,3,45,4,false,11,Close again. Two of those and I start taking it personally.,repetition;concern;stumble;near_fall;footing
+NARR_151,stumbling,near_fall,any,doubt,3,45,4,false,13,We were a breath away from the bottom of this slope just then.,margin;slope;stumble;near_fall;footing
+NARR_152,stumbling,near_fall,any,acceptance,3,45,4,false,15,"Close, but not quite. That small word is doing a great deal of work today.",composure;language;stumble;near_fall;footing
+NARR_153,falling,player_fell,any,curiosity,2,30,5,false,8,Well. That's one way to get down quickly.,understated;speed;fall;ragdoll;impact
+NARR_154,falling,player_fell,any,curiosity,2,30,5,false,13,Down you go. Take a moment before you decide how bad it was.,gentle;assessment;fall;ragdoll;impact
+NARR_155,falling,player_fell,any,curiosity,2,30,5,false,13,The pack went one way and you went with it. Loyal of you.,pack;loyalty;fall;ragdoll;impact
+NARR_156,falling,player_fell,any,familiarity,2,30,5,false,12,We've met the ground before. It doesn't seem to hold a grudge.,familiar;ground;fall;ragdoll;impact
+NARR_157,falling,player_fell,any,familiarity,2,30,5,false,7,I believe the slope just overruled you.,slope;overruled;fall;ragdoll;impact
+NARR_158,falling,player_fell,any,doubt,2,30,5,false,15,Every fall feels like it means something. Most of them just mean we were tired.,meaning;fatigue;fall;ragdoll;impact
+NARR_159,falling,player_fell,any,doubt,2,30,5,false,13,"We fall in the same places, have you noticed? Slopes have their favourites.",pattern;favourite_places;fall;ragdoll;impact
+NARR_160,falling,player_fell,any,acceptance,2,30,5,false,13,"Down again. It's all part of the descent, in the most literal sense.",descent;literal;fall;ragdoll;impact
+NARR_161,falling,player_fell,any,acceptance,2,30,5,false,11,Lie still a moment. Nothing is in a hurry but us.,patience;stillness;fall;ragdoll;impact
+NARR_162,falling,player_fell_hard,any,curiosity,2,30,5,false,12,That one hurt. Don't get up until you know where everything is.,injury;caution;fall;ragdoll;impact
+NARR_163,falling,player_fell_hard,any,familiarity,2,30,5,false,7,Easy now. Count your limbs. I'll wait.,injury;concern;fall;ragdoll;impact
+NARR_164,falling,player_fell_hard,any,doubt,2,30,5,false,13,The body keeps a ledger of these. I'd rather not see the total.,injury;ledger;fall;ragdoll;impact
+NARR_165,falling,player_fell_soft_surface,any,curiosity,2,30,5,false,13,"Grass, at least. The mountain chose a gentle place to make its point.",grass;soft_landing;fall;ragdoll;impact
+NARR_166,falling,player_fell_soft_surface,any,familiarity,2,30,5,false,10,"Snow is a forgiving place to land. Cold, but forgiving.",snow;soft_landing;fall;ragdoll;impact
+NARR_167,falling,player_fell_soft_surface,any,doubt,2,30,5,false,10,"Mud. Undignified, but you'll live, and that's the important part.",mud;dignity;fall;ragdoll;impact
+NARR_168,falling,player_fell_hard_surface,any,curiosity,2,30,5,false,7,Rock. The least sympathetic surface there is.,rock;sympathy;fall;ragdoll;impact
+NARR_169,falling,player_fell_hard_surface,any,familiarity,2,30,5,false,13,"Of all the places to come down, it had to be the stone.",rock;pain;fall;ragdoll;impact
+NARR_170,falling,player_fell_hard_surface,any,doubt,2,30,5,false,9,"We found the boulder. Or rather, it found us.",boulder;obstacle;fall;ragdoll;impact
+NARR_171,falling,player_fell_hard_surface,any,acceptance,2,30,5,false,10,Hard ground. It teaches quickly and doesn't repeat itself kindly.,rock;lesson;fall;ragdoll;impact
+NARR_172,falling,player_fell_from_height,any,curiosity,2,30,5,false,15,"That was a long way down. Longer than it looked from the top, I imagine.",height;perspective;fall;ragdoll;impact
+NARR_173,falling,player_fell_from_height,any,familiarity,2,30,5,false,8,"A shortcut, technically. I wouldn't recommend the method.",height;shortcut;fall;ragdoll;impact
+NARR_174,falling,player_fell_from_height,any,doubt,2,30,5,false,8,Was that a step you meant to take?,height;intention;fall;ragdoll;impact
+NARR_175,fall_recovery,player_got_up,any,curiosity,3,60,4,false,11,"Up again. That's the important part, really. The rest is detail.",standing;priority;recovery;getting_up;injury
+NARR_176,fall_recovery,player_got_up,any,curiosity,3,60,4,false,11,Dust yourself off. Or don't. The mountain won't notice either way.,dust;indifference;recovery;getting_up;injury
+NARR_177,fall_recovery,player_got_up,any,curiosity,3,60,4,false,9,Breathe first. Walk second. Philosophy can come much later.,breathing;order;recovery;getting_up;injury
+NARR_178,fall_recovery,player_got_up,any,familiarity,3,60,4,false,11,You do get up quickly. I've always admired that about you.,resilience;admiration;recovery;getting_up;injury
+NARR_179,fall_recovery,player_got_up,any,familiarity,3,60,4,false,10,Back on your feet. We're getting rather practised at this.,routine;practice;recovery;getting_up;injury
+NARR_180,fall_recovery,player_got_up,any,doubt,3,60,4,false,15,You always get up. I wonder sometimes what exactly keeps pulling you to your feet.,motivation;why;recovery;getting_up;injury
+NARR_181,fall_recovery,player_got_up,any,doubt,3,60,4,false,10,"Stubbornness, or courage. They look identical from where I'm standing.",stubbornness;courage;recovery;getting_up;injury
+NARR_182,fall_recovery,player_got_up,any,acceptance,3,60,4,false,11,"Right. Onward, then. It's the only direction this place really offers.",onward;direction;recovery;getting_up;injury
+NARR_183,fall_recovery,player_got_up_injured,any,curiosity,3,60,4,false,10,Slowly. Whatever's hurting will be louder if you rush it.,injury;slowly;recovery;getting_up
+NARR_184,fall_recovery,player_got_up_injured,any,curiosity,3,60,4,false,12,"Check the pack, then check yourself. In whichever order you think honest.",injury;pack_check;recovery;getting_up
+NARR_185,fall_recovery,player_got_up_injured,any,familiarity,3,60,4,false,10,You're favouring that side. We'll take the next part gently.,injury;limp;recovery;getting_up
+NARR_186,fall_recovery,player_got_up_injured,any,doubt,3,60,4,false,12,Each fall takes a little more than the last one gave back.,injury;toll;recovery;getting_up
+NARR_187,fall_recovery,player_got_up_injured,any,acceptance,3,60,4,false,10,"Bruised, but walking. Some days that is the whole victory.",injury;endurance;recovery;getting_up
+NARR_188,fall_recovery,health_low,any,curiosity,3,60,4,false,14,You're hurt more than you're letting on. I can tell by how you walk.,health;honesty;recovery;getting_up;injury
+NARR_189,fall_recovery,health_low,any,familiarity,3,60,4,false,13,Not much left in you right now. Let's not test the mountain's patience.,health;patience;recovery;getting_up;injury
+NARR_190,fall_recovery,health_low,any,doubt,3,60,4,false,14,"We're more breakable than the cargo, you know. Funny how that's easy to forget.",health;fragility;recovery;getting_up;injury
+NARR_191,fall_recovery,health_low,any,acceptance,3,60,4,false,13,You're running thin. There's no shame in walking slowly toward the next fire.,health;rest;recovery;getting_up;injury
+NARR_192,fall_recovery,health_critical,any,curiosity,3,60,4,false,13,"Please, careful now. One more of those and I don't know what happens.",danger;fear;recovery;getting_up;injury
+NARR_193,fall_recovery,health_critical,any,familiarity,3,60,4,false,13,"This is the part where we look for somewhere safe, not somewhere impressive.",danger;shelter;recovery;getting_up;injury
+NARR_194,fall_recovery,health_critical,any,doubt,3,60,4,false,12,I'd like to keep walking with you a while longer. Humour me.,danger;companionship;recovery;getting_up;injury
+NARR_195,death_restart,player_died,any,curiosity,1,0,1,true,16,So that's what the bottom of a fall feels like. I'd hoped we'd never find out.,first_death;death;restart;run
+NARR_196,death_restart,player_died,any,curiosity,2,0,1,false,8,That's enough for now. Rest. We'll begin again.,rest;begin_again;death;restart;run
+NARR_197,death_restart,player_died,any,curiosity,2,0,1,false,13,Everything stops for a moment. I've never decided whether I like that part.,stillness;ending;death;restart;run
+NARR_198,death_restart,player_died,any,familiarity,2,0,1,false,9,"Again. I'm sorry. It never gets lighter, does it?",sorrow;repetition;death;restart;run
+NARR_199,death_restart,player_died,any,familiarity,2,0,1,false,13,Lie still. The mountain will still be here. It's very good at that.,patience;mountain;death;restart;run
+NARR_200,death_restart,player_died,any,doubt,2,0,1,false,16,"Each time, I wonder whether this was the fall that mattered. It never seems to be.",meaning;doubt;death;restart;run
+NARR_201,death_restart,player_died,any,doubt,2,0,1,false,10,"Whatever we were carrying, we're carrying none of it now.",cargo;emptiness;death;restart;run
+NARR_202,death_restart,player_died,any,acceptance,2,0,1,false,18,"It ends, and then it doesn't. I think we can live with that, in a manner of speaking.",cycle;acceptance;death;restart;run
+NARR_203,death_restart,run_restarted,any,curiosity,2,0,1,false,14,Back at the start. The path looks different when you know where it hurts.,beginning;knowledge;death;restart;run
+NARR_204,death_restart,run_restarted,any,curiosity,2,0,1,false,8,"A new attempt. Same mountain, slightly wiser feet.",fresh_attempt;death;restart;run
+NARR_205,death_restart,run_restarted,any,familiarity,2,0,1,false,14,"Here again. I'd say I missed this place, but you'd know I was lying.",return;honesty;death;restart;run
+NARR_206,death_restart,run_restarted,any,familiarity,2,0,1,false,11,The beginning always looks smaller when we come back to it.,beginning;perspective;death;restart;run
+NARR_207,death_restart,run_restarted,any,doubt,2,0,1,false,16,"If we always return here, is this the start, or just the place we keep forgetting?",beginning;forgetting;death;restart;run
+NARR_208,death_restart,run_restarted,any,doubt,2,0,1,false,12,What did we learn last time? Apart from where the ground is.,lessons;death;restart;run
+NARR_209,death_restart,run_restarted,any,acceptance,2,0,1,false,12,"Once more, then. I don't mind. I rather like walking with you.",companionship;again;death;restart;run
+NARR_210,death_restart,run_restarted_repeat,any,curiosity,2,0,1,false,10,"Ah, the top. We really must stop meeting like this.",humor;reunion;death;restart;run
+NARR_211,death_restart,run_restarted_repeat,any,familiarity,2,0,1,false,11,You keep coming back. I'm starting to think that's the point.,persistence;purpose;death;restart;run
+NARR_212,death_restart,run_restarted_repeat,any,familiarity,2,0,1,false,14,I've grown fond of this first slope. It has the decency to be gentle.,fondness;first_slope;death;restart;run
+NARR_213,death_restart,run_restarted_repeat,any,doubt,2,0,1,false,12,Sometimes I suspect the descent is less a road than a habit.,loop;habit;death;restart;run
+NARR_214,death_restart,run_restarted_repeat,any,acceptance,2,0,1,false,13,We know this stretch by heart now. Let's see if heart is enough.,resolve;memory;death;restart;run
+NARR_215,camps,camp_reached,any,curiosity,3,120,1,true,14,A fire someone else lit. I'll take that as a kindness until proven otherwise.,first_camp;kindness;camp;rest;fire
+NARR_216,camps,camp_reached,any,curiosity,3,120,2,false,12,Shelter. Put the pack down. Let your shoulders remember what they're for.,shelter;shoulders;camp;rest;fire
+NARR_217,camps,camp_reached,any,familiarity,3,120,2,false,13,Somewhere to stop. I didn't want to say how much I needed this.,relief;need;camp;rest;fire
+NARR_218,camps,camp_reached,any,familiarity,3,120,2,false,12,"Another fire, another circle of stones. Somebody down here is very consistent.",consistency;stones;camp;rest;fire
+NARR_219,camps,camp_reached,any,doubt,3,120,2,false,13,"Who keeps these camps going, I wonder. I've never seen anyone tending them.",keepers;mystery;camp;rest;fire
+NARR_220,camps,camp_reached,any,acceptance,3,120,2,false,14,"A fire, a flat bit of ground. Some days that's the whole of paradise.",gratitude;simplicity;camp;rest;fire
+NARR_221,camps,camp_resting,any,curiosity,3,120,2,false,11,"Sit a while. The slope isn't going anywhere, I promise you.",rest;patience;camp;fire
+NARR_222,camps,camp_resting,any,curiosity,3,120,2,false,13,"Fires are good company. They talk, but they never insist on an answer.",fire;company;camp;rest
+NARR_223,camps,camp_resting,any,curiosity,3,120,2,false,14,Mend what you can. Whatever can't be mended can at least be packed better.,repair;mending;camp;rest;fire
+NARR_224,camps,camp_resting,any,familiarity,3,120,2,false,13,This is my favourite part. The part where nothing is required of us.,quiet;favourite;camp;rest;fire
+NARR_225,camps,camp_resting,any,familiarity,3,120,2,false,18,Can you see stars from down here? I keep looking. I'm not sure what I'd make of them.,stars;sky;camp;rest;fire
+NARR_226,camps,camp_resting,any,doubt,3,120,2,false,14,Resting gives the questions time to catch up with us. That's the only drawback.,questions;rest;camp;fire
+NARR_227,camps,camp_resting,any,doubt,3,120,2,false,13,Do you remember the last camp? I find they're starting to blur together.,memory;blur;camp;rest;fire
+NARR_228,camps,camp_resting,any,acceptance,3,120,2,false,13,"If this were all there was, I think I could live with it.",contentment;camp;rest;fire
+NARR_229,camps,camp_leaving,any,curiosity,3,120,2,false,10,Time to go. The fire won't mind. Fires never do.,departure;fire;camp;rest
+NARR_230,camps,camp_leaving,any,familiarity,3,120,2,false,13,Packed and rested. Shall we see what the next stretch thinks of us?,readiness;next_stretch;camp;rest;fire
+NARR_231,camps,camp_leaving,any,doubt,3,120,2,false,9,"You lingered there. So did I, if I'm honest.",lingering;reluctance;camp;rest;fire
+NARR_232,camps,camp_leaving,any,acceptance,3,120,2,false,12,"Leave the warmth for whoever comes next. It's the custom, I think.",custom;next_traveller;camp;rest;fire
+NARR_233,traders,trader_met,any,curiosity,3,90,2,false,19,"A trader, this far down. I have so many questions, and I suspect none of them will be answered.",stranger;questions;trader;exchange;bartering
+NARR_234,traders,trader_met,any,curiosity,3,90,2,false,10,"They don't say much. Neither do I, as a rule.",silence;manner;trader;exchange;bartering
+NARR_235,traders,trader_met,any,familiarity,3,90,2,false,13,The traders always look like they've been waiting. I've never seen one arrive.,waiting;arrival;trader;exchange;bartering
+NARR_236,traders,trader_met,any,doubt,3,90,2,false,16,"Where does a trader get stock in a place like this? Best not to ask, perhaps.",stock;suspicion;trader;exchange;bartering
+NARR_237,traders,trader_met,any,doubt,3,90,2,false,14,Have you noticed they're stranger the deeper we meet them? Or is it us?,strangeness;depth;trader;exchange;bartering
+NARR_238,traders,trader_met,any,acceptance,3,90,2,false,12,Let's see what they want from us. Everyone wants something down here.,wanting;exchange;trader;bartering
+NARR_239,traders,trade_completed,any,curiosity,3,90,2,false,16,"A fair trade, probably. It's hard to know what anything's worth this far from the surface.",fairness;worth;trader;exchange;bartering
+NARR_240,traders,trade_completed,any,curiosity,3,90,2,false,12,They wanted that particular piece very much. I wish I knew why.,relic;interest;trader;exchange;bartering
+NARR_241,traders,trade_completed,any,familiarity,3,90,2,false,11,"Lighter in one way, heavier in another. That's commerce for you.",lighter;heavier;trader;exchange;bartering
+NARR_242,traders,trade_completed,any,familiarity,3,90,2,false,15,You haggle more than you used to. The mountain is a good teacher of thrift.,haggling;thrift;trader;exchange;bartering
+NARR_243,traders,trade_completed,any,doubt,3,90,2,false,17,We gave something we carried a long way. I hope what we got is worth the distance.,distance;value;trader;exchange;bartering
+NARR_244,traders,trade_completed,any,acceptance,3,90,2,false,11,"Done. Neither of us cheated the other too badly, I think.",fairness;contentment;trader;exchange;bartering
+NARR_245,traders,trade_declined,any,curiosity,3,90,2,false,11,No deal. Sometimes the best trade is keeping your hands empty.,refusal;empty_hands;trader;exchange;bartering
+NARR_246,traders,trade_declined,any,familiarity,3,90,2,false,11,"Wise, perhaps. Or perhaps just tired of carrying other people's choices.",caution;fatigue;trader;exchange;bartering
+NARR_247,traders,trade_declined,any,doubt,3,90,2,false,8,"We'll wonder about that one later, I suspect.",regret;later;trader;exchange;bartering
+NARR_248,depth_milestones,depth_milestone_minor,circles_1_2,curiosity,3,300,1,false,14,"We're well below where we began now. It feels further than it is, somehow.",start_behind;depth;progress;milestone
+NARR_249,depth_milestones,depth_milestone_minor,circles_1_2,curiosity,3,300,1,false,11,"Look back up. That's all ours now, every slope of it.",looking_back;depth;progress;milestone
+NARR_250,depth_milestones,depth_milestone_minor,circles_1_3,curiosity,3,300,1,false,11,The sky's a little further every time I look for it.,sky;distance;depth;progress;milestone
+NARR_251,depth_milestones,depth_milestone_minor,circles_2_5,familiarity,3,300,1,false,8,"We've found a rhythm. Down, steady, down again.",rhythm;walking;depth;progress;milestone
+NARR_252,depth_milestones,depth_milestone_minor,circles_2_5,familiarity,3,300,1,false,9,"The air's changed. Heavier, or perhaps I'm just tired.",air;tiredness;depth;progress;milestone
+NARR_253,depth_milestones,depth_milestone_minor,circles_5_9,doubt,3,300,1,false,15,We keep measuring how far we've come. I've never been sure what we're measuring against.,measuring;reference;depth;progress;milestone
+NARR_254,depth_milestones,depth_milestone_minor,circles_6_beyond,acceptance,3,300,1,false,12,Deeper again. I've stopped feeling the numbers. I just feel the walking.,presence;numbers;depth;progress;milestone
+NARR_255,depth_milestones,depth_milestone_major,circles_1_3,curiosity,3,300,1,false,18,There's a threshold feeling to this place. As if something is about to change and hasn't decided what.,threshold;change;depth;progress;milestone
+NARR_256,depth_milestones,depth_milestone_major,circles_3_6,curiosity,3,300,1,false,13,We're truly deep now. The top feels like a story someone told us.,surface;memory;depth;progress;milestone
+NARR_257,depth_milestones,depth_milestone_major,circles_3_6,familiarity,3,300,1,false,14,"Further than most go, I'd guess. Not that anyone down here keeps a tally.",pride;tally;depth;progress;milestone
+NARR_258,depth_milestones,depth_milestone_major,circles_5_9,doubt,3,300,1,false,15,Every metre down is a metre we'd have to explain on the way back up.,return;explanation;depth;progress;milestone
+NARR_259,depth_milestones,depth_milestone_major,circles_5_9,doubt,3,300,1,false,15,Each milestone promises the next will be different. I've started noticing the pattern of promises.,promises;pattern;depth;progress;milestone
+NARR_260,depth_milestones,depth_milestone_major,circles_6_beyond,acceptance,3,300,1,false,11,"This far down, the old fears start to feel rather small.",fear;perspective;depth;progress;milestone
+NARR_261,depth_milestones,depth_record_beaten,any,curiosity,2,300,1,false,15,Further than we've ever been. Everything from here on is new to both of us.,new_ground;shared;depth;progress;milestone
+NARR_262,depth_milestones,depth_record_beaten,any,curiosity,2,300,1,false,10,"A personal best. I'd applaud, but I'd lose my footing.",humor;applause;depth;progress;milestone
+NARR_263,depth_milestones,depth_record_beaten,any,familiarity,2,300,1,false,20,"A new deepest point. You did that one step at a time, which is the only way anyone does anything.",persistence;steps;depth;progress;milestone
+NARR_264,depth_milestones,depth_record_beaten,any,doubt,2,300,1,false,11,Our deepest yet. I keep waiting to feel closer to something.,closeness;waiting;depth;progress;milestone
+NARR_265,depth_milestones,depth_record_beaten,any,acceptance,2,300,1,false,15,New ground below the old record. Let's not make a fuss. Let's just keep going.,modesty;continuing;depth;progress;milestone
+NARR_266,godhood_reflection,godhood_reflection,any,curiosity,4,900,1,false,19,People say something waits at the bottom that makes all of this worthwhile. People say a great many things.,rumour;bottom;ambition;divinity;meaning
+NARR_267,godhood_reflection,godhood_reflection,any,curiosity,4,900,1,false,13,"What would you do with it, if you became what you're walking toward?",purpose;question;ambition;divinity;meaning
+NARR_268,godhood_reflection,godhood_reflection,any,familiarity,4,900,1,false,19,We talk about the summit at the bottom so rarely now. I'm not sure if that's wisdom or fatigue.,summit;silence;ambition;divinity;meaning
+NARR_269,godhood_reflection,godhood_reflection,any,familiarity,4,900,1,false,15,"You have changed on this road. Whether that counts as becoming more, I couldn't say.",change;becoming;ambition;divinity;meaning
+NARR_270,godhood_reflection,godhood_reflection,any,doubt,4,900,1,false,18,"If there were a god at the bottom of this, wouldn't someone have come back to say so?",evidence;return;ambition;divinity;meaning
+NARR_271,godhood_reflection,godhood_reflection,any,doubt,4,900,1,false,13,"Do you want to become a god, or just to stop being afraid?",fear;motive;ambition;divinity;meaning
+NARR_272,godhood_reflection,godhood_reflection,any,doubt,4,900,1,false,13,"Every time we get closer, the idea seems to take a step back.",receding;idea;ambition;divinity;meaning
+NARR_273,godhood_reflection,godhood_reflection,any,acceptance,4,900,1,false,13,Perhaps becoming greater isn't something we reach. Perhaps it's something we keep practising.,practice;becoming;ambition;divinity;meaning
+NARR_274,godhood_reflection,godhood_reflection,any,acceptance,4,900,1,false,14,I've stopped asking whether godhood exists. I find I'm more curious about who's asking.,asking;self;ambition;divinity;meaning
+NARR_275,godhood_reflection,relic_found,any,curiosity,4,900,1,false,12,That looks almost holy. Almost is doing most of the work there.,holy;almost;ambition;divinity;meaning
+NARR_276,godhood_reflection,relic_found,any,familiarity,4,900,1,false,16,"Each relic is finer than the last. As if someone were leading us on, very gently.",craft;lure;ambition;divinity;meaning
+NARR_277,godhood_reflection,relic_found,any,doubt,4,900,1,false,11,"Proof of something, certainly. I just can't tell you of what.",evidence;uncertainty;ambition;divinity;meaning
+NARR_278,godhood_reflection,relic_found,any,acceptance,4,900,1,false,11,Beautiful. I don't need it to mean anything more than that.,beauty;enough;ambition;divinity;meaning
+NARR_279,godhood_reflection,divine_hint_seen,any,curiosity,4,900,1,false,14,Did you see that light? No. Never mind. I'm not sure I did either.,light;uncertainty;ambition;divinity;meaning
+NARR_280,godhood_reflection,divine_hint_seen,any,familiarity,4,900,1,false,15,Another sign. The signs are very consistent. The thing they point to never quite is.,signs;consistency;ambition;divinity;meaning
+NARR_281,godhood_reflection,divine_hint_seen,any,doubt,4,900,1,false,11,Of course it's beautiful. Things that keep us walking usually are.,temptation;beauty;ambition;divinity;meaning
+NARR_282,circle_1_limbo,circle_1_entered,circle_1,curiosity,1,0,1,true,14,"Grey everywhere. A place that hasn't decided what it's for, and doesn't seem bothered.",first_visit;grey;limbo;beginning;waiting
+NARR_283,circle_1_limbo,circle_1_entered,circle_1,curiosity,2,0,1,false,12,"It's so quiet here. Not peaceful, exactly. More like a held breath.",quiet;held_breath;limbo;beginning;waiting
+NARR_284,circle_1_limbo,circle_1_entered,circle_1,familiarity,2,0,1,false,16,The grey again. Let's not stay long. It has a way of making staying seem reasonable.,return_visit;lingering;limbo;beginning;waiting
+NARR_285,circle_1_limbo,circle_1_ambient,circle_1,curiosity,5,420,1,false,12,Everything here feels like it's waiting. I'd rather we didn't join it.,waiting;limbo;beginning
+NARR_286,circle_1_limbo,circle_1_ambient,circle_1,curiosity,5,420,1,false,7,You'd think a beginning would be brighter.,colour;beginning;limbo;waiting
+NARR_287,circle_1_limbo,circle_1_ambient,circle_1,curiosity,5,420,1,false,16,"Not punished, not rewarded. Just here. I think that might be its own kind of weight.",neither;weight;limbo;beginning;waiting
+NARR_288,circle_1_limbo,circle_1_ambient,circle_1,curiosity,5,420,1,false,12,The fog doesn't hide much. There's simply not much to hide yet.,fog;emptiness;limbo;beginning;waiting
+NARR_289,circle_1_limbo,circle_1_ambient,circle_1,curiosity,5,420,1,false,12,I keep thinking I hear voices in the mist. Polite ones. Patient.,voices;mist;limbo;beginning;waiting
+NARR_290,circle_1_limbo,circle_1_ambient,circle_1,curiosity,5,420,1,false,11,Nothing here wants anything from us. That's rarer than you'd think.,indifference;limbo;beginning;waiting
+NARR_291,circle_1_limbo,circle_1_ambient,circle_1,familiarity,5,420,1,false,14,We've walked through this grey so often it's started to feel like a hallway.,familiar;hallway;limbo;beginning;waiting
+NARR_292,circle_1_limbo,circle_1_ambient,circle_1,doubt,5,420,1,false,13,"What do you suppose people did here, the ones who never went further?",residents;staying;limbo;beginning;waiting
+NARR_293,circle_1_limbo,circle_1_ambient,circle_1,doubt,5,420,1,false,11,Everything here is almost something. Almost a colour. Almost a sound.,almost;incompleteness;limbo;beginning;waiting
+NARR_294,circle_1_limbo,circle_1_ambient,circle_1,acceptance,5,420,1,false,11,"Back in the grey. It's almost comforting, knowing where it ends.",return;comfort;limbo;beginning;waiting
+NARR_295,circle_1_limbo,circle_1_hazard,circle_1,curiosity,3,120,2,false,8,"Gentle slopes, mostly. The mountain is introducing itself.",gentle_slopes;introduction;limbo;beginning;waiting
+NARR_296,circle_1_limbo,circle_1_hazard,circle_1,curiosity,3,120,2,false,11,"Even the easy ground here has opinions. Small ones, but firm.",easy_ground;opinions;limbo;beginning;waiting
+NARR_297,circle_2_lust,circle_2_entered,circle_2,curiosity,1,0,1,true,11,The wind changes here. It doesn't blow so much as pull.,first_visit;pull;lust;desire;wind
+NARR_298,circle_2_lust,circle_2_entered,circle_2,curiosity,2,0,1,false,10,Listen to that wind. It sounds like it wants something.,storm;wanting;lust;desire;wind
+NARR_299,circle_2_lust,circle_2_entered,circle_2,familiarity,2,0,1,false,12,"The wind again. It remembers us, I think. It's certainly very forward.",return_visit;forward;lust;desire;wind
+NARR_300,circle_2_lust,circle_2_ambient,circle_2,curiosity,5,420,1,false,9,Everything here leans toward something else. Even the grass.,longing;leaning;lust;desire;wind
+NARR_301,circle_2_lust,circle_2_ambient,circle_2,curiosity,5,420,1,false,14,You keep looking off the path. I don't blame you. I just notice it.,distraction;off_path;lust;desire;wind
+NARR_302,circle_2_lust,circle_2_ambient,circle_2,curiosity,5,420,1,false,14,"It's lovely here, in a restless way. Like a song you can't quite finish.",beauty;restless;lust;desire;wind
+NARR_303,circle_2_lust,circle_2_ambient,circle_2,familiarity,5,420,1,false,11,Wanting something and walking toward it aren't always the same direction.,wanting;direction;lust;desire;wind
+NARR_304,circle_2_lust,circle_2_ambient,circle_2,familiarity,5,420,1,false,11,It's hard to stand still here. The air won't allow it.,restless;stillness;lust;desire;wind
+NARR_305,circle_2_lust,circle_2_ambient,circle_2,familiarity,5,420,1,false,11,There are voices in the wind. Mostly they ask for things.,voices;asking;lust;desire;wind
+NARR_306,circle_2_lust,circle_2_ambient,circle_2,doubt,5,420,1,false,17,I wonder how many people came this far only to be blown sideways by what they wanted.,chasing;sideways;lust;desire;wind
+NARR_307,circle_2_lust,circle_2_ambient,circle_2,doubt,5,420,1,false,18,"Is it the destination you desire, or the desiring itself? Don't answer. The wind would only take it.",desire;question;lust;wind
+NARR_308,circle_2_lust,circle_2_ambient,circle_2,acceptance,5,420,1,false,13,"The trick here, I think, is to want one thing at a time.",focus;one_thing;lust;desire;wind
+NARR_309,circle_2_lust,circle_2_hazard,circle_2,curiosity,3,120,2,false,16,The gusts are heavy here. Keep the pack close. The wind takes what it can reach.,gusts;pack;lust;desire;wind
+NARR_310,circle_2_lust,circle_2_hazard,circle_2,familiarity,3,120,2,false,15,The wind leans on you and you lean back. A whole conversation without a word.,gusts;counter_lean;lust;desire;wind
+NARR_311,circle_2_lust,circle_2_hazard,circle_2,doubt,3,120,2,false,10,"The storm picks favourites. Today, it seems, it's picked us.",storm;favourites;lust;desire;wind
+NARR_312,circle_3_gluttony,circle_3_entered,circle_3,curiosity,1,0,1,true,16,"Rain, and it doesn't look like it's ever stopped. The ground has given up resisting it.",first_visit;rain;gluttony;excess;mud
+NARR_313,circle_3_gluttony,circle_3_entered,circle_3,curiosity,2,0,1,false,9,"Everything here is soaked through. Including, very shortly, us.",soaked;gluttony;excess;rain;mud
+NARR_314,circle_3_gluttony,circle_3_entered,circle_3,familiarity,2,0,1,false,11,The rain again. It hasn't missed us. It doesn't miss anything.,return_visit;rain;gluttony;excess;mud
+NARR_315,circle_3_gluttony,circle_3_ambient,circle_3,curiosity,5,420,1,false,13,The mud wants to keep a bit of everyone. It's greedy that way.,mud;keeping;gluttony;excess;rain
+NARR_316,circle_3_gluttony,circle_3_ambient,circle_3,curiosity,5,420,1,false,11,Cold rain has a way of making every thought very short.,cold;brevity;gluttony;excess;rain;mud
+NARR_317,circle_3_gluttony,circle_3_ambient,circle_3,curiosity,5,420,1,false,16,I won't describe the smell. You have a nose. I'll trust it to do the work.,smell;restraint;gluttony;excess;rain;mud
+NARR_318,circle_3_gluttony,circle_3_ambient,circle_3,familiarity,5,420,1,false,15,I've been wondering what enough looks like. I think it looks lighter than this pack.,enough;lighter;gluttony;excess;rain;mud
+NARR_319,circle_3_gluttony,circle_3_ambient,circle_3,familiarity,5,420,1,false,18,"So much water, and none of it useful. There's a lesson in that I'd rather not learn soaked.",abundance;useless;gluttony;excess;rain;mud
+NARR_320,circle_3_gluttony,circle_3_ambient,circle_3,familiarity,5,420,1,false,14,The rain is loud enough that I can say almost anything. It's oddly freeing.,noise;freedom;gluttony;excess;rain;mud
+NARR_321,circle_3_gluttony,circle_3_ambient,circle_3,doubt,5,420,1,false,16,"Is it hunger that brings people this far down, or just never knowing when to stop?",appetite;stopping;gluttony;excess;rain;mud
+NARR_322,circle_3_gluttony,circle_3_ambient,circle_3,doubt,5,420,1,false,15,We pick things up as if the next one will finally satisfy. Has it yet?,more;satisfaction;gluttony;excess;rain;mud
+NARR_323,circle_3_gluttony,circle_3_ambient,circle_3,acceptance,5,420,1,false,11,"Out here, a dry place to sit feels like a feast.",simplicity;feast;gluttony;excess;rain;mud
+NARR_324,circle_3_gluttony,circle_3_hazard,circle_3,curiosity,3,120,2,false,9,The footing's terrible. Every step is a small negotiation.,mud;grip;gluttony;excess;rain
+NARR_325,circle_3_gluttony,circle_3_hazard,circle_3,familiarity,3,120,2,false,8,Slow is the only speed the mud permits.,mud;pace;gluttony;excess;rain
+NARR_326,circle_3_gluttony,circle_3_hazard,circle_3,doubt,3,120,2,false,15,Everything we carry gets heavier in the wet. Funny how that works for regrets too.,wet;regret;gluttony;excess;rain;mud
+NARR_327,circle_4_greed,circle_4_entered,circle_4,curiosity,1,0,1,true,18,"Look at the stones up ahead. Someone pushed every one of them this far, and then just stopped.",first_visit;stones;greed;possession;weight
+NARR_328,circle_4_greed,circle_4_entered,circle_4,familiarity,2,0,1,false,9,Heavy country. Even the rocks look like somebody's belongings.,heavy_country;belongings;greed;possession;weight
+NARR_329,circle_4_greed,circle_4_entered,circle_4,acceptance,2,0,1,false,12,The heavy country again. Let's carry only what we came to carry.,return_visit;carry_less;greed;possession;weight
+NARR_330,circle_4_greed,circle_4_ambient,circle_4,curiosity,5,420,1,false,16,Every boulder here looks like it was rolled by hand. I'd rather not meet the hands.,boulders;hands;greed;possession;weight
+NARR_331,circle_4_greed,circle_4_ambient,circle_4,curiosity,5,420,1,false,13,There's metal in the rock here. I can feel you thinking about it.,metal;temptation;greed;possession;weight
+NARR_332,circle_4_greed,circle_4_ambient,circle_4,familiarity,5,420,1,false,17,"The more we hold, the more of our hands are already full. Simple, but I keep forgetting.",holding;full_hands;greed;possession;weight
+NARR_333,circle_4_greed,circle_4_ambient,circle_4,familiarity,5,420,1,false,16,"Someone stacked supplies here once, then left without any of them. Curious way to be rich.",hoard;abandoned;greed;possession;weight
+NARR_334,circle_4_greed,circle_4_ambient,circle_4,familiarity,5,420,1,false,14,You've counted the pack twice since we arrived. The place gets under the skin.,counting;obsession;greed;possession;weight
+NARR_335,circle_4_greed,circle_4_ambient,circle_4,doubt,5,420,1,false,17,"Do we own what we carry, or does it own a little of our strength each day?",owning;strength;greed;possession;weight
+NARR_336,circle_4_greed,circle_4_ambient,circle_4,doubt,5,420,1,false,8,"Down here, valuable just means difficult to carry.",value;difficulty;greed;possession;weight
+NARR_337,circle_4_greed,circle_4_ambient,circle_4,doubt,5,420,1,false,15,Spending and hoarding look so different. Down here they end in exactly the same pile.,spending;hoarding;greed;possession;weight
+NARR_338,circle_4_greed,circle_4_ambient,circle_4,acceptance,5,420,1,false,16,I think the people who did well here were the ones who arrived with empty hands.,empty_hands;greed;possession;weight
+NARR_339,circle_4_greed,circle_4_hazard,circle_4,curiosity,3,120,2,false,13,The pack feels heavier in this place. I don't think it's my imagination.,load;heavier;greed;possession;weight
+NARR_340,circle_4_greed,circle_4_hazard,circle_4,familiarity,3,120,2,false,12,Mind the slope above. Loose weight tends to come looking for company.,rolling_rocks;greed;possession;weight
+NARR_341,circle_4_greed,circle_4_hazard,circle_4,doubt,3,120,2,false,14,They ask for heavier loads here. Funny how no one ever asks for less.,contracts;heavier_loads;greed;possession;weight
+NARR_342,circle_5_wrath,circle_5_entered,circle_5,doubt,1,0,1,true,14,"A black marsh, and the water is restless. Something under it is still arguing.",first_visit;marsh;wrath;resistance
+NARR_343,circle_5_wrath,circle_5_entered,circle_5,familiarity,2,0,1,false,11,"Everything here pushes back. The ground, the water, the air itself.",resistance;pushback;wrath;marsh
+NARR_344,circle_5_wrath,circle_5_entered,circle_5,acceptance,2,0,1,false,12,The marsh again. We know how to be patient with it now.,return_visit;patience;wrath;resistance;marsh
+NARR_345,circle_5_wrath,circle_5_ambient,circle_5,curiosity,5,420,1,false,9,Whatever lives in the reeds sounds like it's complaining.,reeds;complaint;wrath;resistance;marsh
+NARR_346,circle_5_wrath,circle_5_ambient,circle_5,familiarity,5,420,1,false,16,"You're gripping the straps harder. I'd ask what's bothering you, but I think it's this place.",grip;anger;wrath;resistance;marsh
+NARR_347,circle_5_wrath,circle_5_ambient,circle_5,familiarity,5,420,1,false,11,"The surface bubbles. I'd rather not know what's underneath, thank you.",surface;bubbles;wrath;resistance;marsh
+NARR_348,circle_5_wrath,circle_5_ambient,circle_5,familiarity,5,420,1,false,16,Your temper's shorter here. Mine too. Let's agree not to take it out on each other.,temper;truce;wrath;resistance;marsh
+NARR_349,circle_5_wrath,circle_5_ambient,circle_5,doubt,5,420,1,false,14,"Fighting the mountain is like fighting weather. It doesn't notice, and you get tired.",struggle;weather;wrath;resistance;marsh
+NARR_350,circle_5_wrath,circle_5_ambient,circle_5,doubt,5,420,1,false,14,Some anger shouts. Some sinks and waits. This place feels like the second kind.,sullen;waiting;wrath;resistance;marsh
+NARR_351,circle_5_wrath,circle_5_ambient,circle_5,doubt,5,420,1,false,16,"What were they so angry about, I wonder? Whatever it was, they're still here with it.",cause;still_here;wrath;resistance;marsh
+NARR_352,circle_5_wrath,circle_5_ambient,circle_5,acceptance,5,420,1,false,11,Rage is quick. Marshes are slow. I'd bet on the marsh.,patience;marsh;wrath;resistance
+NARR_353,circle_5_wrath,circle_5_ambient,circle_5,acceptance,5,420,1,false,14,The calmest thing in this marsh might be us. I'm quietly proud of that.,calm;pride;wrath;resistance;marsh
+NARR_354,circle_5_wrath,circle_5_hazard,circle_5,curiosity,3,120,2,false,12,"A crossing. Slowly, and with as little opinion as you can manage.",crossing;restraint;wrath;resistance;marsh
+NARR_355,circle_5_wrath,circle_5_hazard,circle_5,familiarity,3,120,2,false,11,"Mind the soft ground. It takes its time, but it takes.",sinking;soft_ground;wrath;resistance;marsh
+NARR_356,circle_5_wrath,circle_5_hazard,circle_5,doubt,3,120,2,false,9,Every step here feels like it's being resisted personally.,footing;resistance;wrath;marsh
+NARR_357,circle_6_heresy,circle_6_entered,circle_6,doubt,1,0,1,true,17,"Old tombs, some of them open, some of them warm. I find my certainties are getting nervous.",first_visit;tombs;heresy;doubt;belief
+NARR_358,circle_6_heresy,circle_6_entered,circle_6,doubt,2,0,1,false,11,This place makes me question things I didn't know I believed.,beliefs;questioning;heresy;doubt;belief;tombs
+NARR_359,circle_6_heresy,circle_6_entered,circle_6,acceptance,2,0,1,false,15,"The tombs again. They seem smaller, or perhaps I've stopped being so sure of myself.",return_visit;smaller;heresy;doubt;belief;tombs
+NARR_360,circle_6_heresy,circle_6_ambient,circle_6,doubt,5,420,1,false,20,What if the things we were sure of at the top were only the things that were easy to carry?,assumptions;easy;heresy;doubt;belief;tombs
+NARR_361,circle_6_heresy,circle_6_ambient,circle_6,doubt,5,420,1,false,16,I used to think doubt was a weakness. Down here it feels more like a lantern.,doubt;lantern;heresy;belief;tombs
+NARR_362,circle_6_heresy,circle_6_ambient,circle_6,doubt,5,420,1,false,14,The stone is warm under our feet. I'd prefer not to think about why.,heat;stone;heresy;doubt;belief;tombs
+NARR_363,circle_6_heresy,circle_6_ambient,circle_6,doubt,5,420,1,false,9,So many lids. So many people who were certain.,lids;certainty;heresy;doubt;belief;tombs
+NARR_364,circle_6_heresy,circle_6_ambient,circle_6,doubt,5,420,1,false,11,"Perhaps the old map was only someone's belief, drawn very neatly.",old_map;belief;heresy;doubt;tombs
+NARR_365,circle_6_heresy,circle_6_ambient,circle_6,doubt,5,420,1,false,13,Every epitaph here begins with certainty. Not one of them ends with it.,epitaphs;certainty;heresy;doubt;belief;tombs
+NARR_366,circle_6_heresy,circle_6_ambient,circle_6,familiarity,5,420,1,false,11,Do you still believe what you believed when we started? Honestly?,faith;honesty;heresy;doubt;belief;tombs
+NARR_367,circle_6_heresy,circle_6_ambient,circle_6,acceptance,5,420,1,false,12,"Not knowing is uncomfortable, but it's honest. I've grown to like honest.",uncertainty;honesty;heresy;doubt;belief;tombs
+NARR_368,circle_6_heresy,circle_6_ambient,circle_6,acceptance,5,420,1,false,12,The open tombs don't frighten me as much as the sealed ones.,open_tombs;fear;heresy;doubt;belief;tombs
+NARR_369,circle_6_heresy,circle_6_hazard,circle_6,doubt,3,120,2,false,12,"Heat ahead. Fragile things don't care for it, and neither do I.",fire;fragile;heresy;doubt;belief;tombs
+NARR_370,circle_6_heresy,circle_6_hazard,circle_6,familiarity,3,120,2,false,16,The vents are hot enough to ruin anything delicate. Some lessons I'd rather we learned second-hand.,vents;fragile_cargo;heresy;doubt;belief;tombs
+NARR_371,circle_6_heresy,circle_6_hazard,circle_6,doubt,3,120,2,false,14,"The ground cracks here, and something glows in the cracks. Let's not stand still.",cracks;glow;heresy;doubt;belief;tombs
+NARR_372,circle_7_violence,circle_7_entered,circle_7,doubt,1,0,1,true,17,The ground here looks like it has paid for something. I'm not sure we'll get a receipt.,first_visit;payment;violence;sacrifice;harsh_terrain
+NARR_373,circle_7_violence,circle_7_entered,circle_7,doubt,2,0,1,false,12,"Hard country. Everything here has edges, and none of them are friendly.",edges;hostility;violence;sacrifice;harsh_terrain
+NARR_374,circle_7_violence,circle_7_entered,circle_7,acceptance,2,0,1,false,14,"The harsh country again. We'll pay what it asks, and not a coin more.",return_visit;price;violence;sacrifice;harsh_terrain
+NARR_375,circle_7_violence,circle_7_ambient,circle_7,doubt,5,420,1,false,11,"We've given a lot to get here. Skin, mostly. Some patience.",cost;skin;violence;sacrifice;harsh_terrain
+NARR_376,circle_7_violence,circle_7_ambient,circle_7,doubt,5,420,1,false,13,Is it still a sacrifice if we'd do it again without being asked?,sacrifice;willingness;violence;harsh_terrain
+NARR_377,circle_7_violence,circle_7_ambient,circle_7,doubt,5,420,1,false,15,There's a river down there the colour of old rust. Let's not drink from it.,river;rust;violence;sacrifice;harsh_terrain
+NARR_378,circle_7_violence,circle_7_ambient,circle_7,doubt,5,420,1,false,15,Force never seems to finish anything. It just passes the problem further down the hill.,force;futility;violence;sacrifice;harsh_terrain
+NARR_379,circle_7_violence,circle_7_ambient,circle_7,doubt,5,420,1,false,16,"The hardest thing we've fought on this road is ourselves, I think. We keep winning narrowly.",self;struggle;violence;sacrifice;harsh_terrain
+NARR_380,circle_7_violence,circle_7_ambient,circle_7,familiarity,5,420,1,false,17,The sand is hot enough to feel through your boots. It doesn't seem to want us here.,sand;heat;violence;sacrifice;harsh_terrain
+NARR_381,circle_7_violence,circle_7_ambient,circle_7,familiarity,5,420,1,false,16,The trees here have such strange shapes. As if they were reaching for something they lost.,trees;reaching;violence;sacrifice;harsh_terrain
+NARR_382,circle_7_violence,circle_7_ambient,circle_7,acceptance,5,420,1,false,12,"You carry your bruises well. I've stopped counting them, out of courtesy.",bruises;courtesy;violence;sacrifice;harsh_terrain
+NARR_383,circle_7_violence,circle_7_ambient,circle_7,acceptance,5,420,1,false,14,"In a place this harsh, a careful step is almost an act of rebellion.",gentleness;rebellion;violence;sacrifice;harsh_terrain
+NARR_384,circle_7_violence,circle_7_hazard,circle_7,doubt,3,120,2,false,7,The burning sand. Quick steps. Short thoughts.,burning_sand;violence;sacrifice;harsh_terrain
+NARR_385,circle_7_violence,circle_7_hazard,circle_7,familiarity,3,120,2,false,11,The slopes here throw stones. Not at anyone in particular. Mostly.,rockfall;violence;sacrifice;harsh_terrain
+NARR_386,circle_7_violence,circle_7_hazard,circle_7,doubt,3,120,2,false,13,Every fall here costs more. The ground has been taught to strike back.,damage;hard_ground;violence;sacrifice;harsh_terrain
+NARR_387,circle_8_fraud,circle_8_entered,circle_8,doubt,1,0,1,true,15,"Ditches upon ditches, and every path looks like the right one. That's what worries me.",first_visit;ditches;fraud;illusion;deception
+NARR_388,circle_8_fraud,circle_8_entered,circle_8,doubt,2,0,1,false,10,"Nothing here is quite what it says. Myself included, perhaps.",deception;self;fraud;illusion
+NARR_389,circle_8_fraud,circle_8_entered,circle_8,acceptance,2,0,1,false,11,The ditches again. Let's not believe a single one of them.,return_visit;disbelief;fraud;illusion;deception
+NARR_390,circle_8_fraud,circle_8_ambient,circle_8,doubt,5,420,1,false,13,That path was there a moment ago. Or it looked like it was.,vanishing_path;fraud;illusion;deception
+NARR_391,circle_8_fraud,circle_8_ambient,circle_8,doubt,5,420,1,false,13,Trust your feet more than your eyes here. Feet are harder to flatter.,trust;feet;fraud;illusion;deception
+NARR_392,circle_8_fraud,circle_8_ambient,circle_8,doubt,5,420,1,false,11,The markers here are very confident. I've learned to distrust confidence.,markers;confidence;fraud;illusion;deception
+NARR_393,circle_8_fraud,circle_8_ambient,circle_8,doubt,5,420,1,false,13,"You've never asked who I really am. I'd say that's wise, here especially.",companion;identity;fraud;illusion;deception
+NARR_394,circle_8_fraud,circle_8_ambient,circle_8,doubt,5,420,1,false,12,Something here keeps telling us we're nearly there. I've heard that before.,flattery;nearly_there;fraud;illusion;deception
+NARR_395,circle_8_fraud,circle_8_ambient,circle_8,familiarity,5,420,1,false,11,We've passed that broken arch twice now. Or it's passed us.,maze;arch;fraud;illusion;deception
+NARR_396,circle_8_fraud,circle_8_ambient,circle_8,familiarity,5,420,1,false,15,The pools here show us looking a little nobler than we are. I'd avoid them.,pools;vanity;fraud;illusion;deception
+NARR_397,circle_8_fraud,circle_8_ambient,circle_8,acceptance,5,420,1,false,15,"In a place built from lies, the only thing to do is be very plain.",plainness;honesty;fraud;illusion;deception
+NARR_398,circle_8_fraud,circle_8_ambient,circle_8,acceptance,5,420,1,false,12,The cleverest lies down here are the ones we brought with us.,self_deception;fraud;illusion;deception
+NARR_399,circle_8_fraud,circle_8_hazard,circle_8,doubt,3,120,2,false,12,"That route ends in nothing. A good imitation of a road, though.",false_path;dead_end;fraud;illusion;deception
+NARR_400,circle_8_fraud,circle_8_hazard,circle_8,familiarity,3,120,2,false,14,Test the bridge before you trust it. Everything down here has practised looking solid.,bridge;appearance;fraud;illusion;deception
+NARR_401,circle_8_fraud,circle_8_hazard,circle_8,doubt,3,120,2,false,11,The map and the ground disagree. I'd side with the ground.,map;ground;fraud;illusion;deception
+NARR_402,circle_9_treachery,circle_9_entered,circle_9,acceptance,1,0,1,true,21,"Ice as far as I can see, and so quiet. If this world has a floor, it would look like this.",first_visit;floor;treachery;betrayal;ice
+NARR_403,circle_9_treachery,circle_9_entered,circle_9,doubt,2,0,1,false,16,The cold here goes past the skin. It feels like it's checking what we're made of.,cold;testing;treachery;betrayal;ice
+NARR_404,circle_9_treachery,circle_9_entered,circle_9,acceptance,2,0,1,false,12,"The ice again. I think it's been waiting, in its unhurried way.",return_visit;unhurried;treachery;betrayal;ice
+NARR_405,circle_9_treachery,circle_9_ambient,circle_9,doubt,5,420,1,false,8,Betrayal needs closeness first. That's the cruel part.,betrayal;closeness;treachery;ice
+NARR_406,circle_9_treachery,circle_9_ambient,circle_9,doubt,5,420,1,false,18,"Would you leave me behind, if it meant reaching the bottom? You can tell me. I won't mind.",loyalty;question;treachery;betrayal;ice
+NARR_407,circle_9_treachery,circle_9_ambient,circle_9,doubt,5,420,1,false,12,Everything here stopped moving long ago. Even the regret has set hard.,frozen;regret;treachery;betrayal;ice
+NARR_408,circle_9_treachery,circle_9_ambient,circle_9,doubt,5,420,1,false,13,There are shapes under the ice. Let's not look too closely at whose.,shapes;ice;treachery;betrayal
+NARR_409,circle_9_treachery,circle_9_ambient,circle_9,doubt,5,420,1,false,13,This feels like an ending. I've learned to be suspicious of that feeling.,ending;suspicion;treachery;betrayal;ice
+NARR_410,circle_9_treachery,circle_9_ambient,circle_9,doubt,5,420,1,false,17,"The deepest betrayals are the small ones we commit against ourselves, one sensible decision at a time.",self_betrayal;treachery;betrayal;ice
+NARR_411,circle_9_treachery,circle_9_ambient,circle_9,acceptance,5,420,1,false,14,We've come all this way together. I'd like to think that counts for something.,together;loyalty;treachery;betrayal;ice
+NARR_412,circle_9_treachery,circle_9_ambient,circle_9,acceptance,5,420,1,false,12,"The bottom of everything, they said. It's very cold for a promise.",bottom;promise;treachery;betrayal;ice
+NARR_413,circle_9_treachery,circle_9_ambient,circle_9,acceptance,5,420,1,false,13,"Strange. It's the quietest place we've been, and I've never felt less alone.",quiet;companionship;treachery;betrayal;ice
+NARR_414,circle_9_treachery,circle_9_hazard,circle_9,doubt,3,120,2,false,14,The ice gives you nothing to hold. Every step is a matter of faith.,ice;footing;treachery;betrayal
+NARR_415,circle_9_treachery,circle_9_hazard,circle_9,acceptance,3,120,2,false,10,We'll fall here. Everyone does. Let's at least fall slowly.,ice;falling;treachery;betrayal
+NARR_416,circle_9_treachery,circle_9_hazard,circle_9,doubt,3,120,2,false,11,Listen to the ice. It sounds like it's thinking about something.,cracking;listening;treachery;betrayal;ice
+NARR_417,beyond_ninth,beyond_ninth_circle,beyond_ninth,acceptance,1,0,1,true,19,"The ice ends, and there's more slope beneath it. Nine circles, then. Someone must have stopped counting too soon.",first_visit;old_map;beyond;continuation;unmapped
+NARR_418,beyond_ninth,beyond_ninth_circle,beyond_ninth,acceptance,2,0,1,false,16,More mountain. I can't say I'm surprised. I'm not sure I ever believed in the bottom.,continuation;bottom;beyond;unmapped
+NARR_419,beyond_ninth,beyond_ninth_circle,beyond_ninth,doubt,2,0,1,false,13,The old map stops here. The ground doesn't seem to have been told.,old_map;ground;beyond;continuation;unmapped
+NARR_420,beyond_ninth,beyond_ninth_layer_entered,beyond_ninth,acceptance,3,60,1,false,15,Another layer. It's beginning to feel less like a fall and more like a breath.,new_layer;breath;beyond;continuation;unmapped
+NARR_421,beyond_ninth,beyond_ninth_layer_entered,beyond_ninth,doubt,3,60,1,false,16,Each layer stranger than the last. I keep expecting an answer and getting a new question.,new_layer;questions;beyond;continuation;unmapped
+NARR_422,beyond_ninth,beyond_ninth_layer_entered,beyond_ninth,acceptance,3,60,1,false,15,New ground below the old ground. We know what to do with that by now.,new_layer;familiar_task;beyond;continuation;unmapped
+NARR_423,beyond_ninth,beyond_ninth_ambient,beyond_ninth,doubt,5,420,1,false,13,Nothing here looks like anything I have words for. I'll keep trying anyway.,strangeness;words;beyond;continuation;unmapped
+NARR_424,beyond_ninth,beyond_ninth_ambient,beyond_ninth,acceptance,5,420,1,false,13,The shapes keep getting simpler. Or we keep getting simpler. Hard to say.,abstraction;simplicity;beyond;continuation;unmapped
+NARR_425,beyond_ninth,beyond_ninth_ambient,beyond_ninth,acceptance,5,420,1,false,15,"No one named this place. We could, if you like. I'd rather just walk it.",naming;walking;beyond;continuation;unmapped
+NARR_426,beyond_ninth,beyond_ninth_ambient,beyond_ninth,doubt,5,420,1,false,13,Every layer promised to be the last. This one doesn't bother promising anything.,promises;last_layer;beyond;continuation;unmapped
+NARR_427,beyond_ninth,beyond_ninth_ambient,beyond_ninth,acceptance,5,420,1,false,11,"Whatever this place is, I'm glad we're not seeing it alone.",company;gratitude;beyond;continuation;unmapped
+NARR_428,beyond_ninth,beyond_ninth_ambient,beyond_ninth,doubt,5,420,1,false,19,Do you think anyone has been this far? There are no footprints. That frightens me less than it should.,footprints;absence;beyond;continuation;unmapped
+NARR_429,beyond_ninth,beyond_ninth_ambient,beyond_ninth,acceptance,5,420,1,false,12,"Down remains down, at least. Some things we can still rely on.",direction;reliability;beyond;continuation;unmapped
+NARR_430,beyond_ninth,beyond_ninth_ambient,beyond_ninth,acceptance,5,420,1,false,14,The light here doesn't come from anywhere. I find I don't need it to.,light;source;beyond;continuation;unmapped
+NARR_431,beyond_ninth,beyond_ninth_ambient,beyond_ninth,doubt,5,420,1,false,16,We came looking for the end of the road. It seems the road had other plans.,road;plans;beyond;continuation;unmapped
+NARR_432,beyond_ninth,beyond_ninth_ambient,beyond_ninth,acceptance,5,420,1,false,19,"You've walked further than the stories go. That has to count for something, even if no one is counting.",stories;distance;beyond;continuation;unmapped
+NARR_433,weather,weather_wind_rising,any,curiosity,4,240,2,false,13,The wind's getting up. It always seems to find the loosest strap first.,wind;straps;weather;environment
+NARR_434,weather,weather_wind_rising,any,familiarity,4,240,2,false,13,Wind like this makes a pack into a sail. Not a good one.,wind;sail;weather;environment
+NARR_435,weather,weather_wind_rising,any,doubt,4,240,2,false,7,Even the weather can't sit still here.,wind;restless;weather;environment
+NARR_436,weather,weather_rain_started,any,curiosity,4,240,2,false,8,"Rain. Well, we were already damp in spirit.",rain;mood;weather;environment
+NARR_437,weather,weather_rain_started,any,familiarity,4,240,2,false,14,Wet rock. The slope just became a great deal more honest about its intentions.,rain;wet_rock;weather;environment
+NARR_438,weather,weather_rain_started,any,acceptance,4,240,2,false,18,I like the sound of rain on the pack. It's the closest thing to a roof we have.,rain;roof;weather;environment
+NARR_439,weather,weather_snow_started,any,curiosity,4,240,2,false,14,"Snow. Everything goes soft and quiet, which is lovely until you need to stop.",snow;softness;weather;environment
+NARR_440,weather,weather_snow_started,any,familiarity,4,240,2,false,11,The cold's settling into my thinking. Forgive me if I'm brief.,snow;cold;weather;environment
+NARR_441,weather,weather_snow_started,any,doubt,4,240,2,false,13,Our footprints are filling in behind us. As if we were never here.,snow;tracks;weather;environment
+NARR_442,weather,weather_fog_rolled_in,any,curiosity,4,240,2,false,10,Fog. Let's keep the path close and our guesses closer.,fog;guesses;weather;environment
+NARR_443,weather,weather_fog_rolled_in,any,familiarity,4,240,2,false,20,"In fog like this, the world is only as big as the next few steps. Some days that's a mercy.",fog;small_world;weather;environment
+NARR_444,weather,weather_fog_rolled_in,any,doubt,4,240,2,false,5,Fog makes everything a rumour.,fog;rumour;weather;environment
+NARR_445,weather,weather_clearing,any,curiosity,4,240,2,false,12,It's clearing. Look at that. Even this place has moments of generosity.,clearing;generosity;weather;environment
+NARR_446,weather,weather_clearing,any,acceptance,4,240,2,false,10,The weather has finished saying what it wanted to say.,clearing;calm;weather;environment
+NARR_447,weather,weather_heat,circles_6_7,doubt,4,240,2,false,18,The air's gone hot and dry. Drink while you can. I'll do the talking for both of us.,heat;thirst;weather;environment
+NARR_448,weather,weather_heat,circles_6_7,familiarity,4,240,2,false,19,"Heat like this is hard on the delicate things in the pack. And on me, if anyone was wondering.",heat;fragile_cargo;weather;environment
+NARR_449,ruins,ruin_found,any,curiosity,4,180,2,false,14,"Walls. Someone built here, deliberately, on a slope. They must have meant to stay.",walls;builders;ruins;structures;history
+NARR_450,ruins,ruin_found,any,curiosity,4,180,2,false,17,"Old stonework. Older than the path, I think. The path came later and just walked around it.",stonework;age;ruins;structures;history
+NARR_451,ruins,ruin_found,any,familiarity,4,180,2,false,20,"Another ruin, the same style as the last. Somebody had a long way to walk and a lot to build.",style;builders;ruins;structures;history
+NARR_452,ruins,ruin_found,any,familiarity,4,180,2,false,13,"Stairs, cut into the hillside and leading nowhere. Someone had very optimistic plans.",stairs;optimism;ruins;structures;history
+NARR_453,ruins,ruin_found,any,doubt,4,180,2,false,13,What would make someone build a house on the way down to somewhere?,purpose;house;ruins;structures;history
+NARR_454,ruins,ruin_found,any,acceptance,4,180,2,false,9,"Let's pass gently. It's still someone's, in a way.",respect;passing;ruins;structures;history
+NARR_455,ruins,ruin_entered,any,curiosity,4,180,2,false,11,Careful inside. Ruins have a habit of finishing what time started.,inside;collapse;ruins;structures;history
+NARR_456,ruins,ruin_entered,any,familiarity,4,180,2,false,17,"Four walls, roughly. Out of the wind, at least, which is all I ask of architecture now.",shelter;wind;ruins;structures;history
+NARR_457,ruins,ruin_entered,any,doubt,4,180,2,false,19,"This was a temple once, I think. The altar faces downhill. I can't decide if that's hopeful or not.",temple;altar;ruins;structures;history
+NARR_458,ruins,ruin_entered,any,doubt,4,180,2,false,15,Everything useful was taken long ago. Only the things nobody wanted to carry are left.,remains;leftovers;ruins;structures;history
+NARR_459,ruins,ruin_entered,any,acceptance,4,180,2,false,10,It's peaceful in here. Ruins have finished worrying about anything.,peace;quiet;ruins;structures;history
+NARR_460,ruins,inscription_found,any,curiosity,4,180,2,false,18,"Writing, worn almost smooth. I can make out a word that might mean down, or might mean home.",writing;home;ruins;structures;history
+NARR_461,ruins,inscription_found,any,familiarity,4,180,2,false,19,"Names, carved one under another. A list of people who passed through, or a list of people who stopped.",names;list;ruins;structures;history
+NARR_462,ruins,inscription_found,any,doubt,4,180,2,false,14,It says someone reached the bottom. It doesn't say what they found. That's convenient.,claim;bottom;ruins;structures;history
+NARR_463,ruins,inscription_found,any,doubt,4,180,2,false,14,"A warning, I think. Or an invitation. Old writing is hard to tell apart.",warning;invitation;ruins;structures;history
+NARR_464,ruins,inscription_found,any,acceptance,4,180,2,false,18,Someone carved a thank you here. I don't know to whom. It still feels right to read it.,gratitude;carving;ruins;structures;history
+NARR_465,traveller_traces,traveller_trace_found,any,curiosity,4,180,2,false,12,"Someone was here, not long ago. Or long ago and very careful.",recent;careful;travellers;traces;predecessors
+NARR_466,traveller_traces,traveller_trace_found,any,familiarity,4,180,2,false,13,"It's oddly comforting, isn't it? Knowing we're not the first to try this.",company;not_first;travellers;traces;predecessors
+NARR_467,traveller_traces,traveller_trace_found,any,doubt,4,180,2,false,10,"We find what they left, never what became of them.",fate;unknown;travellers;traces;predecessors
+NARR_468,traveller_traces,traveller_trace_found,any,doubt,4,180,2,false,16,They say someone once walked further than anyone. I wonder if they left marks like these.,legend;furthest;travellers;traces;predecessors
+NARR_469,traveller_traces,traveller_trace_found,any,acceptance,4,180,2,false,19,Every trace we find makes the mountain feel a little less empty and a little more crowded with ghosts.,kinship;ghosts;travellers;traces;predecessors
+NARR_470,traveller_traces,footprints_found,any,curiosity,4,180,2,false,9,"Footprints. Going down, all of them. None coming back.",footprints;one_way;travellers;traces;predecessors
+NARR_471,traveller_traces,footprints_found,any,familiarity,4,180,2,false,11,They walked faster than us. I hope they had a reason.,footprints;hurry;travellers;traces;predecessors
+NARR_472,traveller_traces,footprints_found,any,doubt,4,180,2,false,11,Are those ours? No. Someone with the same stride. How odd.,footprints;same_stride;travellers;traces;predecessors
+NARR_473,traveller_traces,abandoned_cargo_found,any,curiosity,4,180,2,false,11,"A pack, left neatly. Whoever owned it decided something important here.",abandoned_pack;decision;travellers;traces;predecessors
+NARR_474,traveller_traces,abandoned_cargo_found,any,familiarity,4,180,2,false,14,They left the heavy things and kept walking. I'd like to think it helped.,abandoned_pack;lighter;travellers;traces;predecessors
+NARR_475,traveller_traces,abandoned_cargo_found,any,doubt,4,180,2,false,12,"It could be ours, couldn't it? A different day, a different fall.",abandoned_pack;mirror;travellers;traces;predecessors
+NARR_476,traveller_traces,grave_found,any,curiosity,4,180,2,false,15,"A grave, marked with stones. Someone cared enough to stop. That counts for a lot.",grave;care;travellers;traces;predecessors
+NARR_477,traveller_traces,grave_found,any,doubt,4,180,2,false,14,They buried each other here. So they didn't walk alone. I find that comforting.,grave;companions;travellers;traces;predecessors
+NARR_478,traveller_traces,grave_found,any,acceptance,4,180,2,false,10,"Rest well, whoever you were. You walked further than many.",grave;farewell;travellers;traces;predecessors
+NARR_479,traveller_traces,campfire_cold_found,any,curiosity,4,180,2,false,13,"Cold ashes. Someone sat here and talked, perhaps. Or sat here and didn't.",ashes;conversation;travellers;traces;predecessors
+NARR_480,traveller_traces,campfire_cold_found,any,familiarity,4,180,2,false,16,The fire's out but the stones are still warm. We're closer to them than I thought.,warm_stones;closeness;travellers;traces;predecessors
+NARR_481,idle_reflection,idle_long,any,curiosity,5,600,2,false,10,Taking a moment? Good. I wasn't going to say anything.,pause;restraint;idle;silence;reflection
+NARR_482,idle_reflection,idle_long,any,curiosity,5,600,2,false,11,We could just stand here a while. I'm in no hurry.,standing;no_hurry;idle;silence;reflection
+NARR_483,idle_reflection,idle_long,any,curiosity,5,600,2,false,16,Do you ever talk to yourself? I only ask because you never seem to need to.,talking_to_yourself;idle;silence;reflection
+NARR_484,idle_reflection,idle_long,any,familiarity,5,600,2,false,12,I like that we can be quiet together. Not everyone manages it.,quiet_together;idle;silence;reflection
+NARR_485,idle_reflection,idle_long,any,familiarity,5,600,2,false,18,"If you listen long enough, the mountain makes a sound. Not a word. Just a sort of breathing.",listening;breathing;idle;silence;reflection
+NARR_486,idle_reflection,idle_long,any,familiarity,5,600,2,false,13,"If we stand here long enough, perhaps the mountain will come to us.",humor;mountain;idle;silence;reflection
+NARR_487,idle_reflection,idle_long,any,doubt,5,600,2,false,12,"Thinking about the bottom? I do too, sometimes, when the walking stops.",bottom;thinking;idle;silence;reflection
+NARR_488,idle_reflection,idle_long,any,doubt,5,600,2,false,19,I sometimes wonder what you were like before all this. Then I wonder whether you'd tell me the truth.,past;truth;idle;silence;reflection
+NARR_489,idle_reflection,idle_long,any,doubt,5,600,2,false,11,You've never asked why I'm here. I've been grateful for that.,companion;unasked;idle;silence;reflection
+NARR_490,idle_reflection,idle_long,any,acceptance,5,600,2,false,13,This is fine. Right here. I don't need it to be anything more.,contentment;here;idle;silence;reflection
+NARR_491,idle_reflection,idle_long,any,acceptance,5,600,2,false,12,Stillness is underrated down here. Everything else is so determined to move.,stillness;underrated;idle;silence;reflection
+NARR_492,idle_reflection,idle_long,any,acceptance,5,600,2,false,14,No hurry. The descent has waited this long. It can wait a little more.,patience;descent;idle;silence;reflection
+NARR_493,idle_reflection,idle_short,any,curiosity,5,600,2,false,9,"Looking for something, or just looking? Both are allowed.",looking;idle;silence;reflection
+NARR_494,idle_reflection,idle_short,any,familiarity,5,600,2,false,10,Catch your breath. I'll keep an eye on the slope.,breath;watch;idle;silence;reflection
+NARR_495,idle_reflection,idle_short,any,familiarity,5,600,2,false,9,The air's shifting. Doesn't matter. Just something I noticed.,air;noticing;idle;silence;reflection
+NARR_496,idle_reflection,idle_short,any,doubt,5,600,2,false,13,I tried to remember the top just now. It's getting harder to picture.,memory;surface;idle;silence;reflection
+NARR_497,idle_reflection,view_paused,any,curiosity,5,600,2,false,7,Worth stopping for. Not many things are.,worth_stopping;idle;silence;reflection
+NARR_498,idle_reflection,view_paused,any,familiarity,5,600,2,false,13,Funny which moments decide to stay with you. I suspect this is one.,memory;moments;idle;silence;reflection
+NARR_499,idle_reflection,view_paused,any,doubt,5,600,2,false,15,"From here it all looks so small, and yet we're the smallest thing in it.",scale;smallness;idle;silence;reflection
+NARR_500,idle_reflection,view_paused,any,acceptance,5,600,2,false,14,"Whatever this place is, it's beautiful in places. I think we're allowed to notice.",beauty;permission;idle;silence;reflection
