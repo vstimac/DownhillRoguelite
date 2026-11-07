@@ -288,7 +288,7 @@ public partial class Notifications : Control
         }
         if (vitals.Exhausted && !_exhausted)
         {
-            Note("Exhausted. Stand still to recover", true);
+            Note("Out of breath: no sprinting or jumping for a moment", true);
         }
         _hungry = hungry;
         _thirsty = thirsty;

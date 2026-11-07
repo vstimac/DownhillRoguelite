@@ -15,12 +15,13 @@ public partial class BoonStone : Node3D, IInteractable, IDescribed
     private BoonOfferings? _offerings;
     private Label3D? _name;
     private Label3D? _description;
+    private Label3D? _effect;
 
     public Vector3 InteractionPoint => GlobalPosition + Vector3.Up * 0.5f;
 
     public string Title => Boon?.DisplayName ?? "";
-    public string Description => Boon?.Description ?? "";
-    public string Details => "A boon lasts for the rest of this run.\nOne per station.";
+    public string Description => Boon?.Effects() ?? "";
+    public string Details => (Boon?.Description ?? "") + "\nLasts the rest of this run. One boon per station: E to take it.";
     public string Prompt => "E  Take this boon";
     public Resource? IconSource => null;
 
@@ -45,7 +46,10 @@ public partial class BoonStone : Node3D, IInteractable, IDescribed
         AddChild(new OmniLight3D { LightColor = glow, LightEnergy = 0.8f, OmniRange = 3.0f, Position = new Vector3(0.0f, 0.6f, 0.0f) });
         _name = Label(Boon?.DisplayName ?? "", 44, 1.15f);
         _name.Modulate = glow.Lightened(0.3f);
-        _description = Label(Boon?.Description ?? "", 30, 0.85f);
+        // What it does, plainly, always shown under its name; the flavour line when looked at.
+        _effect = Label(Boon?.Effects() ?? "", 34, 0.9f);
+        _effect.Modulate = new Color(1.0f, 0.97f, 0.88f);
+        _description = Label(Boon?.Description ?? "", 26, 0.62f);
         _description.Visible = false;
     }
 

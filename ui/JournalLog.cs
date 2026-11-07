@@ -112,9 +112,7 @@ public partial class JournalLog : Node
         string stamp = "";
         if (_clock != null)
         {
-            int hour = Mathf.FloorToInt(_clock.TimeOfDay);
-            int minute = Mathf.FloorToInt((_clock.TimeOfDay - hour) * 60.0f);
-            stamp = $"Day {_clock.Day}, {hour:00}:{minute:00}";
+            stamp = $"Day {_clock.Day}, {TimeText.PartOfDay(_clock.TimeOfDay)}";
         }
         int run = 1;
         if (_run != null)

@@ -201,34 +201,30 @@ public partial class SurvivalTests : Node3D
     private async Task TestStamina(PlayerController player, CarrierStamina stamina, CarrierInventory inventory)
     {
         float flat = stamina.WalkDrainPerSecond(0.0f, 0.0f, false, false);
-        float loaded = stamina.WalkDrainPerSecond(20.0f, 0.0f, false, false);
-        float uphill = stamina.WalkDrainPerSecond(0.0f, -0.3f, false, false);
         float downhill = stamina.WalkDrainPerSecond(0.0f, 0.3f, false, false);
+        float uphill = stamina.WalkDrainPerSecond(0.0f, -0.3f, false, false);
         float sprint = stamina.WalkDrainPerSecond(0.0f, 0.0f, false, true);
-        Check("load, slope and sprinting raise the walking cost", loaded > flat && uphill > downhill && downhill > flat && sprint > uphill,
-            $"per second: flat {flat:0.00}, 20 kg {loaded:0.00}, uphill {uphill:0.00}, downhill {downhill:0.00}, sprint {sprint:0.0}");
+        float loadedSprint = stamina.WalkDrainPerSecond(20.0f, 0.0f, false, true);
+        Check("walking on the flat and downhill is free; climbing costs a little, sprinting much more, a load more still",
+            flat == 0.0f && downhill == 0.0f && uphill > 0.0f && sprint > uphill && loadedSprint > sprint,
+            $"per second: flat {flat:0.00}, downhill {downhill:0.00}, uphill {uphill:0.00}, sprint {sprint:0.0}, loaded sprint {loadedSprint:0.0}");
 
         await Place(player, _run!.Route!.RoutePoint(_run.Route.StartZ - 20.0f));
-        float start = stamina.Current;
-        await Walk(player, 4.0f);
+        stamina.SetCurrent(50.0f);
+        await Walk(player, 3.0f);
         float afterWalk = stamina.Current;
-        Check("walking drains stamina", afterWalk < start - 0.5f, $"{start:0.0} -> {afterWalk:0.0} in 4 s");
-
-        await WaitSeconds(stamina.RecoveryDelay + 2.0f);
-        Check("standing still recovers stamina", stamina.Current > afterWalk + 2.0f, $"{afterWalk:0.0} -> {stamina.Current:0.0} after resting");
+        Check("stamina comes back while walking downhill", afterWalk > 60.0f, $"50 -> {afterWalk:0.0} after 3 s of walking");
 
         stamina.SetCurrent(0.0f);
         Vector3 before = player.GlobalPosition;
         await Walk(player, 1.5f);
         float moved = new Vector2(player.GlobalPosition.X - before.X, player.GlobalPosition.Z - before.Z).Length();
-        Check("an exhausted carrier can't walk", moved < 0.3f, $"moved {moved:0.00} m in 1.5 s while exhausted");
+        Check("out of breath, the carrier still walks but can't sprint", moved > 0.6f && !stamina.CanSprint,
+            $"moved {moved:0.00} m in 1.5 s while out of breath, can sprint {stamina.CanSprint}");
 
         float wait = (stamina.ExhaustedRecoverLevel / stamina.EffectiveRecovery) + stamina.RecoveryDelay + 0.5f;
         await WaitSeconds(wait);
-        before = player.GlobalPosition;
-        await Walk(player, 1.5f);
-        moved = new Vector2(player.GlobalPosition.X - before.X, player.GlobalPosition.Z - before.Z).Length();
-        Check("after resting it can walk again", !stamina.Exhausted && moved > 1.0f, $"rested {wait:0.0} s, then moved {moved:0.0} m");
+        Check("a short rest and it can sprint again", !stamina.Exhausted && stamina.CanSprint, $"rested {wait:0.0} s: out of breath {stamina.Exhausted}");
         stamina.Refill();
     }
 

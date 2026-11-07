@@ -128,12 +128,16 @@ public partial class PlayerController : CharacterBody3D
 
         Vector3 input = ReadInputDirection();
         bool braking = Controls && Input.IsActionPressed(ActionBrake);
-        // Exhausted carriers can't walk until they've rested.
+        // Out of breath, the carrier still walks, just slower (no sprinting or jumping: CanSprint, TrySpend).
         bool exhausted = Stamina != null && Stamina.Exhausted;
-        bool held = _balanceState == BalanceState.Fallen || _bracing || GameEvents.IsPacking || exhausted;
+        bool held = _balanceState == BalanceState.Fallen || _bracing || GameEvents.IsPacking;
         if (held)
         {
             input = Vector3.Zero;
+        }
+        else if (exhausted && Stamina != null)
+        {
+            input *= Stamina.ExhaustedWalkFactor;
         }
         _moveGrade = 0.0f;
         FloorMaxAngle = Mathf.DegToRad(WalkableAngle());
@@ -260,20 +264,31 @@ public partial class PlayerController : CharacterBody3D
         }
         else
         {
+            // No input: plant the feet and stop within a step (slippery ground a little longer).
             float grade = direction.Dot(fallLine) * sinSlope;
-            float rate = DecelerationRate(braking, grade);
+            float rate = Mathf.Max(DecelerationRate(braking, grade), Settings.StopDeceleration);
             if (_balanceState == BalanceState.Fallen)
             {
                 rate = Settings.FallDeceleration;
             }
             else if (_bracing)
             {
-                rate = Settings.BraceDeceleration;
+                rate = Mathf.Max(Settings.BraceDeceleration, Settings.StopDeceleration);
             }
-            speed = Mathf.MoveToward(speed, 0.0f, rate * traction * dt);
+            float stopTraction = Mathf.Lerp(Settings.MinStopTraction, 1.0f, Grip);
+            speed = Mathf.MoveToward(speed, 0.0f, rate * stopTraction * dt);
+            if (speed < Settings.IdleSpeed)
+            {
+                speed = 0.0f;
+            }
         }
 
-        _externalVelocity = fallLine * Settings.SurfaceCreepSpeed * (1.0f - Grip) * sinSlope;
+        // Loose ground drags the feet downhill only while walking on it; standing still, they stay put.
+        _externalVelocity = Vector3.Zero;
+        if (inputAmount > Mathf.Epsilon)
+        {
+            _externalVelocity = fallLine * Settings.SurfaceCreepSpeed * (1.0f - Grip) * sinSlope;
+        }
         if (_balanceState == BalanceState.Stumbling)
         {
             _externalVelocity += _lurchDirection * Settings.StumbleLurchSpeed;

@@ -84,7 +84,7 @@ public partial class LocomotionTests : Node3D
     [Export] public float StopTestStrideTime { get; set; } = 3.5f;
     [Export] public float StopTestMaxTime { get; set; } = 6.0f;
     /// <summary>Loose-surface stopping distance must be at least this multiple of the grip surface's.</summary>
-    [Export] public float MinLooseStopRatio { get; set; } = 1.5f;
+    [Export] public float MinLooseStopRatio { get; set; } = 1.25f;
 
     private readonly List<string> _failures = new();
 
@@ -420,7 +420,7 @@ public partial class LocomotionTests : Node3D
         await Place(player, course.SurfaceLanePoint(loose, course.SurfaceLaneLength() * 0.5f));
         RunStats looseHold = await Run(player, SlopeHoldTime, false, false);
         float looseDrift = Flat(looseHold.End - looseHold.Start).Length();
-        Check($"{LooseSurface} {slope} creeps", looseDrift > MinLooseCreep, $"crept {looseDrift:0.00} m, grip {player.Grip:0.00}");
+        Check($"{LooseSurface} {slope} holds still too: standing, the feet stay planted", looseDrift < MaxHoldDrift, $"crept {looseDrift:0.00} m, grip {player.Grip:0.00}");
 
         float gripStop = await StoppingDistance(player, course.SurfaceLanePoint(grip, 3.0f));
         float looseStop = await StoppingDistance(player, course.SurfaceLanePoint(loose, 3.0f));
