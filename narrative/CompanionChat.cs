@@ -23,7 +23,12 @@ public partial class CompanionChat : Node
     [Export] public string ModelPath { get; set; } = "../Models/qwen2.5-3b-instruct-q4_k_m.gguf";
     [Export(PropertyHint.File, "*.txt")] public string PromptPath { get; set; } = "res://narrative/data/companion_prompt.txt";
     /// <summary>Replies are cut off after this many tokens (keeps them short and quick).</summary>
-    [Export] public int MaxReplyTokens { get; set; } = 160;
+    [Export] public int MaxReplyTokens { get; set; } = 90;
+    /// <summary>
+    /// While the companion thinks, the game draws at most this many frames a second, so the GPU is
+    /// free for the model (the world is behind the conversation page then); 0 leaves it alone.
+    /// </summary>
+    [Export] public int ThinkingMaxFps { get; set; } = 15;
     [Export] public bool LoadOnStart { get; set; }
     /// <summary>What the companion "says" when there's no model to answer with.</summary>
     [Export] public string SilentReply { get; set; } = "The companion only listens, and says nothing.";
@@ -46,6 +51,7 @@ public partial class CompanionChat : Node
         _run = GetNodeOrNull<RunState>("/root/RunState");
         _clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
         GameEvents.AskRequested += OnAsk;
+        GameEvents.ConversationChanged += OnConversation;
         GameEvents.VitalsUpdated += OnVitals;
         GameEvents.RespawnRequested += OnNewRun;
         ResolvedModelPath = FindModel();
@@ -59,17 +65,38 @@ public partial class CompanionChat : Node
         {
             Wake();
         }
+        // For checking a build: `-- --ask=TEXT` asks the companion once, a few seconds in (reply in
+        // the log); `--llm-log=info` shows the addon's own log.
+        foreach (string arg in OS.GetCmdlineUserArgs())
+        {
+            if (arg.StartsWith("--llm-log="))
+            {
+                ClassDB.ClassCallStatic("NobodyWho", "set_log_level", arg.Substring("--llm-log=".Length));
+            }
+            if (arg.StartsWith("--ask="))
+            {
+                string question = arg.Substring("--ask=".Length);
+                GetTree().CreateTimer(DebugAskDelay).Timeout += () => GameEvents.RequestAsk(question);
+            }
+        }
     }
+
+    [Export] public float DebugAskDelay { get; set; } = 4.0f;
 
     public override void _ExitTree()
     {
         _gone = true;
         GameEvents.AskRequested -= OnAsk;
+        GameEvents.ConversationChanged -= OnConversation;
         GameEvents.VitalsUpdated -= OnVitals;
         GameEvents.RespawnRequested -= OnNewRun;
         if (_chat != null && GameEvents.Companion == CompanionState.Thinking)
         {
             _chat.Call("stop_generation");
+        }
+        if (GameEvents.Companion == CompanionState.Thinking && ThinkingMaxFps > 0)
+        {
+            Engine.MaxFps = _normalMaxFps;
         }
         _chat = null;
         _model = null;
@@ -229,11 +256,12 @@ public partial class CompanionChat : Node
             _resetPending = false;
             _chat.Call("reset_history");
         }
-        GameEvents.PublishCompanion(CompanionState.Thinking);
+        SetThinking(true);
         ulong started = Time.GetTicksMsec();
         string prompt = $"{CurrentSituation()}\n{question}";
         Variant streamValue = _chat.Call("ask", prompt);
         GodotObject? stream = streamValue.AsGodotObject();
+        GD.Print($"Companion: asking ({streamValue.VariantType}, stream {stream != null})");
         StringBuilder text = new();
         int tokens = 0;
         bool stopped = false;
@@ -267,32 +295,64 @@ public partial class CompanionChat : Node
         {
             reply = "...";
         }
-        GD.Print($"Companion: replied in {(Time.GetTicksMsec() - started) / 1000.0f:0.0} s ({tokens} tokens)");
-        GameEvents.PublishCompanion(CompanionState.Listening);
+        GD.Print($"Companion: replied in {(Time.GetTicksMsec() - started) / 1000.0f:0.0} s ({tokens} tokens): {Clean(text.ToString())}");
+        SetThinking(false);
         Answer(reply);
         TakePending();
     }
 
-    /// <summary>Awaits NobodyWho's async results (signals) until a plain value comes back.</summary>
+    /// <summary>
+    /// Awaits NobodyWho's async results until a plain value comes back. Its calls return a task's
+    /// "done" signal; the task is polled (is_done, result) once a frame while held here, rather than
+    /// awaiting the signal: in release builds the signal could fire before it was awaited, or the
+    /// task be freed with no one holding it, and the reply never came.
+    /// </summary>
     private async Task<Variant> Settle(Variant value)
     {
         int guard = 0;
         while (value.VariantType == Variant.Type.Signal && guard < 8)
         {
-            Signal signal = value.AsSignal();
-            GodotObject owner = signal.Owner;
-            Variant[] result = await ToSignal(owner, signal.Name);
-            if (result.Length > 0)
+            GodotObject? task = value.AsSignal().Owner;
+            if (task == null || !IsInstanceValid(task))
             {
-                value = result[0];
+                return default;
             }
-            else
+            while (!task.Call("is_done").AsBool())
             {
-                value = default;
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                if (_gone)
+                {
+                    return default;
+                }
             }
+            value = task.Call("result");
             guard++;
         }
         return value;
+    }
+
+    private int _normalMaxFps;
+
+    /// <summary>Thinking (or not): the companion's state, and the frame cap that frees the GPU.</summary>
+    private void SetThinking(bool thinking)
+    {
+        if (thinking)
+        {
+            _normalMaxFps = Engine.MaxFps;
+            if (ThinkingMaxFps > 0 && DisplayServer.GetName() != "headless")
+            {
+                Engine.MaxFps = ThinkingMaxFps;
+            }
+            GameEvents.PublishCompanion(CompanionState.Thinking);
+        }
+        else
+        {
+            if (ThinkingMaxFps > 0 && DisplayServer.GetName() != "headless")
+            {
+                Engine.MaxFps = _normalMaxFps;
+            }
+            GameEvents.PublishCompanion(CompanionState.Listening);
+        }
     }
 
     /// <summary>Trims the reply and drops any chat-format leftovers.</summary>
@@ -303,6 +363,15 @@ public partial class CompanionChat : Node
     }
 
     private void OnVitals(VitalsSnapshot vitals) => _vitals = vitals;
+
+    /// <summary>Opening the conversation wakes the model, so it's ready by the time the question is typed.</summary>
+    private void OnConversation(bool open)
+    {
+        if (open && GameEvents.Companion == CompanionState.Asleep)
+        {
+            Wake();
+        }
+    }
 
     private void OnNewRun()
     {
