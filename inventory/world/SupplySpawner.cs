@@ -161,6 +161,8 @@ public partial class SupplySpawner : Node3D
             }
         }
 
+        PlanBranches(slots, cell, salted, route, scale, depth, minX, minZ);
+
         SplitMix64 cellRandom = new(SplitMix64.Mix(salted, ((ulong)(uint)cell.X << 32) | (uint)cell.Y));
         int scatterCount = RandomCount(cellRandom, Table.Density * scale * CellSize * CellSize / 1000.0f);
         for (int i = 0; i < scatterCount; i++)
@@ -174,6 +176,58 @@ public partial class SupplySpawner : Node3D
             }
         }
         return slots;
+    }
+
+    /// <summary>
+    /// Items along the stage's branch paths (M10): more on hazardous branches, plus caches of
+    /// several items together, and far more on supply-rich ones. Planned per row like the main path.
+    /// </summary>
+    private void PlanBranches(List<Slot> slots, Vector2I cell, ulong salted, IRouteQuery route, float scale, float depth, float minX, float minZ)
+    {
+        int stage = route.StageAt(minZ + CellSize * 0.5f);
+        int paths = route.PathCount(stage);
+        Vector2 zone = route.BranchZone(stage);
+        for (int path = 1; path < paths; path++)
+        {
+            RouteKind kind = route.PathKind(stage, path);
+            float multiplier = Table!.SupplyRichMultiplier;
+            if (kind == RouteKind.Hazardous)
+            {
+                multiplier = Table.HazardousMultiplier;
+            }
+            SplitMix64 random = new(SplitMix64.Mix(salted, RowSalt ^ (uint)cell.Y ^ ((ulong)path << 40)));
+            int count = RandomCount(random, Table.RoutePerKm * multiplier * scale * CellSize / 1000.0f);
+            for (int i = 0; i < count; i++)
+            {
+                float z = minZ + random.Range(0.0f, CellSize);
+                float x = route.PathPoint(stage, path, z).X + random.Range(-Table.BranchBand, Table.BranchBand);
+                int entry = PickEntry(random, depth);
+                if (entry >= 0 && z <= zone.X && z >= zone.Y && x >= minX && x < minX + CellSize)
+                {
+                    slots.Add(new Slot(entry, x, z, $"b{cell.Y}:{path}:{i}"));
+                }
+            }
+            if (kind != RouteKind.Hazardous)
+            {
+                continue;
+            }
+            int caches = RandomCount(random, Table.CachesPerKm * scale * CellSize / 1000.0f);
+            for (int c = 0; c < caches; c++)
+            {
+                float z = minZ + random.Range(0.0f, CellSize);
+                Vector3 centre = route.PathPoint(stage, path, z);
+                for (int k = 0; k < Table.CacheSize; k++)
+                {
+                    float x = centre.X + random.Range(-Table.CacheSpread, Table.CacheSpread);
+                    float itemZ = z + random.Range(-Table.CacheSpread, Table.CacheSpread);
+                    int entry = PickEntry(random, depth);
+                    if (entry >= 0 && z <= zone.X && z >= zone.Y && x >= minX && x < minX + CellSize)
+                    {
+                        slots.Add(new Slot(entry, x, itemZ, $"c{cell.Y}:{path}:{c}:{k}"));
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>Whole part of <paramref name="expected"/>, plus one more with the fractional part as the chance.</summary>

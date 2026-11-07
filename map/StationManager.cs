@@ -9,6 +9,10 @@ namespace DownhillRoguelite.Map;
 /// keeping only those near the carrier. Tracks whether the carrier is inside a station's shelter
 /// (GameEvents.ShelterChanged) and which stations it has reached this run (StationReached), and
 /// shows the latest route estimate on the nearest cairn ahead. A respawn starts a new run.
+///
+/// Routes (M10): cairns stand along every path of a stage, a lookout sign at the top of each stage
+/// lists its paths (RouteOptionsUpdated), and once the carrier is well into a stage's branch zone
+/// on one path it publishes RouteChosen.
 /// </summary>
 public partial class StationManager : Node3D
 {
@@ -25,15 +29,26 @@ public partial class StationManager : Node3D
     [Export] public float CairnLabelDistance { get; set; } = 45.0f;
     /// <summary>Cairns stand this far to the side of the route's centre, in m.</summary>
     [Export] public float CairnSideOffset { get; set; } = 2.5f;
+    /// <summary>The lookout sign stands this far below the top of a stage (along Z), in m.</summary>
+    [Export] public float SignDistance { get; set; } = 16.0f;
+    /// <summary>The lookout sign stands this far to the side of the path, opposite the cairns, in m.</summary>
+    [Export] public float SignSideOffset { get; set; } = 3.5f;
+    /// <summary>The carrier has chosen a path once this far below the split (along Z), in m.</summary>
+    [Export] public float CommitDistance { get; set; } = 60.0f;
+    /// <summary>...and within this distance of that path's centre, in m.</summary>
+    [Export] public float CommitWidth { get; set; } = 10.0f;
 
     public int ShelterStation { get; private set; }
     public IReadOnlyDictionary<int, StationSite> Stations => _stations;
     public IReadOnlyDictionary<int, WaypointCairn> Cairns => _cairns;
     public WaypointCairn? LabelledCairn { get; private set; }
+    public IReadOnlyDictionary<int, RouteSign> Signs => _signs;
 
     private readonly Dictionary<int, StationSite> _stations = new();
     private readonly Dictionary<int, WaypointCairn> _cairns = new();
     private readonly HashSet<int> _reached = new();
+    private readonly Dictionary<int, RouteSign> _signs = new();
+    private int _chosenStage = -1;
     private Vector3 _focus;
     private bool _hasFocus;
     private RunState? _run;
@@ -45,12 +60,14 @@ public partial class StationManager : Node3D
         _clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
         GameEvents.RespawnRequested += OnRespawnRequested;
+        GameEvents.RouteOptionsUpdated += OnRouteOptions;
     }
 
     public override void _ExitTree()
     {
         GameEvents.LocomotionUpdated -= OnLocomotionUpdated;
         GameEvents.RespawnRequested -= OnRespawnRequested;
+        GameEvents.RouteOptionsUpdated -= OnRouteOptions;
         if (GameEvents.InShelter)
         {
             GameEvents.PublishShelter(false, 0);
@@ -66,6 +83,35 @@ public partial class StationManager : Node3D
     private void OnRespawnRequested()
     {
         _reached.Clear();
+        _chosenStage = -1;
+    }
+
+    private void OnRouteOptions(int stage, RouteEstimate[] options)
+    {
+        IRouteQuery? route = _run?.Route;
+        if (route == null || !_signs.TryGetValue(stage, out RouteSign? sign))
+        {
+            return;
+        }
+        string[] directions = new string[options.Length];
+        Vector2 zone = route.BranchZone(stage);
+        float middle = (zone.X + zone.Y) * 0.5f;
+        float main = route.RoutePoint(middle).X;
+        for (int path = 0; path < options.Length; path++)
+        {
+            float offset = route.PathPoint(stage, path, middle).X - main;
+            directions[path] = "ahead";
+            // Facing downhill (-Z), +X is on the right.
+            if (offset > 5.0f)
+            {
+                directions[path] = "right";
+            }
+            else if (offset < -5.0f)
+            {
+                directions[path] = "left";
+            }
+        }
+        sign.ShowOptions(options, directions, _clock);
     }
 
     public override void _PhysicsProcess(double delta)
@@ -78,8 +124,10 @@ public partial class StationManager : Node3D
 
         StreamStations(route);
         StreamCairns(route);
+        StreamSigns(route);
         UpdateShelter();
         UpdateCairnLabel();
+        UpdateChoice(route);
     }
 
     private void StreamStations(IRouteQuery route)
@@ -118,19 +166,88 @@ public partial class StationManager : Node3D
             {
                 continue;
             }
-            wanted.Add(k);
-            if (!_cairns.ContainsKey(k))
+            int stage = route.StageAt(z);
+            Vector2 zone = route.BranchZone(stage);
+            int paths = 1;
+            if (z < zone.X && z > zone.Y)
             {
-                Vector3 point = route.RoutePoint(z);
-                WaypointCairn cairn = new() { Name = $"Cairn{-k}" };
+                paths = route.PathCount(stage);
+            }
+            for (int path = 0; path < paths; path++)
+            {
+                // Keys: path in the low bits, so main-path cairns keep their old keys (k * 4).
+                int key = k * 4 + path;
+                wanted.Add(key);
+                if (_cairns.ContainsKey(key))
+                {
+                    continue;
+                }
+                Vector3 point = route.PathPoint(stage, path, z);
+                WaypointCairn cairn = new() { Name = $"Cairn{-k}_{path}" };
                 AddChild(cairn);
-                Vector3 side = new(point.X + CairnSideOffset, 0.0f, z);
-                side.Y = route.RoutePoint(z).Y;
-                cairn.GlobalPosition = side;
-                _cairns[k] = cairn;
+                float x = point.X + CairnSideOffset;
+                cairn.GlobalPosition = new Vector3(x, route.PathPoint(stage, path, z).Y, z);
+                _cairns[key] = cairn;
             }
         }
         RemoveExcept(_cairns, wanted);
+    }
+
+    /// <summary>A lookout sign at the top of every stage with a choice of paths, near the carrier.</summary>
+    private void StreamSigns(IRouteQuery route)
+    {
+        List<int> wanted = new();
+        int first = Mathf.Max(0, route.StageAt(_focus.Z + StationLoadDistance));
+        for (int stage = first; ; stage++)
+        {
+            float top = route.StartZ;
+            if (stage > 0)
+            {
+                top = route.Station(stage).Z;
+            }
+            if (top < _focus.Z - StationLoadDistance)
+            {
+                break;
+            }
+            if (route.PathCount(stage) < 2)
+            {
+                continue;
+            }
+            wanted.Add(stage);
+            if (_signs.ContainsKey(stage))
+            {
+                continue;
+            }
+            float z = top - SignDistance;
+            Vector3 point = route.RoutePoint(z);
+            RouteSign sign = new() { Name = $"RouteSign{stage}", Stage = stage };
+            AddChild(sign);
+            sign.GlobalPosition = new Vector3(point.X - SignSideOffset, point.Y, z);
+            _signs[stage] = sign;
+        }
+        RemoveExcept(_signs, wanted);
+    }
+
+    /// <summary>Once the carrier is well past a stage's split, the path it is on is its choice.</summary>
+    private void UpdateChoice(IRouteQuery route)
+    {
+        int stage = route.StageAt(_focus.Z);
+        if (stage == _chosenStage || route.PathCount(stage) < 2)
+        {
+            return;
+        }
+        Vector2 zone = route.BranchZone(stage);
+        if (_focus.Z > zone.X - CommitDistance || _focus.Z < zone.Y)
+        {
+            return;
+        }
+        int path = route.NearestPath(_focus, out float distance);
+        if (distance > CommitWidth)
+        {
+            return;
+        }
+        _chosenStage = stage;
+        GameEvents.PublishRouteChosen(stage, route.PathKind(stage, path));
     }
 
     private bool NearStation(IRouteQuery route, float z)

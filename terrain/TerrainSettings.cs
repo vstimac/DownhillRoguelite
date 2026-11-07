@@ -60,6 +60,34 @@ public partial class TerrainSettings : Resource
     /// <summary>Stations worked out when the mountain is generated; more are added as needed.</summary>
     [Export] public int PrecomputedStations { get; set; } = 16;
 
+    [ExportGroup("Routes (M10)")]
+    /// <summary>Chance a stage gets both alternatives (one each side of the main path) instead of one.</summary>
+    [Export] public float BothBranchesChance { get; set; } = 0.35f;
+    /// <summary>Chance a single alternative is hazardous rather than supply-rich.</summary>
+    [Export] public float HazardousChance { get; set; } = 0.5f;
+    /// <summary>How far a branch swings away from the main path (min, max), in m.</summary>
+    [Export] public Vector2 BranchOffset { get; set; } = new(45.0f, 70.0f);
+    /// <summary>Branches leave this far (along Z) below a station and rejoin this far above the next, in m.</summary>
+    [Export] public float BranchStationGap { get; set; } = 110.0f;
+    /// <summary>Fraction of a branch spent swinging out, and again swinging back.</summary>
+    [Export] public float BranchRamp { get; set; } = 0.2f;
+    /// <summary>Stages whose branch zone would be shorter than this (along Z) get no branches, in m.</summary>
+    [Export] public float MinBranchLength { get; set; } = 400.0f;
+    /// <summary>Half width of a hazardous path's band: narrow.</summary>
+    [Export] public float HazardHalfWidth { get; set; } = 2.5f;
+    /// <summary>Rough, broken ground along a hazardous path.</summary>
+    [Export] public float HazardBumpAmplitude { get; set; } = 0.35f;
+    [Export] public float HazardBumpWavelength { get; set; } = 4.0f;
+    /// <summary>Gap kept between obstacles and a hazardous band (they crowd it), in m.</summary>
+    [Export] public float HazardClearance { get; set; } = 0.4f;
+    /// <summary>Within a branch zone the safe path winds like a real trail (so the hazardous line is a shortcut): swing and wavelength, in m.</summary>
+    [Export] public float SafeWindingAmplitude { get; set; } = 10.0f;
+    [Export] public float SafeWindingWavelength { get; set; } = 110.0f;
+    [Export] public float SupplyHalfWidth { get; set; } = 4.0f;
+    /// <summary>A supply-rich path winds: sideways swing and its wavelength, in m.</summary>
+    [Export] public float SupplyMeanderAmplitude { get; set; } = 12.0f;
+    [Export] public float SupplyMeanderWavelength { get; set; } = 90.0f;
+
     [ExportGroup("Surfaces")]
     [Export] public float RockSlope { get; set; } = 38.0f;
     [Export] public float ScreeSlope { get; set; } = 28.0f;

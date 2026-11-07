@@ -97,11 +97,7 @@ public partial class WaypointCairn : Node3D
             hoursPerSecond = clock.HoursPerSecond;
             sunset = clock.SunsetHour;
         }
-        string distance = $"{estimate.DistanceMeters:0} m";
-        if (estimate.DistanceMeters >= 1000.0f)
-        {
-            distance = $"{estimate.DistanceMeters / 1000.0f:0.0} km";
-        }
+        string distance = Distance(estimate.DistanceMeters);
         string rests = "no rests";
         if (estimate.Rests == 1)
         {
@@ -121,10 +117,24 @@ public partial class WaypointCairn : Node3D
         {
             dark = "after dark";
         }
-        return $"Station {estimate.Station} · {distance}\n" +
+        string path = "";
+        if (estimate.Kind != RouteKind.Safe)
+        {
+            path = $" · {RouteSign.KindName(estimate.Kind).ToLowerInvariant()} path";
+        }
+        return $"Station {estimate.Station}{path} · {distance}\n" +
             $"~{Duration(estimate.TotalSeconds * hoursPerSecond)} · {rests}\n" +
             $"stamina {estimate.StaminaNeeded:0}\n" +
             $"{arrival} · {dark}";
+    }
+
+    public static string Distance(float meters)
+    {
+        if (meters >= 1000.0f)
+        {
+            return $"{meters / 1000.0f:0.0} km";
+        }
+        return $"{meters:0} m";
     }
 
     private static string Clock(float hour)
@@ -135,7 +145,7 @@ public partial class WaypointCairn : Node3D
         return $"{h:00}:{m:00}";
     }
 
-    private static string Duration(float hours)
+    public static string Duration(float hours)
     {
         int minutes = Mathf.RoundToInt(hours * 60.0f);
         if (minutes < 60)

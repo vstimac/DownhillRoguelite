@@ -88,6 +88,17 @@ Values live in `DifficultySettings` resources and are tuned by play-testing.
   - **Needs:** rain, snow and strong wind chill you even by day: they add to night cold and slow stamina recovery (estimates include that too). Heat doubles thirst and slows recovery a little. Shelter keeps the chill off.
 - Debug: F4 cycles forced weather; `-- --weather=rain` forces a front for render checks.
 
+## Routes (built in M10)
+
+- Each stage (station to station) offers a choice. Paths split about 110 m below a station and rejoin about 110 m above the next.
+  - **Safe** (the main path) is always there. It winds gently through the branch zone like a real trail, stays on firm ground (grass and snow) and is marked by cairns. Supplies are ordinary.
+  - Every stage adds one or two branches that swing 45–70 m to either side:
+    - **Hazardous:** a straight line, about 4 % shorter, but narrow and rough, on scree and snow (lower grip). Boulders crowd it. It holds 1.5× the supplies, plus caches of three items together.
+    - **Supply-rich:** winds more and is about 10 % longer, with patches of boggy mud. It holds 4× the supplies.
+- A **lookout sign** stands just below each station (and at the start) with one line per path: which way it goes, distance, time with rests, stamina and arrival before or after dark. The estimator follows whichever path you're on, so cairns on every path show that path's figures.
+- About 60 m past the split, the path you're on counts as your choice (`GameEvents.RouteChosen`). The narrator comments on the options and on a safe or hazardous choice.
+- Settings: `terrain/default_terrain.tres` (Routes group) and `inventory/world/default_supplies.tres`. Tests: `debug/tests/RouteTests.tscn`.
+
 M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain). From here:
 
 | Milestone | Scope |
@@ -96,7 +107,7 @@ M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain
 | **M7 Day, night and stations** (built) | Visible day/night cycle (sun, sky, darkness); a station every 600 m of depth on a level terrace with fire, lean-to, bedroll and beacon; stone cairns every 120 m showing the estimate (distance, time with rests, stamina, arrival against nightfall); sleeping from 16:00 skips to dawn, heals 40% and refills stamina; night cold outside a shelter; packing only at stations |
 | **M8 Weather** (built) | Fog, rain, snow, wind, heat per circle and time; effects on visibility, grip, balance and needs |
 | **M9 Wildlife** (built) | Animals per circle (Quaternius farm animals and creatures, Kenney cube pets beyond the ninth), grazing, wandering, watching, fleeing, scattering on falls; population kept around the carrier; see wildlife/README.md |
-| **M10 Routes** | Branching paths from each shelter's lookout; route types (safe, hazardous, supply-rich) |
+| **M10 Routes** (built) | Branching paths from each shelter's lookout; route types (safe, hazardous, supply-rich) |
 | **M11 Narrator** (voiced lines built for the demo) | The voiced companion: the 500 lines triggered by game events, then NobodyWho for live conversation |
 | **M12 Progression** | Run upgrades, meta unlocks (starting kits, packs), contracts, depth scaling |
 

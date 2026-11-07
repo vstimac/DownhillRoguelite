@@ -14,6 +14,7 @@ namespace DownhillRoguelite.Core;
 /// <param name="ArrivalDay">Day of arrival.</param>
 /// <param name="ArrivalHour">Hour of arrival on that day.</param>
 /// <param name="BeforeNightfall">Whether the carrier arrives before sunset.</param>
+/// <param name="Kind">Which kind of path the estimate follows.</param>
 public readonly record struct RouteEstimate(
     bool Valid,
     int Station,
@@ -24,7 +25,8 @@ public readonly record struct RouteEstimate(
     float StaminaNeeded,
     int ArrivalDay,
     float ArrivalHour,
-    bool BeforeNightfall)
+    bool BeforeNightfall,
+    RouteKind Kind = RouteKind.Safe)
 {
     public float TotalSeconds => WalkSeconds + RestSeconds;
 }

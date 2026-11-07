@@ -85,6 +85,7 @@ public partial class NarratorDirector : Node
     private float _load;
     private bool _wasInShelter;
     private int _restarts;
+    private int _optionsStage = -1;
 
     public override void _Ready()
     {
@@ -115,6 +116,8 @@ public partial class NarratorDirector : Node
         GameEvents.PackingModeChanged += OnPackingModeChanged;
         GameEvents.WeatherChanged += OnWeatherChanged;
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
+        GameEvents.RouteOptionsUpdated += OnRouteOptions;
+        GameEvents.RouteChosen += OnRouteChosen;
     }
 
     public override void _ExitTree()
@@ -133,6 +136,8 @@ public partial class NarratorDirector : Node
         GameEvents.PackingModeChanged -= OnPackingModeChanged;
         GameEvents.WeatherChanged -= OnWeatherChanged;
         GameEvents.LocomotionUpdated -= OnLocomotionUpdated;
+        GameEvents.RouteOptionsUpdated -= OnRouteOptions;
+        GameEvents.RouteChosen -= OnRouteChosen;
         Silence();
     }
 
@@ -585,6 +590,27 @@ public partial class NarratorDirector : Node
         else
         {
             Say("weather_clearing");
+        }
+    }
+
+    private void OnRouteOptions(int stage, RouteEstimate[] options)
+    {
+        if (stage != _optionsStage)
+        {
+            _optionsStage = stage;
+            Say("route_choice_presented");
+        }
+    }
+
+    private void OnRouteChosen(int stage, RouteKind kind)
+    {
+        if (kind == RouteKind.Hazardous)
+        {
+            Say("route_chosen_hazardous");
+        }
+        else if (kind == RouteKind.Safe)
+        {
+            Say("route_chosen_safe");
         }
     }
 
