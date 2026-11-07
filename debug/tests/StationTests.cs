@@ -149,7 +149,8 @@ public partial class StationTests : Node3D
 
         Check("estimate covers the route to station 1", light.Valid && light.Station == 1 && light.DistanceMeters > 1000.0f && light.WalkSeconds > 0.0f,
             $"station {light.Station}, {light.DistanceMeters:0} m, walk {light.WalkSeconds:0} s, rest {light.RestSeconds:0} s, {light.Rests} rests");
-        Check("a heavier load costs more stamina and more rests", heavy.StaminaNeeded > light.StaminaNeeded && heavy.Rests >= light.Rests && heavy.RestSeconds > light.RestSeconds,
+        // Stamina works like Valheim's: walking down costs none, whatever the load (only climbs and sprints do).
+        Check("walking down to the station costs no stamina, whatever the load", heavy.StaminaNeeded <= light.StaminaNeeded + 1.0f && heavy.Rests == light.Rests,
             $"stamina {light.StaminaNeeded:0} -> {heavy.StaminaNeeded:0} with {GameEvents.CurrentLoad.Mass:0} kg, rests {light.Rests} -> {heavy.Rests}");
 
         clock.SetTimeOfDay(9.0f);
@@ -275,7 +276,7 @@ public partial class StationTests : Node3D
         WaypointCairn? cairn = stations.LabelledCairn;
         string text = cairn?.LabelText ?? "";
         Check("cairns stand along the route and the one ahead shows the estimate",
-            stations.Cairns.Count > 0 && cairn != null && cairn.ShowingEstimate && text.Contains("Station 1") && text.Contains("arrive"),
+            stations.Cairns.Count > 0 && cairn != null && cairn.ShowingEstimate && text.Contains("Station 1") && text.Contains("on foot"),
             $"{stations.Cairns.Count} cairns loaded; label: {text.Replace("\n", " | ")}");
     }
 

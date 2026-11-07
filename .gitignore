@@ -22,3 +22,12 @@ addons/nobodywho/*.so
 addons/nobodywho/*.dylib
 # Leftover copies Windows makes of locked DLLs
 addons/**/~*
+tools/launcher/bin/
+tools/launcher/obj/
+tools/launcher/out/
+
+# Mixamo character and animations: free to use in the game, not to redistribute as files (see art/characters/mixamo/README.md)
+art/characters/mixamo/*.fbx
+art/characters/mixamo/*.fbx.import
+art/characters/mixamo/*.png
+art/characters/mixamo/*.png.import

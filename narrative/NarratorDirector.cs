@@ -22,6 +22,9 @@ public partial class NarratorDirector : Node
     [Export] public float VolumeDb { get; set; }
     /// <summary>Off for headless tests: lines "play" for their length without sound.</summary>
     [Export] public bool PlayAudio { get; set; } = true;
+    /// <summary>How strongly the voice is panned toward the companion's side (0 centred, 1 fully).</summary>
+    [Export] public float VoicePanning { get; set; } = 0.7f;
+    [Export] public string SpeakerName { get; set; } = "Companion";
 
     [ExportGroup("Pacing")]
     /// <summary>Seconds of quiet after a line before the next one.</summary>
@@ -59,7 +62,7 @@ public partial class NarratorDirector : Node
     private readonly Dictionary<string, float> _lastPlayed = new();
     private readonly HashSet<string> _playedThisSave = new();
     private readonly RandomNumberGenerator _random = new();
-    private AudioStreamPlayer? _player;
+    private AudioStreamPlayer3D? _player;
     private RunState? _run;
     private float _time;
     private float _quietSince = -1000.0f;
@@ -85,6 +88,7 @@ public partial class NarratorDirector : Node
     private float _load;
     private bool _wasInShelter;
     private int _restarts;
+    private int _optionsStage = -1;
 
     public override void _Ready()
     {
@@ -96,7 +100,16 @@ public partial class NarratorDirector : Node
             PlayAudio = false;
         }
         Load();
-        _player = new AudioStreamPlayer { Bus = Bus, VolumeDb = VolumeDb };
+        // The companion's voice comes from where they walk, a step to the carrier's left (CompanionVoice):
+        // panned in 3D, but not fading with distance.
+        _player = new AudioStreamPlayer3D
+        {
+            Bus = Bus,
+            VolumeDb = VolumeDb,
+            AttenuationModel = AudioStreamPlayer3D.AttenuationModelEnum.Disabled,
+            PanningStrength = VoicePanning,
+            DopplerTracking = AudioStreamPlayer3D.DopplerTrackingEnum.Disabled,
+        };
         _player.Finished += OnFinished;
         AddChild(_player);
         _nextAmbient = _random.RandfRange(AmbientInterval.X, AmbientInterval.Y);
@@ -115,6 +128,10 @@ public partial class NarratorDirector : Node
         GameEvents.PackingModeChanged += OnPackingModeChanged;
         GameEvents.WeatherChanged += OnWeatherChanged;
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
+        GameEvents.RouteOptionsUpdated += OnRouteOptions;
+        GameEvents.RouteChosen += OnRouteChosen;
+        GameEvents.MapOpened += OnMapOpened;
+        GameEvents.ItemLost += OnItemLost;
     }
 
     public override void _ExitTree()
@@ -133,6 +150,10 @@ public partial class NarratorDirector : Node
         GameEvents.PackingModeChanged -= OnPackingModeChanged;
         GameEvents.WeatherChanged -= OnWeatherChanged;
         GameEvents.LocomotionUpdated -= OnLocomotionUpdated;
+        GameEvents.RouteOptionsUpdated -= OnRouteOptions;
+        GameEvents.RouteChosen -= OnRouteChosen;
+        GameEvents.MapOpened -= OnMapOpened;
+        GameEvents.ItemLost -= OnItemLost;
         Silence();
     }
 
@@ -156,6 +177,10 @@ public partial class NarratorDirector : Node
     public override void _Process(double delta)
     {
         _time += (float)delta;
+        if (_player != null && _player.IsInsideTree())
+        {
+            _player.GlobalPosition = GameEvents.CompanionPosition;
+        }
         if (_speakingUntil >= 0.0f && _time >= _speakingUntil)
         {
             _speakingUntil = -1.0f;
@@ -187,6 +212,11 @@ public partial class NarratorDirector : Node
     public bool Say(string trigger)
     {
         if (!Enabled || _player == null || !_byTrigger.TryGetValue(trigger, out List<NarratorLine>? lines))
+        {
+            return false;
+        }
+        // While the player talks with the companion, the voiced lines hold back.
+        if (GameEvents.IsConversing)
         {
             return false;
         }
@@ -232,9 +262,11 @@ public partial class NarratorDirector : Node
         }
         _currentPriority = chosen.Priority;
         CurrentLine = chosen.Id;
+        GameEvents.PublishSpeech(new SpeechLine(SpeakerName, chosen.Text, GameEvents.CompanionPosition, (float)stream.GetLength()));
         if (PlayAudio)
         {
             _player.Stream = stream;
+            _player.GlobalPosition = GameEvents.CompanionPosition;
             _player.Play();
         }
         else
@@ -585,6 +617,40 @@ public partial class NarratorDirector : Node
         else
         {
             Say("weather_clearing");
+        }
+    }
+
+    private void OnRouteOptions(int stage, RouteEstimate[] options)
+    {
+        if (stage != _optionsStage)
+        {
+            _optionsStage = stage;
+            Say("route_choice_presented");
+        }
+    }
+
+    private void OnItemLost(string itemId)
+    {
+        Say("cargo_lost");
+    }
+
+    private void OnMapOpened(bool open)
+    {
+        if (open)
+        {
+            Say("map_viewed");
+        }
+    }
+
+    private void OnRouteChosen(int stage, RouteKind kind)
+    {
+        if (kind == RouteKind.Hazardous)
+        {
+            Say("route_chosen_hazardous");
+        }
+        else if (kind == RouteKind.Safe)
+        {
+            Say("route_chosen_safe");
         }
     }
 

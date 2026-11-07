@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="ItemDefinition" format=3]
 
 [ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+[ext_resource type="PackedScene" path="res://art/items/kenney_survival_kit/GLB format/tent-canvas-half.glb" id="2_model"]
 
 [resource]
 script = ExtResource("1_item")
@@ -12,3 +13,4 @@ SizeCells = Vector3i(6, 2, 4)
 Tags = 4
 Orientation = 0
 DebugColor = Color(0.3, 0.6, 0.35, 1)
+Model = ExtResource("2_model")

@@ -11,4 +11,8 @@ public enum ItemCategory
     Supply,
     /// <summary>Carried for value, trade and score.</summary>
     Cargo,
+    /// <summary>Worn gear: hats, coats, boots (M14).</summary>
+    Clothing,
+    /// <summary>Things to mend gear with: sewing kits, patches, cord (M14).</summary>
+    Material,
 }

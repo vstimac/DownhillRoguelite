@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "fur_cape"
+DisplayName = "Fur cape"
+MassKg = 1.0
+Category = 4
+SizeCells = Vector3i(6, 2, 5)
+Tags = 0
+Orientation = 0
+DebugColor = Color(0.5, 0.45, 0.4, 1)
+Slot = 6
+MaxDurability = 70.0
+Warmth = 0.25
+RainProof = 0.15
+GripBonus = 0.0
+WindCatch = 0.35
+Pockets = 0
+MendType = "cloth"

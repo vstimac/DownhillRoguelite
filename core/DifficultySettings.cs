@@ -18,4 +18,8 @@ public partial class DifficultySettings : Resource
     [Export] public float SupplyMultiplier { get; set; } = 1.0f;
     /// <summary>0 = mild nights, 1 = full cold and darkness (used from M7).</summary>
     [Export] public float NightHarshness { get; set; } = 1.0f;
+    /// <summary>Deeper is harder (M12): extra hunger and thirst drain per circle descended (0.08 = +8 %).</summary>
+    [Export] public float NeedsDrainPerCircle { get; set; } = 0.08f;
+    /// <summary>Extra night cold and weather chill per circle descended.</summary>
+    [Export] public float ColdPerCircle { get; set; } = 0.1f;
 }

@@ -1,3 +1,4 @@
+using DownhillRoguelite.Core;
 using Godot;
 
 namespace DownhillRoguelite.Inventory;
@@ -30,6 +31,35 @@ public partial class ItemDefinition : Resource
 
     /// <summary>Colour of the placeholder box until real models exist.</summary>
     [Export] public Color DebugColor { get; set; } = new(0.6f, 0.6f, 0.6f);
+    [ExportGroup("Gear (M14)")]
+    /// <summary>Where it is worn; None for things that aren't.</summary>
+    [Export] public EquipSlot Slot { get; set; } = EquipSlot.None;
+    /// <summary>Hit points when new (worn gear only).</summary>
+    [Export] public float MaxDurability { get; set; }
+    /// <summary>Fraction of cold and chill it keeps off (summed over everything worn, capped).</summary>
+    [Export] public float Warmth { get; set; }
+    /// <summary>Fraction of the rain's chill it keeps off.</summary>
+    [Export] public float RainProof { get; set; }
+    /// <summary>Extra grip on every surface, as a fraction (boots).</summary>
+    [Export] public float GripBonus { get; set; }
+    /// <summary>Extra area the wind catches, in m² (a cape).</summary>
+    [Export] public float WindCatch { get; set; }
+    /// <summary>Pockets: how many small items it holds.</summary>
+    [Export] public int Pockets { get; set; }
+    /// <summary>What it's made of, for mending ("cloth" or "leather").</summary>
+    [Export] public string MendType { get; set; } = "";
+    /// <summary>Materials: what they can mend ("cloth", "leather", "backpack").</summary>
+    [Export] public string[] MendsTypes { get; set; } = System.Array.Empty<string>();
+    /// <summary>Materials: hit points a mend restores.</summary>
+    [Export] public float MendAmount { get; set; }
+
+    /// <summary>The item's model (an art-pack scene), fitted into its cell block; none shows a coloured block.</summary>
+    [Export] public PackedScene? Model { get; set; }
+    /// <summary>Or a piece of another model: the scene (e.g. the carrier) and the mesh's name in it.</summary>
+    [Export(PropertyHint.File, "*.fbx,*.glb,*.tscn")] public string ModelSource { get; set; } = "";
+    [Export] public string ModelMesh { get; set; } = "";
+    /// <summary>The piece lies on its back on the ground (clothes), instead of standing as modelled.</summary>
+    [Export] public bool ModelLieFlat { get; set; }
 
     public int Volume => SizeCells.X * SizeCells.Y * SizeCells.Z;
 }

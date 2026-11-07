@@ -30,8 +30,13 @@ public partial class PickupInteractor : Node
         }
         if (best != Focused)
         {
-            Focused?.SetFocused(false);
+            // The old one may be gone already (picked up, unloaded).
+            if (Focused is GodotObject old && IsInstanceValid(old))
+            {
+                Focused.SetFocused(false);
+            }
             Focused = best;
+            GameEvents.PublishFocus(best);
             Focused?.SetFocused(true);
         }
     }

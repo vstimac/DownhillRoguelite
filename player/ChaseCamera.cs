@@ -1,3 +1,4 @@
+using DownhillRoguelite.Core;
 using Godot;
 
 namespace DownhillRoguelite.Player;
@@ -110,7 +111,8 @@ public partial class ChaseCamera : Node3D
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (Camera == null || !Camera.Current)
+        // The held map uses the mouse while it is up.
+        if (Camera == null || !Camera.Current || GameEvents.IsMapOpen || GameEvents.IsScreenOpen)
         {
             return;
         }

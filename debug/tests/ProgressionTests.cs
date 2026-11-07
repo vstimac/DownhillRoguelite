@@ -1,0 +1,228 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using DownhillRoguelite.Core;
+using DownhillRoguelite.Inventory;
+using DownhillRoguelite.Player;
+using DownhillRoguelite.Progression;
+using DownhillRoguelite.Terrain;
+using Godot;
+
+namespace DownhillRoguelite.Debug;
+
+/// <summary>
+/// Headless checks for M12's progression: a station offers three different boons, the same for the
+/// same mountain; choosing one applies it for the run and takes the others away; boons really
+/// change the carrier (walking cost, cold); a new run clears boons and offerings; deeper circles
+/// drain needs faster; and the best depth ever unlocks gear the next run starts with.
+/// Run: godot --headless --path . --fixed-fps 60 res://debug/tests/ProgressionTests.tscn
+/// </summary>
+public partial class ProgressionTests : Node3D
+{
+    [Export] public PlayerController? PlayerBody { get; set; }
+    [Export] public TerrainStreamer? Streamer { get; set; }
+    [Export] public BoonOfferings? Offerings { get; set; }
+    [Export] public StartingKit? Kit { get; set; }
+
+    private readonly List<string> _failures = new();
+    private RunState? _run;
+
+    public override async void _Ready()
+    {
+        _run = GetNodeOrNull<RunState>("/root/RunState");
+        CarrierInventory? inventory = PlayerBody?.GetNodeOrNull<CarrierInventory>("Inventory");
+        CarrierNeeds? needs = PlayerBody?.GetNodeOrNull<CarrierNeeds>("Needs");
+        if (PlayerBody?.Stamina == null || Streamer == null || Offerings == null || Kit == null || _run?.Route == null || inventory == null || needs == null)
+        {
+            GD.PushError("ProgressionTests: PlayerBody (with Inventory, Needs, Stamina), Streamer, Offerings, Kit and RunState.Route are needed.");
+            GetTree().Quit(1);
+            return;
+        }
+        _run.SummaryDelay = 1.0f;
+        await WaitSeconds(1.0f);
+
+        TestPicks(Offerings);
+        await TestOfferingAndChoice(PlayerBody, Offerings, _run.Route);
+        TestEffects(PlayerBody.Stamina);
+        await TestCold(needs);
+        await TestNewRunClears(Offerings);
+        await TestDepthScaling(needs);
+        await TestStartingKit(inventory, Kit);
+
+        if (_failures.Count == 0)
+        {
+            GD.Print("PROGRESSION TESTS: PASS");
+            GetTree().Quit(0);
+        }
+        else
+        {
+            GD.Print($"PROGRESSION TESTS: FAIL ({_failures.Count})");
+            GetTree().Quit(1);
+        }
+    }
+
+    private void TestPicks(BoonOfferings offerings)
+    {
+        List<BoonDefinition> first = offerings.Pick(1);
+        List<BoonDefinition> again = offerings.Pick(1);
+        HashSet<string> distinct = new();
+        bool same = first.Count == again.Count;
+        for (int i = 0; i < first.Count; i++)
+        {
+            distinct.Add(first[i].Id);
+            same = same && first[i] == again[i];
+        }
+        HashSet<string> across = new();
+        for (int station = 1; station <= 8; station++)
+        {
+            foreach (BoonDefinition boon in offerings.Pick(station))
+            {
+                across.Add(boon.Id);
+            }
+        }
+        Check("a station offers three different boons, the same for the same mountain",
+            first.Count == offerings.OfferCount && distinct.Count == first.Count && same && across.Count > first.Count,
+            $"{first.Count} offered ({string.Join(", ", distinct)}), {across.Count} different boons over 8 stations");
+    }
+
+    private async Task TestOfferingAndChoice(PlayerController player, BoonOfferings offerings, IRouteQuery route)
+    {
+        Vector3 station = route.Station(1);
+        await Place(player, station + new Vector3(0.0f, 0.0f, 2.0f), 1.0f);
+        int laid = offerings.Stones.Count;
+        float farthest = 0.0f;
+        foreach (BoonStone stone in offerings.Stones)
+        {
+            farthest = Mathf.Max(farthest, stone.GlobalPosition.DistanceTo(station));
+        }
+        BoonStone? lightStep = null;
+        foreach (BoonStone stone in offerings.Stones)
+        {
+            if (lightStep == null || stone.Boon?.WalkDrain < lightStep.Boon?.WalkDrain)
+            {
+                lightStep = stone;
+            }
+        }
+        bool chosen = lightStep != null && lightStep.Interact(player);
+        await WaitSeconds(0.2f);
+        string name = lightStep?.Boon?.DisplayName ?? "";
+        Check("reaching a station lays out its offerings; choosing one keeps it and takes the rest away",
+            laid == offerings.OfferCount && farthest < 8.0f && chosen && offerings.Stones.Count == 0 && _run!.Boons.Contains(name),
+            $"{laid} offerings within {farthest:0.0} m of the fire, chose {name}: {chosen}, left {offerings.Stones.Count}, boons [{string.Join(", ", _run!.Boons)}]");
+    }
+
+    private void TestEffects(CarrierStamina stamina)
+    {
+        RunModifiers modifiers = _run!.Modifiers;
+        float with = stamina.WalkDrainPerSecond(20.0f, 0.2f, false, false);
+        float saved = modifiers.WalkDrain;
+        modifiers.WalkDrain = 1.0f;
+        float without = stamina.WalkDrainPerSecond(20.0f, -0.2f, false, false);
+        modifiers.WalkDrain = saved;
+        bool lighter = saved >= 1.0f || with < without * 0.99f;
+        modifiers.WalkDrain = 0.85f;
+        float eased = stamina.WalkDrainPerSecond(20.0f, -0.2f, false, false);
+        modifiers.WalkDrain = saved;
+        Check("a boon changes what walking costs", lighter && Mathf.Abs(eased - without * 0.85f) < 0.001f,
+            $"walking with 20 kg: {without:0.00}/s plain, {eased:0.00}/s with Light Step (chosen boon: {with:0.00}/s)");
+    }
+
+    private async Task TestCold(CarrierNeeds needs)
+    {
+        WorldClock clock = GetNode<WorldClock>("/root/WorldClock");
+        clock.SetTimeOfDay(1.0f);
+        Vector3 away = _run!.Route!.RoutePoint(_run.Route.Station(1).Z - 60.0f);
+        await Place(PlayerBody!, away, 0.3f);
+        float cold = needs.Cold;
+        _run.Modifiers.ColdResistance = 0.5f;
+        await WaitSeconds(0.2f);
+        float resisted = needs.Cold;
+        _run.Modifiers.ColdResistance = 0.0f;
+        clock.SetTimeOfDay(10.0f);
+        Check("cold resistance keeps the night's cold off", cold > 0.3f && Mathf.Abs(resisted - cold * 0.5f) < 0.05f,
+            $"night cold {cold:0.00}, with half resisted {resisted:0.00}");
+    }
+
+    private async Task TestNewRunClears(BoonOfferings offerings)
+    {
+        offerings.Offer(2);
+        bool laid = offerings.Stones.Count > 0;
+        _run!.StartNewRun(_run.Seed);
+        await WaitSeconds(0.3f);
+        RunModifiers m = _run.Modifiers;
+        bool reset = m.WalkDrain == 1.0f && m.Balance == 1.0f && m.ColdResistance == 0.0f && _run.Boons.Count == 0;
+        Check("a new run clears boons and offerings", laid && offerings.Stones.Count == 0 && reset,
+            $"offerings before {laid}, after {offerings.Stones.Count}, modifiers reset {reset}, boons {_run.Boons.Count}");
+    }
+
+    private async Task TestDepthScaling(CarrierNeeds needs)
+    {
+        float top = await ThirstLoss(needs, 0);
+        int deep = Mathf.CeilToInt(_run!.Circles.DepthPerCircle * 4.0f) + 10;
+        float lower = await ThirstLoss(needs, deep);
+        _run.Depth = 0;
+        float expected = 1.0f + _run.DifficultySettings.NeedsDrainPerCircle * 4.0f;
+        Check("deeper circles drain food and water faster", lower > top * (expected - 0.08f),
+            $"thirst lost {top:0.00} in Limbo vs {lower:0.00} four circles down (expected ×{expected:0.00})");
+    }
+
+    private async Task<float> ThirstLoss(CarrierNeeds needs, int depth)
+    {
+        WorldClock clock = GetNode<WorldClock>("/root/WorldClock");
+        needs.Refill();
+        _run!.Depth = depth;
+        await WaitSeconds(0.1f);
+        float before = needs.Thirst;
+        clock.SetTimeOfDay(10.0f);
+        clock.DebugTimeScale = 60.0f;
+        await WaitSeconds(1.0f);
+        clock.DebugTimeScale = 1.0f;
+        clock.SetTimeOfDay(10.0f);
+        return before - needs.Thirst;
+    }
+
+    private async Task TestStartingKit(CarrierInventory inventory, StartingKit kit)
+    {
+        bool emptyAtFirst = kit.Unlocked(0).Count == 0;
+        int unlocked = kit.Unlocked(700).Count;
+        _run!.Records.Add(700, 1);
+        _run.StartNewRun();
+        await WaitSeconds(0.5f);
+        List<string> names = new();
+        foreach (ItemDefinition item in inventory.AllItems)
+        {
+            names.Add(item.DisplayName);
+        }
+        Check("the best depth ever unlocks gear the next run starts with",
+            emptyAtFirst && unlocked == 2 && inventory.AllItems.Count == 2 && _run.StartingKit.Count == 2,
+            $"none at 0 m {emptyAtFirst}, {unlocked} unlocked at 700 m, new run starts with [{string.Join(", ", names)}], kit [{string.Join(", ", _run.StartingKit)}]");
+    }
+
+    private async Task Place(PlayerController player, Vector3 position, float settle)
+    {
+        player.Teleport(position + Vector3.Up * 0.1f, 0.0f);
+        player.Health?.Refill();
+        await WaitSeconds(settle);
+    }
+
+    private async Task WaitSeconds(float seconds)
+    {
+        float dt = 1.0f / Engine.PhysicsTicksPerSecond;
+        for (float elapsed = 0.0f; elapsed < seconds; elapsed += dt)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+        }
+    }
+
+    private void Check(string name, bool passed, string detail)
+    {
+        if (passed)
+        {
+            GD.Print($"PASS  {name}: {detail}");
+        }
+        else
+        {
+            GD.Print($"FAIL  {name}: {detail}");
+            _failures.Add(name);
+        }
+    }
+}

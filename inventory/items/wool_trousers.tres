@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "wool_trousers"
+DisplayName = "Wool trousers"
+MassKg = 0.7
+Category = 4
+SizeCells = Vector3i(5, 2, 5)
+Tags = 0
+Orientation = 0
+DebugColor = Color(0.4, 0.38, 0.35, 1)
+Slot = 3
+MaxDurability = 75.0
+Warmth = 0.12
+RainProof = 0.1
+GripBonus = 0.0
+WindCatch = 0.0
+Pockets = 1
+MendType = "cloth"
+ModelSource = "res://art/characters/mixamo/carrier.fbx"
+ModelMesh = "Ch17_Pants"
+ModelLieFlat = true

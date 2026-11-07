@@ -88,6 +88,40 @@ Values live in `DifficultySettings` resources and are tuned by play-testing.
   - **Needs:** rain, snow and strong wind chill you even by day: they add to night cold and slow stamina recovery (estimates include that too). Heat doubles thirst and slows recovery a little. Shelter keeps the chill off.
 - Debug: F4 cycles forced weather; `-- --weather=rain` forces a front for render checks.
 
+## Routes (built in M10)
+
+- Each stage (station to station) offers a choice. Paths split about 110 m below a station and rejoin about 110 m above the next.
+  - **Safe** (the main path) is always there. It winds gently through the branch zone like a real trail, stays on firm ground (grass and snow) and is marked by cairns. Supplies are ordinary.
+  - Every stage adds one or two branches that swing 45–70 m to either side:
+    - **Hazardous:** a straight line, about 4 % shorter, but narrow and rough, on scree and snow (lower grip). Boulders crowd it. It holds 1.5× the supplies, plus caches of three items together.
+    - **Supply-rich:** winds more and is about 10 % longer, with patches of boggy mud. It holds 4× the supplies.
+- A **lookout sign** stands just below each station (and at the start) with one line per path: which way it goes, distance, time with rests, stamina and arrival before or after dark. The estimator follows whichever path you're on, so cairns on every path show that path's figures.
+- About 60 m past the split, the path you're on counts as your choice (`GameEvents.RouteChosen`). The narrator comments on the options and on a safe or hazardous choice.
+- Settings: `terrain/default_terrain.tres` (Routes group) and `inventory/world/default_supplies.tres`. Tests: `debug/tests/RouteTests.tscn`.
+
+## Permadeath and new mountains (M12, first part built)
+
+- **Every run starts on the summit,** the highest point of its mountain. Nothing near the start rises above it, and behind it a 60° cliff drops into the abyss: the only way is down. Falling into the abyss ends the run. Climbing behind the summit doesn't count as descent.
+- **Death is permanent.** The run ends, and its summary is written in the air: depth, stations, day, circle, cause, and the best depth of any run. It goes into the records (`user://records.cfg`: runs, best depth, best station, total descent). After a few seconds a **new mountain** rises: a new random seed, new terrain, routes, stations, weather, supplies and wildlife. The carrier stands on its summit with an empty pack. R gives up the run the same way.
+- A stone on the summit names the run and the mountain's seed. `-- --seed=N` replays a mountain.
+- **Boons:** the first time you reach a station in a run, three glowing offerings stand by its fire, picked by the mountain's seed. Choose one with E; it lasts for the rest of the run, and the other two go dark. There are ten so far:
+  - Steady Legs: balance
+  - Iron Lungs: stamina recovery
+  - Deep Reserves: maximum stamina
+  - Light Step: walking cost
+  - Strong Back: load cost
+  - Lean Belly: hunger and thirst
+  - Thick Blood: cold
+  - Sure Footing: grip
+  - Long Stride: speed
+  - Deep Sleep: healing in sleep
+
+  They live in `RunState.Modifiers`, and each system reads its own value.
+- **Deeper is harder:** every circle down drains hunger and thirst 8 % faster and makes night cold and weather chill 10 % harsher (per difficulty, `core/difficulty/*.tres`). Supplies were already leaner with depth.
+- **What death can't take: the starting kit.** Your best depth ever unlocks gear every new run starts with: a water flask at 300 m, a ration at 600 m, dried fruit at 1,200 m, a water skin at 1,800 m and a med kit at 3,000 m. The summit stone lists what you carry.
+- Debug: `-- --at-station=N` starts at station N. Tests: `RunTests`, `ProgressionTests`.
+- Contracts (cargo to deliver) wait for M14's gear.
+
 M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain). From here:
 
 | Milestone | Scope |
@@ -96,8 +130,10 @@ M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain
 | **M7 Day, night and stations** (built) | Visible day/night cycle (sun, sky, darkness); a station every 600 m of depth on a level terrace with fire, lean-to, bedroll and beacon; stone cairns every 120 m showing the estimate (distance, time with rests, stamina, arrival against nightfall); sleeping from 16:00 skips to dawn, heals 40% and refills stamina; night cold outside a shelter; packing only at stations |
 | **M8 Weather** (built) | Fog, rain, snow, wind, heat per circle and time; effects on visibility, grip, balance and needs |
 | **M9 Wildlife** (built) | Animals per circle (Quaternius farm animals and creatures, Kenney cube pets beyond the ninth), grazing, wandering, watching, fleeing, scattering on falls; population kept around the carrier; see wildlife/README.md |
-| **M10 Routes** | Branching paths from each shelter's lookout; route types (safe, hazardous, supply-rich) |
-| **M11 Narrator** (voiced lines built for the demo) | The voiced companion: the 500 lines triggered by game events, then NobodyWho for live conversation |
-| **M12 Progression** | Run upgrades, meta unlocks (starting kits, packs), contracts, depth scaling |
+| **M10 Routes** (built) | Branching paths from each shelter's lookout; route types (safe, hazardous, supply-rich) |
+| **M11 Narrator** (voiced lines built for the demo; conversation built, branch `m11-conversation`) | The voiced companion: the 500 lines triggered by game events, then NobodyWho for live conversation (Enter: talk with the companion, a local model, context-aware replies; see narrative/README.md). Next: NPCs at camps |
+| **M12 Progression** (built, contracts wait for M14) | Summit start and a new mountain every run, permadeath with records; boons at stations; depth scaling; starting-kit unlocks |
+| **M13 Map and compass** (built) | A map held up in the world with a compass on top; waypoints that show as markers in the world; drawing with found paper and pencil. See docs/gear-and-map.md |
+| **M14 Gear and durability** (built, branch `m14-gear`) | Backpack, pockets and clothing slots (all 3D grids, not lists); gear found in the world with durability and no rarity; mending with found materials (sewing kit and others). See docs/gear-and-map.md |
 
 Open decisions for the director: same mountain or a new one after each death, whether a light source is in the first starting kit, and the exact day lengths after play-testing.

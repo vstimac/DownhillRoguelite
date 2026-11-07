@@ -87,44 +87,30 @@ public partial class WaypointCairn : Node3D
         }
     }
 
-    /// <summary>The estimate as the cairn writes it (in-game hours, as the carrier's clock shows them).</summary>
+    /// <summary>The estimate as the cairn writes it, in real time: distance, how long, before or after dark.</summary>
     public static string Describe(RouteEstimate estimate, WorldClock? clock)
     {
-        float hoursPerSecond = 0.0f;
-        float sunset = 20.0f;
-        if (clock != null)
-        {
-            hoursPerSecond = clock.HoursPerSecond;
-            sunset = clock.SunsetHour;
-        }
-        string distance = $"{estimate.DistanceMeters:0} m";
-        if (estimate.DistanceMeters >= 1000.0f)
-        {
-            distance = $"{estimate.DistanceMeters / 1000.0f:0.0} km";
-        }
-        string rests = "no rests";
-        if (estimate.Rests == 1)
-        {
-            rests = "1 rest";
-        }
-        else if (estimate.Rests > 1)
-        {
-            rests = $"{estimate.Rests} rests";
-        }
-        string arrival = $"arrive {Clock(estimate.ArrivalHour)}";
-        if (clock != null && estimate.ArrivalDay > clock.Day)
-        {
-            arrival = $"arrive {Clock(estimate.ArrivalHour)} (day {estimate.ArrivalDay})";
-        }
-        string dark = $"dark at {Clock(sunset)}";
+        string dark = "before dark";
         if (!estimate.BeforeNightfall)
         {
             dark = "after dark";
         }
-        return $"Station {estimate.Station} · {distance}\n" +
-            $"~{Duration(estimate.TotalSeconds * hoursPerSecond)} · {rests}\n" +
-            $"stamina {estimate.StaminaNeeded:0}\n" +
-            $"{arrival} · {dark}";
+        string path = "";
+        if (estimate.Kind != RouteKind.Safe)
+        {
+            path = $" · {RouteSign.KindName(estimate.Kind).ToLowerInvariant()} path";
+        }
+        return $"Station {estimate.Station}{path} · {Distance(estimate.DistanceMeters)}\n" +
+            $"~{TimeText.Real(estimate.TotalSeconds)} on foot · {dark}";
+    }
+
+    public static string Distance(float meters)
+    {
+        if (meters >= 1000.0f)
+        {
+            return $"{meters / 1000.0f:0.0} km";
+        }
+        return $"{meters:0} m";
     }
 
     private static string Clock(float hour)
@@ -135,7 +121,7 @@ public partial class WaypointCairn : Node3D
         return $"{h:00}:{m:00}";
     }
 
-    private static string Duration(float hours)
+    public static string Duration(float hours)
     {
         int minutes = Mathf.RoundToInt(hours * 60.0f);
         if (minutes < 60)

@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/GearTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="2_inventory"]
+[ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="3_backpack"]
+
+[node name="GearTests" type="Node" node_paths=PackedStringArray("Inventory")]
+script = ExtResource("1_tests")
+Inventory = NodePath("Inventory")
+
+[node name="Inventory" type="Node" parent="."]
+script = ExtResource("2_inventory")
+Backpack = ExtResource("3_backpack")
+StartingItemPaths = PackedStringArray()
+AutoPackOnStart = false

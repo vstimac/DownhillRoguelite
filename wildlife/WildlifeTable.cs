@@ -36,4 +36,12 @@ public partial class WildlifeTable : Resource
     [Export] public float WanderDistance { get; set; } = 4.0f;
     /// <summary>Physics layers the ground ray hits.</summary>
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
+    /// <summary>The layer animals' bodies are on (kept off the world layer so ground rays ignore them).</summary>
+    [Export(PropertyHint.Layers3DPhysics)] public uint BodyLayer { get; set; } = 8;
+    /// <summary>What animals' bodies collide with: the world and each other.</summary>
+    [Export(PropertyHint.Layers3DPhysics)] public uint BodyMask { get; set; } = 9;
+    /// <summary>Steepest ground an animal walks on, in degrees; steeper, it slides.</summary>
+    [Export] public float MaxFloorAngle { get; set; } = 50.0f;
+    /// <summary>How fast a model leans to the slope under it (per second).</summary>
+    [Export] public float TiltSpeed { get; set; } = 6.0f;
 }

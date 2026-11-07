@@ -19,13 +19,21 @@ public partial class PauseMenu : CanvasLayer
         "WASD walk · Shift sprint · C brake (careful steps) · Space jump\n" +
         "Mouse look · LMB / RMB lean left / right · both brace\n" +
         "E pick up / sleep at a bedroll · F eat · Q drink · Tab pack (at stations)\n" +
-        "R respawn · T skip an hour · F3 debug overlays · F4 cycle weather · F2 new mountain\n\n" +
-        "Reach the next station before night. Stamina runs out walking — rest by standing still.\n" +
-        "Cairns on the route show the time, rests and stamina to the next station.";
+        "I inventory (Wear clothes, Mend gear at stations) · J journal · Enter talk with the companion\n" +
+        "M map (click: waypoint · right-click: remove · wheel: zoom · drag: draw)\n" +
+        "1-9 choose from the hotbar · V use it · click a worn piece (left sheet) to take it off\n" +
+        "Alt + drag: move any part of the UI (pages drag by their title) · Alt+Backspace: reset\n" +
+        "R give up · T skip an hour · F3 debug overlays · F4 cycle weather\n\n" +
+        "Death is permanent: every run starts on the summit of a new mountain.\n" +
+        "Reach the next station before night. Sprinting and jumping cost stamina; it comes back quickly when you ease off.\n" +
+        "Below each station the paths split: a lookout sign compares them. Cairns show the way.";
 
     public bool IsOpen => Visible;
 
     private Control? _root;
+    private AudioStreamPlayer? _click;
+    private AudioStream? _openSound;
+    private AudioStream? _closeSound;
 
     public override void _Ready()
     {
@@ -33,12 +41,18 @@ public partial class PauseMenu : CanvasLayer
         Layer = 50;
         Build();
         Visible = false;
+        _openSound = LoadSound("res://audio/sfx/kenney_interface_sounds/open_001.ogg");
+        _closeSound = LoadSound("res://audio/sfx/kenney_interface_sounds/close_001.ogg");
+        _click = new AudioStreamPlayer { VolumeDb = -6.0f };
+        AddChild(_click);
     }
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event.IsActionPressed(ActionPause))
+        // Render captures (`-- --no-pause`) never pause, whatever keys reach their window.
+        if (@event.IsActionPressed(ActionPause) && System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--no-pause") < 0)
         {
+            GD.Print($"Pause menu toggled by {@event.GetType().Name} {@event.AsText()} (device {@event.Device})");
             Toggle();
             GetViewport().SetInputAsHandled();
         }
@@ -56,8 +70,38 @@ public partial class PauseMenu : CanvasLayer
         }
     }
 
+    private static AudioStream? LoadSound(string path)
+    {
+        if (DisplayServer.GetName() == "headless" || !ResourceLoader.Exists(path))
+        {
+            return null;
+        }
+        return ResourceLoader.Load<AudioStream>(path);
+    }
+
+    private void Sound(AudioStream? sound)
+    {
+        if (_click != null && sound != null)
+        {
+            _click.Stream = sound;
+            _click.Play();
+        }
+    }
+
+    public override void _ExitTree()
+    {
+        if (_click != null)
+        {
+            _click.Stop();
+            _click.Stream = null;
+        }
+        _openSound = null;
+        _closeSound = null;
+    }
+
     public void Open()
     {
+        Sound(_openSound);
         Visible = true;
         GetTree().Paused = true;
         Input.MouseMode = Input.MouseModeEnum.Visible;
@@ -65,6 +109,7 @@ public partial class PauseMenu : CanvasLayer
 
     public void Resume()
     {
+        Sound(_closeSound);
         Visible = false;
         GetTree().Paused = false;
         if (!GameEvents.IsPacking)
