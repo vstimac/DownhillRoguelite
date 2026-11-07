@@ -309,6 +309,21 @@ public static class GameEvents
         NarrationFinished?.Invoke();
     }
 
+    /// <summary>Raised when something is said aloud (narrator lines, the companion's replies): subtitles show it.</summary>
+    public static event Action<SpeechLine>? SpeechStarted;
+
+    /// <summary>True while a spoken line (other than the narrator's recordings) is being said: music ducks.</summary>
+    public static bool IsSpeaking { get; private set; }
+
+    public static void PublishSpeech(SpeechLine line) => SpeechStarted?.Invoke(line);
+
+    public static void PublishSpeaking(bool speaking) => IsSpeaking = speaking;
+
+    /// <summary>Where the companion's voice comes from: a step to the carrier's left, updated every frame.</summary>
+    public static Godot.Vector3 CompanionPosition { get; private set; }
+
+    public static void PublishCompanionPosition(Godot.Vector3 position) => CompanionPosition = position;
+
     /// <summary>True while the conversation page is open: the narrator holds its voiced lines.</summary>
     public static bool IsConversing { get; private set; }
 

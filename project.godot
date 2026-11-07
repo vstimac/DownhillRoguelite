@@ -251,3 +251,7 @@ debug_cycle_weather={
 
 3d/physics_engine="Jolt Physics"
 common/physics_interpolation=true
+
+[audio]
+
+general/text_to_speech=true

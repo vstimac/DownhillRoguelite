@@ -52,6 +52,7 @@ public partial class UiTests : Node3D
         await TestMap();
         await TestJournal();
         TestDragging();
+        TestSubtitles();
         TestLayout();
 
         if (_failures.Count == 0)
@@ -271,6 +272,33 @@ public partial class UiTests : Node3D
         bool reset = Ui.Hotbar.Position.IsEqualApprox(home);
         Check("HUD pieces and pages can be moved, stay put through re-layout, stay on screen, and reset", moved && kept && onScreen && reset,
             $"moved {moved}, kept {kept}, on screen {onScreen}, reset {reset}");
+    }
+
+    /// <summary>Speech is captioned on the side it comes from, with the speaker's words.</summary>
+    private void TestSubtitles()
+    {
+        Subtitles? captions = Ui?.Captions;
+        Camera3D? camera = GetViewport().GetCamera3D();
+        if (captions == null || camera == null)
+        {
+            Check("speech is subtitled from its direction", false, "no subtitles or camera");
+            return;
+        }
+        Vector3 forward = -camera.GlobalBasis.Z;
+        forward.Y = 0.0f;
+        forward = forward.Normalized();
+        Vector3 right = forward.Cross(Vector3.Up);
+        Vector2 screen = new(1280, 720);
+        float leftAngle = captions.AngleTo(camera.GlobalPosition - right * 3.0f);
+        float rightAngle = captions.AngleTo(camera.GlobalPosition + right * 3.0f);
+        float aheadAngle = captions.AngleTo(camera.GlobalPosition + forward * 5.0f);
+        bool left = captions.AnchorFor(leftAngle, screen).X < screen.X * 0.3f;
+        bool rightSide = captions.AnchorFor(rightAngle, screen).X > screen.X * 0.7f;
+        bool ahead = Mathf.Abs(captions.AnchorFor(aheadAngle, screen).X - screen.X * 0.5f) < 2.0f;
+        GameEvents.PublishSpeech(new SpeechLine("Companion", "Mind the scree.", camera.GlobalPosition - right * 2.0f, 2.0f));
+        bool shown = captions.Count > 0 && captions.NewestText == "Mind the scree.";
+        Check("speech is subtitled with its words, on the side the voice comes from", left && rightSide && ahead && shown,
+            $"left {left}, right {rightSide}, ahead {ahead}, shown {shown}");
     }
 
     private void Check(string name, bool passed, string detail)
