@@ -55,7 +55,13 @@ public partial class FieldMap : Node3D
     public IRouteQuery? Route => _run?.Route;
     public bool IsOpen { get; private set; }
     /// <summary>Centre of the chart in world XZ (the carrier).</summary>
-    public Vector2 Centre { get; private set; }
+    /// <summary>Where the sheet is centred: the carrier, moved by panning (drag the map, Valheim style).</summary>
+    public Vector2 Centre => CarrierPoint + Pan;
+    /// <summary>The carrier on the ground (x, z).</summary>
+    public Vector2 CarrierPoint { get; private set; }
+    /// <summary>How far the view is dragged from the carrier, in m (reset each time the map is raised).</summary>
+    public Vector2 Pan { get; private set; }
+    public MapCanvas? Canvas => _canvas;
     /// <summary>The carrier's facing in world XZ.</summary>
     public Vector2 Facing { get; private set; }
     public float MetresAcross => Zooms[Mathf.Clamp(_zoom, 0, Zooms.Length - 1)];
@@ -170,7 +176,7 @@ public partial class FieldMap : Node3D
     private void OnLocomotionUpdated(LocomotionSnapshot snapshot)
     {
         _carrier = snapshot.Position;
-        Centre = new Vector2(snapshot.Position.X, snapshot.Position.Z);
+        CarrierPoint = new Vector2(snapshot.Position.X, snapshot.Position.Z);
         Facing = new Vector2(snapshot.Forward.X, snapshot.Forward.Z);
     }
 
@@ -205,6 +211,7 @@ public partial class FieldMap : Node3D
         IsOpen = open;
         _pressing = false;
         _drawing = false;
+        Pan = Vector2.Zero;
         GameEvents.PublishMapOpen(open);
         if (open)
         {
@@ -270,18 +277,41 @@ public partial class FieldMap : Node3D
     {
         _pressing = true;
         _drawing = false;
+        _panning = false;
         _pressPixel = pixel;
+        _lastPixel = pixel;
+    }
+
+    private bool _panning;
+    private Vector2 _lastPixel;
+
+    /// <summary>Holding Shift while dragging draws in pencil (with paper and pencil); a plain drag pans the map.</summary>
+    public bool DrawMode { get; set; }
+
+    /// <summary>Puts the view back on the carrier.</summary>
+    public void Recentre()
+    {
+        Pan = Vector2.Zero;
+        Redraw();
+    }
+
+    /// <summary>Moves the view by a drag of this many sheet pixels.</summary>
+    public void PanBy(Vector2 pixels)
+    {
+        Pan -= pixels * (MetresAcross / TextureSize);
+        Redraw();
     }
 
     /// <summary>The press ends: without a drag it was a click, which sets a waypoint.</summary>
     public void Release()
     {
-        if (_pressing && !_drawing)
+        if (_pressing && !_drawing && !_panning)
         {
             AddWaypoint(PixelToWorld(_pressPixel));
         }
         _pressing = false;
         _drawing = false;
+        _panning = false;
     }
 
     public void RightClickAt(Vector2 pixel)
@@ -307,8 +337,20 @@ public partial class FieldMap : Node3D
     /// <summary>The press moves on the chart: past a few pixels it becomes a pencil line (with paper and pencil).</summary>
     public void DragTo(Vector2 pixel)
     {
-        if (!_pressing || !CanDraw)
+        if (!_pressing)
         {
+            return;
+        }
+        if (!_drawing && (!DrawMode || !CanDraw))
+        {
+            // A plain drag pans the map.
+            if (!_panning && pixel.DistanceTo(_pressPixel) < ClickSlop)
+            {
+                return;
+            }
+            _panning = true;
+            PanBy(pixel - _lastPixel);
+            _lastPixel = pixel;
             return;
         }
         if (!_drawing)

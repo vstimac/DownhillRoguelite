@@ -173,6 +173,22 @@ public partial class UiTests : Node3D
         Map.Release();
         await Wait(0.1f);
         bool waypoint = Map.Chart.Waypoints.Count == before + 1;
+        // Dragging moves the map instead of setting a waypoint; C/Centre goes back; the page resizes.
+        int marks = Map.Chart.Waypoints.Count;
+        Map.DrawMode = false;
+        Map.PressAt(new Vector2(300, 300));
+        Map.DragTo(new Vector2(360, 340));
+        Map.DragTo(new Vector2(420, 380));
+        Map.Release();
+        bool panned = Map.Pan.Length() > 1.0f && Map.Chart.Waypoints.Count == marks;
+        Map.Recentre();
+        bool centred = Map.Pan == Vector2.Zero;
+        float side = page.ChartSide;
+        page.ResizeTo(page.Size + new Vector2(200, 200));
+        bool bigger = page.ChartSide > side;
+        page.ResizeTo(new Vector2(860, 690));
+        Check("the map drags like a sheet, recentres, and its page resizes", panned && centred && bigger,
+            $"panned {panned} ({Map.Pan}), centred {centred}, chart {side} to bigger {bigger}");
         Map.SetOpen(false);
         await Wait(0.5f);
         Check("the map page unfolds with the field map's chart and a click sets a waypoint", open && waypoint && !page.Visible,
