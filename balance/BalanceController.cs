@@ -407,7 +407,8 @@ public partial class BalanceController : Node
         }
         // Force per unit area along the wind, then area times lever arm for body and load.
         Vector3 pressure = wind * (Settings.WindDrag * speed);
-        float moment = Settings.WindBodyArea * Settings.WindBodyHeight + Settings.WindAreaPerKg * loadMass * loadHeight;
+        // A cape (GameEvents.CurrentGear.WindCatch) adds area at body height.
+        float moment = (Settings.WindBodyArea + GameEvents.CurrentGear.WindCatch) * Settings.WindBodyHeight + Settings.WindAreaPerKg * loadMass * loadHeight;
         return new Vector2(pressure.Dot(right), pressure.Dot(forward)) * moment;
     }
 

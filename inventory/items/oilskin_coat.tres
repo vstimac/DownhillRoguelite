@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "oilskin_coat"
+DisplayName = "Oilskin coat"
+MassKg = 1.2
+Category = 4
+SizeCells = Vector3i(6, 2, 6)
+Tags = 0
+Orientation = 0
+DebugColor = Color(0.45, 0.4, 0.25, 1)
+Slot = 2
+MaxDurability = 90.0
+Warmth = 0.2
+RainProof = 0.6
+GripBonus = 0.0
+WindCatch = 0.0
+Pockets = 2
+MendType = "cloth"

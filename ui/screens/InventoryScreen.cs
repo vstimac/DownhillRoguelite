@@ -178,11 +178,23 @@ public partial class InventoryScreen : ParchmentPanel
         _detailIcon.SetItem(item, _counts.GetValueOrDefault(item.ItemId));
         _detailTitle.Text = item.DisplayName;
         _detailBody.Text = ItemText.Describe(item) + "\n" + ItemText.Properties(item);
-        _use.Visible = item.Category == ItemCategory.Food || item.Category == ItemCategory.Water;
+        _use.Visible = item.Category is ItemCategory.Food or ItemCategory.Water or ItemCategory.Clothing or ItemCategory.Material;
         _use.Text = "Eat";
         if (item.Category == ItemCategory.Water)
         {
             _use.Text = "Drink";
+        }
+        else if (item.Category == ItemCategory.Clothing)
+        {
+            _use.Text = "Wear";
+        }
+        else if (item.Category == ItemCategory.Material)
+        {
+            _use.Text = "Mend";
+            if (!GameEvents.InShelter)
+            {
+                _detailBody.Text += "\n(only at a station)";
+            }
         }
         _use.QueueRedraw();
     }
@@ -194,10 +206,22 @@ public partial class InventoryScreen : ParchmentPanel
             return;
         }
         ItemDefinition? item = ItemText.Find(_order[SelectedIndex]);
-        if (item != null && (item.Category == ItemCategory.Food || item.Category == ItemCategory.Water))
+        if (item == null)
         {
-            _slots[SelectedIndex].Pop();
+            return;
+        }
+        _slots[SelectedIndex].Pop();
+        if (item.Category == ItemCategory.Food || item.Category == ItemCategory.Water)
+        {
             GameEvents.RequestUseItem(item.ItemId);
+        }
+        else if (item.Category == ItemCategory.Clothing)
+        {
+            GameEvents.RequestWear(item.ItemId);
+        }
+        else if (item.Category == ItemCategory.Material)
+        {
+            GameEvents.RequestMend(item.ItemId);
         }
     }
 

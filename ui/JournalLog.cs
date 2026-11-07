@@ -39,6 +39,8 @@ public partial class JournalLog : Node
         GameEvents.NarrationStarted += OnNarration;
         GameEvents.RunEnded += OnRunEnded;
         GameEvents.Slept += OnSlept;
+        GameEvents.Mended += OnMended;
+        GameEvents.ItemLost += OnLost;
         CallDeferred(MethodName.Begin);
     }
 
@@ -53,7 +55,19 @@ public partial class JournalLog : Node
         GameEvents.NarrationStarted -= OnNarration;
         GameEvents.RunEnded -= OnRunEnded;
         GameEvents.Slept -= OnSlept;
+        GameEvents.Mended -= OnMended;
+        GameEvents.ItemLost -= OnLost;
     }
+
+    private void OnMended(string what, float amount)
+    {
+        if (amount > 0.0f)
+        {
+            Write($"By the fire I mended {what}.");
+        }
+    }
+
+    private void OnLost(string itemId) => Write($"The torn pack let go of my {(ItemText.Find(itemId)?.DisplayName ?? itemId).ToLowerInvariant()}.");
 
     public override void _Process(double delta)
     {

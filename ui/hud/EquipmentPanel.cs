@@ -14,15 +14,16 @@ public partial class EquipmentPanel : ParchmentPanel
 {
     public string PackName { get; private set; } = "";
 
-    private readonly (string Name, InkIcon Glyph, Vector2 At)[] _layout =
+    private readonly (EquipSlot Slot, Vector2 At)[] _layout =
     {
-        ("Head", InkIcon.Hat, new Vector2(118, 64)),
-        ("Torso", InkIcon.Shirt, new Vector2(118, 128)),
-        ("Legs", InkIcon.Trousers, new Vector2(118, 192)),
-        ("Feet", InkIcon.Shoe, new Vector2(118, 256)),
-        ("Hands", InkIcon.Glove, new Vector2(14, 160)),
-        ("Cape", InkIcon.Cape, new Vector2(14, 224)),
+        (EquipSlot.Head, new Vector2(118, 64)),
+        (EquipSlot.Torso, new Vector2(118, 128)),
+        (EquipSlot.Legs, new Vector2(118, 192)),
+        (EquipSlot.Feet, new Vector2(118, 256)),
+        (EquipSlot.Hands, new Vector2(14, 160)),
+        (EquipSlot.Cape, new Vector2(14, 224)),
     };
+    private readonly System.Collections.Generic.Dictionary<EquipSlot, ItemSlot> _slots = new();
 
     private ItemSlot? _pack;
     private Label? _packLabel;
@@ -41,11 +42,15 @@ public partial class EquipmentPanel : ParchmentPanel
         _packLabel = UiStyle.MakeLabel("", 14);
         _packLabel.Position = new Vector2(12, 10);
         AddChild(_packLabel);
-        foreach ((string name, InkIcon glyph, Vector2 at) in _layout)
+        foreach ((EquipSlot equip, Vector2 at) in _layout)
         {
-            ItemSlot slot = new() { Position = at, Size = new Vector2(48, 48), EmptyGlyph = glyph, Index = (int)glyph, TooltipText = $"{name}: nothing worn yet" };
+            ItemSlot slot = new() { Position = at, Size = new Vector2(48, 48), EmptyGlyph = ItemSlot.GlyphFor(equip), Index = (int)equip + 40, TooltipText = $"{equip}: nothing worn" };
+            slot.Clicked += (s, button) => GameEvents.RequestTakeOff(equip);
             AddChild(slot);
+            _slots[equip] = slot;
         }
+        GameEvents.GearChanged += OnGear;
+        OnGear(GameEvents.CurrentGear);
         MouseEntered += () => _hovered = true;
         MouseExited += () => _hovered = false;
         GameEvents.LoadChanged += OnLoad;
@@ -55,6 +60,53 @@ public partial class EquipmentPanel : ParchmentPanel
     public override void _ExitTree()
     {
         GameEvents.LoadChanged -= OnLoad;
+        GameEvents.GearChanged -= OnGear;
+    }
+
+    /// <summary>Shows what is worn and how worn it is; clicking a worn piece takes it off.</summary>
+    private void OnGear(GearSnapshot gear)
+    {
+        foreach ((EquipSlot equip, ItemSlot slot) in _slots)
+        {
+            WornPiece piece = gear.In(equip);
+            Inventory.ItemDefinition? item = null;
+            if (!piece.Empty)
+            {
+                item = Inventory.ItemText.Find(piece.ItemId);
+            }
+            if (slot.Item != item)
+            {
+                _idle = 0.0f;
+            }
+            slot.SetItem(item, 1);
+            if (item == null)
+            {
+                slot.Durability = -1.0f;
+                slot.TooltipText = $"{equip}: nothing worn";
+            }
+            else
+            {
+                slot.Durability = piece.Fraction;
+                string state = $"{piece.Durability:0} / {piece.MaxDurability:0}";
+                if (piece.Broken)
+                {
+                    state = "worn through: mend it at a station";
+                }
+                slot.TooltipText = $"{piece.Name}\n{state}\nclick to take off";
+            }
+            slot.QueueRedraw();
+        }
+        if (_pack != null && gear.Backpack.MaxDurability > 0.0f)
+        {
+            _pack.Durability = gear.Backpack.Fraction;
+            string torn = "";
+            if (gear.Backpack.Broken)
+            {
+                torn = "\nTorn: things fall out when you fall";
+            }
+            _pack.TooltipText = $"Backpack: {PackName}\n{gear.Backpack.Durability:0} / {gear.Backpack.MaxDurability:0}{torn}";
+            _pack.QueueRedraw();
+        }
     }
 
     private void OnLoad(LoadSnapshot load)

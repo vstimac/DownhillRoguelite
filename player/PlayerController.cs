@@ -307,7 +307,7 @@ public partial class PlayerController : CharacterBody3D
         Grip *= GameEvents.CurrentWeather.GripFactor;
         if (_run != null)
         {
-            Grip = Mathf.Min(1.0f, Grip * _run.Modifiers.Grip);
+            Grip = Mathf.Min(1.0f, Grip * _run.Modifiers.Grip * (1.0f + GameEvents.CurrentGear.Grip));
         }
     }
 

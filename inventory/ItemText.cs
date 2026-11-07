@@ -1,3 +1,4 @@
+using DownhillRoguelite.Core;
 using Godot;
 
 namespace DownhillRoguelite.Inventory;
@@ -23,6 +24,14 @@ public static class ItemText
         {
             return "Cargo. Heavy, and someone wants it.";
         }
+        if (item.Category == ItemCategory.Clothing)
+        {
+            return $"Worn on the {item.Slot.ToString().ToLowerInvariant()}. It wears out; mend it at a station.";
+        }
+        if (item.Category == ItemCategory.Material)
+        {
+            return $"Mends {string.Join(" and ", item.MendsTypes)} at a station.";
+        }
         return "Gear for the descent.";
     }
 
@@ -40,6 +49,34 @@ public static class ItemText
         if (item.Hydration > 0.0f)
         {
             text += $"\nWater +{item.Hydration:0}";
+        }
+        if (item.Warmth > 0.0f)
+        {
+            text += $"\nWarmth {item.Warmth * 100.0f:0} %";
+        }
+        if (item.RainProof > 0.0f)
+        {
+            text += $"\nKeeps off rain {item.RainProof * 100.0f:0} %";
+        }
+        if (item.GripBonus > 0.0f)
+        {
+            text += $"\nGrip +{item.GripBonus * 100.0f:0} %";
+        }
+        if (item.WindCatch > 0.0f)
+        {
+            text += "\nCatches the wind";
+        }
+        if (item.Pockets > 0)
+        {
+            text += $"\nPockets {item.Pockets}";
+        }
+        if (item.MaxDurability > 0.0f)
+        {
+            text += $"\nDurability {item.MaxDurability:0}";
+        }
+        if (item.MendAmount > 0.0f)
+        {
+            text += $"\nMends {item.MendAmount:0}";
         }
         return text;
     }

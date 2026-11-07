@@ -14,6 +14,8 @@ public sealed class PackedItem
     }
 
     public ItemDefinition Definition { get; }
+    /// <summary>Hit points of worn gear while it sits in the pack (-1: new).</summary>
+    public float Durability { get; set; } = -1.0f;
     /// <summary>Cell of the item's lowest x, y and z corner.</summary>
     public Vector3I Origin { get; }
     /// <summary>Index into GridOrientations.All.</summary>
