@@ -5,7 +5,8 @@ namespace DownhillRoguelite.Map;
 /// <summary>
 /// A station on its terrace, built from primitives until real models exist: a fire with flickering
 /// light, a lean-to with a bedroll (SleepSpot), a sign, and a tall faint beacon that can be seen
-/// from far down the slope and through the dark.
+/// from far down the slope and through the dark. The fire crackles (audio/ambience/fire.wav), so
+/// you can hear a station before you see it.
 /// </summary>
 public partial class StationSite : Node3D
 {
@@ -21,11 +22,42 @@ public partial class StationSite : Node3D
     [Export] public Color WoodColor { get; set; } = new(0.4f, 0.28f, 0.18f);
     [Export] public Color CanvasColor { get; set; } = new(0.45f, 0.42f, 0.36f);
     [Export] public Color BedrollColor { get; set; } = new(0.35f, 0.3f, 0.45f);
+    [Export(PropertyHint.File, "*.wav")] public string FireSoundPath { get; set; } = "res://audio/ambience/fire.wav";
+    [Export] public float FireVolumeDb { get; set; } = 2.0f;
+    /// <summary>Distance the fire can be heard from, in m.</summary>
+    [Export] public float FireHearing { get; set; } = 35.0f;
 
     public int Index { get; private set; }
 
     private OmniLight3D? _fire;
     private float _time;
+
+    private void AddFireSound()
+    {
+        // Headless runs (tests, smoke) have no real audio output and never release playing streams.
+        if (DisplayServer.GetName() == "headless" || !ResourceLoader.Exists(FireSoundPath))
+        {
+            return;
+        }
+        AudioStream? stream = ResourceLoader.Load<AudioStream>(FireSoundPath);
+        if (stream is AudioStreamWav wav && wav.LoopMode != AudioStreamWav.LoopModeEnum.Forward)
+        {
+            wav.LoopMode = AudioStreamWav.LoopModeEnum.Forward;
+            wav.LoopBegin = 0;
+            wav.LoopEnd = Mathf.FloorToInt((float)wav.GetLength() * wav.MixRate);
+        }
+        AudioStreamPlayer3D sound = new()
+        {
+            Stream = stream,
+            Bus = "Ambience",
+            VolumeDb = FireVolumeDb,
+            MaxDistance = FireHearing,
+            UnitSize = 4.0f,
+            Position = new Vector3(0.0f, 0.4f, 0.0f),
+            Autoplay = true,
+        };
+        AddChild(sound);
+    }
 
     /// <summary>Creates the station's pieces around its centre (this node's position on the ground).</summary>
     public void Build(int index)
@@ -46,6 +78,7 @@ public partial class StationSite : Node3D
             new StandardMaterial3D { AlbedoColor = FireColor, EmissionEnabled = true, Emission = FireColor, EmissionEnergyMultiplier = 3.0f });
         _fire = new OmniLight3D { LightColor = FireColor, LightEnergy = FireEnergy, OmniRange = FireRange, Position = new Vector3(0.0f, 0.8f, 0.0f), ShadowEnabled = true };
         AddChild(_fire);
+        AddFireSound();
 
         // Lean-to: two posts and a sloping roof, open toward the fire, with the bedroll under it.
         Vector3 shelter = new(ShelterOffset, 0.0f, 0.0f);
