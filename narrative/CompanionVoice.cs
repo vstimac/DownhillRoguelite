@@ -29,6 +29,8 @@ public partial class CompanionVoice : Node3D
     [Export] public string SpeakerName { get; set; } = "Companion";
 
     public string VoiceId { get; private set; } = "";
+    /// <summary>A second system voice for travellers, so they don't sound like the companion (empty: the same one).</summary>
+    public string OtherVoiceId { get; private set; } = "";
     public string LastSpoken { get; private set; } = "";
 
     private bool _placed;
@@ -41,6 +43,14 @@ public partial class CompanionVoice : Node3D
         if (DisplayServer.GetName() != "headless" && SpeakReplies)
         {
             VoiceId = PickVoice();
+            foreach (string id in DisplayServer.TtsGetVoicesForLanguage("en"))
+            {
+                if (id != VoiceId)
+                {
+                    OtherVoiceId = id;
+                    break;
+                }
+            }
         }
     }
 
@@ -115,11 +125,41 @@ public partial class CompanionVoice : Node3D
     /// <summary>A finished reply from the live conversation: say it and subtitle it.</summary>
     private void OnReply(string text, bool done)
     {
-        if (!done || text.Length == 0 || GameEvents.Companion == CompanionState.Silent)
+        if (!done || text.Length == 0)
         {
             return;
         }
-        Say(text);
+        SpeakerInfo speaker = GameEvents.ReplySpeaker;
+        if (speaker.IsCompanion)
+        {
+            if (GameEvents.Companion != CompanionState.Silent)
+            {
+                Say(text);
+            }
+            return;
+        }
+        // A traveller: their own voice, from where they sit.
+        SayAs(speaker, text);
+    }
+
+    /// <summary>Says a traveller's line from their spot, in a second system voice at their pitch.</summary>
+    public void SayAs(SpeakerInfo speaker, string text)
+    {
+        int words = text.Split(' ', System.StringSplitOptions.RemoveEmptyEntries).Length;
+        float duration = words * SecondsPerWord / Mathf.Max(Rate, 0.1f) + ExtraSeconds;
+        LastSpoken = text;
+        GameEvents.PublishSpeech(new SpeechLine(speaker.Name, text, speaker.Position, duration));
+        string voice = OtherVoiceId;
+        if (voice.Length == 0)
+        {
+            voice = VoiceId;
+        }
+        if (voice.Length > 0)
+        {
+            DisplayServer.TtsSpeak(text, voice, Volume, Mathf.Clamp(speaker.Pitch, 0.0f, 2.0f), Rate, 0, true);
+            _speakingFor = duration;
+            GameEvents.PublishSpeaking(true);
+        }
     }
 
     /// <summary>Says a line in the companion's (system) voice and publishes its subtitle.</summary>
@@ -132,6 +172,7 @@ public partial class CompanionVoice : Node3D
         if (VoiceId.Length > 0)
         {
             DisplayServer.TtsSpeak(text, VoiceId, Volume, Pitch, Rate, 0, true);
+            // (Travellers use SayAs.)
             _speakingFor = duration;
             GameEvents.PublishSpeaking(true);
         }

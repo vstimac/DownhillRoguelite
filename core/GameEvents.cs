@@ -324,6 +324,28 @@ public static class GameEvents
 
     public static void PublishCompanionPosition(Godot.Vector3 position) => CompanionPosition = position;
 
+    /// <summary>Who the player is talking to (the companion unless a traveller was spoken to).</summary>
+    public static SpeakerInfo CurrentSpeaker { get; private set; } = SpeakerInfo.Companion;
+
+    /// <summary>Raised when the player starts talking to someone (E on a traveller, Enter for the companion).</summary>
+    public static event Action<SpeakerInfo>? TalkRequested;
+
+    public static void RequestTalkTo(SpeakerInfo speaker)
+    {
+        CurrentSpeaker = speaker;
+        TalkRequested?.Invoke(speaker);
+    }
+
+    /// <summary>Who the reply being published (CompanionReplied) comes from.</summary>
+    public static SpeakerInfo ReplySpeaker { get; private set; } = SpeakerInfo.Companion;
+
+    public static void PublishReplySpeaker(SpeakerInfo speaker) => ReplySpeaker = speaker;
+
+    /// <summary>Raised the first time the carrier comes near a traveller at a station: name and who they are.</summary>
+    public static event Action<string, string>? VisitorMet;
+
+    public static void PublishVisitorMet(string name, string title) => VisitorMet?.Invoke(name, title);
+
     /// <summary>True while the conversation page is open: the narrator holds its voiced lines.</summary>
     public static bool IsConversing { get; private set; }
 

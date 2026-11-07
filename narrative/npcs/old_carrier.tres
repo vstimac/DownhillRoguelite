@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="NpcPersona" format=3]
+
+[ext_resource type="Script" path="res://narrative/NpcPersona.cs" id="1_persona"]
+
+[resource]
+script = ExtResource("1_persona")
+Id = "old_carrier"
+DisplayName = "Bram"
+Title = "an old carrier with a bad back"
+Description = "He carried loads down this mountain for thirty years. Now he mostly carries opinions."
+Persona = "You are Bram, a retired carrier with a ruined back and a gruff, practical manner. You give blunt advice about packing (heavy things low and close to the back), balance (lean into the wind, brace on steep ground), eating and drinking before you need to, mending worn boots and torn packs at stations, and sleeping by fires. You grumble, but you care."
+SilentLines = PackedStringArray("Heavy low, light high. And close to your spine. Every time.", "Mend that pack before it lets go of something you'll miss.", "Eat before you're hungry. Drink before you're thirsty. That's the whole trade.")
+MinCircle = 0
+CloakColor = Color(0.35, 0.3, 0.22, 1)
+VoicePitch = 0.8

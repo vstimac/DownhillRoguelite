@@ -98,6 +98,7 @@ public partial class Hud : CanvasLayer
         Inventory.Closed += OnPageClosed;
         Journal.Closed += OnPageClosed;
         Talk.Closed += OnPageClosed;
+        GameEvents.TalkRequested += OnTalkRequested;
 
         // The player can drag everything: pages by their title, HUD pieces with Alt held.
         LayoutEditor = new UiLayoutEditor { Name = "LayoutEditor" };
@@ -128,6 +129,7 @@ public partial class Hud : CanvasLayer
     public override void _ExitTree()
     {
         GameEvents.VitalsUpdated -= OnVitals;
+        GameEvents.TalkRequested -= OnTalkRequested;
         if (GameEvents.IsScreenOpen)
         {
             GameEvents.PublishScreenOpen(false);
@@ -198,6 +200,15 @@ public partial class Hud : CanvasLayer
         LayoutEditor?.Apply(screen);
     }
 
+    /// <summary>Someone was spoken to (a traveller with E, the companion with Enter): open the conversation.</summary>
+    private void OnTalkRequested(SpeakerInfo speaker)
+    {
+        if (Talk != null && !(Talk.IsOpen && Talk.Visible) && !GameEvents.IsPacking)
+        {
+            Toggle(Talk);
+        }
+    }
+
     private void PlacePiece(Control piece, Vector2 at)
     {
         if (piece == Tooltip && Tooltip != null)
@@ -239,8 +250,8 @@ public partial class Hud : CanvasLayer
         }
         else if (@event.IsActionPressed(ActionTalk) && Talk != null && !(Talk.IsOpen && Talk.Visible))
         {
-            // Enter opens the conversation; once open, Enter sends what's typed.
-            Toggle(Talk);
+            // Enter talks with the companion; once the page is open, Enter sends what's typed.
+            GameEvents.RequestTalkTo(SpeakerInfo.Companion);
             GetViewport().SetInputAsHandled();
         }
     }
