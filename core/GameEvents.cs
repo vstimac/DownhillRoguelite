@@ -223,6 +223,16 @@ public static class GameEvents
 
     public static void PublishMended(string what, float amount) => Mended?.Invoke(what, amount);
 
+    /// <summary>The player asks to drop one carried item with this id on the ground.</summary>
+    public static event Action<string>? DropRequested;
+
+    public static void RequestDrop(string itemId) => DropRequested?.Invoke(itemId);
+
+    /// <summary>Raised when an item was dropped on the ground.</summary>
+    public static event Action<string>? ItemDropped;
+
+    public static void PublishItemDropped(string itemId) => ItemDropped?.Invoke(itemId);
+
     /// <summary>Raised when a carried item is lost (falls out of a torn pack).</summary>
     public static event Action<string>? ItemLost;
 

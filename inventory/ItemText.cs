@@ -6,6 +6,25 @@ namespace DownhillRoguelite.Inventory;
 /// <summary>Words about items for the UI: a short description and their real properties.</summary>
 public static class ItemText
 {
+    /// <summary>How to use an item, in a line or two (the inventory page's legend).</summary>
+    public static string HowToUse(ItemDefinition? item)
+    {
+        if (item == null)
+        {
+            return "";
+        }
+        string use = item.Category switch
+        {
+            ItemCategory.Food => "Eat: the Eat button, F, or V on the hotbar.",
+            ItemCategory.Water => "Drink: the Drink button, Q, or V on the hotbar.",
+            ItemCategory.Clothing => "Wear: the Wear button or V. Take it off: click it on the equipment sheet.",
+            ItemCategory.Material => "Mend worn gear or the pack: the Mend button, at a station's fire.",
+            ItemCategory.Cargo => "Cargo: carry it down. Its weight and place in the pack shift your balance.",
+            _ => "Kept in the pack: it helps by being carried (paper and pencil let you draw on the map, M).",
+        };
+        return use + "\nDrop it: the Drop button, or G on the hotbar.";
+    }
+
     public static string Describe(ItemDefinition? item)
     {
         if (item == null)

@@ -79,6 +79,21 @@ public partial class Hotbar : Control
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        // The mouse wheel steps through the hotbar while walking (pages and the map use it themselves).
+        if (@event is InputEventMouseButton wheel && wheel.Pressed && !GameEvents.IsPacking && !GameEvents.IsScreenOpen && !GameEvents.IsMapOpen)
+        {
+            if (wheel.ButtonIndex == MouseButton.WheelDown)
+            {
+                Select((Selected + 1) % Slots);
+                GetViewport().SetInputAsHandled();
+            }
+            else if (wheel.ButtonIndex == MouseButton.WheelUp)
+            {
+                Select((Selected + Slots - 1) % Slots);
+                GetViewport().SetInputAsHandled();
+            }
+            return;
+        }
         if (GameEvents.IsPacking || @event is not InputEventKey key || !key.Pressed || key.Echo)
         {
             return;
@@ -91,6 +106,12 @@ public partial class Hotbar : Control
         else if (key.PhysicalKeycode == Key.V)
         {
             UseSelected();
+            GetViewport().SetInputAsHandled();
+        }
+        else if (key.PhysicalKeycode == Key.G && SelectedId.Length > 0)
+        {
+            // G drops the selected item on the ground.
+            GameEvents.RequestDrop(SelectedId);
             GetViewport().SetInputAsHandled();
         }
     }
