@@ -30,6 +30,21 @@ public partial class FieldMap : Node3D
     [Export] public int TextureSize { get; set; } = 768;
     /// <summary>Seconds between chart updates.</summary>
     [Export] public float RevealInterval { get; set; } = 0.25f;
+    /// <summary>Chart cells per side of a painted tile, and pixels per cell in it (ChartTiles).</summary>
+    [Export] public int CellsPerTile { get; set; } = 32;
+    [Export] public int PixelsPerCell { get; set; } = 6;
+    /// <summary>
+    /// The sheet stays put while held (a paper map doesn't scroll): the carrier's arrow moves across
+    /// it, and the sheet re-centres in one step only when the arrow comes this close to an edge, as a
+    /// fraction of the sheet.
+    /// </summary>
+    [Export(PropertyHint.Range, "0,0.45")] public float EdgeMargin { get; set; } = 0.18f;
+    /// <summary>The chart is redrawn only when the arrow moved this many pixels, turned this many degrees, or the chart changed.</summary>
+    [Export] public float RedrawMovePixels { get; set; } = 2.0f;
+    [Export] public float RedrawTurnDegrees { get; set; } = 4.0f;
+    /// <summary>Seconds between checks for something to redraw, and between refreshes of the supply dots.</summary>
+    [Export] public float RedrawCheckInterval { get; set; } = 0.1f;
+    [Export] public float LootRefreshInterval { get; set; } = 1.5f;
 
     [ExportGroup("Holding")]
     /// <summary>Where the sheet is held, in camera space, in m.</summary>
@@ -56,7 +71,13 @@ public partial class FieldMap : Node3D
     public bool IsOpen { get; private set; }
     /// <summary>Centre of the chart in world XZ (the carrier).</summary>
     /// <summary>Where the sheet is centred: the carrier, moved by panning (drag the map, Valheim style).</summary>
-    public Vector2 Centre => CarrierPoint + Pan;
+    public Vector2 Centre => Anchor + Pan;
+    /// <summary>Where the sheet was centred when raised (follows the carrier while the map is down).</summary>
+    public Vector2 Anchor { get; private set; }
+    /// <summary>The explored ground, painted into textures.</summary>
+    public ChartTiles Tiles { get; private set; } = new(8.0f, 32, 6);
+    /// <summary>How many times the chart has been redrawn (tests: it must not redraw while nothing changes).</summary>
+    public int RedrawCount { get; private set; }
     /// <summary>The carrier on the ground (x, z).</summary>
     public Vector2 CarrierPoint { get; private set; }
     /// <summary>How far the view is dragged from the carrier, in m (reset each time the map is raised).</summary>
@@ -87,7 +108,6 @@ public partial class FieldMap : Node3D
     private Vector3 _carrier;
     private float _raise;
     private float _revealTimer;
-    private float _redrawTimer;
     private int _zoom;
     private bool _pressing;
     private bool _drawing;
@@ -102,7 +122,15 @@ public partial class FieldMap : Node3D
         _run = GetNodeOrNull<RunState>("/root/RunState");
         _clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
         Chart = new MapChart(CellSize, MaxWaypoints);
+        Tiles = new ChartTiles(CellSize, CellsPerTile, PixelsPerCell);
         Build();
+        if (_canvas != null)
+        {
+            Tiles.Light = _canvas.GroundLight;
+            Tiles.Dark = _canvas.GroundDark;
+            Tiles.ContourInk = _canvas.Contour;
+            Tiles.ContourStep = _canvas.ContourStep;
+        }
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
         GameEvents.RespawnRequested += OnNewRun;
     }
@@ -178,11 +206,16 @@ public partial class FieldMap : Node3D
         _carrier = snapshot.Position;
         CarrierPoint = new Vector2(snapshot.Position.X, snapshot.Position.Z);
         Facing = new Vector2(snapshot.Forward.X, snapshot.Forward.Z);
+        if (!IsOpen)
+        {
+            Anchor = CarrierPoint;
+        }
     }
 
     private void OnNewRun()
     {
         Chart.Clear();
+        Tiles.Clear();
         foreach (WaypointMarker marker in _markers)
         {
             marker.QueueFree();
@@ -212,6 +245,7 @@ public partial class FieldMap : Node3D
         _pressing = false;
         _drawing = false;
         Pan = Vector2.Zero;
+        Anchor = CarrierPoint;
         GameEvents.PublishMapOpen(open);
         if (open)
         {
@@ -292,6 +326,7 @@ public partial class FieldMap : Node3D
     public void Recentre()
     {
         Pan = Vector2.Zero;
+        Anchor = CarrierPoint;
         Redraw();
     }
 
@@ -484,9 +519,23 @@ public partial class FieldMap : Node3D
             }
             float sight = Mathf.Lerp(Sight.X, Sight.Y, darkness) * (1.0f - 0.5f * Mathf.Clamp(GameEvents.CurrentWeather.Fog, 0.0f, 1.0f));
             IRouteQuery route = Route;
-            if (Chart.Reveal(CarrierPoint, sight, route.GroundHeight) > 0 && IsOpen)
+            if (Chart.Reveal(CarrierPoint, sight, route.GroundHeight) > 0)
             {
-                Redraw();
+                // Painted now, even with the map down, so raising it is instant.
+                Tiles.Paint(Chart, Chart.TakeFresh());
+            }
+        }
+        if (IsOpen)
+        {
+            KeepCarrierOnSheet();
+            _checkTimer -= dt;
+            if (_checkTimer <= 0.0f)
+            {
+                _checkTimer = RedrawCheckInterval;
+                if (NeedsRedraw(dt))
+                {
+                    Redraw();
+                }
             }
         }
 
@@ -513,12 +562,6 @@ public partial class FieldMap : Node3D
         _sheet.Visible = _raise > 0.01f;
         if (!_sheet.Visible)
         {
-            // Shown on a UI page instead: keep the chart fresh while it is open.
-            _redrawTimer -= dt;
-            if (IsOpen && _redrawTimer <= 0.0f)
-            {
-                Redraw();
-            }
             return;
         }
         Vector3 offset = LoweredOffset.Lerp(HeldOffset, Mathf.SmoothStep(0.0f, 1.0f, _raise));
@@ -541,16 +584,67 @@ public partial class FieldMap : Node3D
             _needle.Rotation = new Vector3(0.0f, 0.0f, -angle);
         }
 
-        _redrawTimer -= dt;
-        if (IsOpen && _redrawTimer <= 0.0f)
+    }
+
+    /// <summary>When the arrow nears the sheet's edge (and the player hasn't dragged the view), the sheet re-centres in one step.</summary>
+    private void KeepCarrierOnSheet()
+    {
+        if (!Pan.IsZeroApprox())
         {
+            return;
+        }
+        Vector2 size = new(TextureSize, TextureSize);
+        Vector2 pixel = MapCanvas.ToPixel(CarrierPoint, Centre, MetresAcross / TextureSize, size);
+        float margin = TextureSize * EdgeMargin;
+        if (pixel.X < margin || pixel.Y < margin || pixel.X > size.X - margin || pixel.Y > size.Y - margin)
+        {
+            Anchor = CarrierPoint;
             Redraw();
         }
     }
 
+    /// <summary>Whether anything on the sheet changed enough to be worth drawing again.</summary>
+    private bool NeedsRedraw(float dt)
+    {
+        _lootTimer -= RedrawCheckInterval;
+        if (_lootTimer <= 0.0f)
+        {
+            return true;
+        }
+        if (Chart.Version != _drawnVersion || !Centre.IsEqualApprox(_drawnCentre) || !Mathf.IsEqualApprox(MetresAcross, _drawnMetres))
+        {
+            return true;
+        }
+        float metresPerPixel = MetresAcross / TextureSize;
+        if (CarrierPoint.DistanceTo(_drawnCarrier) / metresPerPixel >= RedrawMovePixels)
+        {
+            return true;
+        }
+        if (!Facing.IsZeroApprox() && !_drawnFacing.IsZeroApprox() && Mathf.Abs(Facing.AngleTo(_drawnFacing)) >= Mathf.DegToRad(RedrawTurnDegrees))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private float _checkTimer;
+    private float _lootTimer;
+    private int _drawnVersion = -1;
+    private Vector2 _drawnCentre;
+    private Vector2 _drawnCarrier;
+    private Vector2 _drawnFacing;
+    private float _drawnMetres;
+
     private void Redraw()
     {
-        _redrawTimer = 0.2f;
+        Tiles.Commit();
+        _drawnVersion = Chart.Version;
+        _drawnCentre = Centre;
+        _drawnCarrier = CarrierPoint;
+        _drawnFacing = Facing;
+        _drawnMetres = MetresAcross;
+        _lootTimer = LootRefreshInterval;
+        RedrawCount++;
         _canvas?.QueueRedraw();
         if (_viewport != null)
         {

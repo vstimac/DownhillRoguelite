@@ -21,6 +21,18 @@ public sealed class MapChart
     private readonly Dictionary<Vector2I, float> _seen = new();
     private readonly List<Vector2> _waypoints = new();
     private readonly List<List<Vector2>> _drawings = new();
+    private readonly List<Vector2I> _fresh = new();
+
+    /// <summary>Goes up with every change (ground seen, waypoints, drawings), so the map redraws only when it must.</summary>
+    public int Version { get; private set; }
+
+    /// <summary>Cells seen since the last call, to be painted into the chart's tiles; the list is emptied.</summary>
+    public List<Vector2I> TakeFresh()
+    {
+        List<Vector2I> fresh = new(_fresh);
+        _fresh.Clear();
+        return fresh;
+    }
 
     public MapChart(float cellSize, int maxWaypoints)
     {
@@ -65,8 +77,13 @@ public sealed class MapChart
                     continue;
                 }
                 _seen[cell] = heightAt(middle.X, middle.Y);
+                _fresh.Add(cell);
                 added++;
             }
+        }
+        if (added > 0)
+        {
+            Version++;
         }
         return added;
     }
@@ -79,6 +96,7 @@ public sealed class MapChart
             _waypoints.RemoveAt(0);
         }
         _waypoints.Add(point);
+        Version++;
         return _waypoints.Count - 1;
     }
 
@@ -101,6 +119,7 @@ public sealed class MapChart
             return false;
         }
         _waypoints.RemoveAt(best);
+        Version++;
         return true;
     }
 
@@ -108,6 +127,7 @@ public sealed class MapChart
     public void BeginStroke(Vector2 point)
     {
         _drawings.Add(new List<Vector2> { point });
+        Version++;
     }
 
     /// <summary>Extends the current pencil line; returns the length added, in m.</summary>
@@ -121,6 +141,7 @@ public sealed class MapChart
         List<Vector2> stroke = _drawings[^1];
         float length = stroke[^1].DistanceTo(point);
         stroke.Add(point);
+        Version++;
         return length;
     }
 
@@ -129,5 +150,7 @@ public sealed class MapChart
         _seen.Clear();
         _waypoints.Clear();
         _drawings.Clear();
+        _fresh.Clear();
+        Version++;
     }
 }

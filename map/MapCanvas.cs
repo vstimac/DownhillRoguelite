@@ -41,38 +41,9 @@ public partial class MapCanvas : Control
         Vector2 centre = Map.Centre;
         Font font = ThemeDB.FallbackFont;
 
-        // Seen ground: a tone per contour band, and a line where the band changes.
-        float cellPixels = chart.CellSize / metresPerPixel;
+        // Seen ground: painted once into tile textures (ChartTiles), drawn here as a few rectangles.
         Vector2 half = size * 0.5f * metresPerPixel;
-        Vector2I low = chart.CellAt(centre.X - half.X, centre.Y - half.Y);
-        Vector2I high = chart.CellAt(centre.X + half.X, centre.Y + half.Y);
-        for (int cx = low.X; cx <= high.X; cx++)
-        {
-            for (int cz = low.Y; cz <= high.Y; cz++)
-            {
-                Vector2I cell = new(cx, cz);
-                if (!chart.Seen.TryGetValue(cell, out float height))
-                {
-                    continue;
-                }
-                int band = Mathf.FloorToInt(height / ContourStep);
-                Color tone = GroundLight;
-                if ((band & 1) == 1)
-                {
-                    tone = GroundDark;
-                }
-                Vector2 corner = ToPixel(new Vector2(cx * chart.CellSize, cz * chart.CellSize), centre, metresPerPixel, size);
-                DrawRect(new Rect2(corner, new Vector2(cellPixels + 0.5f, cellPixels + 0.5f)), tone);
-                if (chart.Seen.TryGetValue(new Vector2I(cx + 1, cz), out float east) && Mathf.FloorToInt(east / ContourStep) != band)
-                {
-                    DrawLine(corner + new Vector2(cellPixels, 0.0f), corner + new Vector2(cellPixels, cellPixels), Contour, 1.0f);
-                }
-                if (chart.Seen.TryGetValue(new Vector2I(cx, cz + 1), out float south) && Mathf.FloorToInt(south / ContourStep) != band)
-                {
-                    DrawLine(corner + new Vector2(0.0f, cellPixels), corner + new Vector2(cellPixels, cellPixels), Contour, 1.0f);
-                }
-            }
-        }
+        Map.Tiles.Draw(this, centre, metresPerPixel, size);
 
         if (route != null)
         {
