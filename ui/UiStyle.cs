@@ -57,6 +57,27 @@ public static class UiStyle
         return material;
     }
 
+    /// <summary>How big text is once wrapped at a width, the way a WordSmart label wraps it: widest line, total height.</summary>
+    public static Vector2 Wrapped(string text, int size, float width, bool heading = false)
+    {
+        Font font = Hand;
+        if (heading)
+        {
+            font = Heading;
+        }
+        TextParagraph paragraph = new() { Width = width, BreakFlags = TextServer.LineBreakFlag.Mandatory | TextServer.LineBreakFlag.WordBound | TextServer.LineBreakFlag.Adaptive };
+        paragraph.AddString(text, font, size);
+        float widest = 0.0f;
+        float height = 0.0f;
+        for (int i = 0; i < paragraph.GetLineCount(); i++)
+        {
+            Vector2 line = paragraph.GetLineSize(i);
+            widest = Mathf.Max(widest, line.X);
+            height += line.Y;
+        }
+        return new Vector2(Mathf.Ceil(widest) + 2.0f, Mathf.Ceil(height) + 2.0f);
+    }
+
     public static Label MakeLabel(string text, int size = TextSize, bool heading = false, Color? colour = null)
     {
         Label label = new() { Text = text, MouseFilter = Control.MouseFilterEnum.Ignore };

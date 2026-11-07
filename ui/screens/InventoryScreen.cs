@@ -86,7 +86,7 @@ public partial class InventoryScreen : ParchmentPanel
         Title = "Inventory";
         Closable = true;
         Seed = 41.0f;
-        Size = new Vector2(880, 520);
+        Size = new Vector2(880, 600);
         base._Ready();
         float cell = 72.0f;
         for (int i = 0; i < Columns * Rows; i++)
@@ -112,13 +112,13 @@ public partial class InventoryScreen : ParchmentPanel
         AddChild(_detailTitle);
         _detailBody = UiStyle.MakeLabel("Choose something to read about it.", UiStyle.SmallSize);
         _detailBody.Position = new Vector2(detailX, 204);
-        _detailBody.Size = new Vector2(StatsX - detailX - 16, 150);
+        _detailBody.Size = new Vector2(StatsX - detailX - 16, 230);
         _detailBody.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         AddChild(_detailBody);
-        _use = new InkButton { Text = "Eat", Paper = true, Position = new Vector2(detailX, 360), Size = new Vector2(110, 40), Visible = false };
+        _use = new InkButton { Text = "Eat", Paper = true, Position = new Vector2(detailX, 448), Size = new Vector2(110, 40), Visible = false };
         _use.Pressed += UseSelected;
         AddChild(_use);
-        _drop = new InkButton { Text = "Drop", Paper = true, Position = new Vector2(detailX + 120, 360), Size = new Vector2(90, 40), Visible = false };
+        _drop = new InkButton { Text = "Drop", Paper = true, Position = new Vector2(detailX + 120, 448), Size = new Vector2(90, 40), Visible = false };
         _drop.Pressed += DropSelected;
         AddChild(_drop);
         _stats = UiStyle.MakeLabel("", UiStyle.SmallSize);

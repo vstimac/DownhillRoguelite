@@ -11,7 +11,7 @@ namespace DownhillRoguelite.Ui;
 /// </summary>
 public partial class JournalScreen : ParchmentPanel
 {
-    public const int EntriesPerPage = 6;
+    public const int EntriesPerPage = 5;
 
     public JournalLog? Log { get; set; }
     public int Page { get; private set; }
