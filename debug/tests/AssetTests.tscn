@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/AssetTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://audio/SoundEffects.cs" id="2_sfx"]
+[ext_resource type="Script" path="res://audio/Footsteps.cs" id="3_steps"]
+
+[node name="AssetTests" type="Node3D" node_paths=PackedStringArray("Sounds", "Steps")]
+script = ExtResource("1_tests")
+Sounds = NodePath("Sounds")
+Steps = NodePath("Steps")
+
+[node name="Sounds" type="Node" parent="."]
+script = ExtResource("2_sfx")
+
+[node name="Steps" type="Node" parent="."]
+script = ExtResource("3_steps")

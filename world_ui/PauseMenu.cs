@@ -28,6 +28,9 @@ public partial class PauseMenu : CanvasLayer
     public bool IsOpen => Visible;
 
     private Control? _root;
+    private AudioStreamPlayer? _click;
+    private AudioStream? _openSound;
+    private AudioStream? _closeSound;
 
     public override void _Ready()
     {
@@ -35,6 +38,10 @@ public partial class PauseMenu : CanvasLayer
         Layer = 50;
         Build();
         Visible = false;
+        _openSound = LoadSound("res://audio/sfx/kenney_interface_sounds/open_001.ogg");
+        _closeSound = LoadSound("res://audio/sfx/kenney_interface_sounds/close_001.ogg");
+        _click = new AudioStreamPlayer { VolumeDb = -6.0f };
+        AddChild(_click);
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -58,8 +65,38 @@ public partial class PauseMenu : CanvasLayer
         }
     }
 
+    private static AudioStream? LoadSound(string path)
+    {
+        if (DisplayServer.GetName() == "headless" || !ResourceLoader.Exists(path))
+        {
+            return null;
+        }
+        return ResourceLoader.Load<AudioStream>(path);
+    }
+
+    private void Sound(AudioStream? sound)
+    {
+        if (_click != null && sound != null)
+        {
+            _click.Stream = sound;
+            _click.Play();
+        }
+    }
+
+    public override void _ExitTree()
+    {
+        if (_click != null)
+        {
+            _click.Stop();
+            _click.Stream = null;
+        }
+        _openSound = null;
+        _closeSound = null;
+    }
+
     public void Open()
     {
+        Sound(_openSound);
         Visible = true;
         GetTree().Paused = true;
         Input.MouseMode = Input.MouseModeEnum.Visible;
@@ -67,6 +104,7 @@ public partial class PauseMenu : CanvasLayer
 
     public void Resume()
     {
+        Sound(_closeSound);
         Visible = false;
         GetTree().Paused = false;
         if (!GameEvents.IsPacking)

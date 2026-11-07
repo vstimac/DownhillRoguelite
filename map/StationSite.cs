@@ -26,6 +26,8 @@ public partial class StationSite : Node3D
     [Export] public float FireVolumeDb { get; set; } = 2.0f;
     /// <summary>Distance the fire can be heard from, in m.</summary>
     [Export] public float FireHearing { get; set; } = 35.0f;
+    /// <summary>The terrace's tilt down the slope (terrain's ClearingSlope), for placing props, in degrees.</summary>
+    [Export] public float TerraceSlope { get; set; } = 10.0f;
 
     public int Index { get; private set; }
 
@@ -79,6 +81,7 @@ public partial class StationSite : Node3D
         _fire = new OmniLight3D { LightColor = FireColor, LightEnergy = FireEnergy, OmniRange = FireRange, Position = new Vector3(0.0f, 0.8f, 0.0f), ShadowEnabled = true };
         AddChild(_fire);
         AddFireSound();
+        AddProps();
 
         // Lean-to: two posts and a sloping roof, open toward the fire, with the bedroll under it.
         Vector3 shelter = new(ShelterOffset, 0.0f, 0.0f);
@@ -121,6 +124,39 @@ public partial class StationSite : Node3D
         _time += (float)delta;
         float flicker = Mathf.Sin(_time * FlickerSpeed) * 0.5f + Mathf.Sin(_time * FlickerSpeed * 2.3f + 1.7f) * 0.5f;
         _fire.LightEnergy = FireEnergy * (1.0f + FlickerAmount * flicker);
+    }
+
+    /// <summary>
+    /// Traces of carriers who came before: a few weathered gravestones behind the lean-to and a candle
+    /// lantern by the fire (Kenney graveyard kit). Heights follow the terrace's tilt down the slope.
+    /// </summary>
+    private void AddProps()
+    {
+        const string Kit = "res://art/props/kenney_graveyard_kit/GLB format/";
+        (string Model, Vector3 At, float Yaw, float Height)[] props =
+        {
+            ("gravestone-round", new Vector3(7.6f, 0.0f, 2.6f), 15.0f, 1.0f),
+            ("gravestone-cross", new Vector3(8.8f, 0.0f, 0.6f), -10.0f, 1.2f),
+            ("gravestone-broken", new Vector3(7.2f, 0.0f, -1.6f), 30.0f, 0.7f),
+            ("lantern-candle", new Vector3(-1.3f, 0.0f, 1.1f), 0.0f, 0.5f),
+        };
+        float tilt = Mathf.Tan(Mathf.DegToRad(TerraceSlope));
+        foreach ((string model, Vector3 at, float yaw, float height) in props)
+        {
+            string path = Kit + model + ".glb";
+            if (!ResourceLoader.Exists(path) || ResourceLoader.Load(path) is not PackedScene scene)
+            {
+                continue;
+            }
+            Node3D holder = new() { Name = model };
+            holder.AddChild(scene.Instantiate<Node3D>());
+            Aabb bounds = DownhillRoguelite.Core.ModelFit.Bounds(holder);
+            float scale = height / Mathf.Max(bounds.Size.Y, 0.01f);
+            holder.Transform = DownhillRoguelite.Core.ModelFit.FitOnGround(bounds, bounds.Size * scale, true);
+            Node3D place = new() { Position = new Vector3(at.X, at.Z * tilt, at.Z), RotationDegrees = new Vector3(0.0f, yaw, 0.0f) };
+            place.AddChild(holder);
+            AddChild(place);
+        }
     }
 
     private void AddMesh(Mesh mesh, Transform3D transform, Material material)
