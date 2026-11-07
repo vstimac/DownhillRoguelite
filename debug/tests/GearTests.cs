@@ -41,6 +41,7 @@ public partial class GearTests : Node
         TestMending(Inventory, gear);
         TestTornPack(Inventory, gear);
         TestPockets(Inventory, gear);
+        TestDrop(Inventory);
         await TestNewRun(Inventory, gear);
 
         GameEvents.ItemLost -= OnLost;
@@ -266,6 +267,17 @@ public partial class GearTests : Node
         int before = gear.PocketItems.Count;
         Check(gear.TakeFromPocket("sewing_kit", out ItemDefinition? taken) && taken == kit && gear.PocketItems.Count == before - 1,
             "items come back out of a pocket", "couldn't take an item out of a pocket");
+    }
+
+    private void TestDrop(CarrierInventory inventory)
+    {
+        Reset(inventory);
+        inventory.TryAdd(Item("cord"), -1.0f, false);
+        int before = GetTree().GetNodesInGroup(IInteractable.Group).Count;
+        GameEvents.RequestDrop("cord");
+        int after = GetTree().GetNodesInGroup(IInteractable.Group).Count;
+        Check(Carried(inventory, "cord") == 0 && after == before + 1,
+            "dropping puts the item on the ground, where it can be picked up again", $"drop: carried {Carried(inventory, "cord")}, ground items {before} to {after}");
     }
 
     private async Task TestNewRun(CarrierInventory inventory, CarrierEquipment gear)

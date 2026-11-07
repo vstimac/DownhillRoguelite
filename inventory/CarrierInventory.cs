@@ -62,6 +62,7 @@ public partial class CarrierInventory : Node
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.ItemsGranted += OnItemsGranted;
         GameEvents.ItemUseRequested += OnItemUseRequested;
+        GameEvents.DropRequested += OnDropRequested;
         GameEvents.UseItemRequested += OnUseItemRequested;
         foreach (string path in StartingItemPaths)
         {
@@ -96,6 +97,7 @@ public partial class CarrierInventory : Node
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.ItemsGranted -= OnItemsGranted;
         GameEvents.ItemUseRequested -= OnItemUseRequested;
+        GameEvents.DropRequested -= OnDropRequested;
         GameEvents.UseItemRequested -= OnUseItemRequested;
         // Managed references keep resources alive until the GC runs; drop them with the node.
         _loose.Clear();
@@ -269,6 +271,76 @@ public partial class CarrierInventory : Node
                 TryAdd(item);
             }
         }
+    }
+
+    /// <summary>How far in front of the carrier a dropped item lands, in m.</summary>
+    [Export] public float DropDistance { get; set; } = 0.9f;
+    [Export(PropertyHint.Layers3DPhysics)] public uint DropGroundMask { get; set; } = 1;
+
+    /// <summary>Drops one carried item with this id (pack, loose or pocket) on the ground in front of the carrier.</summary>
+    private void OnDropRequested(string itemId)
+    {
+        ItemDefinition? item = null;
+        if (Grid != null)
+        {
+            foreach (PackedItem packed in Grid.Items)
+            {
+                if (packed.Definition.ItemId == itemId)
+                {
+                    item = packed.Definition;
+                    Consume(packed);
+                    break;
+                }
+            }
+        }
+        if (item == null)
+        {
+            for (int i = 0; i < _loose.Count; i++)
+            {
+                if (_loose[i].ItemId == itemId)
+                {
+                    item = _loose[i];
+                    _all.Remove(item);
+                    _loose.RemoveAt(i);
+                    Publish();
+                    break;
+                }
+            }
+        }
+        if (item == null && Equipment != null && Equipment.TakeFromPocket(itemId, out ItemDefinition? pocketed) && pocketed != null)
+        {
+            item = pocketed;
+            ForgetOwned(pocketed);
+        }
+        if (item == null)
+        {
+            return;
+        }
+        Node3D? carrier = GetParent() as Node3D;
+        Vector3 at = GameEvents.CarrierPosition;
+        if (carrier != null)
+        {
+            Vector3 forward = -carrier.GlobalBasis.Z;
+            forward.Y = 0.0f;
+            if (!forward.IsZeroApprox())
+            {
+                at += forward.Normalized() * DropDistance;
+            }
+        }
+        WorldItem dropped = new() { Definition = item, Name = $"Dropped_{item.ItemId}" };
+        Node parent = GetTree().CurrentScene ?? GetTree().Root;
+        parent.AddChild(dropped);
+        if (carrier != null && carrier.IsInsideTree())
+        {
+            Godot.Collections.Dictionary hit = carrier.GetWorld3D().DirectSpaceState.IntersectRay(
+                PhysicsRayQueryParameters3D.Create(at + Vector3.Up * 2.0f, at + Vector3.Down * 4.0f, DropGroundMask));
+            if (hit.Count > 0)
+            {
+                at = (Vector3)hit["position"];
+            }
+        }
+        dropped.GlobalPosition = at;
+        GameEvents.PublishItemDropped(item.ItemId);
     }
 
     /// <summary>Uses up one carried item with this id (packed or loose).</summary>

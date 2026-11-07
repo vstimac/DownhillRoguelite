@@ -28,14 +28,65 @@ public partial class InventoryScreen : ParchmentPanel
     private Label? _detailTitle;
     private Label? _detailBody;
     private InkButton? _use;
+    private InkButton? _drop;
     private WeightScale? _weight;
+    private Label? _stats;
+    private VitalsSnapshot? _vitals;
+    private RunState? _run;
+    /// <summary>Where the carrier's stats column starts on the page, in px.</summary>
+    private const float StatsX = 652.0f;
+
+    public override void _ExitTree()
+    {
+        GameEvents.VitalsUpdated -= OnVitals;
+    }
+
+    private void OnVitals(VitalsSnapshot vitals) => _vitals = vitals;
+
+    /// <summary>The carrier's state beside the pack: body, load, what the gear gives, where they are.</summary>
+    public string StatsText()
+    {
+        List<string> lines = new() { "THE CARRIER", "" };
+        if (_vitals is VitalsSnapshot v)
+        {
+            lines.Add($"Health  {v.Health:0} / {v.MaxHealth:0}");
+            lines.Add($"Hunger  {v.Hunger:0} / 100");
+            lines.Add($"Thirst  {v.Thirst:0} / 100");
+            lines.Add($"Stamina  {v.Stamina:0} / {v.MaxStamina:0}");
+            lines.Add("");
+        }
+        GearSnapshot gear = GameEvents.CurrentGear;
+        lines.Add($"Load  {GameEvents.CurrentLoad.Mass:0.0} kg");
+        if (gear.Backpack.MaxDurability > 0.0f)
+        {
+            lines.Add($"Pack  {gear.Backpack.Durability:0} / {gear.Backpack.MaxDurability:0}");
+        }
+        lines.Add($"Pockets  {gear.PocketsUsed} / {gear.Pockets}");
+        lines.Add($"Warmth  +{gear.Warmth * 100.0f:0}%");
+        lines.Add($"Rain cover  {gear.RainProof * 100.0f:0}%");
+        lines.Add($"Grip  +{gear.Grip * 100.0f:0}%");
+        if (gear.WindCatch > 0.0f)
+        {
+            lines.Add($"Catches wind  +{gear.WindCatch:0.00} m\u00b2");
+        }
+        if (_run != null)
+        {
+            lines.Add("");
+            lines.Add($"{_run.Depth} m down, {_run.Circles.NameOf(_run.Circle)}");
+            if (_run.Boons.Count > 0)
+            {
+                lines.Add("Boons: " + string.Join(", ", _run.Boons));
+            }
+        }
+        return string.Join("\n", lines);
+    }
 
     public override void _Ready()
     {
         Title = "Inventory";
         Closable = true;
         Seed = 41.0f;
-        Size = new Vector2(640, 520);
+        Size = new Vector2(880, 520);
         base._Ready();
         float cell = 72.0f;
         for (int i = 0; i < Columns * Rows; i++)
@@ -61,13 +112,22 @@ public partial class InventoryScreen : ParchmentPanel
         AddChild(_detailTitle);
         _detailBody = UiStyle.MakeLabel("Choose something to read about it.", UiStyle.SmallSize);
         _detailBody.Position = new Vector2(detailX, 204);
-        _detailBody.Size = new Vector2(Size.X - detailX - 20, 140);
+        _detailBody.Size = new Vector2(StatsX - detailX - 16, 150);
         _detailBody.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         AddChild(_detailBody);
         _use = new InkButton { Text = "Eat", Paper = true, Position = new Vector2(detailX, 360), Size = new Vector2(110, 40), Visible = false };
         _use.Pressed += UseSelected;
         AddChild(_use);
-        _weight = new WeightScale { Position = new Vector2(24, Size.Y - 64), Size = new Vector2(Size.X - 48, 40) };
+        _drop = new InkButton { Text = "Drop", Paper = true, Position = new Vector2(detailX + 120, 360), Size = new Vector2(90, 40), Visible = false };
+        _drop.Pressed += DropSelected;
+        AddChild(_drop);
+        _stats = UiStyle.MakeLabel("", UiStyle.SmallSize);
+        _stats.Position = new Vector2(StatsX, 60);
+        _stats.Size = new Vector2(Size.X - StatsX - 20, 400);
+        AddChild(_stats);
+        GameEvents.VitalsUpdated += OnVitals;
+        _run = GetNodeOrNull<RunState>("/root/RunState");
+        _weight = new WeightScale { Position = new Vector2(24, Size.Y - 64), Size = new Vector2(StatsX - 48, 40) };
         AddChild(_weight);
         SetOpenNow(false);
     }
@@ -89,6 +149,10 @@ public partial class InventoryScreen : ParchmentPanel
         {
             _weight.Mass = GameEvents.CurrentLoad.Mass;
             _weight.QueueRedraw();
+        }
+        if (_stats != null)
+        {
+            _stats.Text = StatsText();
         }
     }
 
@@ -173,11 +237,15 @@ public partial class InventoryScreen : ParchmentPanel
             _detailTitle.Text = "";
             _detailBody.Text = "Choose something to read about it.";
             _use.Visible = false;
+            if (_drop != null)
+            {
+                _drop.Visible = false;
+            }
             return;
         }
         _detailIcon.SetItem(item, _counts.GetValueOrDefault(item.ItemId));
         _detailTitle.Text = item.DisplayName;
-        _detailBody.Text = ItemText.Describe(item) + "\n" + ItemText.Properties(item);
+        _detailBody.Text = ItemText.Describe(item) + "\n" + ItemText.Properties(item) + "\n\n" + ItemText.HowToUse(item);
         _use.Visible = item.Category is ItemCategory.Food or ItemCategory.Water or ItemCategory.Clothing or ItemCategory.Material;
         _use.Text = "Eat";
         if (item.Category == ItemCategory.Water)
@@ -197,6 +265,22 @@ public partial class InventoryScreen : ParchmentPanel
             }
         }
         _use.QueueRedraw();
+        if (_drop != null)
+        {
+            _drop.Visible = true;
+            _drop.QueueRedraw();
+        }
+    }
+
+    /// <summary>Puts one of the selected item down on the ground in front of the carrier.</summary>
+    public void DropSelected()
+    {
+        if (SelectedIndex < 0 || SelectedIndex >= _order.Count)
+        {
+            return;
+        }
+        _slots[SelectedIndex].Pop();
+        GameEvents.RequestDrop(_order[SelectedIndex]);
     }
 
     private void UseSelected()
