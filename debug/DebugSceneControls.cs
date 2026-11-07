@@ -84,6 +84,15 @@ public partial class DebugSceneControls : Node
                 GetTree().CreateTimer(seconds).Timeout += () => Input.ActionRelease("player_move_forward");
             }
         }
+        // `--page=inventory` (or journal) opens a UI page after a few seconds (render checks).
+        foreach (string arg in args)
+        {
+            if (arg.StartsWith("--page="))
+            {
+                string page = arg.Substring("--page=".Length);
+                GetTree().CreateTimer(3.0).Timeout += () => OpenPage(page);
+            }
+        }
         // `--map` raises the map at start (render checks).
         if (System.Array.IndexOf(args, "--map") >= 0)
         {
@@ -222,6 +231,24 @@ public partial class DebugSceneControls : Node
                     }
                 }
                 return;
+            }
+        }
+    }
+
+    private void OpenPage(string page)
+    {
+        foreach (Node node in GetTree().GetNodesInGroup(Ui.Hud.Group))
+        {
+            if (node is Ui.Hud hud)
+            {
+                if (page == "journal")
+                {
+                    hud.Toggle(hud.Journal);
+                }
+                else
+                {
+                    hud.Toggle(hud.Inventory);
+                }
             }
         }
     }

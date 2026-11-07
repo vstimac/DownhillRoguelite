@@ -11,7 +11,7 @@ namespace DownhillRoguelite.Inventory;
 /// IndicatorRadius an arrow bobs above it, pointing down at it. Close and facing it, an in-world
 /// label shows; E packs it into the carrier's inventory if there's room, otherwise the label says so.
 /// </summary>
-public partial class WorldItem : Node3D, IInteractable
+public partial class WorldItem : Node3D, IInteractable, IDescribed
 {
     [Export] public ItemDefinition? Definition { get; set; }
     /// <summary>Visual scale of the box compared to the item's real size.</summary>
@@ -43,6 +43,12 @@ public partial class WorldItem : Node3D, IInteractable
     public string SlotKey { get; set; } = "";
 
     public Vector3 InteractionPoint => GlobalPosition;
+
+    public string Title => Definition?.DisplayName ?? "";
+    public string Description => ItemText.Describe(Definition);
+    public string Details => ItemText.Properties(Definition);
+    public string Prompt => "E  Pick up";
+    public Resource? IconSource => Definition;
 
     private Label3D? _label;
     private float _noRoomTimer;
