@@ -1,0 +1,20 @@
+name: Discord updates
+
+# Posts every push (whole commit messages) and every published release (whole notes, with the
+# download links) to the team's Discord channel. The webhook URL is the DISCORD_WEBHOOK secret.
+on:
+  push:
+  release:
+    types: [published]
+
+jobs:
+  discord:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+      - name: Post to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: python3 .github/scripts/discord_post.py
