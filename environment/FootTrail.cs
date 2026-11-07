@@ -39,6 +39,7 @@ public partial class FootTrail : Node3D
     private CpuParticles3D? _puffLeft;
     private CpuParticles3D? _puffRight;
     private Texture2D? _texture;
+    private Texture2D? _normal;
     private bool _enabled;
 
     public override void _Ready()
@@ -49,7 +50,7 @@ public partial class FootTrail : Node3D
         {
             return;
         }
-        _texture = MakePrintTexture();
+        _texture = MakePrintTexture(out _normal);
         _prints = new Decal[MaxPrints];
         _age = new float[MaxPrints];
         _life = new float[MaxPrints];
@@ -59,6 +60,7 @@ public partial class FootTrail : Node3D
             _prints[i] = new Decal
             {
                 TextureAlbedo = _texture,
+                TextureNormal = _normal,
                 Size = PrintSize,
                 Visible = false,
                 UpperFade = 0.2f,
@@ -163,11 +165,11 @@ public partial class FootTrail : Node3D
     {
         return surface switch
         {
-            "snow" => (new Color(0.55f, 0.62f, 0.78f, 0.75f), SnowLife, new Color(0.95f, 0.97f, 1.0f, 0.8f)),
-            "mud" => (new Color(0.22f, 0.15f, 0.08f, 0.8f), MudLife, new Color(0.3f, 0.2f, 0.1f, 0.8f)),
-            "grass" => (new Color(0.2f, 0.28f, 0.12f, 0.35f), GrassLife, new Color(0.0f, 0.0f, 0.0f, 0.0f)),
-            "scree" => (new Color(0.3f, 0.28f, 0.25f, 0.3f), GrassLife, new Color(0.65f, 0.6f, 0.52f, 0.6f)),
-            "sand" => (new Color(0.45f, 0.35f, 0.22f, 0.5f), MudLife, new Color(0.8f, 0.7f, 0.5f, 0.6f)),
+            "snow" => (new Color(0.9f, 0.94f, 1.0f, 0.9f), SnowLife, new Color(0.95f, 0.97f, 1.0f, 0.8f)),
+            "mud" => (new Color(0.36f, 0.25f, 0.14f, 0.9f), MudLife, new Color(0.3f, 0.2f, 0.1f, 0.8f)),
+            "grass" => (new Color(0.3f, 0.4f, 0.18f, 0.45f), GrassLife, new Color(0.35f, 0.5f, 0.2f, 0.7f)),
+            "scree" => (new Color(0.45f, 0.42f, 0.38f, 0.4f), GrassLife, new Color(0.65f, 0.6f, 0.52f, 0.6f)),
+            "sand" => (new Color(0.7f, 0.58f, 0.4f, 0.6f), MudLife, new Color(0.8f, 0.7f, 0.5f, 0.6f)),
             "rock" => (Colors.Transparent, 0.0f, new Color(0.6f, 0.58f, 0.55f, 0.35f)),
             _ => (Colors.Transparent, 0.0f, new Color(0.0f, 0.0f, 0.0f, 0.0f)),
         };
@@ -244,12 +246,18 @@ public partial class FootTrail : Node3D
         return puff;
     }
 
-    /// <summary>A boot print drawn once: a sole and a heel, soft-edged, white (tinted per surface).</summary>
-    private static Texture2D MakePrintTexture()
+    /// <summary>
+    /// A deep boot print drawn once from a height field: the sole and heel pressed in (darker), a
+    /// raised rim of pushed-out snow or mud round them (full ground colour), and a normal map so the
+    /// sun and the moon shade the walls of the dent. White and grey, tinted per surface.
+    /// </summary>
+    private static Texture2D MakePrintTexture(out Texture2D normal)
     {
         const int w = 32;
         const int h = 64;
-        Image image = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
+        float[,] height = new float[w, h];
+        float[,] cover = new float[w, h];
+        float[,] shade = new float[w, h];
         for (int y = 0; y < h; y++)
         {
             for (int x = 0; x < w; x++)
@@ -257,12 +265,33 @@ public partial class FootTrail : Node3D
                 float u = (x + 0.5f) / w * 2.0f - 1.0f;
                 float v = (y + 0.5f) / h;
                 // Sole: an ellipse in the front two thirds; heel: a smaller one at the back.
-                float sole = 1.0f - ((u * u) / 0.8f + (v - 0.33f) * (v - 0.33f) / 0.07f);
-                float heel = 1.0f - ((u * u) / 0.55f + (v - 0.8f) * (v - 0.8f) / 0.025f);
-                float a = Mathf.Clamp(Mathf.Max(sole, heel) * 4.0f, 0.0f, 1.0f);
-                image.SetPixel(x, y, new Color(1.0f, 1.0f, 1.0f, a));
+                float sole = 1.0f - ((u * u) / 0.62f + (v - 0.33f) * (v - 0.33f) / 0.055f);
+                float heel = 1.0f - ((u * u) / 0.42f + (v - 0.8f) * (v - 0.8f) / 0.02f);
+                float inside = Mathf.Max(sole, heel);
+                float pressed = Mathf.Clamp(inside * 4.0f, 0.0f, 1.0f);
+                // The rim: a band just outside the print, fading out.
+                float rim = Mathf.Clamp(1.0f - Mathf.Abs(inside + 0.22f) / 0.2f, 0.0f, 1.0f);
+                height[x, y] = rim * 0.45f - pressed;
+                cover[x, y] = Mathf.Max(pressed, rim * 0.7f);
+                // Inside the print is darker (shadowed, packed); the rim keeps the ground's colour.
+                shade[x, y] = Mathf.Lerp(1.0f, 0.62f, pressed);
             }
         }
-        return ImageTexture.CreateFromImage(image);
+        Image albedo = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
+        Image normals = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
+        const float strength = 2.2f;
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                albedo.SetPixel(x, y, new Color(shade[x, y], shade[x, y], shade[x, y], cover[x, y]));
+                float dx = height[Mathf.Min(x + 1, w - 1), y] - height[Mathf.Max(x - 1, 0), y];
+                float dy = height[x, Mathf.Min(y + 1, h - 1)] - height[x, Mathf.Max(y - 1, 0)];
+                Vector3 n = new Vector3(-dx * strength, dy * strength, 1.0f).Normalized();
+                normals.SetPixel(x, y, new Color(n.X * 0.5f + 0.5f, n.Y * 0.5f + 0.5f, n.Z * 0.5f + 0.5f, 1.0f));
+            }
+        }
+        normal = ImageTexture.CreateFromImage(normals);
+        return ImageTexture.CreateFromImage(albedo);
     }
 }

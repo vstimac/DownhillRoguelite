@@ -20,6 +20,9 @@ public partial class SurfaceType : Resource
     /// <summary>How much an impact on this surface hurts: 1 = rock, lower = softer (grass, snow, mud).</summary>
     [Export(PropertyHint.Range, "0,2,0.01")] public float Hardness { get; set; } = 1.0f;
 
+    /// <summary>Walking speed on it: 1 = firm ground, lower where feet sink (deep snow, mud).</summary>
+    [Export(PropertyHint.Range, "0.3,1,0.01")] public float WalkSpeed { get; set; } = 1.0f;
+
     /// <summary>Tint used by debug geometry so surfaces are easy to tell apart.</summary>
     [Export] public Color DebugColor { get; set; } = new(0.55f, 0.55f, 0.58f);
 }

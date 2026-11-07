@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+[ext_resource type="PackedScene" path="res://art/items/kenney_food_kit/GLB format/cherries.glb" id="2_model"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "wild_berries"
+DisplayName = "Wild berries"
+MassKg = 0.15
+Category = 0
+Nutrition = 12.0
+SizeCells = Vector3i(1, 1, 1)
+Tags = 0
+Orientation = 0
+DebugColor = Color(0.7, 0.1, 0.2, 1)
+Model = ExtResource("2_model")

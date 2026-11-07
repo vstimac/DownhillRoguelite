@@ -330,11 +330,13 @@ public partial class PlayerController : CharacterBody3D
 
         Grip = Settings.DefaultGrip;
         _surfaceName = DefaultSurfaceName;
+        SurfaceSpeed = 1.0f;
         SurfaceType? surface = SurfaceLookup.Find(ground, point);
         if (surface != null)
         {
             Grip = surface.Grip;
             _surfaceName = surface.DisplayName;
+            SurfaceSpeed = surface.WalkSpeed;
         }
         // Rain and snow make every surface slicker; boons can improve footing.
         Grip *= GameEvents.CurrentWeather.GripFactor;
@@ -443,10 +445,13 @@ public partial class PlayerController : CharacterBody3D
         return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor(), Settings.MaxSpeed);
     }
 
-    /// <summary>Snow underfoot slows every stride; a boon can lengthen it.</summary>
+    /// <summary>How the ground underfoot slows a stride: 1 on firm ground, less in deep snow or mud.</summary>
+    public float SurfaceSpeed { get; private set; } = 1.0f;
+
+    /// <summary>Falling snow and sinking ground (deep snow, mud) slow every stride; a boon can lengthen it.</summary>
     public float WeatherSpeedFactor()
     {
-        float factor = Mathf.Max(0.0f, 1.0f - Settings.SnowSpeedPenalty * GameEvents.CurrentWeather.Snow);
+        float factor = Mathf.Max(0.0f, 1.0f - Settings.SnowSpeedPenalty * GameEvents.CurrentWeather.Snow) * SurfaceSpeed;
         if (_run != null)
         {
             factor *= _run.Modifiers.WalkSpeed;
