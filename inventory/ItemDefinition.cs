@@ -55,6 +55,11 @@ public partial class ItemDefinition : Resource
 
     /// <summary>The item's model (an art-pack scene), fitted into its cell block; none shows a coloured block.</summary>
     [Export] public PackedScene? Model { get; set; }
+    /// <summary>Or a piece of another model: the scene (e.g. the carrier) and the mesh's name in it.</summary>
+    [Export(PropertyHint.File, "*.fbx,*.glb,*.tscn")] public string ModelSource { get; set; } = "";
+    [Export] public string ModelMesh { get; set; } = "";
+    /// <summary>The piece lies on its back on the ground (clothes), instead of standing as modelled.</summary>
+    [Export] public bool ModelLieFlat { get; set; }
 
     public int Volume => SizeCells.X * SizeCells.Y * SizeCells.Z;
 }

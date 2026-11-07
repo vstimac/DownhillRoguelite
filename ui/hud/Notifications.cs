@@ -75,7 +75,7 @@ public partial class Notifications : Control
         GameEvents.ItemDropped -= OnDropped;
     }
 
-    private void OnDropped(string itemId) => Note($"Dropped {NameOf(itemId)}");
+    private void OnDropped(string itemId) => Note($"Put down {NameOf(itemId)}");
 
     private void OnVisitor(string name, string title) => Note($"Someone sits by the fire: {name}, {title}");
 

@@ -20,3 +20,5 @@ GripBonus = 0.15
 WindCatch = 0.0
 Pockets = 0
 MendType = "leather"
+ModelSource = "res://art/characters/mixamo/carrier.fbx"
+ModelMesh = "Ch17_Boots"

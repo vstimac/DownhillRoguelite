@@ -49,7 +49,8 @@ public partial class PauseMenu : CanvasLayer
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event.IsActionPressed(ActionPause))
+        // Render captures (`-- --no-pause`) never pause, whatever keys reach their window.
+        if (@event.IsActionPressed(ActionPause) && System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--no-pause") < 0)
         {
             GD.Print($"Pause menu toggled by {@event.GetType().Name} {@event.AsText()} (device {@event.Device})");
             Toggle();

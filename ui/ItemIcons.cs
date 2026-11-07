@@ -72,7 +72,12 @@ public partial class ItemIcons : Node
         {
             return icon;
         }
-        if (_enabled && item.Model != null && _queued.Add(item.ItemId))
+        if (!ItemVisual.HasModel(item))
+        {
+            // Items without a model show their ink outline drawing.
+            return ItemVisual.Outline(item);
+        }
+        if (_enabled && _queued.Add(item.ItemId))
         {
             _queue.Enqueue(item);
         }
@@ -108,13 +113,12 @@ public partial class ItemIcons : Node
             return;
         }
         _shooting = _queue.Dequeue();
-        if (_shooting.Model == null)
+        Node3D? holder = ItemVisual.BuildModel(_shooting);
+        if (holder == null)
         {
             _shooting = null;
             return;
         }
-        Node3D holder = new();
-        holder.AddChild(_shooting.Model.Instantiate<Node3D>());
         Aabb bounds = ModelFit.Bounds(holder);
         holder.Transform = ModelFit.FitOnGround(bounds, Vector3.One, true);
         _stage.AddChild(holder);

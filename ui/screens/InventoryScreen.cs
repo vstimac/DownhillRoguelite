@@ -272,6 +272,16 @@ public partial class InventoryScreen : ParchmentPanel
         }
     }
 
+    /// <summary>Throws one of the item in a slot out of the way (it was dragged off the page).</summary>
+    public void ThrowSlot(int index)
+    {
+        if (index < 0 || index >= _order.Count)
+        {
+            return;
+        }
+        GameEvents.RequestThrow(_order[index]);
+    }
+
     /// <summary>Puts one of the selected item down on the ground in front of the carrier.</summary>
     public void DropSelected()
     {

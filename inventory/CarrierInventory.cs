@@ -63,6 +63,7 @@ public partial class CarrierInventory : Node
         GameEvents.ItemsGranted += OnItemsGranted;
         GameEvents.ItemUseRequested += OnItemUseRequested;
         GameEvents.DropRequested += OnDropRequested;
+        GameEvents.ThrowRequested += OnThrowRequested;
         GameEvents.UseItemRequested += OnUseItemRequested;
         foreach (string path in StartingItemPaths)
         {
@@ -98,6 +99,7 @@ public partial class CarrierInventory : Node
         GameEvents.ItemsGranted -= OnItemsGranted;
         GameEvents.ItemUseRequested -= OnItemUseRequested;
         GameEvents.DropRequested -= OnDropRequested;
+        GameEvents.ThrowRequested -= OnThrowRequested;
         GameEvents.UseItemRequested -= OnUseItemRequested;
         // Managed references keep resources alive until the GC runs; drop them with the node.
         _loose.Clear();
@@ -276,9 +278,29 @@ public partial class CarrierInventory : Node
     /// <summary>How far in front of the carrier a dropped item lands, in m.</summary>
     [Export] public float DropDistance { get; set; } = 0.9f;
     [Export(PropertyHint.Layers3DPhysics)] public uint DropGroundMask { get; set; } = 1;
+    /// <summary>A thrown item lands this far ahead, after an arc this high and this long, in m and s.</summary>
+    [Export] public float ThrowDistance { get; set; } = 3.2f;
+    [Export] public float ThrowHeight { get; set; } = 1.2f;
+    [Export] public float ThrowTime { get; set; } = 0.55f;
 
-    /// <summary>Drops one carried item with this id (pack, loose or pocket) on the ground in front of the carrier.</summary>
+    /// <summary>The last thing thrown or dropped (tests).</summary>
+    public WorldItem? LastDropped { get; private set; }
+
     private void OnDropRequested(string itemId)
+    {
+        PutDown(itemId, false);
+    }
+
+    private void OnThrowRequested(string itemId)
+    {
+        PutDown(itemId, true);
+    }
+
+    /// <summary>
+    /// Puts one carried item with this id (pack, loose or pocket) on the ground: dropped at the
+    /// carrier's feet, or thrown a few metres ahead, flying there in an arc from shoulder height.
+    /// </summary>
+    private void PutDown(string itemId, bool thrown)
     {
         ItemDefinition? item = null;
         if (Grid != null)
@@ -317,16 +339,23 @@ public partial class CarrierInventory : Node
             return;
         }
         Node3D? carrier = GetParent() as Node3D;
-        Vector3 at = GameEvents.CarrierPosition;
+        Vector3 from = GameEvents.CarrierPosition;
+        Vector3 forward = Vector3.Forward;
         if (carrier != null)
         {
-            Vector3 forward = -carrier.GlobalBasis.Z;
-            forward.Y = 0.0f;
-            if (!forward.IsZeroApprox())
+            Vector3 facing = -carrier.GlobalBasis.Z;
+            facing.Y = 0.0f;
+            if (!facing.IsZeroApprox())
             {
-                at += forward.Normalized() * DropDistance;
+                forward = facing.Normalized();
             }
         }
+        float distance = DropDistance;
+        if (thrown)
+        {
+            distance = ThrowDistance;
+        }
+        Vector3 at = from + forward * distance;
         WorldItem dropped = new() { Definition = item, Name = $"Dropped_{item.ItemId}" };
         Node parent = GetTree().CurrentScene ?? GetTree().Root;
         parent.AddChild(dropped);
@@ -340,6 +369,23 @@ public partial class CarrierInventory : Node
             }
         }
         dropped.GlobalPosition = at;
+        LastDropped = dropped;
+        if (thrown)
+        {
+            // It flies there: from the hand, up in an arc, down where it lands.
+            Vector3 hand = from + Vector3.Up * 1.4f + forward * 0.3f;
+            Vector3 landing = at;
+            float height = ThrowHeight;
+            dropped.GlobalPosition = hand;
+            Tween flight = dropped.CreateTween();
+            flight.TweenMethod(Callable.From<float>(t =>
+            {
+                if (IsInstanceValid(dropped))
+                {
+                    dropped.GlobalPosition = hand.Lerp(landing, t) + Vector3.Up * (4.0f * height * t * (1.0f - t));
+                }
+            }), 0.0f, 1.0f, ThrowTime);
+        }
         GameEvents.PublishItemDropped(item.ItemId);
     }
 

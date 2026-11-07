@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "hard_hat"
+DisplayName = "Hard hat"
+MassKg = 0.4
+Category = 4
+SizeCells = Vector3i(4, 3, 5)
+Tags = 0
+Orientation = 0
+DebugColor = Color(0.9, 0.9, 0.88, 1)
+Slot = 1
+MaxDurability = 160.0
+Warmth = 0.03
+RainProof = 0.05
+GripBonus = 0.0
+WindCatch = 0.0
+Pockets = 0
+MendType = ""
+ModelSource = "res://art/characters/mixamo/carrier.fbx"
+ModelMesh = "Ch17_Helmet"

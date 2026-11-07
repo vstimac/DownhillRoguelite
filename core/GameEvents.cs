@@ -228,6 +228,11 @@ public static class GameEvents
 
     public static void RequestDrop(string itemId) => DropRequested?.Invoke(itemId);
 
+    /// <summary>The player throws one carried item with this id out of the way (dragged off the inventory page).</summary>
+    public static event Action<string>? ThrowRequested;
+
+    public static void RequestThrow(string itemId) => ThrowRequested?.Invoke(itemId);
+
     /// <summary>Raised when an item was dropped on the ground.</summary>
     public static event Action<string>? ItemDropped;
 
