@@ -1,0 +1,32 @@
+name: Refresh character concept poster
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/rename_character_poster.py"
+      - ".github/workflows/character-poster.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  title-correction:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install image dependency
+        run: python -m pip install --disable-pip-version-check Pillow
+      - name: Create new poster and update README link
+        run: python tools/rename_character_poster.py
+      - name: Commit generated concept poster
+        run: |
+          if [ -n "$(git status --porcelain -- art/characters/downhillroguelite-character-pack.png README.md)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add art/characters/downhillroguelite-character-pack.png README.md
+            git commit -m "art: publish DownhillRoguelite-labelled concept gallery"
+            git push origin HEAD:main
+          fi
