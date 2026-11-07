@@ -46,7 +46,12 @@ public partial class Notifications : Control
         GameEvents.Mended += OnMended;
         GameEvents.ItemLost += OnLost;
         GameEvents.GearChanged += OnGear;
+        CallDeferred(MethodName.Hint);
     }
+
+    [Export] public string StartHint { get; set; } = "Esc: pause and controls · Enter: talk";
+
+    private void Hint() => Note(StartHint);
 
     public override void _ExitTree()
     {
@@ -289,5 +294,6 @@ public partial class Notifications : Control
         {
             node.QueueFree();
         }
+        CallDeferred(MethodName.Hint);
     }
 }
