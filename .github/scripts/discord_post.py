@@ -149,7 +149,9 @@ def markdown_for_discord(text):
 
 
 def on_push(event):
-    commits = event.get("commits") or []
+    # Only commits pushed for the first time: when a branch catches up with another (playtest-1 after
+    # main), GitHub marks the ones already pushed as not distinct, and they were posted then.
+    commits = [c for c in (event.get("commits") or []) if c.get("distinct", True)]
     if not commits:
         return
     branch = event.get("ref", "").replace("refs/heads/", "")
