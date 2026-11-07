@@ -68,8 +68,7 @@ public partial class PackingMode : Node3D
 
     /// <summary>The pack screen's controls, along the bottom of the screen while packing.</summary>
     [Export(PropertyHint.MultilineText)] public string HelpText { get; set; } =
-        "Click an item to lift it  ·  click in the pack to place it (green fits)  ·  click away to set it on the mat
-" +
+        "Click an item to lift it  ·  click in the pack to place it (green fits)  ·  click away to set it on the mat\n" +
         "Q / E turn  ·  R / F tip  ·  Alt+click: the item underneath  ·  X: arrange everything  ·  Esc or Tab: done";
 
     private CanvasLayer? _help;

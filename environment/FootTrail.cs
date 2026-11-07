@@ -134,7 +134,8 @@ public partial class FootTrail : Node3D
                 across = -across;
             }
             // A decal projects along its -Y; its texture's length runs along Z.
-            print.GlobalTransform = new Transform3D(new Basis(across, up, along), foot.GroundPoint + up * 0.05f);
+            // Turned 180° so the toe points the way he walks.
+            print.GlobalTransform = new Transform3D(new Basis(-across, up, -along), foot.GroundPoint + up * 0.05f);
             print.Modulate = tint;
             print.Visible = true;
             _age[_next] = 0.0f;
