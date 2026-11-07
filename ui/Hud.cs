@@ -10,7 +10,8 @@ namespace DownhillRoguelite.Ui;
 /// and keeps them fed with real game data. During play: survival dials top left (health, hunger,
 /// thirst, stamina from VitalsSnapshot), the descent note and compass top right, the equipment
 /// sheet on the left, the hotbar along the bottom, the look-at tooltip on the right and paper notes
-/// for events. Pages: inventory (I), map (M, through the field map), journal (J); Esc closes the
+/// for events. Pages: inventory (I), map (M, through the field map), journal (J), conversation
+/// with the companion (Enter); Esc closes the
 /// open page. While a page is open the mouse belongs to it (GameEvents.IsScreenOpen). Re-lays out
 /// on any window size; hidden while packing and in clean screenshot mode.
 /// </summary>
@@ -19,6 +20,7 @@ public partial class Hud : CanvasLayer
     public const string Group = "hud";
     private static readonly StringName ActionInventory = "inventory_open";
     private static readonly StringName ActionJournal = "journal_open";
+    private static readonly StringName ActionTalk = "talk_open";
 
     public StatDial? HealthDial { get; private set; }
     public StatDial? HungerDial { get; private set; }
@@ -33,6 +35,7 @@ public partial class Hud : CanvasLayer
     public InventoryScreen? Inventory { get; private set; }
     public MapScreen? MapPage { get; private set; }
     public JournalScreen? Journal { get; private set; }
+    public TalkScreen? Talk { get; private set; }
     public JournalLog? Log { get; private set; }
 
     private Control? _root;
@@ -85,8 +88,11 @@ public partial class Hud : CanvasLayer
         _root.AddChild(MapPage);
         Journal = new JournalScreen { Log = Log };
         _root.AddChild(Journal);
+        Talk = new TalkScreen();
+        _root.AddChild(Talk);
         Inventory.Closed += OnPageClosed;
         Journal.Closed += OnPageClosed;
+        Talk.Closed += OnPageClosed;
         MapPage.Closed += OnPageClosed;
 
         GameEvents.VitalsUpdated += OnVitals;
@@ -156,7 +162,7 @@ public partial class Hud : CanvasLayer
             Hotbar.Position = new Vector2((screen.X - Hotbar.Size.X) * 0.5f, screen.Y - Hotbar.Size.Y - 10);
         }
         Tooltip?.SetHome(new Vector2(screen.X - 350, screen.Y - 300));
-        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, MapPage, Journal })
+        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, MapPage, Journal, Talk })
         {
             if (page != null)
             {
@@ -182,6 +188,12 @@ public partial class Hud : CanvasLayer
             Toggle(Journal);
             GetViewport().SetInputAsHandled();
         }
+        else if (@event.IsActionPressed(ActionTalk) && Talk != null && !(Talk.IsOpen && Talk.Visible))
+        {
+            // Enter opens the conversation; once open, Enter sends what's typed.
+            Toggle(Talk);
+            GetViewport().SetInputAsHandled();
+        }
     }
 
     public override void _Input(InputEvent @event)
@@ -191,7 +203,7 @@ public partial class Hud : CanvasLayer
         {
             return;
         }
-        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, Journal, MapPage })
+        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, Journal, Talk, MapPage })
         {
             if (page != null && page.IsOpen && page.Visible)
             {
@@ -214,7 +226,7 @@ public partial class Hud : CanvasLayer
             page.Close();
             return;
         }
-        foreach (ParchmentPanel? other in new ParchmentPanel?[] { Inventory, Journal })
+        foreach (ParchmentPanel? other in new ParchmentPanel?[] { Inventory, Journal, Talk })
         {
             if (other != null && other != page && other.IsOpen && other.Visible)
             {
@@ -235,7 +247,7 @@ public partial class Hud : CanvasLayer
 
     private void OnPageClosed()
     {
-        bool anyOpen = (Inventory != null && Inventory.IsOpen) || (Journal != null && Journal.IsOpen);
+        bool anyOpen = (Inventory != null && Inventory.IsOpen) || (Journal != null && Journal.IsOpen) || (Talk != null && Talk.IsOpen);
         if (anyOpen)
         {
             return;

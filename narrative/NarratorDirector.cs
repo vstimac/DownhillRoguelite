@@ -199,6 +199,11 @@ public partial class NarratorDirector : Node
         {
             return false;
         }
+        // While the player talks with the companion, the voiced lines hold back.
+        if (GameEvents.IsConversing)
+        {
+            return false;
+        }
         List<NarratorLine> candidates = new();
         int bestPriority = 0;
         foreach (NarratorLine line in lines)

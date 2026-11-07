@@ -309,6 +309,37 @@ public static class GameEvents
         NarrationFinished?.Invoke();
     }
 
+    /// <summary>True while the conversation page is open: the narrator holds its voiced lines.</summary>
+    public static bool IsConversing { get; private set; }
+
+    public static event Action<bool>? ConversationChanged;
+
+    public static void PublishConversation(bool open)
+    {
+        IsConversing = open;
+        ConversationChanged?.Invoke(open);
+    }
+
+    /// <summary>The player asks the companion something (typed on the conversation page).</summary>
+    public static event Action<string>? AskRequested;
+
+    public static void RequestAsk(string question) => AskRequested?.Invoke(question);
+
+    /// <summary>The companion's reply so far (it streams in), and whether it's finished.</summary>
+    public static event Action<string, bool>? CompanionReplied;
+
+    public static void PublishCompanionReply(string text, bool done) => CompanionReplied?.Invoke(text, done);
+
+    public static CompanionState Companion { get; private set; } = CompanionState.Silent;
+
+    public static event Action<CompanionState>? CompanionChanged;
+
+    public static void PublishCompanion(CompanionState state)
+    {
+        Companion = state;
+        CompanionChanged?.Invoke(state);
+    }
+
     /// <summary>The weather where the carrier is, updated every physics frame.</summary>
     public static WeatherSnapshot CurrentWeather { get; private set; } = WeatherSnapshot.Calm;
 

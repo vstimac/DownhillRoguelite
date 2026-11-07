@@ -4,4 +4,17 @@ Story data for the narrator companion. See docs/narrative.md for the setting.
 
 `data/metadata.csv`: 500 narrator lines with trigger, circle, phase and pacing metadata. Imported with the "keep" importer so Godot treats it as a plain file, not a translation table. Read it with `FileAccess.GetCsvLine`.
 
-`NarratorDirector` plays the voiced lines (`audio/narrator/`) on game events: it maps events (falls, stumbles, stations, weather, depth, circles, idling, pickups, load, death) to the CSV triggers, then picks a line that fits the circle and is off cooldown, preferring the current narrative phase. Triggers for systems that don't exist yet (traders, ruins, routes, relics) wait for those systems. Live conversation through NobodyWho is the next stage (M11).
+`NarratorDirector` plays the voiced lines (`audio/narrator/`) on game events: it maps events (falls, stumbles, stations, weather, depth, circles, idling, pickups, load, death) to the CSV triggers, then picks a line that fits the circle and is off cooldown, preferring the current narrative phase. Triggers for systems that don't exist yet (traders, ruins, routes, relics) wait for those systems. While the player talks with the companion, the voiced lines hold back.
+
+## Conversation (M11)
+
+`CompanionChat` lets the player talk with the companion (Enter opens the conversation page, Enter sends, Esc closes). It runs a local language model through the NobodyWho addon (`addons/nobodywho`):
+
+- **The model** is a `.gguf` file, not in git (2.1 GB). The default is `../Models/qwen2.5-3b-instruct-q4_k_m.gguf`, next to the project folder (`D:\Game dev\Models\`). It's looked for relative to the project folder, the exported game's folder, and a `Models/` folder beside the game. `-- --llm-model=PATH` picks another one; `-- --no-llm` switches conversation off.
+- **Without a model** the companion stays silent: the page says so and nothing breaks (an exported demo without the model just has a quiet companion).
+- **Loading:** the model loads the first time the player speaks (about 5 s once it's on disk; video memory is used only then). Replies take 2 to 3 s on the GPU (Vulkan) and stream in token by token, cut off after `MaxReplyTokens`.
+- **The persona** is `data/companion_prompt.txt`: calm, wry, short answers, practical advice, never confirms godhood, never steps outside the world.
+- **Context:** every question goes with a note in words of where the carrier is and how they are (circle, depth, time, weather, shelter, hunger, thirst, injuries, tiredness, worn gear, the pack's weight and state, what's carried). The model reads it; the player never sees it.
+- **A new run** gives a new carrier, so the conversation starts over.
+- The exchange is written in the journal.
+- Tests: `debug/tests/ConversationTests` (headless, silent). `-- --llm-live` also asks the real model.
