@@ -97,7 +97,7 @@ M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain
 | **M8 Weather** (built) | Fog, rain, snow, wind, heat per circle and time; effects on visibility, grip, balance and needs |
 | **M9 Wildlife** | The approved wildlife plan (animals per circle, fleeing, scattering on falls), reusing M6's world spawner |
 | **M10 Routes** | Branching paths from each shelter's lookout; route types (safe, hazardous, supply-rich) |
-| **M11 Narrator** | The voiced companion: the 500 lines triggered by game events, then NobodyWho for live conversation |
+| **M11 Narrator** (voiced lines built for the demo) | The voiced companion: the 500 lines triggered by game events, then NobodyWho for live conversation |
 | **M12 Progression** | Run upgrades, meta unlocks (starting kits, packs), contracts, depth scaling |
 
 Open decisions for the director: same mountain or a new one after each death, whether a light source is in the first starting kit, and the exact day lengths after play-testing.
