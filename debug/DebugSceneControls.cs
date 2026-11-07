@@ -59,6 +59,26 @@ public partial class DebugSceneControls : Node
             DebugDraw3D.SetEnabled(false);
             DebugDraw3D.HideHud = true;
         }
+        // `--showcase` hides the debug text but keeps the player's HUD (screenshots that show the game).
+        if (System.Array.IndexOf(args, "--showcase") >= 0)
+        {
+            DebugDraw3D.SetEnabled(false);
+        }
+        // `--herd=Horse` (or `--herd=Sheep:6`) brings a group of animals close, for screenshots.
+        // `--walk-seconds=3` walks forward that long, then stops.
+        foreach (string arg in args)
+        {
+            if (arg.StartsWith("--herd="))
+            {
+                string spec = arg.Substring("--herd=".Length);
+                GetTree().CreateTimer(1.5).Timeout += () => SpawnHerd(spec);
+            }
+            if (arg.StartsWith("--walk-seconds=") && float.TryParse(arg.Substring("--walk-seconds=".Length), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float seconds))
+            {
+                Input.ActionPress("player_move_forward");
+                GetTree().CreateTimer(seconds).Timeout += () => Input.ActionRelease("player_move_forward");
+            }
+        }
         // `--map` raises the map at start (render checks).
         if (System.Array.IndexOf(args, "--map") >= 0)
         {
@@ -123,6 +143,50 @@ public partial class DebugSceneControls : Node
         if (PlayerBody != null && PlayerBody.GlobalPosition.Y < KillHeight)
         {
             GameEvents.PublishKill("fell");
+        }
+    }
+
+    /// <summary>Puts a group of one species in front of the carrier (screenshots).</summary>
+    private void SpawnHerd(string spec)
+    {
+        string[] parts = spec.Split(':');
+        int count = 5;
+        if (parts.Length > 1 && int.TryParse(parts[1], out int n))
+        {
+            count = n;
+        }
+        if (PlayerBody == null)
+        {
+            return;
+        }
+        foreach (Node node in GetTree().Root.FindChildren("*", "Node3D", true, false))
+        {
+            if (node is not Wildlife.WildlifeSpawner spawner || spawner.Table == null)
+            {
+                continue;
+            }
+            foreach (Wildlife.WildlifeSpecies species in spawner.Table.Species)
+            {
+                if (!string.Equals(species.DisplayName, parts[0], System.StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                Vector3 forward = -PlayerBody.GlobalBasis.Z;
+                forward.Y = 0.0f;
+                forward = forward.Normalized();
+                Vector3 side = forward.Cross(Vector3.Up);
+                PhysicsDirectSpaceState3D space = PlayerBody.GetWorld3D().DirectSpaceState;
+                float distance = species.FleeDistance + 5.0f;
+                for (int i = 0; i < count; i++)
+                {
+                    Vector3 at = PlayerBody.GlobalPosition + forward * (distance + (i % 3) * 2.5f) + side * ((i - count * 0.5f) * 2.6f + 4.0f);
+                    if (spawner.Ground(space, at, out Vector3 ground, out string _, out float _))
+                    {
+                        spawner.Spawn(species, ground);
+                    }
+                }
+                return;
+            }
         }
     }
 
