@@ -197,6 +197,16 @@ public sealed class TerrainGenerator
             }
             result.Add(MakeBranch(second, -firstSide, split, join, random));
         }
+        // Outer paths: the long way round, wide of everything else, on either side (drawn after the
+        // inner ones from the same stream, so the inner paths of a seed stay as they were).
+        foreach (float side in new[] { firstSide, -firstSide })
+        {
+            if (random.NextFloat() < _settings.OuterBranchChance)
+            {
+                float offset = random.Range(_settings.OuterBranchOffset.X, _settings.OuterBranchOffset.Y);
+                result.Add(new RouteBranch(RouteKind.SupplyRich, side, offset, split, join, BaseSpineX(split), BaseSpineX(join)));
+            }
+        }
         return result.ToArray();
     }
 

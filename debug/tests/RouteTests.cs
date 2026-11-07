@@ -52,6 +52,7 @@ public partial class RouteTests : Node3D
         IRouteQuery route = _run.Route;
 
         TestChoices(generator);
+        TestMorePaths(generator, _run!.Route!);
         TestSplitAndJoin(generator, route);
         TestWalkable(generator, route);
         int stage = FindStageWithBoth(route);
@@ -132,6 +133,41 @@ public partial class RouteTests : Node3D
         Check("every stage offers a choice, the same for the same seed",
             identical && differ > StagesChecked / 2 && withChoice == StagesChecked && both > 0 && hazardous > 0 && supply > 0,
             $"{withChoice}/{StagesChecked} stages with a choice, {both} with both, {hazardous} hazardous, {supply} supply-rich, {differ} differ with another seed");
+    }
+
+    /// <summary>Many stages fork into four or five paths, and no two paths share ground mid-stage.</summary>
+    private void TestMorePaths(TerrainGenerator generator, IRouteQuery route)
+    {
+        int many = 0;
+        int most = 0;
+        float closest = float.MaxValue;
+        for (int stage = 0; stage < StagesChecked; stage++)
+        {
+            int paths = route.PathCount(stage);
+            most = Mathf.Max(most, paths);
+            if (paths >= 4)
+            {
+                many++;
+            }
+            Vector2 zone = route.BranchZone(stage);
+            float span = zone.X - zone.Y;
+            // The middle stretch, past the ramps where paths fan out.
+            for (float z = zone.X - span * 0.3f; z > zone.Y + span * 0.3f; z -= 10.0f)
+            {
+                for (int a = 0; a < paths; a++)
+                {
+                    for (int b = a + 1; b < paths; b++)
+                    {
+                        float gap = Mathf.Abs(route.PathPoint(stage, a, z).X - route.PathPoint(stage, b, z).X);
+                        closest = Mathf.Min(closest, gap);
+                    }
+                }
+            }
+        }
+        float bands = generator.Settings.SupplyHalfWidth * 2.0f + 4.0f;
+        Check("many stages fork into four or five paths, and no two paths share ground",
+            many >= StagesChecked / 5 && most >= 4 && most <= 5 && closest > bands,
+            many + "/" + StagesChecked + " stages with 4+ paths (most " + most + "), closest two paths mid-stage " + closest.ToString("0") + " m apart (bands need " + bands.ToString("0") + ")");
     }
 
     private static bool Same(RouteBranch[] a, RouteBranch[] b)
@@ -218,12 +254,31 @@ public partial class RouteTests : Node3D
     {
         for (int stage = 1; stage < StagesChecked; stage++)
         {
-            if (route.PathCount(stage) == 3)
+            if (route.PathCount(stage) >= 3 && HasKinds(route, stage))
             {
                 return stage;
             }
         }
         return 1;
+    }
+
+    /// <summary>Whether a stage has both a hazardous and a supply-rich path.</summary>
+    private static bool HasKinds(IRouteQuery route, int stage)
+    {
+        bool hazard = false;
+        bool supply = false;
+        for (int path = 1; path < route.PathCount(stage); path++)
+        {
+            if (route.PathKind(stage, path) == RouteKind.Hazardous)
+            {
+                hazard = true;
+            }
+            else if (route.PathKind(stage, path) == RouteKind.SupplyRich)
+            {
+                supply = true;
+            }
+        }
+        return hazard && supply;
     }
 
     private static float PathLength(IRouteQuery route, int stage, int path)

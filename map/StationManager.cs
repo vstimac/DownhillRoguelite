@@ -42,6 +42,9 @@ public partial class StationManager : Node3D
     /// <summary>...and within this distance of that path's centre, in m.</summary>
     [Export] public float CommitWidth { get; set; } = 10.0f;
 
+    /// <summary>A path this far to the side at mid-stage is signed "far left" / "far right", in m.</summary>
+    [Export] public float FarPathOffset { get; set; } = 105.0f;
+
     public int ShelterStation { get; private set; }
     public IReadOnlyDictionary<int, StationSite> Stations => _stations;
     public IReadOnlyDictionary<int, WaypointCairn> Cairns => _cairns;
@@ -107,14 +110,22 @@ public partial class StationManager : Node3D
         {
             float offset = route.PathPoint(stage, path, middle).X - main;
             directions[path] = "ahead";
-            // Facing downhill (-Z), +X is on the right.
+            // Facing downhill (-Z), +X is on the right; a second path on the same side is the far one.
             if (offset > 5.0f)
             {
                 directions[path] = "right";
+                if (offset > FarPathOffset)
+                {
+                    directions[path] = "far right";
+                }
             }
             else if (offset < -5.0f)
             {
                 directions[path] = "left";
+                if (offset < -FarPathOffset)
+                {
+                    directions[path] = "far left";
+                }
             }
         }
         sign.ShowOptions(options, directions, _clock);
@@ -182,8 +193,8 @@ public partial class StationManager : Node3D
             }
             for (int path = 0; path < paths; path++)
             {
-                // Keys: path in the low bits, so main-path cairns keep their old keys (k * 4).
-                int key = k * 4 + path;
+                // Keys: path in the low bits (up to eight paths a stage).
+                int key = k * 8 + path;
                 wanted.Add(key);
                 if (_cairns.ContainsKey(key))
                 {

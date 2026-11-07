@@ -92,7 +92,7 @@ Values live in `DifficultySettings` resources and are tuned by play-testing.
 
 - Each stage (station to station) offers a choice. Paths split about 110 m below a station and rejoin about 110 m above the next.
   - **Safe** (the main path) is always there. It winds gently through the branch zone like a real trail, stays on firm ground (grass and snow) and is marked by cairns. Supplies are ordinary.
-  - Every stage adds one or two branches that swing 45–70 m to either side:
+  - Every stage adds one or two branches that swing 45–70 m to either side (both, more often than not), and each side may fork once more into an **outer** supply-rich path 130–155 m out, the long way round: up to five paths a stage. The lookout sign lists them all ("far left", "left", "ahead", "right", "far right"):
     - **Hazardous:** a straight line, about 4 % shorter, but narrow and rough, on scree and snow (lower grip). Boulders crowd it. It holds 1.5× the supplies, plus caches of three items together.
     - **Supply-rich:** winds more and is about 10 % longer, with patches of boggy mud. It holds 4× the supplies.
 - A **lookout sign** stands just below each station (and at the start) with one line per path: which way it goes, distance, time with rests, stamina and arrival before or after dark. The estimator follows whichever path you're on, so cairns on every path show that path's figures.

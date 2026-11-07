@@ -26,7 +26,8 @@ public partial class RouteSign : Node3D
     public int LineCount { get; private set; }
     public string Text { get; private set; } = "";
 
-    private readonly Label3D[] _lines = new Label3D[4];
+    /// <summary>The heading and one line per path (up to five paths a stage).</summary>
+    private readonly Label3D[] _lines = new Label3D[6];
 
     public override void _Ready()
     {
@@ -54,7 +55,7 @@ public partial class RouteSign : Node3D
                 PixelSize = PixelSize,
                 Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
                 OutlineSize = 8,
-                Position = new Vector3(0.0f, BoardHeight + 1.4f - i * LineSpacing, 0.0f),
+                Position = new Vector3(0.0f, BoardHeight + 0.8f + (_lines.Length - 1 - i) * LineSpacing, 0.0f),
                 Visible = false,
             };
             AddChild(WorldLabel.Readable(_lines[i]));

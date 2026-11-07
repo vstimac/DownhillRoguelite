@@ -74,11 +74,18 @@ public partial class TerrainSettings : Resource
 
     [ExportGroup("Routes (M10)")]
     /// <summary>Chance a stage gets both alternatives (one each side of the main path) instead of one.</summary>
-    [Export] public float BothBranchesChance { get; set; } = 0.35f;
+    [Export] public float BothBranchesChance { get; set; } = 0.6f;
     /// <summary>Chance a single alternative is hazardous rather than supply-rich.</summary>
     [Export] public float HazardousChance { get; set; } = 0.5f;
     /// <summary>How far a branch swings away from the main path (min, max), in m.</summary>
     [Export] public Vector2 BranchOffset { get; set; } = new(45.0f, 70.0f);
+    /// <summary>
+    /// Chance, per side, of a second, wider path beyond the first: the long way round (supply-rich),
+    /// leaving and rejoining with the others, so the trail forks once more just past the split.
+    /// </summary>
+    [Export] public float OuterBranchChance { get; set; } = 0.45f;
+    /// <summary>How far an outer path swings from the main path (min, max), in m: clear of the inner paths' bands.</summary>
+    [Export] public Vector2 OuterBranchOffset { get; set; } = new(130.0f, 155.0f);
     /// <summary>Branches leave this far (along Z) below a station and rejoin this far above the next, in m.</summary>
     [Export] public float BranchStationGap { get; set; } = 110.0f;
     /// <summary>Fraction of a branch spent swinging out, and again swinging back.</summary>
