@@ -32,8 +32,8 @@ public partial class StationSite : Node3D
     [Export] public float FireVolumeDb { get; set; } = 2.0f;
     /// <summary>Distance the fire can be heard from, in m.</summary>
     [Export] public float FireHearing { get; set; } = 35.0f;
-    /// <summary>The terrace's tilt down the slope (terrain's ClearingSlope), for placing props, in degrees.</summary>
-    [Export] public float TerraceSlope { get; set; } = 10.0f;
+    /// <summary>The terrace's tilt where the props stand, in degrees (0: the terrace core is level).</summary>
+    [Export] public float TerraceSlope { get; set; } = 0.0f;
 
     public int Index { get; private set; }
 
