@@ -71,6 +71,7 @@ public partial class SurvivalTests : Node3D
         await TestNoRoom(PlayerBody, _inventory, _interactor);
         await TestStamina(PlayerBody, _stamina, _inventory);
         await TestSupplies(PlayerBody, Supplies, _run);
+        await TestHighlight(PlayerBody);
         await TestDeathRestart(PlayerBody, _inventory, _needs, _health, _clock, Supplies);
 
         GameEvents.ConsumeFailed -= OnConsumeFailed;
@@ -314,6 +315,25 @@ public partial class SurvivalTests : Node3D
         }
         Check("a taken supply doesn't come back when its area reloads", picked && supplies.WasTaken(key) && !returned,
             $"picked {picked}, back after reload {returned}");
+    }
+
+    private async Task TestHighlight(PlayerController player)
+    {
+        ItemDefinition ration = Load("ration");
+        WorldItem near = new() { Definition = ration };
+        WorldItem far = new() { Definition = ration };
+        AddChild(near);
+        AddChild(far);
+        near.GlobalPosition = player.GlobalPosition + new Vector3(6.0f, 0.0f, -6.0f);
+        far.GlobalPosition = player.GlobalPosition + new Vector3(0.0f, 0.0f, -(near.IndicatorRadius + 20.0f));
+        await WaitSeconds(0.2f);
+        ArrayMesh grid = WorldItem.CellGrid(ration.SizeCells, 0.05f);
+        int lines = grid.SurfaceGetArrayLen(0) / 2;
+        // A 2 × 1 × 2 block: 12 outer edges plus the lines between cells on its faces.
+        Check("items show their cell grid, and an arrow once the carrier is near", near.IndicatorVisible && !far.IndicatorVisible && lines >= 16,
+            $"arrow at 8 m {near.IndicatorVisible}, at {near.IndicatorRadius + 20.0f:0} m {far.IndicatorVisible}, grid lines {lines}");
+        near.QueueFree();
+        far.QueueFree();
     }
 
     private async Task TestDeathRestart(PlayerController player, CarrierInventory inventory, CarrierNeeds needs, CarrierHealth health, WorldClock clock, SupplySpawner supplies)

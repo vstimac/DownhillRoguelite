@@ -309,8 +309,12 @@ public static class GameEvents
         BalanceUpdated?.Invoke(snapshot);
     }
 
+    /// <summary>Where the carrier is (its feet), updated with every LocomotionSnapshot; for many small readers like world items.</summary>
+    public static Godot.Vector3 CarrierPosition { get; private set; }
+
     public static void PublishLocomotion(LocomotionSnapshot snapshot)
     {
+        CarrierPosition = snapshot.Position;
         LocomotionUpdated?.Invoke(snapshot);
     }
 

@@ -141,7 +141,8 @@ public partial class WildlifeSpawner : Node3D
         animal.Setup(species, Table!, ++_serial * 0x9E3779B97F4A7C15ul);
         animal.SpawnSurface = surface;
         animal.SpawnSlope = slopeDegrees;
-        animal.GlobalPosition = groundPoint + Vector3.Up * species.HoverHeight;
+        // A touch above the ground: the body settles onto it under gravity.
+        animal.GlobalPosition = groundPoint + Vector3.Up * (species.HoverHeight + 0.05f);
         _animals.Add(animal);
         return animal;
     }
