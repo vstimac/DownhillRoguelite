@@ -88,6 +88,7 @@ public partial class Hud : CanvasLayer
         ThrowZone = new ThrowZone { Name = "ThrowZone" };
         _root.AddChild(ThrowZone);
         Inventory = new InventoryScreen();
+        Equipment.DraggedItem = Inventory.ItemIdAt;
         _root.AddChild(Inventory);
         ThrowZone.Inventory = Inventory;
         AddChild(new PageFreeze { Name = "PageFreeze", Inventory = Inventory });

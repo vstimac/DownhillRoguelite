@@ -73,11 +73,17 @@ public partial class DebugSceneControls : Node
                 string items = arg.Substring("--drop=".Length);
                 GetTree().CreateTimer(1.0).Timeout += () => DropItems(items);
             }
+            if (arg.StartsWith("--give="))
+            {
+                // `--give=paper,cord` puts items in the pack (render checks of icons).
+                string items = arg.Substring("--give=".Length);
+                GetTree().CreateTimer(0.8).Timeout += () => GiveItems(items, false);
+            }
             if (arg.StartsWith("--wear="))
             {
                 // `--wear=wool_hat,fur_cape` puts clothes on him (render checks of the worn look).
                 string items = arg.Substring("--wear=".Length);
-                GetTree().CreateTimer(0.8).Timeout += () => WearItems(items);
+                GetTree().CreateTimer(0.8).Timeout += () => GiveItems(items, true);
             }
             if (arg.StartsWith("--herd="))
             {
@@ -185,8 +191,8 @@ public partial class DebugSceneControls : Node
         }
     }
 
-    /// <summary>Gives the carrier these clothes (comma-separated ids) and puts them on (screenshots).</summary>
-    private void WearItems(string ids)
+    /// <summary>Gives the carrier these items (comma-separated ids), putting them on if <paramref name="wear"/> (screenshots).</summary>
+    private void GiveItems(string ids, bool wear)
     {
         Inventory.CarrierInventory? inventory = null;
         Inventory.CarrierEquipment? equipment = null;
@@ -210,7 +216,10 @@ public partial class DebugSceneControls : Node
             if (ResourceLoader.Load($"res://inventory/items/{id.Trim()}.tres") is Inventory.ItemDefinition definition)
             {
                 inventory.TryAdd(definition, -1.0f, false);
-                equipment.Wear(definition.ItemId);
+                if (wear)
+                {
+                    equipment.Wear(definition.ItemId);
+                }
             }
         }
     }

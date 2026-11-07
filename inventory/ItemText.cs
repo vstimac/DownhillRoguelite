@@ -17,7 +17,7 @@ public static class ItemText
         {
             ItemCategory.Food => "Eat: the Eat button, F, or V on the hotbar.",
             ItemCategory.Water => "Drink: the Drink button, Q, or V on the hotbar.",
-            ItemCategory.Clothing => "Wear: the Wear button or V. Take it off: click it on the equipment sheet.",
+            ItemCategory.Clothing => "Wear: double-click, right-click, the Wear button, V, or drag it onto the equipment sheet. Take it off: click it on the sheet.",
             ItemCategory.Material => "Mend worn gear or the pack: the Mend button, at a station's fire.",
             ItemCategory.Cargo => "Cargo: carry it down. Its weight and place in the pack shift your balance.",
             _ => "Kept in the pack: it helps by being carried.",
@@ -26,7 +26,7 @@ public static class ItemText
         {
             use = "Right-click or V opens the map (M) to draw on: paper and pencil let you mark it.";
         }
-        return use + "\nDrop it: the Drop button, G on the hotbar, or drag it off the page to throw it.";
+        return use + "\nDrop it: Shift+right-click, the Drop button, G on the hotbar, or drag it off the page to throw it.";
     }
 
     /// <summary>Paper and pencil: using them (right-click, V) opens the map to draw on.</summary>

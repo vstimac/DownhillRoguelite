@@ -193,13 +193,28 @@ public partial class InventoryScreen : ParchmentPanel
         }
     }
 
+    /// <summary>Click selects; double-click or right-click uses (eat, drink, wear, mend, map); Shift+right-click drops.</summary>
     private void OnClicked(ItemSlot slot, int button)
     {
         Select(slot.Index);
-        if (button == (int)MouseButton.Right)
+        if (button == (int)MouseButton.Right && slot.LastShift)
+        {
+            DropSelected();
+        }
+        else if (button == (int)MouseButton.Right || (button == (int)MouseButton.Left && slot.LastDoubleClick))
         {
             UseSelected();
         }
+    }
+
+    /// <summary>The item id in a slot of the page, or "" (the gear sheet asks when something is dragged onto it).</summary>
+    public string ItemIdAt(int index)
+    {
+        if (index >= 0 && index < _order.Count)
+        {
+            return _order[index];
+        }
+        return "";
     }
 
     /// <summary>Moves the item dragged from one slot onto another (swapping), and keeps it selected.</summary>
