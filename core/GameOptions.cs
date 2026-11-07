@@ -24,13 +24,11 @@ public static class GameOptions
     public static bool WheelSelectsHotbar { get; private set; } = true;
     /// <summary>Camera field of view, in degrees (60–120).</summary>
     public static float FieldOfView { get; private set; } = 75.0f;
-    /// <summary>The dotted route lines on the ground toward the next station.</summary>
-    public static bool PathLines { get; private set; } = true;
+    /// <summary>The route and debug lines drawn in the world (DebugDraw3D); on by default only in development builds.</summary>
+    public static bool PathLines { get; private set; } = OS.IsDebugBuild();
     public static ColourFilter Filter { get; private set; } = ColourFilter.None;
-    /// <summary>Size of the whole interface (0.75–1.5).</summary>
+    /// <summary>Size of the whole interface and its text, for 2K/4K screens (0.75–1.5).</summary>
     public static float UiScale { get; private set; } = 1.0f;
-    /// <summary>Text size on top of the interface scale (0.8–1.4).</summary>
-    public static float TextScale { get; private set; } = 1.0f;
 
     private static bool _loaded;
 
@@ -55,7 +53,6 @@ public static class GameOptions
         PathLines = (bool)file.GetValue(Section, "path_lines", PathLines);
         Filter = (ColourFilter)(int)file.GetValue(Section, "colour_filter", (int)Filter);
         UiScale = Mathf.Clamp((float)file.GetValue(Section, "ui_scale", UiScale), 0.75f, 1.5f);
-        TextScale = Mathf.Clamp((float)file.GetValue(Section, "text_scale", TextScale), 0.8f, 1.4f);
         Changed?.Invoke();
     }
 
@@ -67,7 +64,6 @@ public static class GameOptions
     public static void SetPathLines(bool on) => Set(() => PathLines = on);
     public static void SetFilter(ColourFilter filter) => Set(() => Filter = filter);
     public static void SetUiScale(float scale) => Set(() => UiScale = Mathf.Clamp(scale, 0.75f, 1.5f));
-    public static void SetTextScale(float scale) => Set(() => TextScale = Mathf.Clamp(scale, 0.8f, 1.4f));
 
     private static void Set(Action change)
     {
@@ -88,7 +84,6 @@ public static class GameOptions
         file.SetValue(Section, "path_lines", PathLines);
         file.SetValue(Section, "colour_filter", (int)Filter);
         file.SetValue(Section, "ui_scale", UiScale);
-        file.SetValue(Section, "text_scale", TextScale);
         file.Save(FilePath);
     }
 }

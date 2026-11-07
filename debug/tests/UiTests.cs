@@ -48,6 +48,7 @@ public partial class UiTests : Node3D
         await TestHotbar(needs);
         await TestTooltip();
         TestNotes();
+        await TestAlerts(needs);
         await TestInventory(needs);
         await TestMap();
         await TestJournal();
@@ -127,6 +128,18 @@ public partial class UiTests : Node3D
         IReadOnlyList<string> recent = Ui!.Notes!.Recent;
         bool noted = recent.Count >= 2 && recent[^2].Contains("Rope") && recent[^1].Contains("Station 3");
         Check("events pin paper notes", noted, $"recent notes: {string.Join(" / ", recent)}");
+    }
+
+    private async Task TestAlerts(CarrierNeeds needs)
+    {
+        needs.SetNeeds(10.0f, 90.0f);
+        await Wait(0.5f);
+        bool hungry = Ui!.Alerts!.Shown.Contains("Hungry") && !Ui.Alerts.Shown.Contains("Thirsty") && Ui.Alerts.Visible == GameOptions.LowStatAlerts;
+        needs.SetNeeds(90.0f, 90.0f);
+        await Wait(0.5f);
+        bool cleared = !Ui.Alerts.Shown.Contains("Hungry");
+        Check("low stats are listed under the dials, and leave when they recover", hungry && cleared,
+            $"listed [{string.Join(", ", Ui.Alerts.Shown)}] after eating; hungry {hungry}, cleared {cleared}");
     }
 
     private async Task TestInventory(CarrierNeeds needs)

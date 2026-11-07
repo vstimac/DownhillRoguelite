@@ -27,6 +27,7 @@ public partial class Hud : CanvasLayer
     public StatDial? HungerDial { get; private set; }
     public StatDial? ThirstDial { get; private set; }
     public StatDial? StaminaDial { get; private set; }
+    public LowStatAlerts? Alerts { get; private set; }
     public DescentPanel? Descent { get; private set; }
     public CompassDial? Compass { get; private set; }
     public EquipmentPanel? Equipment { get; private set; }
@@ -68,6 +69,8 @@ public partial class Hud : CanvasLayer
         HungerDial = Dial(InkIcon.Stomach, UiStyle.Hunger);
         ThirstDial = Dial(InkIcon.Drop, UiStyle.Thirst);
         StaminaDial = Dial(InkIcon.Boot, UiStyle.Stamina);
+        Alerts = new LowStatAlerts { Name = "LowStatAlerts", Position = new Vector2(24, 140), Size = new Vector2(300, 140) };
+        _play.AddChild(Alerts);
         Descent = new DescentPanel { Size = new Vector2(350, 172) };
         _play.AddChild(Descent);
         Compass = new CompassDial { Size = new Vector2(132, 132) };
@@ -92,6 +95,7 @@ public partial class Hud : CanvasLayer
         _root.AddChild(Inventory);
         ThrowZone.Inventory = Inventory;
         AddChild(new PageFreeze { Name = "PageFreeze", Inventory = Inventory });
+        AddChild(new OptionsApplier { Name = "OptionsApplier" });
         MapPage = new MapScreen();
         foreach (Node node in GetTree().GetNodesInGroup(FieldMap.Group))
         {
