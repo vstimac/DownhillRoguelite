@@ -18,6 +18,8 @@ public partial class RunSummaryView : Node3D
     [Export] public Color TextColor { get; set; } = new(0.95f, 0.88f, 0.75f);
     [Export] public Color RecordColor { get; set; } = new(1.0f, 0.8f, 0.4f);
     [Export] public float FadeSeconds { get; set; } = 1.5f;
+    /// <summary>Width of the details block in label pixels, before it wraps.</summary>
+    [Export] public float DetailsWidth { get; set; } = 1500.0f;
 
     public bool Showing => _title != null && _title.Visible;
     public string Text => (_title?.Text ?? "") + "\n" + (_details?.Text ?? "");
@@ -33,6 +35,9 @@ public partial class RunSummaryView : Node3D
         // The details hang below the title (top-aligned), so more lines grow down, never into it.
         _details = MakeLabel(FontSize / 3, Vector3.Down * (FontSize * PixelSize * 0.75f));
         _details.VerticalAlignment = VerticalAlignment.Top;
+        // Long causes and circle names wrap instead of running off the screen.
+        _details.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _details.Width = DetailsWidth;
         GameEvents.RunEnded += OnRunEnded;
         GameEvents.RespawnRequested += HideSummary;
     }

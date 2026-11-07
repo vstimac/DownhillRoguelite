@@ -1,4 +1,5 @@
 using DownhillRoguelite.Core;
+using DownhillRoguelite.WorldUi;
 using Godot;
 
 namespace DownhillRoguelite.Map;
@@ -16,8 +17,8 @@ public partial class RouteSign : Node3D
     [Export] public Color HazardousColor { get; set; } = new(1.0f, 0.55f, 0.4f);
     [Export] public Color SupplyColor { get; set; } = new(1.0f, 0.85f, 0.45f);
     [Export] public Color LateColor { get; set; } = new(0.75f, 0.75f, 0.8f);
-    [Export] public int FontSize { get; set; } = 40;
-    [Export] public float PixelSize { get; set; } = 0.005f;
+    [Export] public int FontSize { get; set; } = 32;
+    [Export] public float PixelSize { get; set; } = 0.004f;
     [Export] public float LineSpacing { get; set; } = 0.32f;
     [Export] public float BoardHeight { get; set; } = 2.2f;
 
@@ -56,7 +57,7 @@ public partial class RouteSign : Node3D
                 Position = new Vector3(0.0f, BoardHeight + 1.4f - i * LineSpacing, 0.0f),
                 Visible = false,
             };
-            AddChild(_lines[i]);
+            AddChild(WorldLabel.Readable(_lines[i]));
         }
         _lines[0].Text = "Paths ahead";
         _lines[0].Visible = true;
