@@ -332,10 +332,10 @@ public partial class Hud : CanvasLayer
         }
     }
 
-    /// <summary>Direction of the nearest waypoint relative to the view, or NaN.</summary>
+    /// <summary>Direction of the nearest waypoint (or, with none set, the next station) relative to the view, or NaN.</summary>
     private float NearestWaypointAngle()
     {
-        if (MapPage?.Map == null || MapPage.Map.Chart.Waypoints.Count == 0)
+        if (MapPage?.Map == null)
         {
             return float.NaN;
         }
@@ -348,6 +348,14 @@ public partial class Hud : CanvasLayer
         Vector2 me = new(here.X, here.Z);
         Vector2 best = Vector2.Zero;
         float bestDistance = float.MaxValue;
+        // No waypoints: the compass's marker points to the next station instead.
+        IRouteQuery? route = MapPage.Map.Route;
+        if (MapPage.Map.Chart.Waypoints.Count == 0 && route != null)
+        {
+            Vector3 station = route.Station(route.NextStationIndex(here.Z));
+            best = new Vector2(station.X, station.Z);
+            bestDistance = 0.0f;
+        }
         foreach (Vector2 point in MapPage.Map.Chart.Waypoints)
         {
             float d = point.DistanceTo(me);

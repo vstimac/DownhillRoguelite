@@ -98,8 +98,14 @@ public partial class MapCanvas : Control
             DrawString(font, p + new Vector2(10, -6), (i + 1).ToString(), HorizontalAlignment.Left, -1, 22, WaypointInk);
         }
 
+        // The way to the next station: always known (its beacon is seen from afar), even under fog.
+        if (route != null)
+        {
+            DrawStationArrow(route, centre, metresPerPixel, size, font);
+        }
+
         // The carrier: an arrow pointing the way it faces.
-        Vector2 me = size * 0.5f;
+        Vector2 me = ToPixel(Map.CarrierPoint, centre, metresPerPixel, size);
         Vector2 facing = Map.Facing;
         if (facing.IsZeroApprox())
         {
@@ -150,7 +156,10 @@ public partial class MapCanvas : Control
                 }
                 Vector3 a = route.PathPoint(stage, path, z);
                 Vector3 b = route.PathPoint(stage, path, z + step);
-                if (!chart.IsSeen(a.X, a.Z) || !chart.IsSeen(b.X, b.Z))
+                bool seen = chart.IsSeen(a.X, a.Z) && chart.IsSeen(b.X, b.Z);
+                // Unseen paths ahead (downhill of the carrier, this stage and the next) show faintly, dotted.
+                bool ahead = z > Map!.CarrierPoint.Y - AheadReach && z < Map.CarrierPoint.Y;
+                if (!seen && (!ahead || Mathf.PosMod(z, step * 2.0f) >= step))
                 {
                     continue;
                 }
@@ -166,9 +175,64 @@ public partial class MapCanvas : Control
                 {
                     colour = SupplyInk;
                 }
+                if (!seen)
+                {
+                    colour = new Color(colour, 0.4f);
+                    width *= 0.7f;
+                }
                 DrawLine(ToPixel(new Vector2(a.X, a.Z), centre, metresPerPixel, size), ToPixel(new Vector2(b.X, b.Z), centre, metresPerPixel, size), colour, width, true);
             }
         }
+    }
+
+    /// <summary>How far ahead (downhill) unseen paths are sketched in, in m.</summary>
+    [Export] public float AheadReach { get; set; } = 900.0f;
+    [Export] public Color StationInk { get; set; } = new(0.85f, 0.45f, 0.1f);
+
+    /// <summary>An arrow from the carrier toward the next station, with its number and distance; at the sheet's edge if it's off the sheet.</summary>
+    private void DrawStationArrow(IRouteQuery route, Vector2 centre, float metresPerPixel, Vector2 size, Font font)
+    {
+        Vector2 me = Map!.CarrierPoint;
+        int index = route.NextStationIndex(me.Y);
+        Vector3 station = route.Station(index);
+        Vector2 target = new(station.X, station.Z);
+        Vector2 to = target - me;
+        if (to.Length() < 1.0f)
+        {
+            return;
+        }
+        Vector2 direction = to.Normalized();
+        Vector2 tipWorld = target;
+        Vector2 tip = ToPixel(tipWorld, centre, metresPerPixel, size);
+        Rect2 inner = new(new Vector2(34, 44), size - new Vector2(68, 88));
+        if (!inner.HasPoint(tip))
+        {
+            // Off the sheet: pin the arrow to the edge, along the line from the carrier.
+            Vector2 from = ToPixel(me, centre, metresPerPixel, size);
+            float t = 1.0f;
+            for (int i = 0; i < 24; i++)
+            {
+                t *= 0.85f;
+                if (inner.HasPoint(from + (tip - from) * t))
+                {
+                    break;
+                }
+            }
+            tip = from + (tip - from) * t;
+        }
+        Vector2 side = new(-direction.Y, direction.X);
+        Vector2 tail = tip - direction * 34.0f;
+        DrawLine(tail, tip - direction * 8.0f, StationInk, 5.0f, true);
+        DrawColoredPolygon(new[] { tip, tip - direction * 16.0f + side * 10.0f, tip - direction * 16.0f - side * 10.0f }, StationInk);
+        string label = $"Station {index} \u00b7 {to.Length() / 1000.0f:0.0} km";
+        if (to.Length() < 1000.0f)
+        {
+            label = $"Station {index} \u00b7 {to.Length():0} m";
+        }
+        Vector2 at = tail - direction * 10.0f + new Vector2(-40.0f, side.Y * 8.0f);
+        at.X = Mathf.Clamp(at.X, 8.0f, size.X - 170.0f);
+        at.Y = Mathf.Clamp(at.Y, 40.0f, size.Y - 30.0f);
+        DrawString(font, at, label, HorizontalAlignment.Left, -1, 20, StationInk);
     }
 
     private void DrawStations(IRouteQuery route, MapChart chart, Vector2 centre, float metresPerPixel, Vector2 size, Vector2 half, Font font)
