@@ -63,13 +63,32 @@ public partial class JournalLog : Node
         GameEvents.CompanionReplied -= OnReplied;
     }
 
-    private void OnAsked(string question) => Write($"I said: \"{question.StripEdges()}\"");
+    private void OnAsked(string question)
+    {
+        SpeakerInfo to = GameEvents.CurrentSpeaker;
+        if (to.IsCompanion)
+        {
+            Write($"I said: \"{question.StripEdges()}\"");
+        }
+        else
+        {
+            Write($"I said to {to.Name}: \"{question.StripEdges()}\"");
+        }
+    }
 
     private void OnReplied(string text, bool done)
     {
         if (done && text.Length > 0)
         {
-            Write(text, true);
+            SpeakerInfo from = GameEvents.ReplySpeaker;
+            if (from.IsCompanion)
+            {
+                Write(text, true);
+            }
+            else
+            {
+                Write($"{from.Name}: {text}", true);
+            }
         }
     }
 

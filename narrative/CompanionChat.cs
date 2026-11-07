@@ -33,7 +33,13 @@ public partial class CompanionChat : Node
     /// <summary>What the companion "says" when there's no model to answer with.</summary>
     [Export] public string SilentReply { get; set; } = "The companion only listens, and says nothing.";
 
+    /// <summary>Rules every traveller's persona gets (stay in the world, keep it short).</summary>
+    [Export(PropertyHint.File, "*.txt")] public string NpcRulesPath { get; set; } = "res://narrative/data/npc_rules.txt";
+    /// <summary>Travellers' conversations kept at once (each holds video memory); the oldest is dropped.</summary>
+    [Export] public int MaxNpcChats { get; set; } = 2;
+
     public string ResolvedModelPath { get; private set; } = "";
+    public int NpcChats => _npcChats.Count;
     public string LastReply { get; private set; } = "";
     public int Replies { get; private set; }
 
@@ -43,6 +49,12 @@ public partial class CompanionChat : Node
     private WorldClock? _clock;
     private VitalsSnapshot? _vitals;
     private string? _pending;
+    private SpeakerInfo _pendingSpeaker = SpeakerInfo.Companion;
+    private SpeakerInfo _replyFor = SpeakerInfo.Companion;
+    private readonly Dictionary<string, GodotObject> _npcChats = new();
+    private readonly List<string> _npcOrder = new();
+    private readonly Dictionary<string, int> _silentIndex = new();
+    private string _npcRules = "";
     private bool _resetPending;
     private bool _gone;
 
@@ -207,22 +219,26 @@ public partial class CompanionChat : Node
         {
             return;
         }
+        SpeakerInfo speaker = GameEvents.CurrentSpeaker;
         switch (GameEvents.Companion)
         {
             case CompanionState.Silent:
                 // A beat later, so the question is written down before the (non-)answer.
-                CallDeferred(MethodName.Answer, SilentReply);
+                _replyFor = speaker;
+                CallDeferred(MethodName.Answer, SilentLine(speaker));
                 break;
             case CompanionState.Asleep:
                 _pending = question;
+                _pendingSpeaker = speaker;
                 Wake();
                 break;
             case CompanionState.Listening:
-                Ask(question);
+                Ask(question, speaker);
                 break;
             default:
                 // Waking or still answering: the newest question waits its turn.
                 _pending = question;
+                _pendingSpeaker = speaker;
                 break;
         }
     }
@@ -233,7 +249,7 @@ public partial class CompanionChat : Node
         {
             string question = _pending;
             _pending = null;
-            Ask(question);
+            Ask(question, _pendingSpeaker);
         }
     }
 
@@ -241,11 +257,64 @@ public partial class CompanionChat : Node
     {
         LastReply = text;
         Replies++;
+        GameEvents.PublishReplySpeaker(_replyFor);
         GameEvents.PublishCompanionReply(text, true);
     }
 
-    /// <summary>Asks the model, with the situation note, and streams the reply out.</summary>
-    private async void Ask(string question)
+    /// <summary>What someone says without a model: the companion only listens; a traveller has a few lines of their own.</summary>
+    private string SilentLine(SpeakerInfo speaker)
+    {
+        if (speaker.IsCompanion || speaker.SilentLines.Length == 0)
+        {
+            return SilentReply;
+        }
+        int index = _silentIndex.GetValueOrDefault(speaker.Id);
+        _silentIndex[speaker.Id] = index + 1;
+        return speaker.SilentLines[index % speaker.SilentLines.Length];
+    }
+
+    /// <summary>The conversation with a traveller: opened the first time they're spoken to, the oldest dropped past MaxNpcChats.</summary>
+    private async Task<GodotObject?> ChatFor(SpeakerInfo speaker)
+    {
+        if (speaker.IsCompanion)
+        {
+            return _chat;
+        }
+        if (_npcChats.TryGetValue(speaker.Id, out GodotObject? existing))
+        {
+            return existing;
+        }
+        if (_model == null)
+        {
+            return null;
+        }
+        if (_npcRules.Length == 0)
+        {
+            using FileAccess? file = FileAccess.Open(NpcRulesPath, FileAccess.ModeFlags.Read);
+            if (file != null)
+            {
+                _npcRules = file.GetAsText().StripEdges();
+            }
+        }
+        Godot.Collections.Dictionary config = new() { { "system_prompt", $"{speaker.Persona}\n\n{_npcRules}" } };
+        Variant chat = await Settle(ClassDB.ClassCallStatic("NobodyWhoChat", "create", _model, config));
+        if (_gone || chat.VariantType != Variant.Type.Object || chat.AsGodotObject() == null)
+        {
+            return null;
+        }
+        while (_npcOrder.Count >= MaxNpcChats && _npcOrder.Count > 0)
+        {
+            _npcChats.Remove(_npcOrder[0]);
+            _npcOrder.RemoveAt(0);
+        }
+        GodotObject opened = chat.AsGodotObject();
+        _npcChats[speaker.Id] = opened;
+        _npcOrder.Add(speaker.Id);
+        return opened;
+    }
+
+    /// <summary>Asks the model as the given speaker, with the situation note, and streams the reply out.</summary>
+    private async void Ask(string question, SpeakerInfo speaker)
     {
         if (_chat == null)
         {
@@ -257,9 +326,21 @@ public partial class CompanionChat : Node
             _chat.Call("reset_history");
         }
         SetThinking(true);
+        _replyFor = speaker;
+        GodotObject? chat = await ChatFor(speaker);
+        if (_gone)
+        {
+            return;
+        }
+        if (chat == null)
+        {
+            SetThinking(false);
+            Answer(SilentLine(speaker));
+            return;
+        }
         ulong started = Time.GetTicksMsec();
         string prompt = $"{CurrentSituation()}\n{question}";
-        Variant streamValue = _chat.Call("ask", prompt);
+        Variant streamValue = chat.Call("ask", prompt);
         GodotObject? stream = streamValue.AsGodotObject();
         GD.Print($"Companion: asking ({streamValue.VariantType}, stream {stream != null})");
         StringBuilder text = new();
@@ -282,12 +363,13 @@ public partial class CompanionChat : Node
             }
             text.Append(token.AsString());
             tokens++;
+            GameEvents.PublishReplySpeaker(speaker);
             GameEvents.PublishCompanionReply(Clean(text.ToString()), false);
             if (tokens >= MaxReplyTokens)
             {
                 // Long enough: stop the model, and let the stream run out.
                 stopped = true;
-                _chat?.Call("stop_generation");
+                chat.Call("stop_generation");
             }
         }
         string reply = Clean(text.ToString());
@@ -376,6 +458,9 @@ public partial class CompanionChat : Node
     private void OnNewRun()
     {
         _pending = null;
+        _npcChats.Clear();
+        _npcOrder.Clear();
+        _silentIndex.Clear();
         if (_chat == null)
         {
             return;

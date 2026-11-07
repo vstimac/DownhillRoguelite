@@ -19,7 +19,11 @@ public partial class TalkScreen : ParchmentPanel
     public string Transcript => _text?.GetParsedText() ?? "";
     public LineEdit? Input => _input;
 
-    private readonly List<(bool Companion, string Text)> _lines = new();
+    public SpeakerInfo Speaker => _speaker;
+
+    private List<(bool Companion, string Text)> _lines = new();
+    private readonly Dictionary<string, List<(bool Companion, string Text)>> _transcripts = new();
+    private SpeakerInfo _speaker = SpeakerInfo.Companion;
     private RichTextLabel? _text;
     private LineEdit? _input;
     private Label? _status;
@@ -69,9 +73,11 @@ public partial class TalkScreen : ParchmentPanel
         _input.AddThemeColorOverride("caret_color", UiStyle.Ink);
         _input.TextSubmitted += Send;
         AddChild(_input);
+        _transcripts[SpeakerInfo.CompanionId] = _lines;
         GameEvents.CompanionReplied += OnReply;
         GameEvents.CompanionChanged += OnState;
         GameEvents.RespawnRequested += OnNewRun;
+        GameEvents.TalkRequested += SetSpeaker;
         OnState(GameEvents.Companion);
         SetOpenNow(false);
     }
@@ -81,6 +87,7 @@ public partial class TalkScreen : ParchmentPanel
         GameEvents.CompanionReplied -= OnReply;
         GameEvents.CompanionChanged -= OnState;
         GameEvents.RespawnRequested -= OnNewRun;
+        GameEvents.TalkRequested -= SetSpeaker;
         if (GameEvents.IsConversing)
         {
             GameEvents.PublishConversation(false);
@@ -123,8 +130,51 @@ public partial class TalkScreen : ParchmentPanel
         GameEvents.RequestAsk(question);
     }
 
+    /// <summary>Turns the page to the conversation with someone (each keeps its own transcript).</summary>
+    public void SetSpeaker(SpeakerInfo speaker)
+    {
+        _speaker = speaker;
+        if (!_transcripts.TryGetValue(speaker.Id, out List<(bool Companion, string Text)>? lines))
+        {
+            lines = new List<(bool Companion, string Text)>();
+            _transcripts[speaker.Id] = lines;
+        }
+        _lines = lines;
+        _streaming = false;
+        if (_input != null)
+        {
+            _input.PlaceholderText = $"Say something to {SpeakerWord(false)}...";
+        }
+        Redraw();
+        OnState(GameEvents.Companion);
+    }
+
+    /// <summary>"the companion" or the traveller's name; capitalised for the start of a sentence.</summary>
+    private string SpeakerWord(bool capital)
+    {
+        if (!_speaker.IsCompanion)
+        {
+            return _speaker.Name;
+        }
+        if (capital)
+        {
+            return "The companion";
+        }
+        return "the companion";
+    }
+
     private void OnReply(string text, bool done)
     {
+        SpeakerInfo from = GameEvents.ReplySpeaker;
+        if (from.Id != _speaker.Id)
+        {
+            // A reply from someone else (the page was turned meanwhile): keep it in their transcript.
+            if (done && _transcripts.TryGetValue(from.Id, out List<(bool Companion, string Text)>? other))
+            {
+                other.Add((true, text));
+            }
+            return;
+        }
         if (!_streaming)
         {
             Add(true, text);
@@ -179,13 +229,21 @@ public partial class TalkScreen : ParchmentPanel
         {
             return;
         }
+        string who = SpeakerWord(true);
+        string silent = "The companion is silent (no voice model found: see the README).";
+        string asleep = "The companion walks beside you, quiet. Speak, and they'll answer.";
+        if (!_speaker.IsCompanion)
+        {
+            silent = $"{who} answers in few words.";
+            asleep = $"{who} looks up from the fire.";
+        }
         _status.Text = state switch
         {
-            CompanionState.Asleep => "The companion walks beside you, quiet. Speak, and they'll answer.",
-            CompanionState.Waking => "The companion gathers their thoughts...",
-            CompanionState.Listening => "The companion is listening.",
-            CompanionState.Thinking => "The companion is thinking...",
-            _ => "The companion is silent (no voice model found: see the README).",
+            CompanionState.Asleep => asleep,
+            CompanionState.Waking => $"{who} gathers their thoughts...",
+            CompanionState.Listening => $"{who} is listening.",
+            CompanionState.Thinking => $"{who} is thinking...",
+            _ => silent,
         };
         if (_input != null)
         {
@@ -195,7 +253,10 @@ public partial class TalkScreen : ParchmentPanel
 
     private void OnNewRun()
     {
-        _lines.Clear();
+        _transcripts.Clear();
+        _lines = new List<(bool Companion, string Text)>();
+        _transcripts[SpeakerInfo.CompanionId] = _lines;
+        _speaker = SpeakerInfo.Companion;
         _streaming = false;
         Redraw();
     }

@@ -19,6 +19,7 @@ public partial class ConversationTests : Node
 {
     [Export] public CompanionChat? Companion { get; set; }
     [Export] public Hud? Ui { get; set; }
+    [Export] public StationVisitors? Visitors { get; set; }
     /// <summary>How long the live test waits for the model to load and answer, in seconds.</summary>
     [Export] public float LiveTimeout { get; set; } = 120.0f;
 
@@ -49,6 +50,7 @@ public partial class ConversationTests : Node
             await TestSilent(Companion);
         }
         await TestPage(Ui, live);
+        await TestTravellers(Ui, live);
 
         GameEvents.CompanionReplied -= OnReply;
         if (_failures.Count == 0)
@@ -155,6 +157,73 @@ public partial class ConversationTests : Node
             $"live reply failed: done={_done}, {_partials.Count} partials, '{_reply}'");
         Check(GameEvents.Companion == CompanionState.Listening, "the companion listens again after answering",
             $"state after reply {GameEvents.Companion}");
+    }
+
+    /// <summary>Travellers: picked by seed and circle, spoken to with E, answered in their own words, kept apart from the companion.</summary>
+    private async Task TestTravellers(Hud ui, bool live)
+    {
+        if (Visitors == null || Visitors.Personas.Length == 0 || ui.Talk == null)
+        {
+            _failures.Add("no travellers to test");
+            return;
+        }
+        bool same = true;
+        bool noPenitentInLimbo = true;
+        int seated = 0;
+        for (int station = 1; station <= 40; station++)
+        {
+            NpcPersona? first = Visitors.Pick(station, 0);
+            NpcPersona? again = Visitors.Pick(station, 0);
+            same &= first == again;
+            if (first != null)
+            {
+                seated++;
+                noPenitentInLimbo &= first.MinCircle <= 0;
+            }
+        }
+        Check(same && noPenitentInLimbo && seated > 10 && seated < 40,
+            $"travellers are picked by the mountain's seed, fit the circle, and sit at most stations ({seated}/40)",
+            $"traveller picks: same {same}, circle ok {noPenitentInLimbo}, seated {seated}/40");
+
+        NpcPersona persona = Visitors.Personas[0];
+        NpcFigure figure = new();
+        figure.Setup(persona, 1, Vector3.Zero);
+        AddChild(figure);
+        figure.Position = new Vector3(2, 0, 0);
+        await Frames(2);
+        figure.Interact(figure);
+        await Frames(30);
+        TalkScreen page = ui.Talk;
+        Check(page.Visible && page.IsOpen && GameEvents.CurrentSpeaker.Id == persona.Id && page.Speaker.Name == persona.DisplayName,
+            $"E on {persona.DisplayName} opens the conversation with them",
+            $"talking to the traveller: open {page.IsOpen}, speaker {GameEvents.CurrentSpeaker.Id}");
+        _done = false;
+        page.Send("Who are you?");
+        ulong start = Time.GetTicksMsec();
+        while (!_done && (Time.GetTicksMsec() - start) / 1000.0f < LiveTimeout)
+        {
+            await Frames(1);
+        }
+        GD.Print($"{persona.DisplayName} replied: {_reply}");
+        bool own = GameEvents.ReplySpeaker.Id == persona.Id && _reply.Length > 0;
+        if (!live)
+        {
+            own &= System.Array.IndexOf(persona.SilentLines, _reply) >= 0;
+        }
+        bool apart = page.Transcript.Contains("Who are you?") && !page.Transcript.Contains("Hello, companion.");
+        int entries = ui.Log?.Entries.Count ?? 0;
+        bool journaled = entries > 0 && ui.Log!.Entries[entries - 1].Text.StartsWith(persona.DisplayName + ":");
+        Check(own && apart && journaled, $"{persona.DisplayName} answers in their own words, on their own page, and the journal names them",
+            $"traveller reply: own {own}, apart {apart}, journaled {journaled}, '{_reply}'");
+        page.Close();
+        await Frames(40);
+        GameEvents.RequestTalkTo(SpeakerInfo.Companion);
+        await Frames(30);
+        Check(page.Speaker.IsCompanion && page.Transcript.Contains("Hello, companion."),
+            "back with the companion, their conversation is still there", $"companion transcript lost: '{page.Transcript}'");
+        page.Close();
+        await Frames(40);
+        figure.QueueFree();
     }
 
     private async Task TestPage(Hud ui, bool live)

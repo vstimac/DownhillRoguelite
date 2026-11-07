@@ -46,6 +46,7 @@ public partial class Notifications : Control
         GameEvents.Mended += OnMended;
         GameEvents.ItemLost += OnLost;
         GameEvents.GearChanged += OnGear;
+        GameEvents.VisitorMet += OnVisitor;
         CallDeferred(MethodName.Hint);
     }
 
@@ -69,7 +70,10 @@ public partial class Notifications : Control
         GameEvents.Mended -= OnMended;
         GameEvents.ItemLost -= OnLost;
         GameEvents.GearChanged -= OnGear;
+        GameEvents.VisitorMet -= OnVisitor;
     }
+
+    private void OnVisitor(string name, string title) => Note($"Someone sits by the fire: {name}, {title}");
 
     private readonly HashSet<string> _broken = new();
 
