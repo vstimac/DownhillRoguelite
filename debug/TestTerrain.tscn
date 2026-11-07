@@ -44,6 +44,7 @@
 [ext_resource type="Script" path="res://audio/SoundEffects.cs" id="44_sfx"]
 [ext_resource type="Script" path="res://ui/Hud.cs" id="45_hud"]
 [ext_resource type="Script" path="res://narrative/CompanionChat.cs" id="46_companion"]
+[ext_resource type="Script" path="res://narrative/CompanionVoice.cs" id="47_voice"]
 
 [sub_resource type="Resource" id="Boon_steady_legs"]
 script = ExtResource("41_boon")
@@ -264,6 +265,9 @@ script = ExtResource("29_narrator")
 
 [node name="Companion" type="Node" parent="."]
 script = ExtResource("46_companion")
+
+[node name="CompanionVoice" type="Node3D" parent="."]
+script = ExtResource("47_voice")
 
 [node name="PauseMenu" type="CanvasLayer" parent="."]
 script = ExtResource("30_pause")

@@ -33,6 +33,7 @@ public partial class Hud : CanvasLayer
     public Hotbar? Hotbar { get; private set; }
     public InteractionTooltip? Tooltip { get; private set; }
     public Notifications? Notes { get; private set; }
+    public Subtitles? Captions { get; private set; }
     public InventoryScreen? Inventory { get; private set; }
     public MapScreen? MapPage { get; private set; }
     public JournalScreen? Journal { get; private set; }
@@ -75,6 +76,8 @@ public partial class Hud : CanvasLayer
         _play.AddChild(Tooltip);
         Notes = new Notifications { Size = new Vector2(330, 200) };
         _play.AddChild(Notes);
+        Captions = new Subtitles { Name = "Subtitles" };
+        _play.AddChild(Captions);
 
         Inventory = new InventoryScreen();
         _root.AddChild(Inventory);

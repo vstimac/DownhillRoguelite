@@ -73,7 +73,7 @@ public partial class MusicPlayer : Node
             daylight = _clock.Daylight;
         }
         float duckTarget = 0.0f;
-        if (GameEvents.IsNarrating)
+        if (GameEvents.IsNarrating || GameEvents.IsSpeaking)
         {
             duckTarget = 1.0f;
         }

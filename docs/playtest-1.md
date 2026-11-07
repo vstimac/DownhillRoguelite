@@ -9,6 +9,9 @@ Build: `D:\Game dev\Builds\DownhillRoguelite-playtest1\` (branch `playtest-1`: e
 - Start with **`DownhillRoguelite.exe`**, or **`Race - same mountain.bat`** for the race below.
 - Headphones help: the narrator, weather and footsteps carry a lot.
 - **Talking (Enter):** the model loads when the page first opens (a few seconds); the first answer takes 10 to 15 s, later ones a few seconds. The game drops to 15 fps while the companion thinks (it frees the GPU; the world is behind the page). On a PC without a dedicated GPU, answers will be slow: skip talking there.
+- **Voices and subtitles:** the companion walks at your left shoulder. Recorded lines play from there in 3D; live replies are read by the Windows voice (not 3D yet). Every spoken line is subtitled on the side the voice comes from, with an arrow when the speaker is off to the side.
+- **Moving the UI:** pages drag by their title; hold Alt to drag any HUD piece; Alt+Backspace resets. Layouts are saved per PC.
+- **Linux beta:** `D:\Game dev\Builds\DownhillRoguelite-linux-beta.tar.gz` (untested on real Linux). Unpack with `tar -xzf`, then run `./DownhillRoguelite.x86_64` or `./race-same-mountain.sh`. Needs Vulkan drivers. Copy `Models\` from the Windows build for talking.
 - Known: one wildlife check sometimes catches an animal hovering a few cm over the ground (cosmetic).
 - If one PC plays a few people in turns, quit and restart between players (each start is a fresh carrier).
 
