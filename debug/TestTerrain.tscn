@@ -40,6 +40,7 @@
 [ext_resource type="Script" path="res://progression/BoonOfferings.cs" id="40_boons"]
 [ext_resource type="Script" path="res://progression/BoonDefinition.cs" id="41_boon"]
 [ext_resource type="Script" path="res://progression/StartingKit.cs" id="42_kit"]
+[ext_resource type="Script" path="res://map/FieldMap.cs" id="43_map"]
 
 [sub_resource type="Resource" id="Boon_steady_legs"]
 script = ExtResource("41_boon")
@@ -274,3 +275,6 @@ Boons = [SubResource("Boon_steady_legs"), SubResource("Boon_iron_lungs"), SubRes
 
 [node name="StartingKit" type="Node" parent="."]
 script = ExtResource("42_kit")
+
+[node name="FieldMap" type="Node3D" parent="."]
+script = ExtResource("43_map")

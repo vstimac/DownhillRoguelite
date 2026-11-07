@@ -131,7 +131,7 @@ public partial class PlayerController : CharacterBody3D
         FloorMaxAngle = Mathf.DegToRad(WalkableAngle());
 
         bool grounded = IsOnFloor();
-        Sprinting = grounded && InputEnabled && !held && !braking
+        Sprinting = grounded && InputEnabled && !held && !braking && !GameEvents.IsMapOpen
             && input.Length() > SprintInputThreshold
             && Input.IsActionPressed(ActionSprint)
             && Stamina != null && Stamina.CanSprint;
@@ -444,7 +444,13 @@ public partial class PlayerController : CharacterBody3D
             speed *= Mathf.Max(Settings.MinUphillSpeedFactor, 1.0f + Settings.UphillSpeedPenalty * grade);
         }
 
-        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor(), Settings.MaxSpeed);
+        // Holding the map up slows the carrier now, but not the route estimates (WalkingSpeed).
+        float map = 1.0f;
+        if (GameEvents.IsMapOpen)
+        {
+            map = Settings.MapSpeedFactor;
+        }
+        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor() * map, Settings.MaxSpeed);
     }
 
     private float DecelerationRate(bool braking, float grade)

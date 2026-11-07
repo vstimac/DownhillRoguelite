@@ -88,6 +88,10 @@ public partial class LocomotionSettings : Resource
     /// <summary>Below this speed the carrier counts as idle, in m/s.</summary>
     [Export] public float IdleSpeed { get; set; } = 0.1f;
 
+    [ExportGroup("Map")]
+    /// <summary>Walking speed while holding the map up, as a fraction (no sprinting).</summary>
+    [Export] public float MapSpeedFactor { get; set; } = 0.45f;
+
     [ExportGroup("Weather")]
     /// <summary>Walking speed lost in full snow (0.3 = 30 % slower); route estimates include it.</summary>
     [Export] public float SnowSpeedPenalty { get; set; } = 0.3f;

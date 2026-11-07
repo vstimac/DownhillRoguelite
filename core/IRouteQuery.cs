@@ -41,4 +41,7 @@ public interface IRouteQuery
 
     /// <summary>The path of the stage at the position's z that is closest sideways, and how far away it is, in m.</summary>
     int NearestPath(Vector3 position, out float distance);
+
+    /// <summary>Height of the ground anywhere (the map shades the terrain with it).</summary>
+    float GroundHeight(float x, float z);
 }

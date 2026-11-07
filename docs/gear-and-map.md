@@ -2,7 +2,18 @@
 
 Decided 2026-11-07 from the director's brief. Builds on `docs/inventory-design.md` (the snapped 3D grid, packing is balance) and keeps its rule: no flat UI during runs. Scheduled as M13 (map and compass) and M14 (gear and durability), after M12 progression.
 
-## M13 Map and compass
+## M13 Map and compass (built)
+
+As built (`map/FieldMap.cs`, `MapCanvas.cs`, `MapChart.cs`, `WaypointMarker.cs`):
+
+- **M** raises the sheet in front of the camera (it isn't a screen overlay). It is drawn north-up and centred on the carrier. It shows only the ground seen so far, about 70 m around you by day, 25 m at night, less in fog: shaded by height with contour lines, the paths you've seen in their colours (safe brown, hazardous red, supply-rich green), stations, the summit, your arrow and a scale bar. The wheel zooms (300, 600, 1,200 m across).
+- **The compass** sits on the top edge. Its needle shows real north (-Z, the way down the mountain) relative to the view.
+- **Waypoints:** click sets one, right-click removes the nearest. Up to 9; the oldest gives way. Each stands in the world as a red flag on a pole with a light, labelled with its number and distance, visible through fog and terrain.
+- **Drawing:** drag on the sheet with paper and a pencil in your pack (both lie around the world now). A pencil draws 3 km of line before it is used up, and a sheet holds 40 lines.
+- With the map up you walk at 45 % speed, can't sprint, lean or brace. Route estimates don't change. The narrator's `map_viewed` lines play.
+- A new mountain means a blank map.
+
+### Original brief
 
 - **The map is an object in the world.** The carrier holds it up in front of the camera (a key toggles it), as a sheet of paper with the mountain drawn on it, not a screen overlay. A **compass** sits on top of it, its needle pointing to the real north of the world.
 - **What the map shows:** the stretch of mountain the carrier has seen, the stations and paths as they are discovered, the carrier's position. It is a hand-drawn chart, not a satellite view: unexplored ground stays blank.

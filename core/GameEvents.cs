@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 
 namespace DownhillRoguelite.Core;
@@ -168,6 +169,34 @@ public static class GameEvents
     public static void PublishRunEnded(RunSummary summary)
     {
         RunEnded?.Invoke(summary);
+    }
+
+    /// <summary>True while the carrier holds the map up (slow walking, no leaning or bracing).</summary>
+    public static bool IsMapOpen { get; private set; }
+
+    /// <summary>Raised when the map is raised (true) or lowered (false).</summary>
+    public static event Action<bool>? MapOpened;
+
+    public static void PublishMapOpen(bool open)
+    {
+        IsMapOpen = open;
+        MapOpened?.Invoke(open);
+    }
+
+    /// <summary>Item ids the carrier owns right now, one entry per item (published by the inventory).</summary>
+    public static IReadOnlyList<string> CarriedItems { get; private set; } = System.Array.Empty<string>();
+
+    public static void PublishCarriedItems(IReadOnlyList<string> itemIds)
+    {
+        CarriedItems = itemIds;
+    }
+
+    /// <summary>Asks the inventory to use up one carried item with this id (a worn-out pencil).</summary>
+    public static event Action<string>? ItemUseRequested;
+
+    public static void RequestItemUse(string itemId)
+    {
+        ItemUseRequested?.Invoke(itemId);
     }
 
     /// <summary>Raised when the carrier takes a boon at a station (its name).</summary>

@@ -53,6 +53,17 @@ public partial class DebugSceneControls : Node
         {
             Input.ActionPress("player_brake");
         }
+        // `--promo` hides every overlay and the bars, for clean screenshots.
+        if (System.Array.IndexOf(args, "--promo") >= 0)
+        {
+            DebugDraw3D.SetEnabled(false);
+            DebugDraw3D.HideHud = true;
+        }
+        // `--map` raises the map at start (render checks).
+        if (System.Array.IndexOf(args, "--map") >= 0)
+        {
+            CallDeferred(MethodName.OpenMap);
+        }
         // `--at-station=2` starts the carrier at station 2 (render checks, trying boons).
         foreach (string arg in args)
         {
@@ -112,6 +123,17 @@ public partial class DebugSceneControls : Node
         if (PlayerBody != null && PlayerBody.GlobalPosition.Y < KillHeight)
         {
             GameEvents.PublishKill("fell");
+        }
+    }
+
+    private void OpenMap()
+    {
+        foreach (Node node in GetTree().GetNodesInGroup(Map.FieldMap.Group))
+        {
+            if (node is Map.FieldMap map)
+            {
+                map.SetOpen(true);
+            }
         }
     }
 
