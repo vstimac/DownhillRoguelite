@@ -90,7 +90,30 @@ def clean_message(message):
     lines = [line for line in message.strip().splitlines() if not line.lower().startswith("co-authored-by:")]
     title = lines[0].strip() if lines else "(no message)"
     body = "\n".join(lines[1:]).strip()
-    return title, body
+    return title, unwrap(body)
+
+
+def unwrap(text):
+    """Joins hard-wrapped lines back into paragraphs (blank lines and list items stay as they are)."""
+    paragraphs = []
+    current = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            if current:
+                paragraphs.append(" ".join(current))
+                current = []
+            paragraphs.append("")
+            continue
+        if stripped.startswith(("- ", "* ", "• ")) or re.match(r"^\d+[.)] ", stripped):
+            if current:
+                paragraphs.append(" ".join(current))
+            current = [stripped]
+            continue
+        current.append(stripped)
+    if current:
+        paragraphs.append(" ".join(current))
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(paragraphs)).strip()
 
 
 def cut(text, limit):
