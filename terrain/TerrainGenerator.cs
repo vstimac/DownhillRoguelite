@@ -13,6 +13,11 @@ namespace DownhillRoguelite.Terrain;
 /// Height = descent gradient along -Z + slow variation + (wild ridges and bumps, blended to a
 /// flat band along the spine). The band's cross-section is level and its slope only comes from
 /// the gradient, the slow variation and small path bumps, which keeps it under SpineMaxSlope.
+///
+/// Routes (M10): the run is cut into stages between stations; each stage has the spine (the safe
+/// path) plus one or two seeded branches that leave it below the top station and rejoin it above
+/// the bottom one: a hazardous branch (straight, narrow, rough, loose ground) or a supply-rich
+/// one (winding, longer). Branches are bands like the spine and blend into the terrain the same way.
 /// </summary>
 public sealed class TerrainGenerator
 {
@@ -26,6 +31,8 @@ public sealed class TerrainGenerator
     private const ulong MudSalt = 7;
     private const ulong ScreeSalt = 8;
     private const ulong ObstacleSalt = 9;
+    private const ulong RouteSalt = 10;
+    private const ulong HazardBumpSalt = 11;
     // 1D noise is read along a line off the lattice (noise is 0 on lattice points).
     private const float LineOffset = 0.5f;
     // Step for slope by finite differences, in m.
@@ -40,12 +47,15 @@ public sealed class TerrainGenerator
     private readonly GradientNoise _snow;
     private readonly GradientNoise _mud;
     private readonly GradientNoise _scree;
+    private readonly GradientNoise _hazardBumps;
     private readonly float _gradeTangent;
     private readonly float _clearingSlopeTangent;
     private readonly float _startHeight;
     private readonly object _stationLock = new();
     // Replaced, never modified, so readers on other threads can use it without the lock.
     private volatile Vector3[] _stations = System.Array.Empty<Vector3>();
+    // Branches of stage s (ending at station s + 1) at index s; replaced together with _stations.
+    private volatile RouteBranch[][] _branches = System.Array.Empty<RouteBranch[]>();
     // Metres between samples when searching down the route for the next station.
     private const float StationSearchStep = 2.0f;
     // Stations computed at a time when the mountain is explored beyond the known ones.
@@ -63,10 +73,10 @@ public sealed class TerrainGenerator
         _snow = new GradientNoise(SplitMix64.Mix(seed, SnowSalt));
         _mud = new GradientNoise(SplitMix64.Mix(seed, MudSalt));
         _scree = new GradientNoise(SplitMix64.Mix(seed, ScreeSalt));
+        _hazardBumps = new GradientNoise(SplitMix64.Mix(seed, HazardBumpSalt));
         _gradeTangent = Mathf.Tan(Mathf.DegToRad(settings.Grade));
         _clearingSlopeTangent = Mathf.Tan(Mathf.DegToRad(settings.ClearingSlope));
-        float spawnX = SpineX(settings.SpawnZ);
-        _startHeight = RawHeight(spawnX, settings.SpawnZ);
+        _startHeight = SpineHeight(settings.SpawnZ);
         EnsureStations(settings.PrecomputedStations);
     }
 
@@ -104,6 +114,7 @@ public sealed class TerrainGenerator
         lock (_stationLock)
         {
             List<Vector3> list = new(_stations);
+            List<RouteBranch[]> branches = new(_branches);
             float z = _settings.SpawnZ;
             if (list.Count > 0)
             {
@@ -112,16 +123,182 @@ public sealed class TerrainGenerator
             while (list.Count < count)
             {
                 float target = _startHeight - _settings.StationDepthInterval * (list.Count + 1);
+                float top = z;
                 do
                 {
                     z -= StationSearchStep;
                 }
-                while (RawHeight(SpineX(z), z) > target);
-                list.Add(new Vector3(SpineX(z), RawHeight(SpineX(z), z), z));
+                while (SpineHeight(z) > target);
+                list.Add(new Vector3(BaseSpineX(z), SpineHeight(z), z));
+                branches.Add(PlanBranches(list.Count - 1, top, z));
             }
+            // Branches first: readers find a stage's branches by its station.
+            _branches = branches.ToArray();
             _stations = list.ToArray();
             return _stations;
         }
+    }
+
+    /// <summary>Height along the spine's centre (no clearings, no branches): what stations are placed by.</summary>
+    private float SpineHeight(float z)
+    {
+        return Descent(z) + SpinePath(z);
+    }
+
+    private float Descent(float z)
+    {
+        return z * _gradeTangent + _settings.BaseVariationAmplitude * _base.Sample(z / _settings.BaseVariationWavelength, LineOffset);
+    }
+
+    private float SpinePath(float z)
+    {
+        return _settings.SpineBumpAmplitude * _spineBumps.Sample(z / _settings.SpineBumpWavelength, LineOffset);
+    }
+
+    /// <summary>The seeded branches of stage <paramref name="stage"/>, between z <paramref name="top"/> and <paramref name="bottom"/>.</summary>
+    private RouteBranch[] PlanBranches(int stage, float top, float bottom)
+    {
+        float split = top - _settings.BranchStationGap;
+        float join = bottom + _settings.BranchStationGap;
+        if (split - join < _settings.MinBranchLength)
+        {
+            return System.Array.Empty<RouteBranch>();
+        }
+        SplitMix64 random = new(SplitMix64.Mix(SplitMix64.Mix(Seed, RouteSalt), (ulong)stage + 1ul));
+        float firstSide = 1.0f;
+        if (random.NextFloat() < 0.5f)
+        {
+            firstSide = -1.0f;
+        }
+        bool both = random.NextFloat() < _settings.BothBranchesChance;
+        RouteKind first = RouteKind.SupplyRich;
+        if (random.NextFloat() < _settings.HazardousChance)
+        {
+            first = RouteKind.Hazardous;
+        }
+        List<RouteBranch> result = new() { MakeBranch(first, firstSide, split, join, random) };
+        if (both)
+        {
+            RouteKind second = RouteKind.Hazardous;
+            if (first == RouteKind.Hazardous)
+            {
+                second = RouteKind.SupplyRich;
+            }
+            result.Add(MakeBranch(second, -firstSide, split, join, random));
+        }
+        return result.ToArray();
+    }
+
+    private RouteBranch MakeBranch(RouteKind kind, float side, float split, float join, SplitMix64 random)
+    {
+        float offset = random.Range(_settings.BranchOffset.X, _settings.BranchOffset.Y);
+        return new RouteBranch(kind, side, offset, split, join, BaseSpineX(split), BaseSpineX(join));
+    }
+
+    /// <summary>The branches of a stage (stage s runs from station s, or the start, to station s + 1).</summary>
+    public RouteBranch[] Branches(int stage)
+    {
+        EnsureStations(stage + 1);
+        return _branches[stage];
+    }
+
+    /// <summary>Branches whose band can reach <paramref name="z"/> (empty for most of the mountain).</summary>
+    private RouteBranch[] BranchesAt(float z)
+    {
+        Vector3[] stations = EnsureStationsBelow(z);
+        RouteBranch[][] branches = _branches;
+        // Stations are ordered by descending z; the first one below z ends z's stage.
+        int low = 0;
+        int high = stations.Length;
+        while (low < high)
+        {
+            int mid = (low + high) / 2;
+            if (stations[mid].Z >= z)
+            {
+                low = mid + 1;
+            }
+            else
+            {
+                high = mid;
+            }
+        }
+        if (low >= branches.Length)
+        {
+            return System.Array.Empty<RouteBranch>();
+        }
+        return branches[low];
+    }
+
+    /// <summary>Centre line of a branch at <paramref name="z"/>; the spine outside its zone.</summary>
+    public float BranchX(RouteBranch branch, float z)
+    {
+        float span = branch.SplitZ - branch.JoinZ;
+        float t = Mathf.Clamp((branch.SplitZ - z) / span, 0.0f, 1.0f);
+        float shape = BranchShape(branch, z);
+        float x = SpineX(z);
+        if (branch.Kind == RouteKind.Hazardous)
+        {
+            // Straight between the ends, cutting the spine's meanders.
+            float chord = Mathf.Lerp(branch.SplitSpineX, branch.JoinSpineX, t);
+            x = Mathf.Lerp(x, chord, shape);
+        }
+        x += branch.Side * branch.Offset * shape;
+        if (branch.Kind == RouteKind.SupplyRich)
+        {
+            x += shape * _settings.SupplyMeanderAmplitude * Mathf.Sin(Mathf.Tau * z / _settings.SupplyMeanderWavelength);
+        }
+        return x;
+    }
+
+    public float HalfWidth(RouteKind kind)
+    {
+        if (kind == RouteKind.Hazardous)
+        {
+            return _settings.HazardHalfWidth;
+        }
+        if (kind == RouteKind.SupplyRich)
+        {
+            return _settings.SupplyHalfWidth;
+        }
+        return _settings.SpineHalfWidth;
+    }
+
+    private float BranchWeight(RouteBranch branch, float x, float z)
+    {
+        if (z > branch.SplitZ || z < branch.JoinZ)
+        {
+            return 0.0f;
+        }
+        float half = HalfWidth(branch.Kind);
+        float distance = Mathf.Abs(x - BranchX(branch, z));
+        return 1.0f - Mathf.SmoothStep(half, half + _settings.SpineBlend, distance);
+    }
+
+    private float BranchPath(RouteBranch branch, float x, float z)
+    {
+        if (branch.Kind == RouteKind.Hazardous)
+        {
+            float scale = 1.0f / _settings.HazardBumpWavelength;
+            return _settings.HazardBumpAmplitude * _hazardBumps.Sample(x * scale, z * scale);
+        }
+        return SpinePath(z);
+    }
+
+    /// <summary>How strongly a point lies on any path's band (0 to 1), and the kind of the strongest.</summary>
+    public float PathWeight(float x, float z, out RouteKind kind)
+    {
+        kind = RouteKind.Safe;
+        float best = SpineWeight(x, z);
+        foreach (RouteBranch branch in BranchesAt(z))
+        {
+            float weight = BranchWeight(branch, x, z);
+            if (weight > best)
+            {
+                best = weight;
+                kind = branch.Kind;
+            }
+        }
+        return best;
     }
 
     /// <summary>Blends a point toward the terrace of a station within reach, if any.</summary>
@@ -173,10 +350,34 @@ public sealed class TerrainGenerator
     public ulong Seed { get; }
     public TerrainSettings Settings => _settings;
 
-    /// <summary>Centre line of the walkable spine at <paramref name="z"/>.</summary>
+    /// <summary>
+    /// Centre line of the walkable spine (the safe path) at <paramref name="z"/>: the slow meander,
+    /// plus a gentle winding inside a stage's branch zone.
+    /// </summary>
     public float SpineX(float z)
     {
+        float x = BaseSpineX(z);
+        RouteBranch[] branches = BranchesAt(z);
+        if (branches.Length > 0)
+        {
+            x += BranchShape(branches[0], z) * _settings.SafeWindingAmplitude * Mathf.Sin(Mathf.Tau * z / _settings.SafeWindingWavelength);
+        }
+        return x;
+    }
+
+    /// <summary>The spine's slow meander alone (no winding), used to place stations and branch ends.</summary>
+    private float BaseSpineX(float z)
+    {
         return _settings.SpineMeanderAmplitude * _spine.Sample(z / _settings.SpineMeanderWavelength, LineOffset);
+    }
+
+    /// <summary>0 outside a branch's zone, rising to 1 over its ramps: how far into its swing it is.</summary>
+    private float BranchShape(RouteBranch branch, float z)
+    {
+        float span = branch.SplitZ - branch.JoinZ;
+        float t = Mathf.Clamp((branch.SplitZ - z) / span, 0.0f, 1.0f);
+        float ramp = Mathf.Max(_settings.BranchRamp, 0.01f);
+        return Mathf.SmoothStep(0.0f, ramp, t) * Mathf.SmoothStep(0.0f, ramp, 1.0f - t);
     }
 
     /// <summary>1 inside the spine band, falling to 0 over SpineBlend beyond it.</summary>
@@ -194,12 +395,30 @@ public sealed class TerrainGenerator
     /// <summary>Height before station clearings are cut in.</summary>
     private float RawHeight(float x, float z)
     {
-        float descent = z * _gradeTangent
-            + _settings.BaseVariationAmplitude * _base.Sample(z / _settings.BaseVariationWavelength, LineOffset);
         float wild = _settings.MountainAmplitude * _mountain.Fractal(x / _settings.MountainWavelength, z / _settings.MountainWavelength, _settings.MountainOctaves)
             + _settings.BumpAmplitude * _bumps.Sample(x / _settings.BumpWavelength, z / _settings.BumpWavelength);
-        float path = _settings.SpineBumpAmplitude * _spineBumps.Sample(z / _settings.SpineBumpWavelength, LineOffset);
-        return descent + Mathf.Lerp(wild, path, SpineWeight(x, z));
+        // Every band (spine and branches) pulls the ground to its own path height, by weight.
+        float spine = SpineWeight(x, z);
+        float weightSum = spine;
+        float pathSum = spine * SpinePath(z);
+        float strongest = spine;
+        foreach (RouteBranch branch in BranchesAt(z))
+        {
+            float weight = BranchWeight(branch, x, z);
+            if (weight <= 0.0f)
+            {
+                continue;
+            }
+            weightSum += weight;
+            pathSum += weight * BranchPath(branch, x, z);
+            strongest = Mathf.Max(strongest, weight);
+        }
+        float path = 0.0f;
+        if (weightSum > 0.0f)
+        {
+            path = pathSum / weightSum;
+        }
+        return Descent(z) + Mathf.Lerp(wild, path, strongest);
     }
 
     /// <summary>Steepness of the ground at a point, in degrees.</summary>
@@ -212,18 +431,37 @@ public sealed class TerrainGenerator
 
     public TerrainSurface SurfaceAt(float x, float z)
     {
-        return Classify(x, z, SlopeDegrees(x, z), SpineWeight(x, z));
+        float weight = PathWeight(x, z, out RouteKind kind);
+        return Classify(x, z, SlopeDegrees(x, z), weight, kind);
+    }
+
+    public TerrainSurface Classify(float x, float z, float slope, float spineWeight)
+    {
+        return Classify(x, z, slope, spineWeight, RouteKind.Safe);
     }
 
     /// <summary>
     /// Steep ground is rock, then scree; gentle ground is grass with patches of snow and mud.
-    /// The spine is kept to grass and snow so the guaranteed path is never loose or boggy.
+    /// The safe path is kept to grass and snow so it is never loose or boggy; a hazardous path is
+    /// loose scree with patches of snow; a supply-rich path is grass with snow and boggy mud.
     /// </summary>
-    public TerrainSurface Classify(float x, float z, float slope, float spineWeight)
+    public TerrainSurface Classify(float x, float z, float slope, float pathWeight, RouteKind kind)
     {
         float scale = 1.0f / _settings.SurfaceNoiseWavelength;
-        bool onSpine = spineWeight > 0.5f;
-        if (!onSpine)
+        bool onPath = pathWeight > 0.5f;
+        if (onPath && kind == RouteKind.Hazardous)
+        {
+            if (_snow.Sample(x * scale, z * scale) > _settings.SnowThreshold)
+            {
+                return TerrainSurface.Snow;
+            }
+            return TerrainSurface.Scree;
+        }
+        if (onPath && kind == RouteKind.SupplyRich && _mud.Sample(x * scale, z * scale) > _settings.MudThreshold)
+        {
+            return TerrainSurface.Mud;
+        }
+        if (!onPath)
         {
             if (slope >= _settings.RockSlope)
             {
@@ -314,7 +552,8 @@ public sealed class TerrainGenerator
         Vector3 normal = (p2 - p0).Cross(p1 - p0).Normalized();
         Vector3 centre = (p0 + p1 + p2) / 3.0f + corner;
         float slope = Mathf.RadToDeg(normal.AngleTo(Vector3.Up));
-        TerrainSurface surface = Classify(centre.X, centre.Z, slope, SpineWeight(centre.X, centre.Z));
+        float pathWeight = PathWeight(centre.X, centre.Z, out RouteKind kind);
+        TerrainSurface surface = Classify(centre.X, centre.Z, slope, pathWeight, kind);
         Color color = surfaceColors[(int)surface];
         float brightness = 1.0f + jitter.Range(-_settings.ColorJitter, _settings.ColorJitter);
         color = new Color(color.R * brightness, color.G * brightness, color.B * brightness);
@@ -330,7 +569,10 @@ public sealed class TerrainGenerator
         return v + 3;
     }
 
-    /// <summary>Seeded boulders and fallen trunks, never closer to the spine than its band plus SpineClearance.</summary>
+    /// <summary>
+    /// Seeded boulders and fallen trunks, never closer to a path than its band plus SpineClearance
+    /// (HazardClearance for hazardous paths, which they crowd).
+    /// </summary>
     private void PlaceObstacles(TerrainChunkData data, Vector2I coord, Vector3 corner)
     {
         SplitMix64 random = new(SplitMix64.Mix(SplitMix64.Mix(Seed, ObstacleSalt), ChunkSalt(coord)));
@@ -365,7 +607,7 @@ public sealed class TerrainGenerator
             float tiltX = random.Range(-maxTilt, maxTilt);
             float tiltZ = random.Range(-maxTilt, maxTilt);
 
-            if (Mathf.Abs(x - SpineX(z)) < _settings.SpineHalfWidth + _settings.SpineClearance + extent)
+            if (TooCloseToPath(x, z, extent))
             {
                 continue;
             }
@@ -385,6 +627,31 @@ public sealed class TerrainGenerator
                 data.Obstacles.Add(new ObstacleData(ObstacleKind.Trunk, centre, shape, rotation));
             }
         }
+    }
+
+    private bool TooCloseToPath(float x, float z, float extent)
+    {
+        if (Mathf.Abs(x - SpineX(z)) < _settings.SpineHalfWidth + _settings.SpineClearance + extent)
+        {
+            return true;
+        }
+        foreach (RouteBranch branch in BranchesAt(z))
+        {
+            if (z > branch.SplitZ || z < branch.JoinZ)
+            {
+                continue;
+            }
+            float clearance = _settings.SpineClearance;
+            if (branch.Kind == RouteKind.Hazardous)
+            {
+                clearance = _settings.HazardClearance;
+            }
+            if (Mathf.Abs(x - BranchX(branch, z)) < HalfWidth(branch.Kind) + clearance + extent)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static ulong ChunkSalt(Vector2I coord)

@@ -124,6 +124,25 @@ public static class GameEvents
         RouteEstimateUpdated?.Invoke(estimate);
     }
 
+    /// <summary>
+    /// Raised while the carrier is at the top of a stage with a choice of paths: the stage and an
+    /// estimate per path (index = path). Lookout signs show them (M10).
+    /// </summary>
+    public static event Action<int, RouteEstimate[]>? RouteOptionsUpdated;
+
+    public static void PublishRouteOptions(int stage, RouteEstimate[] options)
+    {
+        RouteOptionsUpdated?.Invoke(stage, options);
+    }
+
+    /// <summary>Raised when the carrier commits to a path of a stage (its kind), for the narrator and later systems.</summary>
+    public static event Action<int, RouteKind>? RouteChosen;
+
+    public static void PublishRouteChosen(int stage, RouteKind kind)
+    {
+        RouteChosen?.Invoke(stage, kind);
+    }
+
     /// <summary>True while a narrator line is playing (music ducks under it).</summary>
     public static bool IsNarrating { get; private set; }
 
