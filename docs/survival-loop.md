@@ -95,7 +95,7 @@ M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain
 | **M6 Survival core** (built) | Game clock and difficulty; item categories; hunger and thirst; eating and drinking; endurance stamina; empty starting pack; supplies scattered along the route; picking up with E; death restarts the run |
 | **M7 Day, night and stations** (built) | Visible day/night cycle (sun, sky, darkness); a station every 600 m of depth on a level terrace with fire, lean-to, bedroll and beacon; stone cairns every 120 m showing the estimate (distance, time with rests, stamina, arrival against nightfall); sleeping from 16:00 skips to dawn, heals 40% and refills stamina; night cold outside a shelter; packing only at stations |
 | **M8 Weather** (built) | Fog, rain, snow, wind, heat per circle and time; effects on visibility, grip, balance and needs |
-| **M9 Wildlife** | The approved wildlife plan (animals per circle, fleeing, scattering on falls), reusing M6's world spawner |
+| **M9 Wildlife** (built) | Animals per circle (Quaternius farm animals and creatures, Kenney cube pets beyond the ninth), grazing, wandering, watching, fleeing, scattering on falls; population kept around the carrier; see wildlife/README.md |
 | **M10 Routes** | Branching paths from each shelter's lookout; route types (safe, hazardous, supply-rich) |
 | **M11 Narrator** (voiced lines built for the demo) | The voiced companion: the 500 lines triggered by game events, then NobodyWho for live conversation |
 | **M12 Progression** | Run upgrades, meta unlocks (starting kits, packs), contracts, depth scaling |
