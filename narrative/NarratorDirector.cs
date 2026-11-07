@@ -118,6 +118,7 @@ public partial class NarratorDirector : Node
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
         GameEvents.RouteOptionsUpdated += OnRouteOptions;
         GameEvents.RouteChosen += OnRouteChosen;
+        GameEvents.MapOpened += OnMapOpened;
     }
 
     public override void _ExitTree()
@@ -138,6 +139,7 @@ public partial class NarratorDirector : Node
         GameEvents.LocomotionUpdated -= OnLocomotionUpdated;
         GameEvents.RouteOptionsUpdated -= OnRouteOptions;
         GameEvents.RouteChosen -= OnRouteChosen;
+        GameEvents.MapOpened -= OnMapOpened;
         Silence();
     }
 
@@ -599,6 +601,14 @@ public partial class NarratorDirector : Node
         {
             _optionsStage = stage;
             Say("route_choice_presented");
+        }
+    }
+
+    private void OnMapOpened(bool open)
+    {
+        if (open)
+        {
+            Say("map_viewed");
         }
     }
 

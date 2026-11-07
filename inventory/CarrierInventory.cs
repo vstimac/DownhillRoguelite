@@ -57,6 +57,7 @@ public partial class CarrierInventory : Node
         GameEvents.ConsumeRequested += OnConsumeRequested;
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.ItemsGranted += OnItemsGranted;
+        GameEvents.ItemUseRequested += OnItemUseRequested;
         foreach (string path in StartingItemPaths)
         {
             if (ResourceLoader.Load(path) is ItemDefinition item)
@@ -89,6 +90,7 @@ public partial class CarrierInventory : Node
         GameEvents.ConsumeRequested -= OnConsumeRequested;
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.ItemsGranted -= OnItemsGranted;
+        GameEvents.ItemUseRequested -= OnItemUseRequested;
         // Managed references keep resources alive until the GC runs; drop them with the node.
         _loose.Clear();
         _all.Clear();
@@ -237,6 +239,32 @@ public partial class CarrierInventory : Node
         }
     }
 
+    /// <summary>Uses up one carried item with this id (packed or loose).</summary>
+    private void OnItemUseRequested(string itemId)
+    {
+        if (Grid != null)
+        {
+            foreach (PackedItem item in Grid.Items)
+            {
+                if (item.Definition.ItemId == itemId)
+                {
+                    Consume(item);
+                    return;
+                }
+            }
+        }
+        for (int i = 0; i < _loose.Count; i++)
+        {
+            if (_loose[i].ItemId == itemId)
+            {
+                _all.Remove(_loose[i]);
+                _loose.RemoveAt(i);
+                Publish();
+                return;
+            }
+        }
+    }
+
     private void OnRespawnRequested()
     {
         if (ClearOnDeath)
@@ -260,5 +288,11 @@ public partial class CarrierInventory : Node
         {
             GameEvents.PublishLoad(LoadCalculator.Calculate(Backpack, Grid));
         }
+        List<string> ids = new();
+        foreach (ItemDefinition item in _all)
+        {
+            ids.Add(item.ItemId);
+        }
+        GameEvents.PublishCarriedItems(ids);
     }
 }

@@ -76,6 +76,11 @@ public sealed class TerrainRoute : IRouteQuery
         return new Vector2(top - gap, bottom + gap);
     }
 
+    public float GroundHeight(float x, float z)
+    {
+        return _generator.Height(x, z);
+    }
+
     public int NearestPath(Vector3 position, out float distance)
     {
         int stage = StageAt(position.Z);
