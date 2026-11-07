@@ -29,7 +29,7 @@ public partial class TerrainDebugControls : Node
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event.IsActionPressed(ActionReseed) && Streamer != null)
+        if (OS.IsDebugBuild() && @event.IsActionPressed(ActionReseed) && Streamer != null)
         {
             RunState? run = GetNodeOrNull<RunState>("/root/RunState");
             if (run != null)

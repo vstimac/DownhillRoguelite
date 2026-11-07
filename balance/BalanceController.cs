@@ -107,6 +107,7 @@ public partial class BalanceController : Node
     /// <summary>Adds an instant change of tilt velocity, in rad/s (roll, pitch). Used for knocks and tests.</summary>
     public void ApplyImpulse(Vector2 tiltVelocityChange)
     {
+        _sincePush = 0.0f;
         _pendingImpulse += tiltVelocityChange;
     }
 
@@ -233,6 +234,12 @@ public partial class BalanceController : Node
             {
                 stiffness *= Settings.StumbleStiffnessFactor;
             }
+            // Standing still, feet planted: steadier, and stopping under one's own power doesn't tip the load.
+            bool standing = _locomotion.State == LocomotionState.Idle;
+            if (standing)
+            {
+                stiffness *= Settings.IdleStiffnessMultiplier;
+            }
 
             // Only the load destabilizes: the carrier's own weight is folded into Strength. Using
             // load mass × load height (not a combined centre of mass, which 70 kg of body would
@@ -261,6 +268,10 @@ public partial class BalanceController : Node
             Vector3 acceleration = _locomotion.Acceleration.LimitLength(Settings.MaxAcceleration);
             Vector2 carrierAcceleration = new(acceleration.Dot(right), acceleration.Dot(forward));
             inertialTorque = -loadMass * loadHeight * Settings.InertialFactor * carrierAcceleration;
+            if (standing)
+            {
+                inertialTorque *= Settings.IdleInertiaFactor;
+            }
 
             Vector3 normal = _locomotion.GroundNormal;
             slopeTorque = loadWeight * loadHeight * new Vector2(
@@ -328,10 +339,31 @@ public partial class BalanceController : Node
         GameEvents.PublishBalance(Snapshot);
     }
 
+    /// <summary>
+    /// Standing still, a stumble from the pack alone steadies itself instead of becoming a fall (the
+    /// carrier plants the feet); walking, or after a push (a gust, a landing), it can still go down.
+    /// The balance tests turn this off to check the raw model.
+    /// </summary>
+    [Export] public bool SteadyWhenStanding { get; set; } = true;
+    /// <summary>A push within this many seconds still lets a standing stumble become a fall.</summary>
+    [Export] public float PushMemory { get; set; } = 1.5f;
+
+    private float _sincePush = 99.0f;
+
     private void UpdateState(Vector2 imbalance, float dt)
     {
         _stateTime += dt;
+        _sincePush += dt;
         float magnitude = Mathf.Max(Mathf.Abs(imbalance.X), Mathf.Abs(imbalance.Y));
+
+        if (State == BalanceState.Stumbling && SteadyWhenStanding && _locomotion.State == LocomotionState.Idle && _sincePush > PushMemory
+            && (magnitude >= Settings.FallThreshold || _stateTime >= Settings.StumbleWindow))
+        {
+            // Feet planted: catch it.
+            _tiltVelocity *= 0.2f;
+            EnterState(BalanceState.Wobbling);
+            return;
+        }
 
         if (State == BalanceState.Stumbling)
         {
