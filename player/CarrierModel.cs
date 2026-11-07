@@ -15,6 +15,8 @@ public partial class CarrierModel : Node3D
     [Export(PropertyHint.File, "*.fbx,*.glb,*.tscn")] public string ModelPath { get; set; } = "res://art/characters/mixamo/carrier.fbx";
     /// <summary>The driving skeleton (the mannequin rig).</summary>
     [Export] public Skeleton3D? Driver { get; set; }
+    /// <summary>The mannequin's model node: its step offset and visibility (hidden while packing) are mirrored.</summary>
+    [Export] public Node3D? DriverModel { get; set; }
     [Export] public string HelmetMesh { get; set; } = "Ch17_Helmet";
     [Export] public string HairMesh { get; set; } = "Ch17_Hair";
     [Export] public string VestMesh { get; set; } = "Ch17_Vest";
@@ -62,6 +64,25 @@ public partial class CarrierModel : Node3D
     public override void _ExitTree()
     {
         GameEvents.GearChanged -= OnGear;
+    }
+
+    private Vector3 _home;
+    private bool _homeSet;
+
+    public override void _Process(double delta)
+    {
+        if (DriverModel == null || Model == null)
+        {
+            return;
+        }
+        if (!_homeSet)
+        {
+            _home = Position - DriverModel.Position;
+            _homeSet = true;
+        }
+        // The animator nudges the mannequin up and down for steps and hides it while packing: follow both.
+        Position = _home + DriverModel.Position;
+        Visible = DriverModel.Visible;
     }
 
     private void OnGear(GearSnapshot gear)

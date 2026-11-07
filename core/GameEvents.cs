@@ -228,6 +228,21 @@ public static class GameEvents
 
     public static void RequestDrop(string itemId) => DropRequested?.Invoke(itemId);
 
+    /// <summary>The vault on offer right now (the Jump Over timing event), updated every physics frame.</summary>
+    public static VaultCue CurrentVault { get; private set; } = VaultCue.None;
+
+    public static void PublishVaultCue(VaultCue cue) => CurrentVault = cue;
+
+    /// <summary>True while the carrier is vaulting: the controller stands aside and the vault moves the body.</summary>
+    public static bool IsVaulting { get; private set; }
+
+    /// <summary>Raised when a vault is tried: true if it cleared the obstacle, false if the carrier tripped.</summary>
+    public static event Action<bool>? Vaulted;
+
+    public static void PublishVaulting(bool vaulting) => IsVaulting = vaulting;
+
+    public static void PublishVaulted(bool cleared) => Vaulted?.Invoke(cleared);
+
     /// <summary>The player throws one carried item with this id out of the way (dragged off the inventory page).</summary>
     public static event Action<string>? ThrowRequested;
 

@@ -13,6 +13,9 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
 {
     public Vector2I Coord { get; private set; }
 
+    /// <summary>Bodies the carrier can vault over (boulders and fallen trunks).</summary>
+    public const string VaultableGroup = "vaultable";
+
     private TerrainGenerator? _generator;
     private SurfaceType?[] _surfaces = System.Array.Empty<SurfaceType?>();
 
@@ -223,6 +226,8 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             Transform = new Transform3D(obstacle.Rotation, obstacle.Position - Position),
         };
 
+        // Boulders and fallen trunks can be vaulted over (the Jump Over timing event).
+        body.AddToGroup(VaultableGroup);
         if (obstacle.Kind == ObstacleKind.Boulder)
         {
             if (!AddModel(body, _generator!.Settings.BoulderModels, obstacle, obstacle.Size, false))
