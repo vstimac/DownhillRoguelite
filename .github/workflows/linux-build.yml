@@ -1,0 +1,112 @@
+# Builds the Linux version from a clean checkout: installs Godot .NET and its export templates,
+# fetches the NobodyWho library, builds the C#, runs the headless smoke test and the test scenes,
+# exports with the "Linux" preset and uploads the archive as a workflow artifact.
+# The Mixamo character isn't in git (not redistributable), so CI builds use the mannequin; the
+# companion model isn't needed to build.
+name: Linux build
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GODOT: ${{ github.workspace }}/.ci/godot/godot
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Read pinned versions
+        id: v
+        run: |
+          source scripts/versions.sh
+          echo "godot=$GODOT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "templates=$GODOT_TEMPLATE_DIR_NAME" >> "$GITHUB_OUTPUT"
+          echo "nobodywho=$NOBODYWHO_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Godot and templates
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ci/godot
+            ~/.local/share/godot/export_templates/${{ steps.v.outputs.templates }}
+          key: godot-mono-${{ steps.v.outputs.godot }}-linux
+
+      - name: Install Godot .NET and Linux export templates
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          tag="${{ steps.v.outputs.godot }}-stable"
+          base="https://github.com/godotengine/godot/releases/download/$tag"
+          mkdir -p .ci/dl .ci/godot
+          curl -fsSL -o .ci/dl/SHA512-SUMS.txt "$base/SHA512-SUMS.txt"
+          for f in "Godot_v${tag}_mono_linux_x86_64.zip" "Godot_v${tag}_mono_export_templates.tpz"; do
+            curl -fL --retry 3 -o ".ci/dl/$f" "$base/$f"
+            (cd .ci/dl && grep " $f\$" SHA512-SUMS.txt | sha512sum -c -)
+          done
+          unzip -q ".ci/dl/Godot_v${tag}_mono_linux_x86_64.zip" -d .ci/godot
+          dir="$(find .ci/godot -maxdepth 1 -type d -name 'Godot_*' | head -1)"
+          mv "$dir"/* .ci/godot/
+          bin="$(find .ci/godot -maxdepth 1 -type f -name 'Godot_*x86_64' | head -1)"
+          mv "$bin" .ci/godot/godot
+          chmod +x .ci/godot/godot
+          tdir="$HOME/.local/share/godot/export_templates/${{ steps.v.outputs.templates }}"
+          mkdir -p "$tdir"
+          unzip -q -j ".ci/dl/Godot_v${tag}_mono_export_templates.tpz" \
+            templates/linux_release.x86_64 templates/linux_debug.x86_64 templates/version.txt -d "$tdir"
+          rm -rf .ci/dl
+
+      - name: Cache NobodyWho
+        id: nw-cache
+        uses: actions/cache@v4
+        with:
+          path: addons/nobodywho/libnobodywho-godot-x86_64-unknown-linux-gnu-release.so
+          key: nobodywho-${{ steps.v.outputs.nobodywho }}-linux
+
+      - name: Fetch NobodyWho
+        if: steps.nw-cache.outputs.cache-hit != 'true'
+        run: bash scripts/fetch_nobodywho.sh linux
+
+      - name: Asset check
+        run: bash scripts/check_assets.sh
+
+      - name: Build C#
+        run: dotnet build
+
+      - name: Import and smoke test
+        run: |
+          "$GODOT" --headless --path . --import || true
+          out="$("$GODOT" --headless --path . --quit-after 300 2>&1 || true)"
+          echo "$out" | tail -40
+          if echo "$out" | grep -E "SCRIPT ERROR|ERROR: .*\.cs" ; then exit 1; fi
+
+      - name: Test scenes
+        run: |
+          set -uo pipefail
+          status=0
+          for t in BalanceTests UiTests GearTests PackingTests StationTests ProgressionTests MapTests TerrainTests LocomotionTests SurvivalTests NarratorTests DiveTests; do
+            [ -f "debug/tests/$t.tscn" ] || continue
+            r="$(timeout 300 "$GODOT" --headless --path . --fixed-fps 60 "res://debug/tests/$t.tscn" 2>&1 | grep -E 'TESTS: (PASS|FAIL)' | tail -1)"
+            echo "$t: ${r:-no result}"
+            case "$r" in *PASS*) ;; *) status=1 ;; esac
+          done
+          exit $status
+
+      - name: Export Linux build
+        run: bash scripts/build_linux.sh build/linux
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DownhillRoguelite-linux-x86_64
+          path: build/linux/DownhillRoguelite-linux-x86_64.tar.gz
+          retention-days: 14
