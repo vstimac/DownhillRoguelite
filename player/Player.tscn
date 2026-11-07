@@ -17,6 +17,7 @@
 [ext_resource type="Script" path="res://player/PickupInteractor.cs" id="15_interactor"]
 [ext_resource type="Script" path="res://player/RouteEstimator.cs" id="16_estimator"]
 [ext_resource type="Script" path="res://player/CarrierModel.cs" id="17_carrier_model"]
+[ext_resource type="Script" path="res://player/Vault.cs" id="18_vault"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.3
@@ -38,10 +39,11 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 [node name="SpineLean" type="SkeletonModifier3D" parent="Model/Rig/Skeleton3D"]
 script = ExtResource("9_spine_lean")
 
-[node name="CarrierModel" type="Node3D" parent="." node_paths=PackedStringArray("Driver")]
+[node name="CarrierModel" type="Node3D" parent="." node_paths=PackedStringArray("Driver", "DriverModel")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 script = ExtResource("17_carrier_model")
 Driver = NodePath("../Model/Rig/Skeleton3D")
+DriverModel = NodePath("../Model")
 
 [node name="Animator" type="Node" parent="." node_paths=PackedStringArray("Body", "Animations", "Visual")]
 script = ExtResource("5_animator")
@@ -102,3 +104,10 @@ Body = NodePath("..")
 script = ExtResource("16_estimator")
 Body = NodePath("..")
 Stamina = NodePath("../Stamina")
+
+[node name="Vault" type="Node3D" parent="." node_paths=PackedStringArray("Body", "Ragdoll", "Health", "Look")]
+script = ExtResource("18_vault")
+Body = NodePath("..")
+Ragdoll = NodePath("../Ragdoll")
+Health = NodePath("../Health")
+Look = NodePath("../CarrierModel")

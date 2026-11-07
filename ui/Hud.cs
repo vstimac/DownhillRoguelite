@@ -79,6 +79,7 @@ public partial class Hud : CanvasLayer
         _play.AddChild(Notes);
         Captions = new Subtitles { Name = "Subtitles" };
         _play.AddChild(Captions);
+        _play.AddChild(new VaultPrompt { Name = "VaultPrompt" });
 
         // Behind the pages, over the world: an item dragged off the inventory page and dropped here is thrown away.
         ThrowZone = new ThrowZone { Name = "ThrowZone" };

@@ -109,6 +109,12 @@ public partial class PlayerController : CharacterBody3D
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta;
+        if (GameEvents.IsVaulting)
+        {
+            // The vault moves the body along its animation; nothing to do here until it lands.
+            Velocity = Vector3.Zero;
+            return;
+        }
         if (GameEvents.IsDowned)
         {
             // The ragdoll carries the body around; stand still and report being down.
@@ -365,6 +371,11 @@ public partial class PlayerController : CharacterBody3D
     private void TryJump()
     {
         if (!Controls || !Input.IsActionJustPressed(ActionJump))
+        {
+            return;
+        }
+        // With a vault on offer, Space belongs to the vault (Vault), not to an ordinary jump.
+        if (GameEvents.CurrentVault.Active)
         {
             return;
         }
