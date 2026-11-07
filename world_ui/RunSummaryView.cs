@@ -30,7 +30,9 @@ public partial class RunSummaryView : Node3D
     {
         TopLevel = true;
         _title = MakeLabel(FontSize, Vector3.Zero);
-        _details = MakeLabel(FontSize / 3, Vector3.Down * (FontSize * PixelSize * 1.6f));
+        // The details hang below the title (top-aligned), so more lines grow down, never into it.
+        _details = MakeLabel(FontSize / 3, Vector3.Down * (FontSize * PixelSize * 0.75f));
+        _details.VerticalAlignment = VerticalAlignment.Top;
         GameEvents.RunEnded += OnRunEnded;
         GameEvents.RespawnRequested += HideSummary;
     }
