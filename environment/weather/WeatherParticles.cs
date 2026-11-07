@@ -22,7 +22,7 @@ public partial class WeatherParticles : Node3D
     [ExportGroup("Snow")]
     [Export] public int SnowAmount { get; set; } = 3000;
     [Export] public float SnowSpeed { get; set; } = 1.4f;
-    [Export] public float SnowFlakeSize { get; set; } = 0.06f;
+    [Export] public float SnowFlakeSize { get; set; } = 0.1f;
     [Export] public Color SnowColor { get; set; } = new(0.95f, 0.96f, 1.0f, 0.9f);
     [Export] public float SnowWindFactor { get; set; } = 0.9f;
 
@@ -50,13 +50,13 @@ public partial class WeatherParticles : Node3D
         _clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
         TopLevel = true;
 
-        _rainMaterial = Material(RainColor, BaseMaterial3D.BillboardModeEnum.Disabled);
+        _rainMaterial = Material(RainColor, Streak());
         _rainProcess = Process(RainSpeed, 2.0f);
         float rainLife = (Extents.Y * 2.0f + Height) / RainSpeed;
         _rain = Emitter(RainAmount, rainLife, _rainProcess, new QuadMesh { Size = RainDropSize, Material = _rainMaterial });
         _rain.TransformAlign = GpuParticles3D.TransformAlignEnum.ZBillboardYToVelocity;
 
-        _snowMaterial = Material(SnowColor, BaseMaterial3D.BillboardModeEnum.Disabled);
+        _snowMaterial = Material(SnowColor, Flake());
         _snowProcess = Process(SnowSpeed, 25.0f);
         _snowProcess.TurbulenceEnabled = true;
         _snowProcess.TurbulenceNoiseStrength = 0.6f;
@@ -121,15 +121,53 @@ public partial class WeatherParticles : Node3D
         };
     }
 
-    private static StandardMaterial3D Material(Color color, BaseMaterial3D.BillboardModeEnum billboard)
+    private static StandardMaterial3D Material(Color color, Texture2D texture)
     {
         return new StandardMaterial3D
         {
             ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
             Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
             AlbedoColor = color,
+            AlbedoTexture = texture,
             CullMode = BaseMaterial3D.CullModeEnum.Disabled,
-            BillboardMode = billboard,
+            BillboardMode = BaseMaterial3D.BillboardModeEnum.Disabled,
+        };
+    }
+
+    /// <summary>A soft round flake: opaque centre fading to a clear edge.</summary>
+    private static Texture2D Flake()
+    {
+        Gradient gradient = new()
+        {
+            Offsets = new[] { 0.0f, 0.45f, 1.0f },
+            Colors = new[] { Colors.White, new Color(1.0f, 1.0f, 1.0f, 0.7f), new Color(1.0f, 1.0f, 1.0f, 0.0f) },
+        };
+        return new GradientTexture2D
+        {
+            Gradient = gradient,
+            Fill = GradientTexture2D.FillEnum.Radial,
+            FillFrom = new Vector2(0.5f, 0.5f),
+            FillTo = new Vector2(0.5f, 0.0f),
+            Width = 32,
+            Height = 32,
+        };
+    }
+
+    /// <summary>A rain streak: clear at both ends, strongest in the middle.</summary>
+    private static Texture2D Streak()
+    {
+        Gradient gradient = new()
+        {
+            Offsets = new[] { 0.0f, 0.5f, 1.0f },
+            Colors = new[] { new Color(1.0f, 1.0f, 1.0f, 0.0f), Colors.White, new Color(1.0f, 1.0f, 1.0f, 0.0f) },
+        };
+        return new GradientTexture2D
+        {
+            Gradient = gradient,
+            FillFrom = new Vector2(0.5f, 0.0f),
+            FillTo = new Vector2(0.5f, 1.0f),
+            Width = 4,
+            Height = 32,
         };
     }
 

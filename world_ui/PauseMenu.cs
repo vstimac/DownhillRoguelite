@@ -100,6 +100,7 @@ public partial class PauseMenu : CanvasLayer
 
         AddVolume(column, "Music", "Music");
         AddVolume(column, "Voice", "Voice");
+        AddVolume(column, "Weather", "Ambience");
 
         CheckButton overlays = new() { Text = "Debug overlays (F3)", ButtonPressed = Debug.DebugDraw3D.Enabled };
         overlays.AddThemeFontSizeOverride("font_size", TextSize);
