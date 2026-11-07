@@ -125,22 +125,41 @@ public partial class DebugSceneControls : Node
         GameEvents.RespawnRequested -= Respawn;
     }
 
+    private const ulong GiveUpConfirmMs = 2500;
+    private ulong _giveUpArmedAt;
+
     public override void _UnhandledInput(InputEvent @event)
     {
-        // Packing uses some of the same keys (R tips an item).
-        if (GameEvents.IsPacking)
+        // Packing uses some of the same keys (R tips an item); pages and the chat take their own keys.
+        if (GameEvents.IsPacking || GameEvents.IsScreenOpen || GameEvents.IsConversing || GameEvents.IsMapOpen)
         {
             return;
         }
 
+        if (@event.IsActionPressed(ActionRespawn))
+        {
+            // Giving up ends the run like any death: summary, then a new mountain. Twice, to be sure.
+            ulong now = Time.GetTicksMsec();
+            if (now - _giveUpArmedAt < GiveUpConfirmMs)
+            {
+                _giveUpArmedAt = 0;
+                GameEvents.PublishKill("gave up");
+            }
+            else
+            {
+                _giveUpArmedAt = now;
+                GameEvents.PublishHint("Press R again to give up this run");
+            }
+            return;
+        }
+        // Debug keys only in development builds.
+        if (!OS.IsDebugBuild())
+        {
+            return;
+        }
         if (@event.IsActionPressed(ActionToggleFly))
         {
             ToggleFlyCamera();
-        }
-        else if (@event.IsActionPressed(ActionRespawn))
-        {
-            // Giving up ends the run like any death: summary, then a new mountain.
-            GameEvents.PublishKill("gave up");
         }
         else if (@event.IsActionPressed(ActionSkipHour))
         {

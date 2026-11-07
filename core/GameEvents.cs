@@ -228,6 +228,11 @@ public static class GameEvents
 
     public static void RequestDrop(string itemId) => DropRequested?.Invoke(itemId);
 
+    /// <summary>A short message for the player (shown as a note): confirmations and hints.</summary>
+    public static event Action<string>? HintShown;
+
+    public static void PublishHint(string text) => HintShown?.Invoke(text);
+
     /// <summary>The vault on offer right now (the Jump Over timing event), updated every physics frame.</summary>
     public static VaultCue CurrentVault { get; private set; } = VaultCue.None;
 

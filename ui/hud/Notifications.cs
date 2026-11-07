@@ -48,6 +48,7 @@ public partial class Notifications : Control
         GameEvents.GearChanged += OnGear;
         GameEvents.VisitorMet += OnVisitor;
         GameEvents.ItemDropped += OnDropped;
+        GameEvents.HintShown += OnHint;
         CallDeferred(MethodName.Hint);
     }
 
@@ -73,7 +74,10 @@ public partial class Notifications : Control
         GameEvents.GearChanged -= OnGear;
         GameEvents.VisitorMet -= OnVisitor;
         GameEvents.ItemDropped -= OnDropped;
+        GameEvents.HintShown -= OnHint;
     }
+
+    private void OnHint(string text) => Note(text, true);
 
     private void OnDropped(string itemId) => Note($"Put down {NameOf(itemId)}");
 

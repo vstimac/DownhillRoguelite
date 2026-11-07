@@ -70,7 +70,7 @@ public partial class DebugDraw3D : Node3D
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event.IsActionPressed(ActionToggle))
+        if (OS.IsDebugBuild() && @event.IsActionPressed(ActionToggle))
         {
             Enabled = !Enabled;
             _dirty = true;

@@ -23,7 +23,7 @@ public partial class PauseMenu : CanvasLayer
         "M map (click: waypoint · right-click: remove · wheel: zoom · drag: draw)\n" +
         "1-9 choose from the hotbar · V use it · click a worn piece (left sheet) to take it off\n" +
         "Alt + drag: move any part of the UI (pages drag by their title) · Alt+Backspace: reset\n" +
-        "R give up · T skip an hour · F3 debug overlays · F4 cycle weather\n\n" +
+        "R twice: give up the run\n\n" +
         "Death is permanent: every run starts on the summit of a new mountain.\n" +
         "Reach the next station before night. Sprinting and jumping cost stamina; it comes back quickly when you ease off.\n" +
         "Below each station the paths split: a lookout sign compares them. Cairns show the way.";

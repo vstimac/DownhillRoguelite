@@ -63,6 +63,12 @@ public partial class BalanceTests : Node3D
 
     public override async void _Ready()
     {
+        // These tests check the raw balance model: no automatic steadying while standing.
+        BalanceController? raw = PlayerBody?.GetNodeOrNull<BalanceController>("Balance");
+        if (raw != null)
+        {
+            raw.SteadyWhenStanding = false;
+        }
         if (PlayerBody == null || Course == null || Loads == null)
         {
             GD.PushError("BalanceTests: PlayerBody, Course and Loads must be assigned.");
@@ -86,6 +92,7 @@ public partial class BalanceTests : Node3D
         await TestDescent(PlayerBody, Course, Loads);
         await TestBrace(PlayerBody, Loads, _balance);
         await TestStumble(PlayerBody, Loads, _balance);
+        await TestStandingSteady(PlayerBody, Loads, _balance);
 
         GameEvents.BalanceUpdated -= OnBalanceUpdated;
         if (_failures.Count == 0)
@@ -224,6 +231,16 @@ public partial class BalanceTests : Node3D
         float braced = PeakMagnitude(_samples);
 
         Check("bracing reduces sway from a knock", braced <= free * MaxBracedRatio, $"peak imbalance braced {braced:0.00} vs free {free:0.00}");
+    }
+
+    /// <summary>Standing still with the lopsided pack and no push, the carrier steadies stumbles himself and never falls.</summary>
+    private async Task TestStandingSteady(PlayerController player, LoadCycler loads, BalanceController balance)
+    {
+        balance.SteadyWhenStanding = true;
+        await Place(player, loads, LoadA, FlatStart);
+        bool fell = await WaitForState(balance, BalanceState.Fallen, 8.0f);
+        balance.SteadyWhenStanding = false;
+        Check("standing still with a lopsided pack and no push, he never falls", !fell, $"fell {fell} within 8 s of standing");
     }
 
     /// <summary>A stumble recovers with a quick counter-lean and becomes a fall without one.</summary>
