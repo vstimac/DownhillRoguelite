@@ -115,6 +115,21 @@ public partial class PackingTests : Node3D
         Check("upright items can't be tipped", !tippedBottle && uprightBottle, $"tipped {tippedBottle}, upright {uprightBottle}");
         cube.Dispose();
         bottle.Dispose();
+
+        // A shelf: a flat 4x1x4 board at height 2 leaves a gap underneath that a drop from above can't reach.
+        BackpackGrid shelfGrid = new(new Vector3I(4, 4, 4));
+        ItemDefinition board = new() { SizeCells = new Vector3I(4, 1, 2) };
+        ItemDefinition small = new() { SizeCells = new Vector3I(1, 1, 1) };
+        ItemDefinition post = new() { SizeCells = new Vector3I(1, 2, 1) };
+        shelfGrid.Place(post, new Vector3I(0, 0, 0), GridOrientations.Identity);
+        shelfGrid.Place(board, new Vector3I(0, 2, 0), GridOrientations.Identity);
+        List<int> heights = shelfGrid.RestingHeights(small.SizeCells, 2, 1);
+        Check("items can go into a gap under another (the wheel's lower layers), not just on top",
+            heights.Count == 2 && heights[0] == 3 && heights[1] == 0 && shelfGrid.DropHeight(small.SizeCells, 2, 1) == 3,
+            $"resting heights {string.Join(",", heights)}, drop {shelfGrid.DropHeight(small.SizeCells, 2, 1)}");
+        board.Dispose();
+        small.Dispose();
+        post.Dispose();
     }
 
     private void TestPackAll(CarrierInventory inventory)

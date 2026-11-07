@@ -63,11 +63,11 @@ public partial class TerrainSettings : Resource
     [ExportGroup("Stations")]
     /// <summary>Metres of descent between stations (one day's stage).</summary>
     [Export] public float StationDepthInterval { get; set; } = 600.0f;
-    /// <summary>Radius of a station's level terrace, in m.</summary>
-    [Export] public float ClearingRadius { get; set; } = 8.0f;
+    /// <summary>Radius of a station's level terrace, in m (wide enough for the fire, shelter and graves).</summary>
+    [Export] public float ClearingRadius { get; set; } = 11.0f;
     /// <summary>Length of the ramp blending the terrace into the slope, in m.</summary>
     [Export] public float ClearingBlend { get; set; } = 70.0f;
-    /// <summary>The terrace keeps a gentle tilt down the mountain, in degrees.</summary>
+    /// <summary>The ramps in and out of the level terrace keep this gentle tilt down the mountain, in degrees.</summary>
     [Export] public float ClearingSlope { get; set; } = 10.0f;
     /// <summary>Stations worked out when the mountain is generated; more are added as needed.</summary>
     [Export] public int PrecomputedStations { get; set; } = 16;

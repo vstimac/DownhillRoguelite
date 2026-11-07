@@ -29,10 +29,10 @@ public partial class DayNightCycle : Node
     [ExportGroup("Night")]
     [Export] public Color MoonColor { get; set; } = new(0.55f, 0.65f, 0.9f);
     /// <summary>Moonlight energy on the harshest nights and on the mildest.</summary>
-    [Export] public Vector2 MoonEnergy { get; set; } = new(0.03f, 0.12f);
+    [Export] public Vector2 MoonEnergy { get; set; } = new(0.12f, 0.32f);
     [Export] public float MoonElevation { get; set; } = 35.0f;
     /// <summary>Ambient light multiplier at night, harshest to mildest.</summary>
-    [Export] public Vector2 NightAmbient { get; set; } = new(0.04f, 0.15f);
+    [Export] public Vector2 NightAmbient { get; set; } = new(0.03f, 0.1f);
     /// <summary>Fog density at night, harshest to mildest.</summary>
     [Export] public Vector2 NightFogDensity { get; set; } = new(0.06f, 0.03f);
     [Export] public Color NightFogColor { get; set; } = new(0.03f, 0.035f, 0.05f);

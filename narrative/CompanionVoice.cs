@@ -32,26 +32,95 @@ public partial class CompanionVoice : Node3D
     /// <summary>A second system voice for travellers, so they don't sound like the companion (empty: the same one).</summary>
     public string OtherVoiceId { get; private set; } = "";
     public string LastSpoken { get; private set; } = "";
+    /// <summary>
+    /// Where speech-dispatcher's library may live on Linux. Godot's Linux voice backend needs it;
+    /// without it asking for voices fails ("synth is null"), so we check first and stay text-only.
+    /// </summary>
+    [Export] public string[] SpeechDispatcherPaths { get; set; } =
+    {
+        "/usr/lib/libspeechd.so.2",
+        "/usr/lib64/libspeechd.so.2",
+        "/usr/lib/x86_64-linux-gnu/libspeechd.so.2",
+        "/lib/x86_64-linux-gnu/libspeechd.so.2",
+        "/usr/local/lib/libspeechd.so.2",
+    };
+    /// <summary>Command-line switch (after --) that turns the system voice off: subtitles only.</summary>
+    [Export] public string NoVoiceArg { get; set; } = "--no-tts";
 
     private bool _placed;
+    private bool _voicesChecked;
     private float _speakingFor;
 
     public override void _Ready()
     {
         TopLevel = true;
         GameEvents.CompanionReplied += OnReply;
-        if (DisplayServer.GetName() != "headless" && SpeakReplies)
+        // Voices are looked up at the first reply, not here: on Linux the speech backend starts on
+        // its own thread and isn't ready yet at start-up (and the first reply takes seconds anyway).
+    }
+
+    /// <summary>
+    /// Finds the voices once, if the system can speak at all; otherwise the companion and travellers
+    /// are subtitled only. Safe to call often.
+    /// </summary>
+    private void EnsureVoices()
+    {
+        if (_voicesChecked)
         {
-            VoiceId = PickVoice();
-            foreach (string id in DisplayServer.TtsGetVoicesForLanguage("en"))
+            return;
+        }
+        _voicesChecked = true;
+        if (!SpeakReplies || !TextToSpeechAvailable())
+        {
+            GD.Print("Companion voice: no system text-to-speech, replies are subtitled only.");
+            return;
+        }
+        VoiceId = PickVoice();
+        foreach (string id in DisplayServer.TtsGetVoicesForLanguage("en"))
+        {
+            if (id != VoiceId)
             {
-                if (id != VoiceId)
-                {
-                    OtherVoiceId = id;
-                    break;
-                }
+                OtherVoiceId = id;
+                break;
             }
         }
+        if (VoiceId.Length == 0)
+        {
+            GD.Print("Companion voice: no English system voice found, replies are subtitled only.");
+        }
+    }
+
+    /// <summary>Whether asking the system for voices can work here (display, project setting, Linux library, switch).</summary>
+    private bool TextToSpeechAvailable()
+    {
+        if (DisplayServer.GetName() == "headless")
+        {
+            return false;
+        }
+        if (!ProjectSettings.GetSetting("audio/general/text_to_speech", false).AsBool())
+        {
+            return false;
+        }
+        foreach (string arg in OS.GetCmdlineUserArgs())
+        {
+            if (arg == NoVoiceArg)
+            {
+                return false;
+            }
+        }
+        string os = OS.GetName();
+        if (os == "Linux" || os == "FreeBSD" || os == "NetBSD" || os == "OpenBSD" || os == "BSD")
+        {
+            foreach (string path in SpeechDispatcherPaths)
+            {
+                if (System.IO.File.Exists(path))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return true;
     }
 
     public override void _ExitTree()
@@ -149,6 +218,7 @@ public partial class CompanionVoice : Node3D
         float duration = words * SecondsPerWord / Mathf.Max(Rate, 0.1f) + ExtraSeconds;
         LastSpoken = text;
         GameEvents.PublishSpeech(new SpeechLine(speaker.Name, text, speaker.Position, duration));
+        EnsureVoices();
         string voice = OtherVoiceId;
         if (voice.Length == 0)
         {
@@ -169,6 +239,7 @@ public partial class CompanionVoice : Node3D
         float duration = words * SecondsPerWord / Mathf.Max(Rate, 0.1f) + ExtraSeconds;
         LastSpoken = text;
         GameEvents.PublishSpeech(new SpeechLine(SpeakerName, text, GlobalPosition, duration));
+        EnsureVoices();
         if (VoiceId.Length > 0)
         {
             DisplayServer.TtsSpeak(text, VoiceId, Volume, Pitch, Rate, 0, true);

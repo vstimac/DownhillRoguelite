@@ -92,6 +92,7 @@ public partial class ParchmentPanel : Control
     {
         IsOpen = true;
         Visible = true;
+        KeepOnScreen();
         _tween?.Kill();
         PivotOffset = Size * 0.5f;
         Scale = new Vector2(1.0f, 0.04f);
@@ -101,6 +102,28 @@ public partial class ParchmentPanel : Control
         _tween.TweenProperty(this, "scale", Vector2.One, 0.38).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
         _tween.TweenProperty(this, "rotation", 0.0f, 0.45).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
         _tween.TweenProperty(this, "modulate:a", 1.0f, 0.18);
+    }
+
+    /// <summary>
+    /// Opening a page brings all of it onto the screen (a smaller window, or a page dragged half off
+    /// last time); a page bigger than the screen keeps its top-left corner in view.
+    /// </summary>
+    private void KeepOnScreen()
+    {
+        if (!IsInsideTree())
+        {
+            return;
+        }
+        Vector2 screen = GetViewportRect().Size;
+        Vector2 parentOrigin = Vector2.Zero;
+        if (GetParent() is Control parent)
+        {
+            parentOrigin = parent.GlobalPosition;
+        }
+        Vector2 at = GlobalPosition;
+        float x = Mathf.Clamp(at.X, 0.0f, Mathf.Max(0.0f, screen.X - Size.X));
+        float y = Mathf.Clamp(at.Y, 0.0f, Mathf.Max(0.0f, screen.Y - Size.Y));
+        Position = new Vector2(x, y) - parentOrigin;
     }
 
     /// <summary>Folds the sheet away and hides it.</summary>

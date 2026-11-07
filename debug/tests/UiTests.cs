@@ -48,6 +48,7 @@ public partial class UiTests : Node3D
         await TestHotbar(needs);
         await TestTooltip();
         TestNotes();
+        await TestAlerts(needs);
         await TestInventory(needs);
         await TestMap();
         await TestJournal();
@@ -129,12 +130,25 @@ public partial class UiTests : Node3D
         Check("events pin paper notes", noted, $"recent notes: {string.Join(" / ", recent)}");
     }
 
+    private async Task TestAlerts(CarrierNeeds needs)
+    {
+        needs.SetNeeds(10.0f, 90.0f);
+        await Wait(0.5f);
+        bool hungry = Ui!.Alerts!.Shown.Contains("Hungry") && !Ui.Alerts.Shown.Contains("Thirsty") && Ui.Alerts.Visible == GameOptions.LowStatAlerts;
+        needs.SetNeeds(90.0f, 90.0f);
+        await Wait(0.5f);
+        bool cleared = !Ui.Alerts.Shown.Contains("Hungry");
+        Check("low stats are listed under the dials, and leave when they recover", hungry && cleared,
+            $"listed [{string.Join(", ", Ui.Alerts.Shown)}] after eating; hungry {hungry}, cleared {cleared}");
+    }
+
     private async Task TestInventory(CarrierNeeds needs)
     {
         InventoryScreen page = Ui!.Inventory!;
         Ui.Toggle(page);
         await Wait(0.6f);
         bool open = page.Visible && page.IsOpen && GameEvents.IsScreenOpen && Input.MouseMode == Input.MouseModeEnum.Visible;
+        bool frozen = GetTree().Paused && GameEvents.PagesFrozen;
         string firstBefore = "";
         if (page.Order.Count > 0)
         {
@@ -158,8 +172,10 @@ public partial class UiTests : Node3D
         bool drank = needs.Thirst > 30.0f && !page.Order.Contains("water_flask");
         page.Close();
         await Wait(0.5f);
-        Check("the inventory page takes the mouse, reorders by drag and drop, and drinks", open && swapped && drank && !page.Visible && !GameEvents.IsScreenOpen,
-            $"open {open}, swapped {swapped}, drank {drank} (thirst {needs.Thirst:0}), closed {!page.Visible}");
+        bool running = !GetTree().Paused && !GameEvents.PagesFrozen;
+        Check("the inventory page takes the mouse, stops the world while open, reorders by drag and drop, and drinks",
+            open && frozen && running && swapped && drank && !page.Visible && !GameEvents.IsScreenOpen,
+            $"open {open}, world stopped {frozen} then running again {running}, swapped {swapped}, drank {drank} (thirst {needs.Thirst:0}), closed {!page.Visible}");
     }
 
     private async Task TestMap()

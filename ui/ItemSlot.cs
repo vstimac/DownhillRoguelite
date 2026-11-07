@@ -43,6 +43,8 @@ public partial class ItemSlot : Control
     private ShaderMaterial? _iconMaterial;
     private float _time;
     private bool _hover;
+    private FootprintMark? _footprint;
+    private bool _dragging;
     private Tween? _tween;
 
     public override void _Ready()
@@ -59,6 +61,8 @@ public partial class ItemSlot : Control
             Material = _iconMaterial,
         };
         AddChild(_icon);
+        _footprint = new FootprintMark { Visible = false };
+        AddChild(_footprint);
         MouseEntered += () => SetHover(true);
         MouseExited += () => SetHover(false);
         Resized += Layout;
@@ -76,6 +80,10 @@ public partial class ItemSlot : Control
         float pad = Size.X * 0.12f;
         _icon.Position = new Vector2(pad, pad);
         _icon.Size = Size - new Vector2(pad, pad) * 2.0f;
+        if (_footprint != null)
+        {
+            _footprint.Size = Size;
+        }
         PivotOffset = Size * 0.5f;
     }
 
@@ -85,6 +93,12 @@ public partial class ItemSlot : Control
         bool changed = item != Item || count > Count;
         Item = item;
         Count = count;
+        if (_footprint != null)
+        {
+            _footprint.Visible = item != null && ShowFootprint;
+            _footprint.Cells = item?.SizeCells ?? Vector3I.Zero;
+            _footprint.QueueRedraw();
+        }
         if (item != null)
         {
             TooltipText = $"{item.DisplayName}\n{Inventory.ItemText.Properties(item)}";
@@ -134,8 +148,17 @@ public partial class ItemSlot : Control
 
     /// <summary>Slots that can be dragged onto each other (the inventory page).</summary>
     public bool Draggable { get; set; }
+    /// <summary>Draws the item's footprint in the pack (cells across × deep, and how many tall) in the top-right corner.</summary>
+    public bool ShowFootprint { get; set; } = true;
+    /// <summary>Takes items dragged from the inventory page without being draggable itself (the gear sheet).</summary>
+    public bool AcceptsDrops { get; set; }
+    /// <summary>Whether the last click was a double-click / had Shift held (read in Clicked handlers).</summary>
+    public bool LastDoubleClick { get; private set; }
+    public bool LastShift { get; private set; }
     /// <summary>Called with (from, to) slot indexes when a dragged item is dropped here.</summary>
     public System.Action<int, int>? DroppedOn { get; set; }
+    /// <summary>Called with this slot's index when its item was dragged off and dropped where nothing took it.</summary>
+    public System.Action<int>? DraggedAway { get; set; }
 
     public override Variant _GetDragData(Vector2 atPosition)
     {
@@ -151,12 +174,13 @@ public partial class ItemSlot : Control
         preview.Position = -Size * 0.5f;
         SetDragPreview(holder);
         Modulate = new Color(1, 1, 1, 0.4f);
+        _dragging = true;
         return Index;
     }
 
     public override bool _CanDropData(Vector2 atPosition, Variant data)
     {
-        return Draggable && data.VariantType == Variant.Type.Int;
+        return (Draggable || AcceptsDrops) && data.VariantType == Variant.Type.Int;
     }
 
     public override void _DropData(Vector2 atPosition, Variant data)
@@ -169,6 +193,14 @@ public partial class ItemSlot : Control
         if (what == NotificationDragEnd)
         {
             Modulate = Colors.White;
+            if (_dragging)
+            {
+                _dragging = false;
+                if (!GetViewport().GuiIsDragSuccessful())
+                {
+                    DraggedAway?.Invoke(Index);
+                }
+            }
         }
     }
 
@@ -192,6 +224,8 @@ public partial class ItemSlot : Control
     {
         if (@event is InputEventMouseButton button && button.Pressed)
         {
+            LastDoubleClick = button.DoubleClick;
+            LastShift = button.ShiftPressed;
             EmitSignal(SignalName.Clicked, this, (int)button.ButtonIndex);
         }
     }
@@ -222,7 +256,7 @@ public partial class ItemSlot : Control
         Font font = UiStyle.Hand;
         if (Item != null && (_icon == null || !_icon.Visible) && Item.Category == ItemCategory.Clothing)
         {
-            // Clothes have no models yet: their garment, inked, tinted with the item's colour.
+            // No picture yet (or headless): their garment, inked, tinted with the item's colour.
             InkDraw.Icon(this, GlyphFor(Item.Slot), new Rect2(size * 0.15f, size * 0.7f), Index + 3);
             DrawCircle(size * 0.5f, size.X * 0.32f, new Color(Item.DebugColor, 0.25f));
         }

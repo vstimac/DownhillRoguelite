@@ -14,6 +14,9 @@ namespace DownhillRoguelite.Inventory;
 /// </summary>
 public partial class SupplySpawner : Node3D
 {
+    /// <summary>How far a supply sits into the ground so it never hovers on a bump.</summary>
+    [Export] public float GroundSink { get; set; } = 0.02f;
+
     [Export] public SupplyTable? Table { get; set; }
     [Export] public float CellSize { get; set; } = 64.0f;
     [Export] public int CellsAhead { get; set; } = 3;
@@ -291,7 +294,7 @@ public partial class SupplySpawner : Node3D
         ulong seed = _run!.Seed;
         List<Slot> slots = PlanCell(cell, seed, route, _run.DifficultySettings.SupplyMultiplier);
         PhysicsDirectSpaceState3D space = GetWorld3D().DirectSpaceState;
-        List<(Slot Slot, Vector3 Ground)> placed = new();
+        List<(Slot Slot, Vector3 Ground, Vector3 Normal)> placed = new();
 
         foreach (Slot slot in slots)
         {
@@ -303,11 +306,11 @@ public partial class SupplySpawner : Node3D
                 // Terrain isn't loaded here yet; try the whole cell again next frame.
                 return;
             }
-            placed.Add((slot, hit["position"].AsVector3()));
+            placed.Add((slot, hit["position"].AsVector3(), hit["normal"].AsVector3()));
         }
 
         List<string> keys = new();
-        foreach ((Slot slot, Vector3 ground) in placed)
+        foreach ((Slot slot, Vector3 ground, Vector3 normal) in placed)
         {
             keys.Add(slot.Key);
             ItemDefinition? definition = _definitions[slot.Entry];
@@ -318,7 +321,15 @@ public partial class SupplySpawner : Node3D
             WorldItem item = new() { Definition = definition, SlotKey = slot.Key, Name = $"Supply_{slot.Key.Replace(':', '_')}" };
             item.Taken += OnTaken;
             AddChild(item);
-            item.GlobalPosition = ground;
+            // Lying on the slope (tilted to the ground, not standing level on one corner), set slightly in.
+            Vector3 up = normal.Normalized();
+            Vector3 forward = up.Cross(Vector3.Right).Normalized();
+            if (forward.LengthSquared() < 0.01f)
+            {
+                forward = Vector3.Forward;
+            }
+            Vector3 right = forward.Cross(up).Normalized();
+            item.GlobalTransform = new Transform3D(new Basis(right, up, -forward).Orthonormalized(), ground - up * GroundSink);
             _items[slot.Key] = item;
         }
         _cells[cell] = keys;

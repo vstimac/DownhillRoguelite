@@ -228,6 +228,11 @@ public static class GameEvents
 
     public static void RequestDrop(string itemId) => DropRequested?.Invoke(itemId);
 
+    /// <summary>A short message for the player (shown as a note): confirmations and hints.</summary>
+    public static event Action<string>? HintShown;
+
+    public static void PublishHint(string text) => HintShown?.Invoke(text);
+
     /// <summary>The vault on offer right now (the Jump Over timing event), updated every physics frame.</summary>
     public static VaultCue CurrentVault { get; private set; } = VaultCue.None;
 
@@ -242,6 +247,16 @@ public static class GameEvents
     public static void PublishVaulting(bool vaulting) => IsVaulting = vaulting;
 
     public static void PublishVaulted(bool cleared) => Vaulted?.Invoke(cleared);
+
+    /// <summary>True while a landing roll is primed (Space in the window while falling): the next landing is soft.</summary>
+    public static bool RollPrimed { get; private set; }
+
+    public static void PublishRollPrimed(bool primed) => RollPrimed = primed;
+
+    /// <summary>Raised when a primed landing became a roll.</summary>
+    public static event Action? Rolled;
+
+    public static void PublishRolled() => Rolled?.Invoke();
 
     /// <summary>The player throws one carried item with this id out of the way (dragged off the inventory page).</summary>
     public static event Action<string>? ThrowRequested;
@@ -271,6 +286,11 @@ public static class GameEvents
 
     /// <summary>Raised when the map is raised (true) or lowered (false).</summary>
     public static event Action<bool>? MapOpened;
+
+    /// <summary>True while the world is stopped because the inventory or the pack is open (PageFreeze), not the pause menu.</summary>
+    public static bool PagesFrozen { get; private set; }
+
+    public static void PublishPagesFrozen(bool frozen) => PagesFrozen = frozen;
 
     public static void PublishMapOpen(bool open)
     {

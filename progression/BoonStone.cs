@@ -1,4 +1,5 @@
 using DownhillRoguelite.Core;
+using DownhillRoguelite.WorldUi;
 using Godot;
 
 namespace DownhillRoguelite.Progression;
@@ -66,7 +67,7 @@ public partial class BoonStone : Node3D, IInteractable, IDescribed
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             Width = 520.0f,
         };
-        AddChild(label);
+        AddChild(WorldLabel.Readable(label, 15.0f));
         return label;
     }
 

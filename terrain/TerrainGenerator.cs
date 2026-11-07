@@ -340,8 +340,10 @@ public sealed class TerrainGenerator
             {
                 continue;
             }
-            // A gentle terrace following the descent, so the ramps in and out stay walkable.
-            float terrace = station.Y + (z - station.Z) * _clearingSlopeTangent;
+            // A level terrace (the camp stands flat), with gentle ramps in and out following the descent.
+            float along = z - station.Z;
+            float beyond = Mathf.Sign(along) * Mathf.Max(Mathf.Abs(along) - _settings.ClearingRadius, 0.0f);
+            float terrace = station.Y + beyond * _clearingSlopeTangent;
             float weight = 1.0f - Mathf.SmoothStep(_settings.ClearingRadius, reach, distance);
             height = Mathf.Lerp(height, terrace, weight);
         }

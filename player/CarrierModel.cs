@@ -8,7 +8,7 @@ namespace DownhillRoguelite.Player;
 /// art/characters/mixamo/README.md) and makes it follow the mannequin rig that animations, IK and
 /// the ragdoll drive (RigFollower). If the model file isn't there, the mannequin stays visible, so
 /// a fresh clone still runs. Worn gear shows on him: the hard hat (his hair otherwise) and the
-/// hi-vis vest, the items made from his own pieces.
+/// hi-vis vest, the items made from his own pieces, and the rest through CarrierWornGear.
 /// </summary>
 public partial class CarrierModel : Node3D
 {
@@ -20,7 +20,7 @@ public partial class CarrierModel : Node3D
     [Export] public string HelmetMesh { get; set; } = "Ch17_Helmet";
     [Export] public string HairMesh { get; set; } = "Ch17_Hair";
     [Export] public string VestMesh { get; set; } = "Ch17_Vest";
-    /// <summary>The items whose look is his helmet and his vest (other hats and coats don't show on him yet).</summary>
+    /// <summary>The items whose look is his helmet and his vest (other clothes: CarrierWornGear).</summary>
     [Export] public string HelmetItem { get; set; } = "hard_hat";
     [Export] public string VestItem { get; set; } = "hi_vis_vest";
 
@@ -57,6 +57,8 @@ public partial class CarrierModel : Node3D
         _helmet = skeleton.GetNodeOrNull<MeshInstance3D>(HelmetMesh);
         _hair = skeleton.GetNodeOrNull<MeshInstance3D>(HairMesh);
         _vest = skeleton.GetNodeOrNull<MeshInstance3D>(VestMesh);
+        // Everything else he wears (wool hat, gloves, oilskin coat, fur cape) rides his bones.
+        AddChild(new CarrierWornGear { Name = "WornGear", Skeleton = skeleton, Vest = _vest, HelmetItem = HelmetItem, VestItem = VestItem });
         GameEvents.GearChanged += OnGear;
         OnGear(GameEvents.CurrentGear);
     }
@@ -88,6 +90,7 @@ public partial class CarrierModel : Node3D
     private void OnGear(GearSnapshot gear)
     {
         bool head = gear.In(EquipSlot.Head).ItemId == HelmetItem;
+        bool anyHat = !gear.In(EquipSlot.Head).Empty;
         bool torso = gear.In(EquipSlot.Torso).ItemId == VestItem;
         if (_helmet != null)
         {
@@ -95,7 +98,7 @@ public partial class CarrierModel : Node3D
         }
         if (_hair != null)
         {
-            _hair.Visible = !head;
+            _hair.Visible = !anyHat;
         }
         if (_vest != null)
         {

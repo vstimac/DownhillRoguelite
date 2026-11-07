@@ -10,7 +10,8 @@ namespace DownhillRoguelite.Ui;
 /// hotbar), leaning to the side the voice comes from: a voice ahead in the middle, one to the left
 /// on the left, and an inked arrow points toward a speaker who is off to the side or
 /// behind. The newest line sits at its spot, older ones above it; each stays as long as it is
-/// spoken, then fades. Up to MaxLines at once.
+/// spoken, then fades. Up to MaxLines at once. Each strip is a fixed window fitted to its rows,
+/// broken here rather than by the label; long speech turns pages of MaxRows rows.
 /// </summary>
 public partial class Subtitles : Control
 {
@@ -27,13 +28,23 @@ public partial class Subtitles : Control
     /// <summary>An arrow points at the speaker when they are more than this far off the view's centre, in degrees.</summary>
     [Export] public float ArrowFrom { get; set; } = 40.0f;
     [Export] public float Linger { get; set; } = 0.6f;
+    /// <summary>Rows of words per caption; longer speech turns pages, timed to the voice.</summary>
+    [Export] public int MaxRows { get; set; } = 3;
+    /// <summary>The strip is never wider than this share of the screen.</summary>
+    [Export] public float MaxScreenShare { get; set; } = 0.46f;
 
     private sealed class Line
     {
         public SpeechLine Speech;
         public float Left;
         public ColorRect? Paper;
+        public Label? Words;
         public float Angle;
+        /// <summary>The words broken into pages of at most MaxRows rows (explicit line breaks).</summary>
+        public List<string> Pages = new();
+        public List<float> PageTimes = new();
+        public int Page;
+        public float PageLeft;
     }
 
     public int Count => _lines.Count;
@@ -73,25 +84,46 @@ public partial class Subtitles : Control
         {
             return;
         }
-        // The strip fits its words: as wide as the text (wrapped at MaxWidth), as tall as its lines.
+        // A fixed window fitted to the words: the rows are broken here (explicit line breaks, so the
+        // label never wraps differently from what was measured); the strip is as wide as its widest
+        // row and as tall as its rows; long speech turns pages of MaxRows rows, timed to the voice.
+        float maxWidth = Mathf.Min(MaxWidth, Mathf.Max(240.0f, GetViewportRect().Size.X * MaxScreenShare));
+        float wrapWidth = maxWidth - Padding.X * 2.0f - 6.0f;
+        List<string> rows = Rows(speech.Text, wrapWidth, out float widest);
+        Line line = new() { Speech = speech, Left = speech.Duration + Linger };
+        int rowsPerPage = Mathf.Max(1, MaxRows);
+        for (int i = 0; i < rows.Count; i += rowsPerPage)
+        {
+            line.Pages.Add(string.Join("\n", rows.GetRange(i, Mathf.Min(rowsPerPage, rows.Count - i))));
+        }
+        float spoken = Mathf.Max(speech.Duration, 0.5f);
+        foreach (string page in line.Pages)
+        {
+            line.PageTimes.Add(spoken * page.Length / Mathf.Max(1, speech.Text.Length));
+        }
+        line.PageLeft = line.PageTimes[0];
+        int shownRows = Mathf.Min(rows.Count, rowsPerPage);
+        float rowHeight = UiStyle.Hand.GetHeight(UiStyle.TextSize) + RowSpacing;
         float nameHeight = UiStyle.Heading.GetHeight(UiStyle.SmallSize);
-        Vector2 textSize = WrappedSize(speech.Text, MaxWidth - Padding.X * 2.0f);
         float nameWidth = UiStyle.Heading.GetStringSize(speech.Speaker, HorizontalAlignment.Left, -1, UiStyle.SmallSize).X;
-        Vector2 size = new(Mathf.Min(MaxWidth, Mathf.Max(textSize.X, nameWidth) + Padding.X * 2.0f + 4.0f), Padding.Y * 2.0f + nameHeight + textSize.Y);
-        ColorRect paper = new() { Size = size, MouseFilter = MouseFilterEnum.Ignore };
+        Vector2 size = new(Mathf.Ceil(Mathf.Max(widest, nameWidth)) + Padding.X * 2.0f + 6.0f, Mathf.Ceil(Padding.Y * 2.0f + nameHeight + shownRows * rowHeight + 2.0f));
+        ColorRect paper = new() { Size = size, MouseFilter = MouseFilterEnum.Ignore, ClipContents = true };
         paper.Material = UiStyle.Parchment(size, _random.Randf() * 40.0f, 2.5f, 3.0f);
         Label name = UiStyle.MakeLabel(speech.Speaker, UiStyle.SmallSize, true, UiStyle.InkSoft);
         name.Position = new Vector2(Padding.X, Padding.Y - 2.0f);
         paper.AddChild(name);
-        Label text = UiStyle.MakeLabel(speech.Text, UiStyle.TextSize);
+        Label text = UiStyle.MakeLabel(line.Pages[0], UiStyle.TextSize);
+        text.AddThemeConstantOverride("line_spacing", (int)RowSpacing);
         text.Position = new Vector2(Padding.X, Padding.Y + nameHeight - 2.0f);
-        text.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        text.Size = new Vector2(size.X - Padding.X * 2.0f, textSize.Y + 2.0f);
+        text.AutowrapMode = TextServer.AutowrapMode.Off;
+        text.Size = new Vector2(size.X - Padding.X * 2.0f, shownRows * rowHeight + 2.0f);
         paper.AddChild(text);
         paper.Modulate = new Color(1, 1, 1, 0);
         AddChild(paper);
         paper.CreateTween().TweenProperty(paper, "modulate:a", 1.0f, 0.2);
-        _lines.Add(new Line { Speech = speech, Left = speech.Duration + Linger, Paper = paper });
+        line.Paper = paper;
+        line.Words = text;
+        _lines.Add(line);
         while (_lines.Count > MaxLines)
         {
             _lines[0].Paper?.QueueFree();
@@ -99,20 +131,35 @@ public partial class Subtitles : Control
         }
     }
 
-    /// <summary>The size of the words wrapped at a width the way the label wraps them: widest line, total height.</summary>
-    private static Vector2 WrappedSize(string text, float width)
+    /// <summary>Space between rows of words, in px.</summary>
+    private const float RowSpacing = 2.0f;
+
+    /// <summary>The words broken into rows no wider than <paramref name="width"/>; <paramref name="widest"/> is the widest row.</summary>
+    public static List<string> Rows(string text, float width, out float widest)
     {
+        List<string> rows = new();
+        widest = 0.0f;
         TextParagraph paragraph = new() { Width = width, BreakFlags = TextServer.LineBreakFlag.Mandatory | TextServer.LineBreakFlag.WordBound | TextServer.LineBreakFlag.Adaptive };
         paragraph.AddString(text, UiStyle.Hand, UiStyle.TextSize);
-        float widest = 0.0f;
-        float height = 0.0f;
         for (int i = 0; i < paragraph.GetLineCount(); i++)
         {
-            Vector2 line = paragraph.GetLineSize(i);
-            widest = Mathf.Max(widest, line.X);
-            height += line.Y;
+            Vector2I range = paragraph.GetLineRange(i);
+            int start = Mathf.Clamp(range.X, 0, text.Length);
+            int end = Mathf.Clamp(range.Y, start, text.Length);
+            string row = text.Substring(start, end - start).Trim();
+            if (row.Length == 0)
+            {
+                continue;
+            }
+            rows.Add(row);
+            widest = Mathf.Max(widest, UiStyle.Hand.GetStringSize(row, HorizontalAlignment.Left, -1, UiStyle.TextSize).X);
         }
-        return new Vector2(Mathf.Ceil(widest) + 2.0f, Mathf.Ceil(height) + 2.0f);
+        if (rows.Count == 0)
+        {
+            rows.Add(text);
+            widest = UiStyle.Hand.GetStringSize(text, HorizontalAlignment.Left, -1, UiStyle.TextSize).X;
+        }
+        return rows;
     }
 
     private void Clear()
@@ -176,6 +223,14 @@ public partial class Subtitles : Control
                 continue;
             }
             ColorRect paper = line.Paper;
+            // Long speech: the next page of rows when this one has been said.
+            line.PageLeft -= (float)delta;
+            if (line.PageLeft <= 0.0f && line.Page + 1 < line.Pages.Count && line.Words != null)
+            {
+                line.Page++;
+                line.Words.Text = line.Pages[line.Page];
+                line.PageLeft = line.PageTimes[line.Page];
+            }
             if (line.Left < 0.4f)
             {
                 paper.Modulate = new Color(1, 1, 1, line.Left / 0.4f);

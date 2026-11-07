@@ -1,4 +1,5 @@
 using DownhillRoguelite.Core;
+using DownhillRoguelite.WorldUi;
 using Godot;
 
 namespace DownhillRoguelite.Map;
@@ -14,8 +15,8 @@ public partial class WaypointCairn : Node3D
     [Export] public Color SafeColor { get; set; } = new(0.6f, 1.0f, 0.6f);
     [Export] public Color TightColor { get; set; } = new(1.0f, 0.82f, 0.35f);
     [Export] public Color LateColor { get; set; } = new(1.0f, 0.45f, 0.4f);
-    [Export] public int LabelFontSize { get; set; } = 48;
-    [Export] public float LabelPixelSize { get; set; } = 0.006f;
+    [Export] public int LabelFontSize { get; set; } = 36;
+    [Export] public float LabelPixelSize { get; set; } = 0.005f;
     [Export] public float LabelHeight { get; set; } = 1.9f;
 
     public string LabelText => _label?.Text ?? "";
@@ -49,7 +50,7 @@ public partial class WaypointCairn : Node3D
             Position = Vector3.Up * LabelHeight,
             Visible = false,
         };
-        AddChild(_label);
+        AddChild(WorldLabel.Readable(_label));
     }
 
     public void ShowEstimate(RouteEstimate estimate, WorldClock? clock)
