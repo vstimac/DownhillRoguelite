@@ -111,18 +111,13 @@ public partial class RouteSign : Node3D
         {
             hoursPerSecond = clock.HoursPerSecond;
         }
-        string rests = $"{estimate.Rests} rests";
-        if (estimate.Rests == 1)
-        {
-            rests = "1 rest";
-        }
-        string dark = "";
+        string dark = " · before dark";
         if (!estimate.BeforeNightfall)
         {
             dark = " · after dark";
         }
         return $"{KindName(estimate.Kind)} ({direction}) · {WaypointCairn.Distance(estimate.DistanceMeters)} · " +
-            $"~{WaypointCairn.Duration(estimate.TotalSeconds * hoursPerSecond)} · {rests} · stamina {estimate.StaminaNeeded:0}{dark}";
+            $"~{TimeText.Real(estimate.TotalSeconds)}{dark}";
     }
 
     private Color ColorFor(RouteEstimate estimate)

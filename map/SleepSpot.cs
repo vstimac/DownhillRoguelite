@@ -17,7 +17,7 @@ public partial class SleepSpot : Node3D, IInteractable, IDescribed
 
     public string Title => "Bedroll";
     public string Description => "Sleep through the night, safe from the cold.";
-    public string Details => "From 16:00 or after dark.\nHeals and refills stamina.";
+    public string Details => "In the evening or at night.\nHeals and refills stamina.";
     public string Prompt => "E  Sleep";
     public Resource? IconSource => null;
 
@@ -54,7 +54,7 @@ public partial class SleepSpot : Node3D, IInteractable, IDescribed
         }
         else
         {
-            _label.Text = $"Too early to sleep (from {_clock.SleepFromHour:00}:00)";
+            _label.Text = $"Too early to sleep (in {TimeText.FromHours(Mathf.PosMod(_clock.SleepFromHour - _clock.TimeOfDay, 24.0f), _clock.HoursPerSecond)})";
         }
     }
 

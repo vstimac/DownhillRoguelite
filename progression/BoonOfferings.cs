@@ -105,7 +105,7 @@ public partial class BoonOfferings : Node3D
                 _stones.RemoveAt(i);
             }
         }
-        GameEvents.PublishBoonChosen(chosen.Boon.DisplayName);
+        GameEvents.PublishBoonChosen($"{chosen.Boon.DisplayName} ({chosen.Boon.Effects()})");
         return true;
     }
 

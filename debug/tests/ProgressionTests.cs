@@ -116,11 +116,11 @@ public partial class ProgressionTests : Node3D
         float with = stamina.WalkDrainPerSecond(20.0f, 0.2f, false, false);
         float saved = modifiers.WalkDrain;
         modifiers.WalkDrain = 1.0f;
-        float without = stamina.WalkDrainPerSecond(20.0f, 0.2f, false, false);
+        float without = stamina.WalkDrainPerSecond(20.0f, -0.2f, false, false);
         modifiers.WalkDrain = saved;
         bool lighter = saved >= 1.0f || with < without * 0.99f;
         modifiers.WalkDrain = 0.85f;
-        float eased = stamina.WalkDrainPerSecond(20.0f, 0.2f, false, false);
+        float eased = stamina.WalkDrainPerSecond(20.0f, -0.2f, false, false);
         modifiers.WalkDrain = saved;
         Check("a boon changes what walking costs", lighter && Mathf.Abs(eased - without * 0.85f) < 0.001f,
             $"walking with 20 kg: {without:0.00}/s plain, {eased:0.00}/s with Light Step (chosen boon: {with:0.00}/s)");

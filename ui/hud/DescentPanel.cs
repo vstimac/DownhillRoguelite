@@ -56,9 +56,18 @@ public partial class DescentPanel : ParchmentPanel
         string time = "";
         if (_clock != null)
         {
-            int hour = Mathf.FloorToInt(_clock.TimeOfDay);
-            int minute = Mathf.FloorToInt((_clock.TimeOfDay - hour) * 60.0f);
-            time = $"Day {_clock.Day} · {hour:00}:{minute:00}";
+            // Real time, not the in-game clock: how long until it gets dark (or light).
+            string until;
+            if (_clock.IsNight)
+            {
+                float toDawn = Mathf.PosMod(_clock.SunriseHour - _clock.TimeOfDay, 24.0f);
+                until = $"light in {TimeText.FromHours(toDawn, _clock.HoursPerSecond)}";
+            }
+            else
+            {
+                until = $"dark in {TimeText.FromHours(_clock.HoursUntilSunset, _clock.HoursPerSecond)}";
+            }
+            time = $"Day {_clock.Day} · {TimeText.PartOfDay(_clock.TimeOfDay)} · {until}";
         }
         RouteEstimate estimate = GameEvents.LatestEstimate;
         string next = "";
@@ -69,7 +78,7 @@ public partial class DescentPanel : ParchmentPanel
             {
                 dark = "after dark";
             }
-            next = $"\nStation {estimate.Station}: {estimate.DistanceMeters / 1000.0f:0.0} km, ~{estimate.TotalSeconds * _clock.HoursPerSecond:0.0} h, {dark}";
+            next = $"\nStation {estimate.Station}: {estimate.DistanceMeters / 1000.0f:0.0} km, ~{TimeText.Real(estimate.TotalSeconds)}, {dark}";
         }
         _body.Text = $"Elevation {elevation:0} m  ·  {depth} m down\nCircle {circle}\nWeather: {sky}\n{time}{next}";
         if (circle != _lastPlace)

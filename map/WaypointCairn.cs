@@ -87,32 +87,10 @@ public partial class WaypointCairn : Node3D
         }
     }
 
-    /// <summary>The estimate as the cairn writes it (in-game hours, as the carrier's clock shows them).</summary>
+    /// <summary>The estimate as the cairn writes it, in real time: distance, how long, before or after dark.</summary>
     public static string Describe(RouteEstimate estimate, WorldClock? clock)
     {
-        float hoursPerSecond = 0.0f;
-        float sunset = 20.0f;
-        if (clock != null)
-        {
-            hoursPerSecond = clock.HoursPerSecond;
-            sunset = clock.SunsetHour;
-        }
-        string distance = Distance(estimate.DistanceMeters);
-        string rests = "no rests";
-        if (estimate.Rests == 1)
-        {
-            rests = "1 rest";
-        }
-        else if (estimate.Rests > 1)
-        {
-            rests = $"{estimate.Rests} rests";
-        }
-        string arrival = $"arrive {Clock(estimate.ArrivalHour)}";
-        if (clock != null && estimate.ArrivalDay > clock.Day)
-        {
-            arrival = $"arrive {Clock(estimate.ArrivalHour)} (day {estimate.ArrivalDay})";
-        }
-        string dark = $"dark at {Clock(sunset)}";
+        string dark = "before dark";
         if (!estimate.BeforeNightfall)
         {
             dark = "after dark";
@@ -122,10 +100,8 @@ public partial class WaypointCairn : Node3D
         {
             path = $" · {RouteSign.KindName(estimate.Kind).ToLowerInvariant()} path";
         }
-        return $"Station {estimate.Station}{path} · {distance}\n" +
-            $"~{Duration(estimate.TotalSeconds * hoursPerSecond)} · {rests}\n" +
-            $"stamina {estimate.StaminaNeeded:0}\n" +
-            $"{arrival} · {dark}";
+        return $"Station {estimate.Station}{path} · {Distance(estimate.DistanceMeters)}\n" +
+            $"~{TimeText.Real(estimate.TotalSeconds)} on foot · {dark}";
     }
 
     public static string Distance(float meters)

@@ -25,7 +25,7 @@ public partial class PauseMenu : CanvasLayer
         "Alt + drag: move any part of the UI (pages drag by their title) · Alt+Backspace: reset\n" +
         "R give up · T skip an hour · F3 debug overlays · F4 cycle weather\n\n" +
         "Death is permanent: every run starts on the summit of a new mountain.\n" +
-        "Reach the next station before night. Stamina runs out walking — rest by standing still.\n" +
+        "Reach the next station before night. Sprinting and jumping cost stamina; it comes back quickly when you ease off.\n" +
         "Below each station the paths split: a lookout sign compares them. Cairns show the way.";
 
     public bool IsOpen => Visible;
