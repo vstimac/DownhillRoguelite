@@ -45,6 +45,7 @@
 [ext_resource type="Script" path="res://ui/Hud.cs" id="45_hud"]
 [ext_resource type="Script" path="res://narrative/CompanionChat.cs" id="46_companion"]
 [ext_resource type="Script" path="res://narrative/CompanionVoice.cs" id="47_voice"]
+[ext_resource type="Script" path="res://environment/FootTrail.cs" id="49_trail"]
 [ext_resource type="Script" path="res://narrative/StationVisitors.cs" id="48_visitors"]
 [ext_resource type="Resource" path="res://narrative/npcs/pilgrim.tres" id="48_pilgrim"]
 [ext_resource type="Resource" path="res://narrative/npcs/cartographer.tres" id="48_cartographer"]
@@ -274,6 +275,9 @@ script = ExtResource("46_companion")
 
 [node name="CompanionVoice" type="Node3D" parent="."]
 script = ExtResource("47_voice")
+
+[node name="FootTrail" type="Node3D" parent="."]
+script = ExtResource("49_trail")
 
 [node name="Visitors" type="Node3D" parent="."]
 script = ExtResource("48_visitors")
