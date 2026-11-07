@@ -191,6 +191,43 @@ public static class GameEvents
         UseItemRequested?.Invoke(itemId);
     }
 
+    /// <summary>What the carrier wears and what it does (M14).</summary>
+    public static GearSnapshot CurrentGear { get; private set; } = GearSnapshot.None;
+
+    /// <summary>Raised whenever gear is put on, taken off, worn down or mended.</summary>
+    public static event Action<GearSnapshot>? GearChanged;
+
+    public static void PublishGear(GearSnapshot gear)
+    {
+        CurrentGear = gear;
+        GearChanged?.Invoke(gear);
+    }
+
+    /// <summary>Asks to put on a carried item (by id).</summary>
+    public static event Action<string>? WearRequested;
+
+    public static void RequestWear(string itemId) => WearRequested?.Invoke(itemId);
+
+    /// <summary>Asks to take off what is worn in a slot (back into the pack, or pockets).</summary>
+    public static event Action<EquipSlot>? TakeOffRequested;
+
+    public static void RequestTakeOff(EquipSlot slot) => TakeOffRequested?.Invoke(slot);
+
+    /// <summary>Asks to mend with a carried material (by id): the most worn thing it can mend.</summary>
+    public static event Action<string>? MendRequested;
+
+    public static void RequestMend(string materialId) => MendRequested?.Invoke(materialId);
+
+    /// <summary>Raised when something is mended (what, how much) or a mend can't be done (reason in what, amount 0).</summary>
+    public static event Action<string, float>? Mended;
+
+    public static void PublishMended(string what, float amount) => Mended?.Invoke(what, amount);
+
+    /// <summary>Raised when a carried item is lost (falls out of a torn pack).</summary>
+    public static event Action<string>? ItemLost;
+
+    public static void PublishItemLost(string itemId) => ItemLost?.Invoke(itemId);
+
     /// <summary>True while a full-screen UI page (inventory, journal) is open: the mouse belongs to it.</summary>
     public static bool IsScreenOpen { get; private set; }
 

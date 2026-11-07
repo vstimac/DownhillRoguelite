@@ -20,6 +20,23 @@ public partial class ItemSlot : Control
     public bool Selected { get; private set; }
     public int Index { get; set; }
     public float SlotSeed { get; set; }
+    /// <summary>Wear of the piece shown, 0 to 1 (a bar along the bottom); negative hides the bar.</summary>
+    public float Durability { get; set; } = -1.0f;
+
+    /// <summary>The inked garment glyph for a worn slot.</summary>
+    public static InkIcon GlyphFor(Core.EquipSlot slot)
+    {
+        return slot switch
+        {
+            Core.EquipSlot.Head => InkIcon.Hat,
+            Core.EquipSlot.Torso => InkIcon.Shirt,
+            Core.EquipSlot.Legs => InkIcon.Trousers,
+            Core.EquipSlot.Hands => InkIcon.Glove,
+            Core.EquipSlot.Feet => InkIcon.Shoe,
+            Core.EquipSlot.Cape => InkIcon.Cape,
+            _ => InkIcon.Backpack,
+        };
+    }
 
     private ColorRect? _paper;
     private TextureRect? _icon;
@@ -203,7 +220,13 @@ public partial class ItemSlot : Control
     {
         Vector2 size = Size;
         Font font = UiStyle.Hand;
-        if (Item != null && (_icon == null || !_icon.Visible))
+        if (Item != null && (_icon == null || !_icon.Visible) && Item.Category == ItemCategory.Clothing)
+        {
+            // Clothes have no models yet: their garment, inked, tinted with the item's colour.
+            InkDraw.Icon(this, GlyphFor(Item.Slot), new Rect2(size * 0.15f, size * 0.7f), Index + 3);
+            DrawCircle(size * 0.5f, size.X * 0.32f, new Color(Item.DebugColor, 0.25f));
+        }
+        else if (Item != null && (_icon == null || !_icon.Visible))
         {
             // No picture yet (or headless): an inked block in the item's colour.
             Vector2 inset = size * 0.24f;
@@ -212,6 +235,13 @@ public partial class ItemSlot : Control
         else if (Item == null && EmptyGlyph != null)
         {
             InkDraw.Icon(this, EmptyGlyph.Value, new Rect2(size * 0.2f, size * 0.6f), Index + 5);
+        }
+        if (Durability >= 0.0f)
+        {
+            Rect2 bar = new(new Vector2(6, size.Y - 9), new Vector2(size.X - 12, 5));
+            DrawRect(bar, new Color(0.1f, 0.08f, 0.06f, 0.7f));
+            Color wear = UiStyle.Warning.Lerp(UiStyle.Stamina, Mathf.Clamp(Durability, 0.0f, 1.0f));
+            DrawRect(new Rect2(bar.Position, new Vector2(bar.Size.X * Mathf.Clamp(Durability, 0.0f, 1.0f), bar.Size.Y)), wear);
         }
         if (Count > 1)
         {

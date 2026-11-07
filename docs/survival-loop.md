@@ -134,6 +134,6 @@ M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain
 | **M11 Narrator** (voiced lines built for the demo) | The voiced companion: the 500 lines triggered by game events, then NobodyWho for live conversation |
 | **M12 Progression** (built, contracts wait for M14) | Summit start and a new mountain every run, permadeath with records; boons at stations; depth scaling; starting-kit unlocks |
 | **M13 Map and compass** (built) | A map held up in the world with a compass on top; waypoints that show as markers in the world; drawing with found paper and pencil. See docs/gear-and-map.md |
-| **M14 Gear and durability** | Backpack, pockets and clothing slots (all 3D grids, not lists); gear found in the world with durability and no rarity; mending with found materials (sewing kit and others). See docs/gear-and-map.md |
+| **M14 Gear and durability** (built, branch `m14-gear`) | Backpack, pockets and clothing slots (all 3D grids, not lists); gear found in the world with durability and no rarity; mending with found materials (sewing kit and others). See docs/gear-and-map.md |
 
 Open decisions for the director: same mountain or a new one after each death, whether a light source is in the first starting kit, and the exact day lengths after play-testing.

@@ -43,6 +43,9 @@ public partial class Notifications : Control
         GameEvents.ItemsGranted += OnGranted;
         GameEvents.VitalsUpdated += OnVitals;
         GameEvents.RespawnRequested += OnNewRun;
+        GameEvents.Mended += OnMended;
+        GameEvents.ItemLost += OnLost;
+        GameEvents.GearChanged += OnGear;
     }
 
     public override void _ExitTree()
@@ -58,6 +61,59 @@ public partial class Notifications : Control
         GameEvents.ItemsGranted -= OnGranted;
         GameEvents.VitalsUpdated -= OnVitals;
         GameEvents.RespawnRequested -= OnNewRun;
+        GameEvents.Mended -= OnMended;
+        GameEvents.ItemLost -= OnLost;
+        GameEvents.GearChanged -= OnGear;
+    }
+
+    private readonly HashSet<string> _broken = new();
+
+    private void OnMended(string what, float amount)
+    {
+        if (amount > 0.0f)
+        {
+            Note($"Mended {what} (+{amount:0})");
+        }
+        else
+        {
+            Note(what, true);
+        }
+    }
+
+    private void OnLost(string itemId) => Note($"{NameOf(itemId)} fell out of the torn pack", true);
+
+    /// <summary>Warns once when a piece of gear (or the pack) wears through.</summary>
+    private void OnGear(GearSnapshot gear)
+    {
+        List<WornPiece> pieces = new();
+        if (gear.Slots != null)
+        {
+            pieces.AddRange(gear.Slots);
+        }
+        pieces.Add(gear.Backpack);
+        foreach (WornPiece piece in pieces)
+        {
+            if (piece.Empty || piece.MaxDurability <= 0.0f)
+            {
+                continue;
+            }
+            string key = piece.ItemId;
+            if (piece.Broken && _broken.Add(key))
+            {
+                string name = piece.Name;
+                if (key == "backpack")
+                {
+                    name = "pack";
+                    Note("Your pack is torn: things may fall out", true);
+                    continue;
+                }
+                Note($"Your {name.ToLowerInvariant()} is worn through", true);
+            }
+            else if (!piece.Broken)
+            {
+                _broken.Remove(key);
+            }
+        }
     }
 
     /// <summary>Pins a note; the oldest goes when there are too many.</summary>

@@ -39,6 +39,8 @@ public partial class CarrierInventory : Node
     [Export] public float PickupPreferredX { get; set; } = 0.5f;
 
     public BackpackGrid? Grid { get; private set; }
+    /// <summary>What the carrier wears (M14); created with the inventory.</summary>
+    public CarrierEquipment? Equipment { get; private set; }
     public IReadOnlyList<ItemDefinition> LooseItems => _loose;
     public IReadOnlyList<ItemDefinition> AllItems => _all;
 
@@ -54,6 +56,8 @@ public partial class CarrierInventory : Node
         }
 
         Grid = new BackpackGrid(Backpack.GridSize);
+        Equipment = new CarrierEquipment { Name = "Equipment", Inventory = this };
+        AddChild(Equipment);
         GameEvents.ConsumeRequested += OnConsumeRequested;
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.ItemsGranted += OnItemsGranted;
@@ -145,18 +149,44 @@ public partial class CarrierInventory : Node
         return unplaced;
     }
 
-    /// <summary>Packs an item from the world into the best free spot; false if there's no room.</summary>
-    public bool TryAdd(ItemDefinition item)
+    /// <summary>
+    /// Packs an item into the best free spot, or a free pocket when the pack is full and it is small;
+    /// false if there's no room. Worn gear keeps its hit points (<paramref name="durability"/>, -1: new);
+    /// <paramref name="announce"/> tells the game it was picked up.
+    /// </summary>
+    public bool TryAdd(ItemDefinition item, float durability = -1.0f, bool announce = true)
     {
-        if (Grid == null || !AutoPacker.TryBestSpot(Grid, item, PickupPreferredX, out Vector3I origin, out int orientation)
-            || Grid.Place(item, origin, orientation) == null)
+        if (Grid == null)
+        {
+            return false;
+        }
+        PackedItem? placed = null;
+        if (AutoPacker.TryBestSpot(Grid, item, PickupPreferredX, out Vector3I origin, out int orientation))
+        {
+            placed = Grid.Place(item, origin, orientation);
+        }
+        if (placed != null)
+        {
+            placed.Durability = durability;
+        }
+        else if (Equipment == null || !Equipment.TryPocket(item))
         {
             return false;
         }
         _all.Add(item);
         Publish();
-        GameEvents.PublishItemPickedUp(item.ItemId, item.Category.ToString());
+        if (announce)
+        {
+            GameEvents.PublishItemPickedUp(item.ItemId, item.Category.ToString());
+        }
         return true;
+    }
+
+    /// <summary>Drops an item from the owned list (it moved to the body or out of a pocket).</summary>
+    public void ForgetOwned(ItemDefinition item)
+    {
+        _all.Remove(item);
+        Publish();
     }
 
     /// <summary>
@@ -267,11 +297,31 @@ public partial class CarrierInventory : Node
         }
     }
 
-    /// <summary>Eats or drinks one packed item with this id (the hotbar's use); other items can't be used yet.</summary>
+    /// <summary>Eats or drinks one carried item with this id (the hotbar's use); worn gear goes on.</summary>
     private void OnUseItemRequested(string itemId)
     {
         if (Grid == null)
         {
+            return;
+        }
+        ItemDefinition? kind = ItemText.Find(itemId);
+        if (kind != null && kind.Slot != EquipSlot.None)
+        {
+            Equipment?.Wear(itemId);
+            return;
+        }
+        if (Equipment != null && Equipment.TakeFromPocket(itemId, out ItemDefinition? pocketed) && pocketed != null)
+        {
+            _all.Remove(pocketed);
+            Publish();
+            if (pocketed.Category == ItemCategory.Food)
+            {
+                GameEvents.PublishItemConsumed(SupplyNeed.Hunger, itemId, RestoreOf(pocketed));
+            }
+            else if (pocketed.Category == ItemCategory.Water)
+            {
+                GameEvents.PublishItemConsumed(SupplyNeed.Thirst, itemId, RestoreOf(pocketed));
+            }
             return;
         }
         foreach (PackedItem item in Grid.Items)

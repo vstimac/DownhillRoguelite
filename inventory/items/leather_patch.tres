@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "leather_patch"
+DisplayName = "Leather patch"
+MassKg = 0.1
+Category = 5
+SizeCells = Vector3i(3, 1, 3)
+Tags = 0
+Orientation = 0
+DebugColor = Color(0.5, 0.35, 0.22, 1)
+MendsTypes = PackedStringArray("leather", "backpack")
+MendAmount = 40.0
