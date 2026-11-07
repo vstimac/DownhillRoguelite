@@ -32,6 +32,16 @@ A dark survival adventure about descending a mountain that never ends — toward
 
 Beta 2.1 adds a title screen, UI text layout fixes and a smaller download, building on Beta 2's carrier, vault movement, stamina, reduced idle sliding, clock and boon improvements. This is a playtest, not a finished release.
 
+## Join the project — we need your help!
+
+**DownhillRoguelite is looking for friends and volunteers** who enjoy Godot/C#, original 3D modelling, animation, sound design, UI and hands-on beta testing.
+
+You don't need to be a professional: help with a single model, animation, bug report or playtest.
+
+**[I want to help →](https://github.com/vstimac/DownhillRoguelite/issues/new?template=help-wanted.md)** · [Contribution guidelines](CONTRIBUTING.md) · [Open issues](https://github.com/vstimac/DownhillRoguelite/issues)
+
+*Open collaboration; no paid position is being advertised. Project code uses MIT, while art, music, voices and other assets have separate rights; read [RIGHTS.md](RIGHTS.md) before uploading files.*
+
 ## About
 
 Each run begins at the summit of a procedurally generated mountain. You choose routes, hunt for supplies, reach the next station before nightfall and try to descend deeper than before. Death ends the run; a new mountain awaits.
@@ -108,7 +118,7 @@ Found a bug or had an idea? [Open a GitHub issue](https://github.com/vstimac/Dow
 
 Art, audio, character models and third-party materials have **different rights and terms**. See [art/CREDITS.md](art/CREDITS.md) and each asset pack's license file. The concept gallery is not a downloadable 3D character pack. Mixamo sources and some optional model files are not included in Git.
 
-**No root-level software LICENSE file has been published for this repository at this time.** Its public visibility does **not** automatically grant reuse or redistribution rights. A project code license and rights clearance for external music/recordings should be confirmed before broader reuse.
+**Original project source code:** [MIT License](LICENSE) — permits reuse with the required copyright and license notice. **Game assets, character art, logo, music, voice recordings, narrative and third-party libraries are not automatically MIT.** Read [RIGHTS.md](RIGHTS.md), check [art/CREDITS.md](art/CREDITS.md) and obtain permissions where necessary. MIT's warranty disclaimer does not protect against unlicensed third-party content or all legal claims.
 
 ---
 
