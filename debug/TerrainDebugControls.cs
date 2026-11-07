@@ -6,8 +6,8 @@ using Godot;
 namespace DownhillRoguelite.Debug;
 
 /// <summary>
-/// Debug controls for the terrain scene: puts the carrier on the spine at the start, F2 builds a
-/// new mountain from a random seed, and a carrier that ends up below the ground is put back on
+/// Debug controls for the terrain scene: puts the carrier on the spine at the start, F2 starts a
+/// new run on a new mountain (RunState.StartNewRun), and a carrier that ends up below the ground is put back on
 /// the spine. Place it after the streamer and the player, and before DebugSceneControls (which
 /// remembers the spawn point in its _Ready).
 /// </summary>
@@ -31,7 +31,15 @@ public partial class TerrainDebugControls : Node
     {
         if (@event.IsActionPressed(ActionReseed) && Streamer != null)
         {
-            Streamer.Reseed(new SplitMix64((ulong)Time.GetTicksUsec()).Next());
+            RunState? run = GetNodeOrNull<RunState>("/root/RunState");
+            if (run != null)
+            {
+                run.StartNewRun();
+            }
+            else
+            {
+                Streamer.Reseed(RunState.RandomSeed());
+            }
             PlaceAtSpawn();
         }
     }

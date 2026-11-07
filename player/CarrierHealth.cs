@@ -5,9 +5,10 @@ namespace DownhillRoguelite.Player;
 
 /// <summary>
 /// The carrier's health. Damage comes from physical impacts while ragdolling (PlayerRagdoll), hunger,
-/// thirst and night cold. No regeneration during the day; a night's sleep at a station heals part. At zero the carrier is dead: it stays down, and after RespawnDelay a
-/// respawn is requested (debug stand-in until runs and a fail state exist). Publishes a
-/// VitalsSnapshot with stamina every physics frame.
+/// thirst and night cold. No regeneration during the day; a night's sleep at a station heals part.
+/// At zero the carrier is dead for good (CarrierDied; the run loop in RunState ends the run and
+/// starts the next on a new mountain). KillRequested (the abyss behind the summit) kills at once.
+/// Publishes a VitalsSnapshot with stamina every physics frame.
 /// </summary>
 public partial class CarrierHealth : Node
 {
@@ -15,15 +16,12 @@ public partial class CarrierHealth : Node
     [Export] public PlayerController? Body { get; set; }
     [Export] public CarrierNeeds? Needs { get; set; }
     [Export] public float Max { get; set; } = 100.0f;
-    /// <summary>Seconds dead before a respawn is requested.</summary>
-    [Export] public float RespawnDelay { get; set; } = 4.0f;
     /// <summary>Fraction of maximum health a night's sleep in a station restores.</summary>
     [Export] public float SleepHealFraction { get; set; } = 0.4f;
 
     public float Current { get; private set; }
     public bool Dead { get; private set; }
 
-    private float _deadTime;
     private float _lastDamage;
     private string _lastSource = "";
 
@@ -32,12 +30,19 @@ public partial class CarrierHealth : Node
         Current = Max;
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.Slept += OnSlept;
+        GameEvents.KillRequested += OnKillRequested;
     }
 
     public override void _ExitTree()
     {
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.Slept -= OnSlept;
+        GameEvents.KillRequested -= OnKillRequested;
+    }
+
+    private void OnKillRequested(string cause)
+    {
+        TakeDamage(Max * 10.0f, cause);
     }
 
     /// <summary>Health doesn't regenerate on its own; only sleep (and later medicine) heals.</summary>
@@ -69,7 +74,7 @@ public partial class CarrierHealth : Node
         if (Current <= 0.0f)
         {
             Dead = true;
-            _deadTime = 0.0f;
+            GameEvents.PublishCarrierDied(source);
         }
     }
 
@@ -84,16 +89,6 @@ public partial class CarrierHealth : Node
 
     public override void _PhysicsProcess(double delta)
     {
-        if (Dead)
-        {
-            _deadTime += (float)delta;
-            if (_deadTime >= RespawnDelay)
-            {
-                _deadTime = 0.0f;
-                GameEvents.PublishRespawnRequest();
-            }
-        }
-
         float stamina = 0.0f;
         float maxStamina = 0.0f;
         bool exhausted = false;

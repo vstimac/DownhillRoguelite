@@ -49,6 +49,8 @@ public partial class StationManager : Node3D
     private readonly HashSet<int> _reached = new();
     private readonly Dictionary<int, RouteSign> _signs = new();
     private int _chosenStage = -1;
+    private Node3D? _summit;
+    private Label3D? _summitLabel;
     private Vector3 _focus;
     private bool _hasFocus;
     private RunState? _run;
@@ -122,6 +124,7 @@ public partial class StationManager : Node3D
             return;
         }
 
+        PlaceSummit(route);
         StreamStations(route);
         StreamCairns(route);
         StreamSigns(route);
@@ -191,6 +194,42 @@ public partial class StationManager : Node3D
             }
         }
         RemoveExcept(_cairns, wanted);
+    }
+
+    /// <summary>A stone on the summit naming the run and the mountain (its seed, to replay it).</summary>
+    private void PlaceSummit(IRouteQuery route)
+    {
+        if (_summit == null)
+        {
+            _summit = new Node3D { Name = "SummitStone" };
+            AddChild(_summit);
+            _summit.AddChild(new MeshInstance3D
+            {
+                Mesh = new BoxMesh { Size = new Vector3(0.9f, 1.4f, 0.5f) },
+                Position = new Vector3(0.0f, 0.6f, 0.0f),
+                RotationDegrees = new Vector3(0.0f, 15.0f, 4.0f),
+                MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.45f, 0.44f, 0.42f), Roughness = 1.0f },
+            });
+            _summitLabel = new Label3D
+            {
+                FontSize = 44,
+                PixelSize = 0.006f,
+                Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                OutlineSize = 8,
+                Position = new Vector3(0.0f, 1.9f, 0.0f),
+            };
+            _summit.AddChild(_summitLabel);
+        }
+        Vector3 top = route.RoutePoint(route.StartZ + 3.0f);
+        Vector3 at = new(top.X + 3.0f, top.Y, top.Z);
+        if (!_summit.GlobalPosition.IsEqualApprox(at))
+        {
+            _summit.GlobalPosition = at;
+        }
+        if (_summitLabel != null && _run != null)
+        {
+            _summitLabel.Text = $"Summit\nrun {_run.RunNumber} · mountain {_run.Seed}";
+        }
     }
 
     /// <summary>A lookout sign at the top of every stage with a choice of paths, near the carrier.</summary>

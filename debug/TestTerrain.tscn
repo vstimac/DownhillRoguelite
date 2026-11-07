@@ -36,6 +36,7 @@
 [ext_resource type="Script" path="res://wildlife/WildlifeSpawner.cs" id="36_wildlife"]
 [ext_resource type="Resource" path="res://wildlife/default_wildlife.tres" id="37_wildlife_table"]
 [ext_resource type="Script" path="res://debug/WildlifeDebugOverlay.cs" id="38_wildlife_overlay"]
+[ext_resource type="Script" path="res://world_ui/RunSummaryView.cs" id="39_summary"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
@@ -77,6 +78,7 @@ directional_shadow_max_distance = 120.0
 [node name="Terrain" type="Node3D" parent="."]
 script = ExtResource("14_streamer")
 Settings = ExtResource("15_terrain_settings")
+RandomSeedOnStart = true
 
 [node name="DayNight" type="Node" parent="." node_paths=PackedStringArray("Sun", "World")]
 script = ExtResource("20_daynight")
@@ -122,13 +124,14 @@ script = ExtResource("16_terrain_controls")
 Streamer = NodePath("../Terrain")
 PlayerBody = NodePath("../Player")
 
-[node name="DebugControls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "PlayerCamera", "FlyCamera", "Weather")]
+[node name="DebugControls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "PlayerCamera", "FlyCamera", "Weather", "Streamer")]
 script = ExtResource("5_controls")
 KillHeight = -1e+09
 PlayerBody = NodePath("../Player")
 PlayerCamera = NodePath("../Player/CameraRig/SpringArm/Camera")
 FlyCamera = NodePath("../FlyCamera")
 Weather = NodePath("../Weather")
+Streamer = NodePath("../Terrain")
 
 [node name="LocomotionOverlay" type="CanvasLayer" parent="."]
 script = ExtResource("6_overlay")
@@ -178,3 +181,6 @@ script = ExtResource("30_pause")
 [node name="WildlifeOverlay" type="CanvasLayer" parent="." node_paths=PackedStringArray("Spawner")]
 script = ExtResource("38_wildlife_overlay")
 Spawner = NodePath("../Wildlife")
+
+[node name="RunSummary" type="Node3D" parent="."]
+script = ExtResource("39_summary")

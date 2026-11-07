@@ -324,7 +324,7 @@ public partial class SurvivalTests : Node3D
         await WaitSeconds(0.5f);
         clock.DebugTimeScale = 1.0f;
         health.TakeDamage(health.Max * 2.0f, "test");
-        await WaitSeconds(health.RespawnDelay + 0.5f);
+        await WaitSeconds(GetNode<RunState>("/root/RunState").SummaryDelay + 0.5f);
 
         bool emptied = inventory.AllItems.Count == 0;
         bool fed = Near(needs.Hunger, CarrierNeeds.Full) && Near(needs.Thirst, CarrierNeeds.Full);
