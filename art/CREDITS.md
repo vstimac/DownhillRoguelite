@@ -35,6 +35,10 @@ Links: [Quaternius](https://quaternius.com/) · [Kenney](https://kenney.nl/).
 
 **External commercial songs or master recordings:** Any proposed use needs appropriate rights clearance (including recording/master rights and composition rights). An author's permission alone may not grant rights to a record label's original recording. No blanket music permission is implied by this repository.
 
-## Source code license
+## Source code and media rights
 
-As of this edit, no root `LICENSE` file has been confirmed. **A public GitHub repository is not automatically open-source-licensed.** Code and game-specific original assets should receive explicit, separately considered licensing if reuse is intended. Do not label the entire game CC0, MIT or Creative Commons solely because some third-party packs use those terms.
+Original source code is released under the [MIT License](../LICENSE) to the extent the project authors own the rights to license that code. **The root MIT license does not make the game's art, music, voices, logos, narrative, third-party dependencies or characters MIT-licensed.**
+
+See [RIGHTS.md](../RIGHTS.md) for license boundaries, third-party permissions, publicity/likeness considerations and a release checklist. Individual asset pack licenses take precedence for their materials; do not treat the entire repository as CC0 or as a redistributable 3D asset pack.
+
+The separate [DownhillRoguelite character concept poster](characters/downhillroguelite-character-pack.png) is a concept illustration, not game-ready assets; the satirical images of public figures must not be interpreted as their endorsement.
