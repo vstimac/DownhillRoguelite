@@ -12,7 +12,8 @@ namespace DownhillRoguelite.Ui;
 /// sheet on the left, the hotbar along the bottom, the look-at tooltip on the right and paper notes
 /// for events. Pages: inventory (I), map (M, through the field map), journal (J), conversation
 /// with the companion (Enter); Esc closes the
-/// open page. While a page is open the mouse belongs to it (GameEvents.IsScreenOpen). Re-lays out
+/// open page. Pages drag by their title, HUD pieces with Alt held (UiLayoutEditor).
+/// While a page is open the mouse belongs to it (GameEvents.IsScreenOpen). Re-lays out
 /// on any window size; hidden while packing and in clean screenshot mode.
 /// </summary>
 public partial class Hud : CanvasLayer
@@ -36,6 +37,7 @@ public partial class Hud : CanvasLayer
     public MapScreen? MapPage { get; private set; }
     public JournalScreen? Journal { get; private set; }
     public TalkScreen? Talk { get; private set; }
+    public UiLayoutEditor? LayoutEditor { get; private set; }
     public JournalLog? Log { get; private set; }
 
     private Control? _root;
@@ -93,6 +95,26 @@ public partial class Hud : CanvasLayer
         Inventory.Closed += OnPageClosed;
         Journal.Closed += OnPageClosed;
         Talk.Closed += OnPageClosed;
+
+        // The player can drag everything: pages by their title, HUD pieces with Alt held.
+        LayoutEditor = new UiLayoutEditor { Name = "LayoutEditor" };
+        _root.AddChild(LayoutEditor);
+        LayoutEditor.AddPiece("health", HealthDial);
+        LayoutEditor.AddPiece("hunger", HungerDial);
+        LayoutEditor.AddPiece("thirst", ThirstDial);
+        LayoutEditor.AddPiece("stamina", StaminaDial);
+        LayoutEditor.AddPiece("descent", Descent);
+        LayoutEditor.AddPiece("compass", Compass);
+        LayoutEditor.AddPiece("equipment", Equipment);
+        LayoutEditor.AddPiece("hotbar", Hotbar);
+        LayoutEditor.AddPiece("tooltip", Tooltip);
+        LayoutEditor.AddPiece("notes", Notes);
+        LayoutEditor.AddPage("inventory", Inventory);
+        LayoutEditor.AddPage("map", MapPage);
+        LayoutEditor.AddPage("journal", Journal);
+        LayoutEditor.AddPage("talk", Talk);
+        LayoutEditor.Place = PlacePiece;
+        LayoutEditor.EditingChanged += OnEditing;
         MapPage.Closed += OnPageClosed;
 
         GameEvents.VitalsUpdated += OnVitals;
@@ -169,6 +191,30 @@ public partial class Hud : CanvasLayer
                 page.Position = (screen - page.Size) * 0.5f;
                 page.PivotOffset = page.Size * 0.5f;
             }
+        }
+        LayoutEditor?.Apply(screen);
+    }
+
+    private void PlacePiece(Control piece, Vector2 at)
+    {
+        if (piece == Tooltip && Tooltip != null)
+        {
+            Tooltip.SetHome(at);
+        }
+        else
+        {
+            piece.Position = at;
+        }
+    }
+
+    private bool _editHintShown;
+
+    private void OnEditing(bool editing)
+    {
+        if (editing && !_editHintShown && Notes != null)
+        {
+            _editHintShown = true;
+            Notes.Note("Drag to move the UI · Alt+Backspace resets");
         }
     }
 

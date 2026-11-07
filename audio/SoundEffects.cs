@@ -29,6 +29,32 @@ public partial class SoundEffects : Node
     private int _next;
     private bool _enabled;
 
+    [Export] public float ReportAfter { get; set; } = 10.0f;
+
+    /// <summary>`-- --audio-report`: prints buses, every audio player and the output level (to check a build).</summary>
+    private void Report()
+    {
+        GD.Print($"Audio report: device '{AudioServer.OutputDevice}', mix {AudioServer.GetMixRate()} Hz, enabled {_enabled}");
+        for (int bus = 0; bus < AudioServer.BusCount; bus++)
+        {
+            GD.Print($"  bus {AudioServer.GetBusName(bus)}: {AudioServer.GetBusVolumeDb(bus):0.0} dB, mute {AudioServer.IsBusMute(bus)}, peak {AudioServer.GetBusPeakVolumeLeftDb(bus, 0):0.0} dB");
+        }
+        foreach (Node node in GetTree().Root.FindChildren("*", "AudioStreamPlayer", true, false))
+        {
+            if (node is AudioStreamPlayer player)
+            {
+                GD.Print($"  player {player.GetPath()}: bus {player.Bus}, {player.VolumeDb:0.0} dB, playing {player.Playing}, stream {player.Stream?.ResourcePath ?? "none"}");
+            }
+        }
+        foreach (Node node in GetTree().Root.FindChildren("*", "AudioStreamPlayer3D", true, false))
+        {
+            if (node is AudioStreamPlayer3D player)
+            {
+                GD.Print($"  player3D {player.GetPath()}: bus {player.Bus}, {player.VolumeDb:0.0} dB, playing {player.Playing}");
+            }
+        }
+    }
+
     public override void _Ready()
     {
         _random.Randomize();
@@ -51,6 +77,10 @@ public partial class SoundEffects : Node
         {
             _players[i] = new AudioStreamPlayer { Bus = Bus };
             AddChild(_players[i]);
+        }
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--audio-report") >= 0)
+        {
+            GetTree().CreateTimer(ReportAfter).Timeout += Report;
         }
 
         GameEvents.Landed += OnLanded;

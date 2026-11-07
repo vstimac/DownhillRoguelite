@@ -14,7 +14,7 @@ public partial class MusicPlayer : Node
     [Export] public AudioStream? NightTrack { get; set; }
     [Export] public StringName Bus { get; set; } = "Music";
     /// <summary>Volume of a track at full mix, in dB.</summary>
-    [Export] public float VolumeDb { get; set; } = -8.0f;
+    [Export] public float VolumeDb { get; set; } = -3.0f;
     /// <summary>Extra drop while the narrator speaks, in dB.</summary>
     [Export] public float DuckDb { get; set; } = -9.0f;
     /// <summary>How fast volumes follow their targets (per second).</summary>
