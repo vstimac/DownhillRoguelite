@@ -31,3 +31,7 @@ art/characters/mixamo/*.fbx
 art/characters/mixamo/*.fbx.import
 art/characters/mixamo/*.png
 art/characters/mixamo/*.png.import
+
+# Linux export output (scripts/build_linux.sh)
+build/
+.ci/

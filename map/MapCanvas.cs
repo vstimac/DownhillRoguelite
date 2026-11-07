@@ -104,8 +104,13 @@ public partial class MapCanvas : Control
             DrawStationArrow(route, centre, metresPerPixel, size, font);
         }
 
-        // The carrier: an arrow pointing the way it faces.
+        // Supplies lying on ground already seen: a dot in their colour (food, water, gear, cloth, mending).
+        DrawLoot(chart, centre, metresPerPixel, size);
+
+        // The carrier: a bright disc under an arrow pointing the way he faces, easy to find at a glance.
         Vector2 me = ToPixel(Map.CarrierPoint, centre, metresPerPixel, size);
+        DrawCircle(me, 15.0f, new Color(Paper, 0.9f));
+        DrawArc(me, 15.0f, 0.0f, Mathf.Tau, 24, YouInk, 3.0f, true);
         Vector2 facing = Map.Facing;
         if (facing.IsZeroApprox())
         {
@@ -258,6 +263,41 @@ public partial class MapCanvas : Control
             Vector2 p = ToPixel(new Vector2(station.X, station.Z), centre, metresPerPixel, size);
             DrawRect(new Rect2(p - new Vector2(8, 8), new Vector2(16, 16)), Ink, false, 3.0f);
             DrawString(font, p + new Vector2(12, 8), index.ToString(), HorizontalAlignment.Left, -1, 22, Ink);
+        }
+    }
+
+    /// <summary>The ring round the carrier's arrow.</summary>
+    [Export] public Color YouInk { get; set; } = new(0.15f, 0.45f, 0.85f);
+    /// <summary>Dots for supplies on seen ground; the map's own items group and colour meta (WorldItem).</summary>
+    [Export] public string LootGroup { get; set; } = "map_loot";
+    [Export] public string LootColourMeta { get; set; } = "map_colour";
+    [Export] public float LootDot { get; set; } = 5.0f;
+
+    private void DrawLoot(MapChart chart, Vector2 centre, float metresPerPixel, Vector2 size)
+    {
+        foreach (Node node in GetTree().GetNodesInGroup(LootGroup))
+        {
+            if (node is not Node3D item || !item.IsInsideTree())
+            {
+                continue;
+            }
+            Vector3 at = item.GlobalPosition;
+            if (!chart.IsSeen(at.X, at.Z))
+            {
+                continue;
+            }
+            Vector2 p = ToPixel(new Vector2(at.X, at.Z), centre, metresPerPixel, size);
+            if (p.X < 0.0f || p.Y < 0.0f || p.X > size.X || p.Y > size.Y)
+            {
+                continue;
+            }
+            Color colour = Ink;
+            if (item.HasMeta(LootColourMeta))
+            {
+                colour = item.GetMeta(LootColourMeta).AsColor();
+            }
+            DrawCircle(p, LootDot + 1.5f, Ink);
+            DrawCircle(p, LootDot, colour);
         }
     }
 

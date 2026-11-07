@@ -484,7 +484,7 @@ public partial class FieldMap : Node3D
             }
             float sight = Mathf.Lerp(Sight.X, Sight.Y, darkness) * (1.0f - 0.5f * Mathf.Clamp(GameEvents.CurrentWeather.Fog, 0.0f, 1.0f));
             IRouteQuery route = Route;
-            if (Chart.Reveal(Centre, sight, route.GroundHeight) > 0 && IsOpen)
+            if (Chart.Reveal(CarrierPoint, sight, route.GroundHeight) > 0 && IsOpen)
             {
                 Redraw();
             }

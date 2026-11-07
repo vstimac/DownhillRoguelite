@@ -32,6 +32,8 @@ public partial class PlayerController : CharacterBody3D
 
     /// <summary>When false, movement input is ignored, e.g. while a debug camera is active.</summary>
     [Export] public bool InputEnabled { get; set; } = true;
+    /// <summary>A rolled landing (Dive) counts as this share of its impact speed.</summary>
+    [Export] public float RollSoftening { get; set; } = 0.15f;
     /// <summary>Keys move the carrier: input is on and the player isn't typing to the companion.</summary>
     private bool Controls => InputEnabled && !GameEvents.IsConversing;
 
@@ -178,6 +180,14 @@ public partial class PlayerController : CharacterBody3D
         {
             // Speed into the surface, not raw vertical speed, so landing on a slope going with it is softer.
             float impactSpeed = -preMoveVelocity.Dot(GetFloorNormal());
+            if (GameEvents.RollPrimed)
+            {
+                // A timed roll (Dive): the landing is taken by the roll, not the legs.
+                GameEvents.PublishRollPrimed(false);
+                impactSpeed *= RollSoftening;
+                GameEvents.PublishVaulted(true);
+                GameEvents.PublishRolled();
+            }
             if (impactSpeed >= Settings.MinReportedLanding)
             {
                 GameEvents.PublishLanded(impactSpeed);
@@ -320,11 +330,13 @@ public partial class PlayerController : CharacterBody3D
 
         Grip = Settings.DefaultGrip;
         _surfaceName = DefaultSurfaceName;
+        SurfaceSpeed = 1.0f;
         SurfaceType? surface = SurfaceLookup.Find(ground, point);
         if (surface != null)
         {
             Grip = surface.Grip;
             _surfaceName = surface.DisplayName;
+            SurfaceSpeed = surface.WalkSpeed;
         }
         // Rain and snow make every surface slicker; boons can improve footing.
         Grip *= GameEvents.CurrentWeather.GripFactor;
@@ -389,11 +401,7 @@ public partial class PlayerController : CharacterBody3D
         {
             return;
         }
-        // With a vault on offer, Space belongs to the vault (Vault), not to an ordinary jump.
-        if (GameEvents.CurrentVault.Active)
-        {
-            return;
-        }
+
         if (Stamina != null && !Stamina.TrySpend(Stamina.JumpCost))
         {
             return;
@@ -437,10 +445,13 @@ public partial class PlayerController : CharacterBody3D
         return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor(), Settings.MaxSpeed);
     }
 
-    /// <summary>Snow underfoot slows every stride; a boon can lengthen it.</summary>
+    /// <summary>How the ground underfoot slows a stride: 1 on firm ground, less in deep snow or mud.</summary>
+    public float SurfaceSpeed { get; private set; } = 1.0f;
+
+    /// <summary>Falling snow and sinking ground (deep snow, mud) slow every stride; a boon can lengthen it.</summary>
     public float WeatherSpeedFactor()
     {
-        float factor = Mathf.Max(0.0f, 1.0f - Settings.SnowSpeedPenalty * GameEvents.CurrentWeather.Snow);
+        float factor = Mathf.Max(0.0f, 1.0f - Settings.SnowSpeedPenalty * GameEvents.CurrentWeather.Snow) * SurfaceSpeed;
         if (_run != null)
         {
             factor *= _run.Modifiers.WalkSpeed;

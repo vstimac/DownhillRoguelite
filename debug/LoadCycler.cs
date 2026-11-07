@@ -45,7 +45,7 @@ public partial class LoadCycler : Node
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event.IsActionPressed(ActionCycle) && LoadPaths.Length > 0)
+        if (OS.IsDebugBuild() && @event.IsActionPressed(ActionCycle) && LoadPaths.Length > 0)
         {
             _index = (_index + 1) % LoadPaths.Length;
             PublishCurrent();

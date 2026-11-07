@@ -7,9 +7,8 @@ namespace DownhillRoguelite.Inventory;
 /// <summary>
 /// How an item looks, in the world and as its inventory icon, from the first thing it has: its own
 /// model (an art-pack scene), a named piece of another model (the carrier's hard hat, vest, trousers or
-/// boots: ModelSource and ModelMesh), or else an ink outline drawing of what it is (a hat, a coat,
-/// trousers, a glove, a boot, a cape, a coil of cord, a patch, paper, a pencil, or a bundle),
-/// drawn once into a texture in the journal's hand-drawn style.
+/// boots: ModelSource and ModelMesh), or else a model built in code (ItemModels). Every item has a
+/// 3D model; the ink outline drawing is kept only for the journal's sketches.
 /// </summary>
 public static class ItemVisual
 {
@@ -19,13 +18,13 @@ public static class ItemVisual
     private static readonly Dictionary<string, Mesh?> Pieces = new();
     private static readonly Dictionary<string, Texture2D> Outlines = new();
 
-    /// <summary>True if the item has a 3D model of its own or a piece of one.</summary>
+    /// <summary>True if the item has a 3D model: always, since ItemModels builds the rest.</summary>
     public static bool HasModel(ItemDefinition item)
     {
-        return item.Model != null || PieceMesh(item) != null;
+        return true;
     }
 
-    /// <summary>The item's model, unfitted (its natural size), or null when it only has an outline.</summary>
+    /// <summary>The item's model, unfitted (its natural size).</summary>
     public static Node3D? BuildModel(ItemDefinition item)
     {
         if (item.Model != null)
@@ -37,7 +36,7 @@ public static class ItemVisual
         Mesh? mesh = PieceMesh(item);
         if (mesh == null)
         {
-            return null;
+            return ItemModels.Build(item);
         }
         Node3D piece = new();
         MeshInstance3D instance = new() { Mesh = mesh };

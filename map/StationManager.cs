@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using DownhillRoguelite.Core;
+using DownhillRoguelite.WorldUi;
 using Godot;
 
 namespace DownhillRoguelite.Map;
@@ -16,6 +17,9 @@ namespace DownhillRoguelite.Map;
 /// </summary>
 public partial class StationManager : Node3D
 {
+    /// <summary>How far signs, cairns and the summit stone are set into the ground, so none floats on a slope.</summary>
+    [Export] public float GroundSink { get; set; } = 0.08f;
+
     /// <summary>Within this horizontal distance of a station's centre the carrier is sheltered, in m.</summary>
     [Export] public float ShelterRadius { get; set; } = 9.0f;
     /// <summary>Stations this close along Z are kept loaded, in m.</summary>
@@ -189,7 +193,8 @@ public partial class StationManager : Node3D
                 WaypointCairn cairn = new() { Name = $"Cairn{-k}_{path}" };
                 AddChild(cairn);
                 float x = point.X + CairnSideOffset;
-                cairn.GlobalPosition = new Vector3(x, route.PathPoint(stage, path, z).Y, z);
+                // On the ground where it stands (beside the path), set a little into it.
+                cairn.GlobalPosition = new Vector3(x, route.GroundHeight(x, z) - GroundSink, z);
                 _cairns[key] = cairn;
             }
         }
@@ -218,10 +223,10 @@ public partial class StationManager : Node3D
                 OutlineSize = 8,
                 Position = new Vector3(0.0f, 1.9f, 0.0f),
             };
-            _summit.AddChild(_summitLabel);
+            _summit.AddChild(WorldLabel.Readable(_summitLabel));
         }
         Vector3 top = route.RoutePoint(route.StartZ + 3.0f);
-        Vector3 at = new(top.X + 3.0f, top.Y, top.Z);
+        Vector3 at = new(top.X + 3.0f, route.GroundHeight(top.X + 3.0f, top.Z) - GroundSink, top.Z);
         if (!_summit.GlobalPosition.IsEqualApprox(at))
         {
             _summit.GlobalPosition = at;
@@ -266,7 +271,8 @@ public partial class StationManager : Node3D
             Vector3 point = route.RoutePoint(z);
             RouteSign sign = new() { Name = $"RouteSign{stage}", Stage = stage };
             AddChild(sign);
-            sign.GlobalPosition = new Vector3(point.X - SignSideOffset, point.Y, z);
+            float signX = point.X - SignSideOffset;
+            sign.GlobalPosition = new Vector3(signX, route.GroundHeight(signX, z) - GroundSink, z);
             _signs[stage] = sign;
         }
         RemoveExcept(_signs, wanted);

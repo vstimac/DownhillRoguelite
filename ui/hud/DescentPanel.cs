@@ -89,7 +89,8 @@ public partial class DescentPanel : ParchmentPanel
         }
     }
 
-    private static string Weather(WeatherSnapshot weather)
+    /// <summary>The weather, and for a real wind its speed and how it pushes the carrier as he faces now.</summary>
+    private string Weather(WeatherSnapshot weather)
     {
         string kind = weather.Kind.ToString();
         if (weather.Kind == WeatherKind.Clear)
@@ -97,11 +98,44 @@ public partial class DescentPanel : ParchmentPanel
             kind = "Clear";
         }
         string wind = "";
-        if (weather.WindSpeed > 6.0f)
+        if (weather.WindSpeed > 3.0f)
         {
-            wind = $", wind {weather.WindSpeed:0} m/s";
+            wind = $", wind {weather.WindSpeed:0} m/s {WindPush(weather.Wind)}";
         }
         return kind + wind;
+    }
+
+    /// <summary>How the wind pushes him relative to the view: at his back, in his face, or to a side.</summary>
+    private string WindPush(Vector3 wind)
+    {
+        Camera3D? camera = GetViewport()?.GetCamera3D();
+        if (camera == null)
+        {
+            return "";
+        }
+        Vector3 forward = -camera.GlobalBasis.Z;
+        forward.Y = 0.0f;
+        if (forward.IsZeroApprox())
+        {
+            return "";
+        }
+        forward = forward.Normalized();
+        Vector3 right = forward.Cross(Vector3.Up);
+        float along = wind.Dot(forward);
+        float across = wind.Dot(right);
+        if (Mathf.Abs(along) >= Mathf.Abs(across))
+        {
+            if (along > 0.0f)
+            {
+                return "at your back";
+            }
+            return "in your face";
+        }
+        if (across > 0.0f)
+        {
+            return "pushing you right";
+        }
+        return "pushing you left";
     }
 
     private static string Numeral(int n)

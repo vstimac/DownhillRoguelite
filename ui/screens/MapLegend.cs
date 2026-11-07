@@ -26,6 +26,7 @@ public partial class MapLegend : Control
         "Path ahead, not yet seen",
         "Your pencil lines",
         "Contour line (10 m)",
+        "Supplies you have seen",
         "Unexplored ground",
     };
 
@@ -55,6 +56,8 @@ public partial class MapLegend : Control
             switch (i)
             {
                 case 0:
+                    DrawCircle(c, 11.0f, paper);
+                    DrawArc(c, 11.0f, 0.0f, Mathf.Tau, 20, Canvas?.YouInk ?? new Color(0.15f, 0.45f, 0.85f), 2.5f, true);
                     DrawColoredPolygon(new[] { c + new Vector2(0, -10), c + new Vector2(7, 7), c + new Vector2(0, 3), c + new Vector2(-7, 7) }, ink);
                     break;
                 case 1:
@@ -90,6 +93,15 @@ public partial class MapLegend : Control
                 case 10:
                     DrawRect(new Rect2(c - new Vector2(12, 8), new Vector2(24, 16)), ground);
                     DrawLine(c + new Vector2(-12, 0), c + new Vector2(12, 0), contour, 1.5f);
+                    break;
+                case 11:
+                    Color[] loot = { new(0.95f, 0.6f, 0.2f), new(0.3f, 0.6f, 0.95f), new(0.4f, 0.8f, 0.4f), new(0.7f, 0.5f, 0.85f) };
+                    for (int d = 0; d < loot.Length; d++)
+                    {
+                        Vector2 dot = c + new Vector2(-12 + d * 8, 0);
+                        DrawCircle(dot, 4.5f, ink);
+                        DrawCircle(dot, 3.2f, loot[d]);
+                    }
                     break;
                 default:
                     DrawRect(new Rect2(c - new Vector2(12, 8), new Vector2(24, 16)), paper);

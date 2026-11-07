@@ -46,6 +46,10 @@ public partial class BalanceSettings : Resource
     /// because a real carrier anticipates its own stops and turns.
     /// </summary>
     [Export] public float InertialFactor { get; set; } = 0.25f;
+    /// <summary>Standing still (idle), the carrier's own stop barely jolts the load: inertial torque × this.</summary>
+    [Export] public float IdleInertiaFactor { get; set; } = 0.2f;
+    /// <summary>Standing still, the carrier holds the load steadier: stiffness × this.</summary>
+    [Export] public float IdleStiffnessMultiplier { get; set; } = 1.0f;
     /// <summary>Acceleration is clamped to this before use, so teleports and step-ups don't spike, in m/s².</summary>
     [Export] public float MaxAcceleration { get; set; } = 15.0f;
     /// <summary>Cross-slope torque as a fraction of m·g·h·sin(roll under the feet).</summary>

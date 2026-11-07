@@ -16,14 +16,14 @@ public partial class PauseMenu : CanvasLayer
     [Export] public int TitleSize { get; set; } = 40;
     [Export] public int TextSize { get; set; } = 18;
     [Export(PropertyHint.MultilineText)] public string ControlsText { get; set; } =
-        "WASD walk · Shift sprint · C brake (careful steps) · Space jump\n" +
+        "WASD walk · Shift sprint · C brake (careful steps) · Space jump (and, falling, roll on landing) · Left Ctrl dive\n" +
         "Mouse look · LMB / RMB lean left / right · both brace\n" +
         "E pick up / sleep at a bedroll · F eat · Q drink · Tab pack (at stations)\n" +
         "I inventory (Wear clothes, Mend gear at stations) · J journal · Enter talk with the companion\n" +
         "M map (click: waypoint · right-click: remove · wheel: zoom · drag: draw)\n" +
         "1-9 choose from the hotbar · V use it · click a worn piece (left sheet) to take it off\n" +
         "Alt + drag: move any part of the UI (pages drag by their title) · Alt+Backspace: reset\n" +
-        "R give up · T skip an hour · F3 debug overlays · F4 cycle weather\n\n" +
+        "R twice: give up the run\n\n" +
         "Death is permanent: every run starts on the summit of a new mountain.\n" +
         "Reach the next station before night. Sprinting and jumping cost stamina; it comes back quickly when you ease off.\n" +
         "Below each station the paths split: a lookout sign compares them. Cairns show the way.";
@@ -45,6 +45,26 @@ public partial class PauseMenu : CanvasLayer
         _closeSound = LoadSound("res://audio/sfx/kenney_interface_sounds/close_001.ogg");
         _click = new AudioStreamPlayer { VolumeDb = -6.0f };
         AddChild(_click);
+        // Render checks: `-- --options` opens the menu on its Options page after a moment.
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--options") >= 0)
+        {
+            GetTree().CreateTimer(2.0, true).Timeout += ShowOptions;
+        }
+    }
+
+    private void ShowOptions()
+    {
+        Open();
+        if (_options != null && _options.GetParent() is Node parent)
+        {
+            foreach (Node child in parent.GetChildren())
+            {
+                if (child is Control control)
+                {
+                    control.Visible = child == _options;
+                }
+            }
+        }
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -118,6 +138,8 @@ public partial class PauseMenu : CanvasLayer
         }
     }
 
+    private OptionsPanel? _options;
+
     private void Build()
     {
         _root = new Control { MouseFilter = Control.MouseFilterEnum.Stop };
@@ -147,10 +169,19 @@ public partial class PauseMenu : CanvasLayer
         AddVolume(column, "Voice", "Voice");
         AddVolume(column, "Weather", "Ambience");
 
-        CheckButton overlays = new() { Text = "Debug overlays (F3)", ButtonPressed = Debug.DebugDraw3D.Enabled };
-        overlays.AddThemeFontSizeOverride("font_size", TextSize);
-        overlays.Toggled += on => Debug.DebugDraw3D.SetEnabled(on);
-        column.AddChild(overlays);
+        Button options = AddButton(column, "Options");
+        _options = new OptionsPanel { TextSize = TextSize, Visible = false };
+        center.AddChild(_options);
+        options.Pressed += () =>
+        {
+            column.Visible = false;
+            _options.Visible = true;
+        };
+        _options.BackPressed += () =>
+        {
+            _options.Visible = false;
+            column.Visible = true;
+        };
 
         Label controls = new() { Text = ControlsText, AutowrapMode = TextServer.AutowrapMode.WordSmart };
         controls.AddThemeFontSizeOverride("font_size", TextSize - 2);
@@ -160,8 +191,15 @@ public partial class PauseMenu : CanvasLayer
         Button quit = AddButton(column, "Quit");
         quit.Pressed += () => GetTree().Quit();
 
-        // Keep the toggle in sync when F3 is used while the menu is closed.
-        VisibilityChanged += () => overlays.SetPressedNoSignal(Debug.DebugDraw3D.Enabled);
+        // The menu always opens on its first page.
+        VisibilityChanged += () =>
+        {
+            if (_options != null)
+            {
+                _options.Visible = false;
+            }
+            column.Visible = true;
+        };
     }
 
     private Button AddButton(Container parent, string text)

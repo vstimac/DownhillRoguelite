@@ -27,6 +27,7 @@ public partial class Hud : CanvasLayer
     public StatDial? HungerDial { get; private set; }
     public StatDial? ThirstDial { get; private set; }
     public StatDial? StaminaDial { get; private set; }
+    public LowStatAlerts? Alerts { get; private set; }
     public DescentPanel? Descent { get; private set; }
     public CompassDial? Compass { get; private set; }
     public EquipmentPanel? Equipment { get; private set; }
@@ -50,6 +51,9 @@ public partial class Hud : CanvasLayer
         Layer = 20;
         Name = "Hud";
         AddToGroup(Group);
+        // The HUD keeps running while the world is stopped for the inventory or the pack (PageFreeze).
+        ProcessMode = ProcessModeEnum.Always;
+        GameOptions.Load();
         AddChild(new ItemIcons());
         Log = new JournalLog();
         AddChild(Log);
@@ -65,6 +69,8 @@ public partial class Hud : CanvasLayer
         HungerDial = Dial(InkIcon.Stomach, UiStyle.Hunger);
         ThirstDial = Dial(InkIcon.Drop, UiStyle.Thirst);
         StaminaDial = Dial(InkIcon.Boot, UiStyle.Stamina);
+        Alerts = new LowStatAlerts { Name = "LowStatAlerts", Position = new Vector2(24, 140), Size = new Vector2(300, 140) };
+        _play.AddChild(Alerts);
         Descent = new DescentPanel { Size = new Vector2(350, 172) };
         _play.AddChild(Descent);
         Compass = new CompassDial { Size = new Vector2(132, 132) };
@@ -85,8 +91,11 @@ public partial class Hud : CanvasLayer
         ThrowZone = new ThrowZone { Name = "ThrowZone" };
         _root.AddChild(ThrowZone);
         Inventory = new InventoryScreen();
+        Equipment.DraggedItem = Inventory.ItemIdAt;
         _root.AddChild(Inventory);
         ThrowZone.Inventory = Inventory;
+        AddChild(new PageFreeze { Name = "PageFreeze", Inventory = Inventory });
+        AddChild(new OptionsApplier { Name = "OptionsApplier" });
         MapPage = new MapScreen();
         foreach (Node node in GetTree().GetNodesInGroup(FieldMap.Group))
         {
@@ -238,9 +247,12 @@ public partial class Hud : CanvasLayer
         }
     }
 
+    /// <summary>True while the pause menu or title screen holds the game (not the pages' own freeze).</summary>
+    private bool MenuPaused => GetTree().Paused && !GameEvents.PagesFrozen;
+
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (GameEvents.IsPacking)
+        if (GameEvents.IsPacking || MenuPaused)
         {
             return;
         }
@@ -265,7 +277,7 @@ public partial class Hud : CanvasLayer
     public override void _Input(InputEvent @event)
     {
         // Esc closes the open page before the pause menu sees it.
-        if (!@event.IsActionPressed("pause"))
+        if (!@event.IsActionPressed("pause") || MenuPaused)
         {
             return;
         }

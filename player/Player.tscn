@@ -17,7 +17,7 @@
 [ext_resource type="Script" path="res://player/PickupInteractor.cs" id="15_interactor"]
 [ext_resource type="Script" path="res://player/RouteEstimator.cs" id="16_estimator"]
 [ext_resource type="Script" path="res://player/CarrierModel.cs" id="17_carrier_model"]
-[ext_resource type="Script" path="res://player/Vault.cs" id="18_vault"]
+[ext_resource type="Script" path="res://player/Dive.cs" id="18_vault"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.3
@@ -105,9 +105,7 @@ script = ExtResource("16_estimator")
 Body = NodePath("..")
 Stamina = NodePath("../Stamina")
 
-[node name="Vault" type="Node3D" parent="." node_paths=PackedStringArray("Body", "Ragdoll", "Health", "Look")]
+[node name="Dive" type="Node3D" parent="." node_paths=PackedStringArray("Body", "Look")]
 script = ExtResource("18_vault")
 Body = NodePath("..")
-Ragdoll = NodePath("../Ragdoll")
-Health = NodePath("../Health")
 Look = NodePath("../CarrierModel")

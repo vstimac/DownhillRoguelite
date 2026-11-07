@@ -73,6 +73,18 @@ public partial class DebugSceneControls : Node
                 string items = arg.Substring("--drop=".Length);
                 GetTree().CreateTimer(1.0).Timeout += () => DropItems(items);
             }
+            if (arg.StartsWith("--give="))
+            {
+                // `--give=paper,cord` puts items in the pack (render checks of icons).
+                string items = arg.Substring("--give=".Length);
+                GetTree().CreateTimer(0.8).Timeout += () => GiveItems(items, false);
+            }
+            if (arg.StartsWith("--wear="))
+            {
+                // `--wear=wool_hat,fur_cape` puts clothes on him (render checks of the worn look).
+                string items = arg.Substring("--wear=".Length);
+                GetTree().CreateTimer(0.8).Timeout += () => GiveItems(items, true);
+            }
             if (arg.StartsWith("--herd="))
             {
                 string spec = arg.Substring("--herd=".Length);
@@ -125,22 +137,41 @@ public partial class DebugSceneControls : Node
         GameEvents.RespawnRequested -= Respawn;
     }
 
+    private const ulong GiveUpConfirmMs = 2500;
+    private ulong _giveUpArmedAt;
+
     public override void _UnhandledInput(InputEvent @event)
     {
-        // Packing uses some of the same keys (R tips an item).
-        if (GameEvents.IsPacking)
+        // Packing uses some of the same keys (R tips an item); pages and the chat take their own keys.
+        if (GameEvents.IsPacking || GameEvents.IsScreenOpen || GameEvents.IsConversing || GameEvents.IsMapOpen)
         {
             return;
         }
 
+        if (@event.IsActionPressed(ActionRespawn))
+        {
+            // Giving up ends the run like any death: summary, then a new mountain. Twice, to be sure.
+            ulong now = Time.GetTicksMsec();
+            if (now - _giveUpArmedAt < GiveUpConfirmMs)
+            {
+                _giveUpArmedAt = 0;
+                GameEvents.PublishKill("gave up");
+            }
+            else
+            {
+                _giveUpArmedAt = now;
+                GameEvents.PublishHint("Press R again to give up this run");
+            }
+            return;
+        }
+        // Debug keys only in development builds.
+        if (!OS.IsDebugBuild())
+        {
+            return;
+        }
         if (@event.IsActionPressed(ActionToggleFly))
         {
             ToggleFlyCamera();
-        }
-        else if (@event.IsActionPressed(ActionRespawn))
-        {
-            // Giving up ends the run like any death: summary, then a new mountain.
-            GameEvents.PublishKill("gave up");
         }
         else if (@event.IsActionPressed(ActionSkipHour))
         {
@@ -157,6 +188,39 @@ public partial class DebugSceneControls : Node
         if (PlayerBody != null && PlayerBody.GlobalPosition.Y < KillHeight)
         {
             GameEvents.PublishKill("fell");
+        }
+    }
+
+    /// <summary>Gives the carrier these items (comma-separated ids), putting them on if <paramref name="wear"/> (screenshots).</summary>
+    private void GiveItems(string ids, bool wear)
+    {
+        Inventory.CarrierInventory? inventory = null;
+        Inventory.CarrierEquipment? equipment = null;
+        foreach (Node node in GetTree().Root.FindChildren("*", "", true, false))
+        {
+            if (node is Inventory.CarrierInventory foundInventory)
+            {
+                inventory = foundInventory;
+            }
+            else if (node is Inventory.CarrierEquipment foundEquipment)
+            {
+                equipment = foundEquipment;
+            }
+        }
+        if (inventory == null || equipment == null)
+        {
+            return;
+        }
+        foreach (string id in ids.Split(','))
+        {
+            if (ResourceLoader.Load($"res://inventory/items/{id.Trim()}.tres") is Inventory.ItemDefinition definition)
+            {
+                inventory.TryAdd(definition, -1.0f, false);
+                if (wear)
+                {
+                    equipment.Wear(definition.ItemId);
+                }
+            }
         }
     }
 

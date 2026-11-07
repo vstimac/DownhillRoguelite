@@ -1,3 +1,4 @@
+using DownhillRoguelite.WorldUi;
 using Godot;
 
 namespace DownhillRoguelite.Map;
@@ -10,6 +11,11 @@ namespace DownhillRoguelite.Map;
 /// </summary>
 public partial class StationSite : Node3D
 {
+    [Export] public int LabelFontSize { get; set; } = 56;
+    [Export] public float LabelPixelSize { get; set; } = 0.006f;
+    /// <summary>Beyond this the station's name fades; the beacon still shows the way.</summary>
+    [Export] public float LabelRange { get; set; } = 60.0f;
+
     [Export] public Color FireColor { get; set; } = new(1.0f, 0.55f, 0.2f);
     [Export] public float FireEnergy { get; set; } = 3.0f;
     [Export] public float FireRange { get; set; } = 16.0f;
@@ -26,8 +32,8 @@ public partial class StationSite : Node3D
     [Export] public float FireVolumeDb { get; set; } = 2.0f;
     /// <summary>Distance the fire can be heard from, in m.</summary>
     [Export] public float FireHearing { get; set; } = 35.0f;
-    /// <summary>The terrace's tilt down the slope (terrain's ClearingSlope), for placing props, in degrees.</summary>
-    [Export] public float TerraceSlope { get; set; } = 10.0f;
+    /// <summary>The terrace's tilt where the props stand, in degrees (0: the terrace core is level).</summary>
+    [Export] public float TerraceSlope { get; set; } = 0.0f;
 
     public int Index { get; private set; }
 
@@ -93,15 +99,15 @@ public partial class StationSite : Node3D
         bed.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.8f, 0.15f, 2.0f) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = BedrollColor } });
         AddChild(bed);
 
-        AddChild(new Label3D
+        AddChild(WorldLabel.Readable(new Label3D
         {
             Text = $"Station {index}",
-            FontSize = 96,
-            PixelSize = 0.01f,
+            FontSize = LabelFontSize,
+            PixelSize = LabelPixelSize,
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
-            OutlineSize = 12,
+            OutlineSize = 10,
             Position = shelter + new Vector3(0.0f, 2.6f, 0.0f),
-        });
+        }, LabelRange));
 
         // Beacon: a faint column of light seen from afar.
         AddMesh(new CylinderMesh { TopRadius = 0.15f, BottomRadius = 0.4f, Height = BeaconHeight, RadialSegments = 8 },

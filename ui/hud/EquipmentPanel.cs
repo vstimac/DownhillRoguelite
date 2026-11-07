@@ -46,6 +46,10 @@ public partial class EquipmentPanel : ParchmentPanel
         {
             ItemSlot slot = new() { Position = at, Size = new Vector2(48, 48), EmptyGlyph = ItemSlot.GlyphFor(equip), Index = (int)equip + 40, TooltipText = $"{equip}: nothing worn" };
             slot.Clicked += (s, button) => GameEvents.RequestTakeOff(equip);
+            // Drag clothes from the inventory page onto the sheet to put them on.
+            slot.AcceptsDrops = true;
+            slot.ShowFootprint = false;
+            slot.DroppedOn = (from, to) => WearDragged(from);
             AddChild(slot);
             _slots[equip] = slot;
         }
@@ -61,6 +65,18 @@ public partial class EquipmentPanel : ParchmentPanel
     {
         GameEvents.LoadChanged -= OnLoad;
         GameEvents.GearChanged -= OnGear;
+    }
+
+    /// <summary>The item id at an inventory page slot (set by the HUD), for drags onto the sheet.</summary>
+    public System.Func<int, string>? DraggedItem { get; set; }
+
+    private void WearDragged(int from)
+    {
+        string id = DraggedItem?.Invoke(from) ?? "";
+        if (id.Length > 0)
+        {
+            GameEvents.RequestWear(id);
+        }
     }
 
     /// <summary>Shows what is worn and how worn it is; clicking a worn piece takes it off.</summary>
