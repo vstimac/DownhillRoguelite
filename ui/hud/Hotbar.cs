@@ -80,7 +80,7 @@ public partial class Hotbar : Control
     public override void _UnhandledInput(InputEvent @event)
     {
         // The mouse wheel steps through the hotbar while walking (pages and the map use it themselves).
-        if (@event is InputEventMouseButton wheel && wheel.Pressed && !GameEvents.IsPacking && !GameEvents.IsScreenOpen && !GameEvents.IsMapOpen)
+        if (@event is InputEventMouseButton wheel && wheel.Pressed && GameOptions.WheelSelectsHotbar && !GameEvents.IsPacking && !GameEvents.IsScreenOpen && !GameEvents.IsMapOpen)
         {
             if (wheel.ButtonIndex == MouseButton.WheelDown)
             {

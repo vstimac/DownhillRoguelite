@@ -77,7 +77,10 @@ public partial class ChaseCamera : Node3D
 
         if (Camera != null)
         {
-            Camera.Fov = FieldOfView;
+            // The player's field of view (Options) wins over the scene's default.
+            GameOptions.Load();
+            Camera.Fov = GameOptions.FieldOfView;
+            GameOptions.Changed += ApplyFieldOfView;
             if (Camera.Current)
             {
                 Input.MouseMode = Input.MouseModeEnum.Captured;
@@ -89,6 +92,7 @@ public partial class ChaseCamera : Node3D
 
     public override void _ExitTree()
     {
+        GameOptions.Changed -= ApplyFieldOfView;
         if (Target is PlayerController controller)
         {
             controller.Teleported -= SnapBehindTarget;
@@ -190,5 +194,13 @@ public partial class ChaseCamera : Node3D
     private Vector3 PivotOf(Node3D target)
     {
         return target.GetGlobalTransformInterpolated().Origin + Vector3.Up * PivotHeight;
+    }
+
+    private void ApplyFieldOfView()
+    {
+        if (Camera != null && IsInstanceValid(Camera))
+        {
+            Camera.Fov = GameOptions.FieldOfView;
+        }
     }
 }

@@ -45,6 +45,26 @@ public partial class PauseMenu : CanvasLayer
         _closeSound = LoadSound("res://audio/sfx/kenney_interface_sounds/close_001.ogg");
         _click = new AudioStreamPlayer { VolumeDb = -6.0f };
         AddChild(_click);
+        // Render checks: `-- --options` opens the menu on its Options page after a moment.
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--options") >= 0)
+        {
+            GetTree().CreateTimer(2.0, true).Timeout += ShowOptions;
+        }
+    }
+
+    private void ShowOptions()
+    {
+        Open();
+        if (_options != null && _options.GetParent() is Node parent)
+        {
+            foreach (Node child in parent.GetChildren())
+            {
+                if (child is Control control)
+                {
+                    control.Visible = child == _options;
+                }
+            }
+        }
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -118,6 +138,8 @@ public partial class PauseMenu : CanvasLayer
         }
     }
 
+    private OptionsPanel? _options;
+
     private void Build()
     {
         _root = new Control { MouseFilter = Control.MouseFilterEnum.Stop };
@@ -147,10 +169,19 @@ public partial class PauseMenu : CanvasLayer
         AddVolume(column, "Voice", "Voice");
         AddVolume(column, "Weather", "Ambience");
 
-        CheckButton overlays = new() { Text = "Debug overlays (F3)", ButtonPressed = Debug.DebugDraw3D.Enabled };
-        overlays.AddThemeFontSizeOverride("font_size", TextSize);
-        overlays.Toggled += on => Debug.DebugDraw3D.SetEnabled(on);
-        column.AddChild(overlays);
+        Button options = AddButton(column, "Options");
+        _options = new OptionsPanel { TextSize = TextSize, Visible = false };
+        center.AddChild(_options);
+        options.Pressed += () =>
+        {
+            column.Visible = false;
+            _options.Visible = true;
+        };
+        _options.BackPressed += () =>
+        {
+            _options.Visible = false;
+            column.Visible = true;
+        };
 
         Label controls = new() { Text = ControlsText, AutowrapMode = TextServer.AutowrapMode.WordSmart };
         controls.AddThemeFontSizeOverride("font_size", TextSize - 2);
@@ -160,8 +191,15 @@ public partial class PauseMenu : CanvasLayer
         Button quit = AddButton(column, "Quit");
         quit.Pressed += () => GetTree().Quit();
 
-        // Keep the toggle in sync when F3 is used while the menu is closed.
-        VisibilityChanged += () => overlays.SetPressedNoSignal(Debug.DebugDraw3D.Enabled);
+        // The menu always opens on its first page.
+        VisibilityChanged += () =>
+        {
+            if (_options != null)
+            {
+                _options.Visible = false;
+            }
+            column.Visible = true;
+        };
     }
 
     private Button AddButton(Container parent, string text)

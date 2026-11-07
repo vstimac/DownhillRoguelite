@@ -1,3 +1,4 @@
+using DownhillRoguelite.Core;
 using Godot;
 
 namespace DownhillRoguelite.Ui;
@@ -75,6 +76,12 @@ public partial class StatDial : Control
 
     public override void _Draw()
     {
+        if (GameOptions.Stats == StatStyle.Bars)
+        {
+            DrawBar();
+            DrawTag();
+            return;
+        }
         Vector2 c = new(48, 48);
         float radius = 40.0f;
         // Disc and rim.
@@ -104,7 +111,32 @@ public partial class StatDial : Control
             DrawLine(c + d * (radius - 7.0f), c + d * (radius - 10.0f), UiStyle.InkSoft, 1.5f);
         }
         InkDraw.Icon(this, Icon, new Rect2(c - new Vector2(22, 22), new Vector2(44, 44)), (int)Icon + 2);
-        // Value tag.
+        DrawTag();
+    }
+
+    /// <summary>The plain look (Options: bars): the icon over a straight 0-100 bar.</summary>
+    private void DrawBar()
+    {
+        InkDraw.Icon(this, Icon, new Rect2(new Vector2(30, 8), new Vector2(36, 36)), (int)Icon + 2);
+        Rect2 track = new(new Vector2(6, 54), new Vector2(84, 18));
+        DrawRect(track.Grow(2.0f), new Color(0.22f, 0.17f, 0.12f));
+        DrawRect(track, new Color(0.1f, 0.08f, 0.06f));
+        float fraction = Mathf.Clamp(Shown / Max, 0.0f, 1.0f);
+        Color fill = RingColour;
+        if (Warning)
+        {
+            fill = fill.Lerp(UiStyle.Warning, 0.5f + 0.5f * Mathf.Sin(_time * 7.0f));
+        }
+        DrawRect(new Rect2(track.Position, new Vector2(track.Size.X * fraction, track.Size.Y)), fill);
+        if (_flash > 0.0f)
+        {
+            DrawRect(track.Grow(3.0f), new Color(_flashColour, _flash * 0.8f), false, 2.0f);
+        }
+    }
+
+    /// <summary>The value written on a paper tag below.</summary>
+    private void DrawTag()
+    {
         string text = $"{Mathf.RoundToInt(Value)} / {Mathf.RoundToInt(Max)}";
         Font font = UiStyle.Hand;
         Vector2 size = font.GetStringSize(text, HorizontalAlignment.Left, -1, UiStyle.SmallSize);

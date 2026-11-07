@@ -31,6 +31,9 @@ public partial class DebugDraw3D : Node3D
 
     public override void _Ready()
     {
+        // The player's saved choice (Options: route and debug lines); off by default in a release export.
+        Core.GameOptions.Load();
+        Enabled = Core.GameOptions.PathLines;
         // Run before every other physics callback so this tick's lines replace the last tick's.
         ProcessPhysicsPriority = int.MinValue;
         PhysicsInterpolationMode = PhysicsInterpolationModeEnum.Off;
