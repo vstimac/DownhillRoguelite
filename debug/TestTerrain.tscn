@@ -31,6 +31,7 @@
 [ext_resource type="Script" path="res://audio/WeatherAudio.cs" id="31_weather_audio"]
 [ext_resource type="AudioStream" path="res://audio/ambience/wind.wav" id="32_wind"]
 [ext_resource type="AudioStream" path="res://audio/ambience/rain.wav" id="33_rain"]
+[ext_resource type="Script" path="res://audio/Footsteps.cs" id="34_footsteps"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
@@ -41,7 +42,7 @@ shader_parameter/ground_color = Color(0.12, 0.12, 0.13, 1)
 [sub_resource type="Sky" id="Sky_main"]
 sky_material = SubResource("ShaderMaterial_sky")
 process_mode = 3
-radiance_size = 1
+radiance_size = 3
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 2
@@ -153,6 +154,9 @@ NightTrack = ExtResource("28_night_track")
 script = ExtResource("31_weather_audio")
 WindLoop = ExtResource("32_wind")
 RainLoop = ExtResource("33_rain")
+
+[node name="Footsteps" type="Node" parent="."]
+script = ExtResource("34_footsteps")
 
 [node name="Narrator" type="Node" parent="."]
 script = ExtResource("29_narrator")
