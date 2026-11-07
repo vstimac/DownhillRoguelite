@@ -170,6 +170,22 @@ public static class GameEvents
         RunEnded?.Invoke(summary);
     }
 
+    /// <summary>Raised when the carrier takes a boon at a station (its name).</summary>
+    public static event Action<string>? BoonChosen;
+
+    public static void PublishBoonChosen(string name)
+    {
+        BoonChosen?.Invoke(name);
+    }
+
+    /// <summary>Raised to put items in the carrier's pack (resource paths), e.g. the starting kit.</summary>
+    public static event Action<string[]>? ItemsGranted;
+
+    public static void PublishItemsGranted(string[] itemPaths)
+    {
+        ItemsGranted?.Invoke(itemPaths);
+    }
+
     /// <summary>Asks for the carrier to die at once (falling into the abyss), with a cause.</summary>
     public static event Action<string>? KillRequested;
 

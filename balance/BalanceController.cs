@@ -50,8 +50,11 @@ public partial class BalanceController : Node
     private bool _leftWasPlanted;
     private bool _rightWasPlanted;
 
+    private RunState? _run;
+
     public override void _Ready()
     {
+        _run = GetNodeOrNull<RunState>("/root/RunState");
         ProcessPhysicsPriority = PhysicsPriority;
         _gravity = ProjectSettings.GetSetting("physics/3d/default_gravity").AsSingle();
         _load = GameEvents.CurrentLoad;
@@ -215,6 +218,11 @@ public partial class BalanceController : Node
         else
         {
             float stiffness = Settings.Strength;
+            if (_run != null)
+            {
+                // A boon can steady the carrier.
+                stiffness *= _run.Modifiers.Balance;
+            }
             float dampingScale = 1.0f;
             if (bracing)
             {

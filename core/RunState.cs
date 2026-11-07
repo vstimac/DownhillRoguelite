@@ -29,6 +29,22 @@ public partial class RunState : Node
     public bool RunOver { get; private set; }
     public RunSummary LastSummary { get; private set; }
 
+    /// <summary>What this run's boons changed (reset with every run).</summary>
+    public RunModifiers Modifiers { get; } = new();
+    /// <summary>Names of the items this run started with (unlocked by the records).</summary>
+    public System.Collections.Generic.List<string> StartingKit { get; } = new();
+    /// <summary>Names of the boons chosen this run, in order.</summary>
+    public System.Collections.Generic.List<string> Boons { get; } = new();
+
+    /// <summary>The circle the carrier has descended into (0 = Limbo).</summary>
+    public int Circle => Circles.CircleAt(Depth);
+
+    /// <summary>Hunger and thirst drain from depth: rises with every circle descended.</summary>
+    public float DepthNeedsFactor => 1.0f + DifficultySettings.NeedsDrainPerCircle * Circle;
+
+    /// <summary>Night cold and weather chill from depth: rises with every circle descended.</summary>
+    public float DepthColdFactor => 1.0f + DifficultySettings.ColdPerCircle * Circle;
+
     /// <summary>What carries over between runs (user://records.cfg).</summary>
     public RunRecords Records
     {
@@ -159,6 +175,8 @@ public partial class RunState : Node
     {
         Stage = 0;
         Depth = 0;
+        Modifiers.Reset();
+        Boons.Clear();
     }
 
     private void OnDepthChanged(float depth)

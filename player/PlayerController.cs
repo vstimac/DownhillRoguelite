@@ -64,8 +64,11 @@ public partial class PlayerController : CharacterBody3D
     private bool _bracing;
     private Vector3 _lurchDirection;
 
+    private RunState? _run;
+
     public override void _Ready()
     {
+        _run = GetNodeOrNull<RunState>("/root/RunState");
         _gravity = ProjectSettings.GetSetting("physics/3d/default_gravity").AsSingle();
         Grip = Settings.DefaultGrip;
         FloorMaxAngle = Mathf.DegToRad(WalkableAngle());
@@ -300,8 +303,12 @@ public partial class PlayerController : CharacterBody3D
             Grip = surface.Grip;
             _surfaceName = surface.DisplayName;
         }
-        // Rain and snow make every surface slicker.
+        // Rain and snow make every surface slicker; boons can improve footing.
         Grip *= GameEvents.CurrentWeather.GripFactor;
+        if (_run != null)
+        {
+            Grip = Mathf.Min(1.0f, Grip * _run.Modifiers.Grip);
+        }
     }
 
     /// <summary>What the body stands or slides on and where it touches; false in the air (keeps the last surface).</summary>
@@ -402,10 +409,15 @@ public partial class PlayerController : CharacterBody3D
         return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor(), Settings.MaxSpeed);
     }
 
-    /// <summary>Snow underfoot slows every stride.</summary>
+    /// <summary>Snow underfoot slows every stride; a boon can lengthen it.</summary>
     public float WeatherSpeedFactor()
     {
-        return Mathf.Max(0.0f, 1.0f - Settings.SnowSpeedPenalty * GameEvents.CurrentWeather.Snow);
+        float factor = Mathf.Max(0.0f, 1.0f - Settings.SnowSpeedPenalty * GameEvents.CurrentWeather.Snow);
+        if (_run != null)
+        {
+            factor *= _run.Modifiers.WalkSpeed;
+        }
+        return factor;
     }
 
     private float TargetSpeed(bool braking, float grade)
