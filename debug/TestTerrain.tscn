@@ -53,6 +53,8 @@
 [ext_resource type="Resource" path="res://narrative/npcs/fire_keeper.tres" id="48_fire_keeper"]
 [ext_resource type="Resource" path="res://narrative/npcs/penitent.tres" id="48_penitent"]
 [ext_resource type="Script" path="res://world_ui/StartScreen.cs" id="49_start_screen"]
+[ext_resource type="Script" path="res://progression/contracts/ContractDirector.cs" id="50_contracts"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/courier_sealed_parcel.tres" id="51_courier_parcel"]
 
 [sub_resource type="Resource" id="Boon_steady_legs"]
 script = ExtResource("41_boon")
@@ -297,6 +299,10 @@ script = ExtResource("39_summary")
 [node name="Boons" type="Node3D" parent="."]
 script = ExtResource("40_boons")
 Boons = [SubResource("Boon_steady_legs"), SubResource("Boon_iron_lungs"), SubResource("Boon_deep_reserves"), SubResource("Boon_light_step"), SubResource("Boon_strong_back"), SubResource("Boon_lean_belly"), SubResource("Boon_thick_blood"), SubResource("Boon_sure_footing"), SubResource("Boon_long_stride"), SubResource("Boon_deep_sleep")]
+
+[node name="Contracts" type="Node3D" parent="."]
+script = ExtResource("50_contracts")
+Contracts = [ExtResource("51_courier_parcel")]
 
 [node name="StartingKit" type="Node" parent="."]
 script = ExtResource("42_kit")

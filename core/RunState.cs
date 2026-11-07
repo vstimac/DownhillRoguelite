@@ -35,6 +35,13 @@ public partial class RunState : Node
     public System.Collections.Generic.List<string> StartingKit { get; } = new();
     /// <summary>Names of the boons chosen this run, in order.</summary>
     public System.Collections.Generic.List<string> Boons { get; } = new();
+    /// <summary>This run's contracts and cargo score (reset with every run).</summary>
+    public RunTelemetry Telemetry { get; } = new();
+
+    /// <summary>Score per metre descended (INITIAL TUNING: a tenth of a point).</summary>
+    [Export] public float ScorePerMetre { get; set; } = 0.1f;
+    /// <summary>Score per station reached (INITIAL TUNING).</summary>
+    [Export] public int ScorePerStation { get; set; } = 20;
 
     /// <summary>The circle the carrier has descended into (0 = Limbo).</summary>
     public int Circle => Circles.CircleAt(Depth);
@@ -102,6 +109,8 @@ public partial class RunState : Node
         GameEvents.StationReached += OnStationReached;
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.CarrierDied += OnCarrierDied;
+        GameEvents.ContractAccepted += OnContractAccepted;
+        GameEvents.ContractResolved += OnContractResolved;
         RunNumber = Records.Runs + 1;
     }
 
@@ -139,7 +148,8 @@ public partial class RunState : Node
             day = clock.Day;
         }
         bool record = Records.Add(Depth, Stage);
-        LastSummary = new RunSummary(RunNumber, Seed, Depth, Stage, day, Circles.NameOf(Circles.CircleAt(Depth)), cause, Records.BestDepth, record);
+        LastSummary = new RunSummary(RunNumber, Seed, Depth, Stage, day, Circles.NameOf(Circles.CircleAt(Depth)), cause, Records.BestDepth, record,
+            Telemetry.ContractsDelivered, Telemetry.ContractsFailed, Telemetry.CargoScore, ScoreOf(Depth, Stage, Telemetry.CargoScore));
         GameEvents.PublishRunEnded(LastSummary);
     }
 
@@ -166,6 +176,26 @@ public partial class RunState : Node
         }
     }
 
+    /// <summary>
+    /// A run's score: a point per ten metres, a little for every station, plus what delivered cargo
+    /// earned. Never negative. Depth stays the headline; the score is the second line.
+    /// </summary>
+    public int ScoreOf(int depth, int stations, int cargoScore)
+    {
+        int score = Mathf.FloorToInt(Mathf.Max(depth, 0) * ScorePerMetre) + Mathf.Max(stations, 0) * ScorePerStation + Mathf.Max(cargoScore, 0);
+        return Mathf.Max(score, 0);
+    }
+
+    private void OnContractAccepted(ContractNote note)
+    {
+        Telemetry.RecordAccepted(note);
+    }
+
+    private void OnContractResolved(ContractNote note)
+    {
+        Telemetry.RecordResolved(note);
+    }
+
     private void OnStationReached(int station)
     {
         Stage = Mathf.Max(Stage, station);
@@ -177,6 +207,7 @@ public partial class RunState : Node
         Depth = 0;
         Modifiers.Reset();
         Boons.Clear();
+        Telemetry.Reset();
     }
 
     private void OnDepthChanged(float depth)
@@ -190,6 +221,8 @@ public partial class RunState : Node
         GameEvents.StationReached -= OnStationReached;
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.CarrierDied -= OnCarrierDied;
+        GameEvents.ContractAccepted -= OnContractAccepted;
+        GameEvents.ContractResolved -= OnContractResolved;
         _difficultySettings = null;
         _circles = null;
         Route = null;

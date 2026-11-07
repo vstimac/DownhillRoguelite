@@ -120,7 +120,7 @@ Values live in `DifficultySettings` resources and are tuned by play-testing.
 - **Deeper is harder:** every circle down drains hunger and thirst 8 % faster and makes night cold and weather chill 10 % harsher (per difficulty, `core/difficulty/*.tres`). Supplies were already leaner with depth.
 - **What death can't take: the starting kit.** Your best depth ever unlocks gear every new run starts with: a water flask at 300 m, a ration at 600 m, dried fruit at 1,200 m, a water skin at 1,800 m and a med kit at 3,000 m. The summit stone lists what you carry.
 - Debug: `-- --at-station=N` starts at station N. Tests: `RunTests`, `ProgressionTests`.
-- Contracts (cargo to deliver) wait for M14's gear.
+- **Contracts** (roguelite Phase 1, Courier): the first time you reach a station, a job board by its fire may offer one job, picked by the mountain's seed: carry a real item (a 3.5 kg sealed parcel so far) down to the next station. E takes it if it fits in the pack; it is packed like anything else, so its weight and where you pack it change your balance. One job at a time. At the destination a delivery table takes it: E, then E again to hand it over. A delivery adds to the run's score (a point per 10 m, 20 per station, plus the job's pay), shown in the run summary. Cargo lost from a torn pack, or still carried when you die, fails the job. A new run has no jobs. Code: `progression/contracts/`; tests: `ContractTests`. Status of the wider roguelite plan: `docs/roguelite-implementation-status.md`.
 
 M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain). From here:
 

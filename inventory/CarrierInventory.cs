@@ -65,6 +65,8 @@ public partial class CarrierInventory : Node
         GameEvents.DropRequested += OnDropRequested;
         GameEvents.ThrowRequested += OnThrowRequested;
         GameEvents.UseItemRequested += OnUseItemRequested;
+        GameEvents.CargoGrantRequested += OnCargoGrantRequested;
+        GameEvents.CargoHandOverRequested += OnCargoHandOverRequested;
         foreach (string path in StartingItemPaths)
         {
             if (ResourceLoader.Load(path) is ItemDefinition item)
@@ -101,6 +103,8 @@ public partial class CarrierInventory : Node
         GameEvents.DropRequested -= OnDropRequested;
         GameEvents.ThrowRequested -= OnThrowRequested;
         GameEvents.UseItemRequested -= OnUseItemRequested;
+        GameEvents.CargoGrantRequested -= OnCargoGrantRequested;
+        GameEvents.CargoHandOverRequested -= OnCargoHandOverRequested;
         // Managed references keep resources alive until the GC runs; drop them with the node.
         _loose.Clear();
         _all.Clear();
@@ -273,6 +277,84 @@ public partial class CarrierInventory : Node
                 TryAdd(item);
             }
         }
+    }
+
+    /// <summary>
+    /// Packs contract cargo: a copy of the item at <paramref name="itemPath"/> of its own, tagged
+    /// with <paramref name="cargoId"/>, so two parcels of one kind are never the same parcel. False
+    /// (and nothing packed) if the path isn't an item, that cargo is already owned, or there's no room.
+    /// </summary>
+    public bool GrantCargo(string itemPath, string cargoId)
+    {
+        if (cargoId.Length == 0 || OwnsCargo(cargoId))
+        {
+            return false;
+        }
+        if (ResourceLoader.Load(itemPath) is not ItemDefinition kind)
+        {
+            GD.PushWarning("CarrierInventory: contract cargo " + itemPath + " is not an ItemDefinition.");
+            return false;
+        }
+        if (kind.Duplicate() is not ItemDefinition cargo)
+        {
+            return false;
+        }
+        cargo.CargoInstanceId = cargoId;
+        return TryAdd(cargo, -1.0f, false);
+    }
+
+    /// <summary>Whether the carrier owns the cargo with this id (packed, loose or in a pocket).</summary>
+    public bool OwnsCargo(string cargoId)
+    {
+        foreach (ItemDefinition item in _all)
+        {
+            if (item.CargoInstanceId == cargoId)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Removes the carried cargo with this id for good (handed over); false if it isn't carried.</summary>
+    public bool HandOverCargo(string cargoId)
+    {
+        if (cargoId.Length == 0)
+        {
+            return false;
+        }
+        if (Grid != null)
+        {
+            foreach (PackedItem packed in Grid.Items)
+            {
+                if (packed.Definition.CargoInstanceId == cargoId)
+                {
+                    Consume(packed);
+                    return true;
+                }
+            }
+        }
+        for (int i = 0; i < _loose.Count; i++)
+        {
+            if (_loose[i].CargoInstanceId == cargoId)
+            {
+                _all.Remove(_loose[i]);
+                _loose.RemoveAt(i);
+                Publish();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void OnCargoGrantRequested(string itemPath, string cargoId)
+    {
+        GameEvents.PublishCargoGranted(cargoId, GrantCargo(itemPath, cargoId));
+    }
+
+    private void OnCargoHandOverRequested(string cargoId)
+    {
+        GameEvents.PublishCargoHandedOver(cargoId, HandOverCargo(cargoId));
     }
 
     /// <summary>How far in front of the carrier a dropped item lands, in m.</summary>
@@ -486,10 +568,16 @@ public partial class CarrierInventory : Node
             GameEvents.PublishLoad(LoadCalculator.Calculate(Backpack, Grid));
         }
         List<string> ids = new();
+        List<string> cargo = new();
         foreach (ItemDefinition item in _all)
         {
             ids.Add(item.ItemId);
+            if (item.IsContractCargo)
+            {
+                cargo.Add(item.CargoInstanceId);
+            }
         }
         GameEvents.PublishCarriedItems(ids);
+        GameEvents.PublishCarriedCargo(cargo);
     }
 }

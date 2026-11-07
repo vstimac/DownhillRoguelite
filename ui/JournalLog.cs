@@ -43,6 +43,8 @@ public partial class JournalLog : Node
         GameEvents.ItemLost += OnLost;
         GameEvents.AskRequested += OnAsked;
         GameEvents.CompanionReplied += OnReplied;
+        GameEvents.ContractAccepted += OnContractAccepted;
+        GameEvents.ContractResolved += OnContractResolved;
         CallDeferred(MethodName.Begin);
     }
 
@@ -61,6 +63,8 @@ public partial class JournalLog : Node
         GameEvents.ItemLost -= OnLost;
         GameEvents.AskRequested -= OnAsked;
         GameEvents.CompanionReplied -= OnReplied;
+        GameEvents.ContractAccepted -= OnContractAccepted;
+        GameEvents.ContractResolved -= OnContractResolved;
     }
 
     private void OnAsked(string question)
@@ -101,6 +105,24 @@ public partial class JournalLog : Node
     }
 
     private void OnLost(string itemId) => Write($"The torn pack let go of my {(ItemText.Find(itemId)?.DisplayName ?? itemId).ToLowerInvariant()}.");
+
+    private void OnContractAccepted(ContractNote note)
+    {
+        Write("At Station " + note.FromStation + " I took a job, \"" + note.Title + "\": a " + note.CargoName.ToLowerInvariant()
+            + " of " + note.CargoMassKg.ToString("0.0") + " kg to carry down to Station " + note.ToStation + ".");
+    }
+
+    private void OnContractResolved(ContractNote note)
+    {
+        if (note.Status == ContractStatus.Delivered)
+        {
+            Write("At Station " + note.ToStation + " I handed over the " + note.CargoName.ToLowerInvariant() + ". \"" + note.Title + "\" is done.");
+        }
+        else
+        {
+            Write("The job \"" + note.Title + "\" failed: the " + note.CargoName.ToLowerInvariant() + " " + note.Reason + ".");
+        }
+    }
 
     public override void _Process(double delta)
     {

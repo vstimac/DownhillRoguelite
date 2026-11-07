@@ -330,6 +330,69 @@ public static class GameEvents
         ItemsGranted?.Invoke(itemPaths);
     }
 
+    /// <summary>
+    /// Asks the inventory to pack contract cargo: (item resource path, cargo instance id). The
+    /// inventory packs its own copy of the item tagged with the id, and answers with CargoGranted.
+    /// </summary>
+    public static event Action<string, string>? CargoGrantRequested;
+
+    /// <summary>The inventory's answer to CargoGrantRequested: (cargo instance id, whether it was packed).</summary>
+    public static event Action<string, bool>? CargoGranted;
+
+    /// <summary>Asks the inventory to give up the carried cargo with this instance id (delivery).</summary>
+    public static event Action<string>? CargoHandOverRequested;
+
+    /// <summary>The inventory's answer to CargoHandOverRequested: (cargo instance id, whether it was carried and removed).</summary>
+    public static event Action<string, bool>? CargoHandedOver;
+
+    /// <summary>Instance ids of the contract cargo the carrier owns right now (published by the inventory).</summary>
+    public static IReadOnlyList<string> CarriedCargo { get; private set; } = System.Array.Empty<string>();
+
+    public static void RequestCargoGrant(string itemPath, string cargoId) => CargoGrantRequested?.Invoke(itemPath, cargoId);
+
+    public static void PublishCargoGranted(string cargoId, bool packed) => CargoGranted?.Invoke(cargoId, packed);
+
+    public static void RequestCargoHandOver(string cargoId) => CargoHandOverRequested?.Invoke(cargoId);
+
+    public static void PublishCargoHandedOver(string cargoId, bool removed) => CargoHandedOver?.Invoke(cargoId, removed);
+
+    public static void PublishCarriedCargo(IReadOnlyList<string> cargoIds)
+    {
+        CarriedCargo = cargoIds;
+    }
+
+    /// <summary>Raised when a station's board offers a contract.</summary>
+    public static event Action<ContractNote>? ContractOffered;
+
+    /// <summary>Raised when the carrier takes a contract and its cargo is packed.</summary>
+    public static event Action<ContractNote>? ContractAccepted;
+
+    /// <summary>Raised once per contract when it ends (delivered, failed, abandoned): the only moment rewards come from.</summary>
+    public static event Action<ContractNote>? ContractResolved;
+
+    /// <summary>The contract the carrier is working on (null when none).</summary>
+    public static ContractNote? ActiveContract { get; private set; }
+
+    public static void PublishContractOffered(ContractNote note) => ContractOffered?.Invoke(note);
+
+    public static void PublishContractAccepted(ContractNote note)
+    {
+        ActiveContract = note;
+        ContractAccepted?.Invoke(note);
+    }
+
+    public static void PublishContractResolved(ContractNote note)
+    {
+        if (ActiveContract != null && ActiveContract.Value.InstanceId == note.InstanceId)
+        {
+            ActiveContract = null;
+        }
+        ContractResolved?.Invoke(note);
+    }
+
+    /// <summary>Forgets the active contract without an ending (a new run started).</summary>
+    public static void ClearActiveContract() => ActiveContract = null;
+
     /// <summary>Asks for the carrier to die at once (falling into the abyss), with a cause.</summary>
     public static event Action<string>? KillRequested;
 

@@ -61,5 +61,15 @@ public partial class ItemDefinition : Resource
     /// <summary>The piece lies on its back on the ground (clothes), instead of standing as modelled.</summary>
     [Export] public bool ModelLieFlat { get; set; }
 
+    /// <summary>
+    /// Contract cargo only: the contract this physical copy belongs to (empty for ordinary items).
+    /// Ordinary items of one kind share one cached resource; cargo is its own copy
+    /// (CarrierInventory.GrantCargo), and that copy is the item's identity through drops and repacks.
+    /// Not saved: it is set on the runtime copy.
+    /// </summary>
+    public string CargoInstanceId { get; set; } = "";
+
+    public bool IsContractCargo => CargoInstanceId.Length > 0;
+
     public int Volume => SizeCells.X * SizeCells.Y * SizeCells.Z;
 }

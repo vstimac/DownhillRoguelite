@@ -41,3 +41,67 @@ Tracks the director's master plan (*The Descent — Master Narrative & Roguelite
 - Cargo identity: the inventory grants the cargo as its own copy of the item definition (`Resource.Duplicate()`), tagged with the contract's instance id. The copy keeps the item id, so icons, text and models still work; the reference is the identity, and it survives drop, throw and repacking because those keep the reference.
 - Grant and hand-over go through `GameEvents` requests that the inventory answers, so the contract system never touches the inventory node.
 - Narration: reuse existing voiced triggers (`cargo_picked_up` on accepting, `trade_completed` on delivery) instead of adding unvoiced lines.
+
+## Phase 1 — Physical cargo contracts (Courier) — 2026-11-07
+
+- Status: DONE (vertical slice: one Courier job, offer → accept → carry → deliver, with failure and reset paths)
+- Active branch and commit: `playtest-1`, the commit after ffee45c titled "Cargo jobs: carry a sealed parcel down to the next station". Not pushed.
+- Added: `core/ContractStatus.cs`, `core/ContractNote.cs`, `core/RunTelemetry.cs`, `progression/contracts/` (`ContractDefinition`, `ContractInstance`, `ContractKind`, `ContractResult`, `ContractResolver`, `ContractDirector`, `ContractBoard`, `DeliveryPost`, `resources/courier_sealed_parcel.tres`), `inventory/items/sealed_parcel.tres`, `debug/tests/ContractTests.tscn` + `.cs`.
+- Edited: `core/GameEvents.cs` (cargo grant / hand-over requests and answers, `CarriedCargo`, `ContractOffered/Accepted/Resolved`, `ActiveContract`), `core/RunState.cs` (`Telemetry`, `ScoreOf`, score tuning exports), `core/RunSummary.cs` (deliveries, failures, cargo score, score; optional fields so old callers still compile), `inventory/ItemDefinition.cs` (`CargoInstanceId`, runtime only), `inventory/CarrierInventory.cs` (`GrantCargo`, `HandOverCargo`, `OwnsCargo`, publishes `CarriedCargo`), `debug/TestTerrain.tscn` (a `Contracts` node), `ui/JournalLog.cs`, `world_ui/RunSummaryView.cs`, `narrative/NarratorDirector.cs`, `docs/survival-loop.md`, `progression/README.md`.
+
+### What the player can do now
+
+1. Reach station 1 (or start there: `godot --path . -- --at-station=1`). Left of the fire stands a job board: "Job: A Parcel for the Next Fire · Sealed parcel · 3.5 kg · to Station 2 · pays 30". Looking at it shows the note and the parcel's size; E takes the job.
+2. If the pack is full the board says so and nothing changes. Otherwise the parcel is packed (the auto-packer's spot, low and central), the load's weight and centre of mass change at once, a note and a journal line confirm it, and the companion may say a `cargo_picked_up` line. It can be repacked at a station like anything else: packed higher, the centre of mass rises (tested: 0.99 m → 1.31 m).
+3. Drop or throw it and pick it up again: it's the same parcel. Away from the pack it can't be delivered.
+4. At station 2 a delivery table with a lantern waits (left of the fire, a little uphill). E asks; E again within 4 s hands it over. The parcel leaves the pack, the job is credited once (+30), the companion may say a `trade_completed` line, the journal records it, and station 2's board offers the next job.
+5. On death the run summary shows deliveries and a score (a point per 10 m, 20 per station, plus cargo pay). A job still carried fails ("never arrived"); the new mountain has no offers, no job and no parcel.
+
+### Decisions recorded
+
+- **Cargo identity:** the inventory packs a `Duplicate()` of the item definition per contract, tagged with the contract's instance id (`ItemDefinition.CargoInstanceId`). The copy keeps `ItemId`, so icons, models and text work unchanged; ordinary items still share their cached resource. Drop, throw, repack and pockets all keep the reference, so identity survives them. `CarriedItems` (ids) is unchanged; contract code reads the new `CarriedCargo` (instance ids).
+- **No cross-system references:** the contract system never touches the inventory node. It sends `RequestCargoGrant` / `RequestCargoHandOver` and reads the synchronous `CargoGranted` / `CargoHandedOver` answers. The contract is accepted only after the inventory confirms the parcel is packed, and delivered only after it confirms removal.
+- **Credit once:** `ContractResolver` never changes a final status; `RunTelemetry` counts each instance id once even if `ContractResolved` is published again (tested).
+- **Offers:** every first-reached station offers one job (`OfferChance` 1, INITIAL TUNING), from the contract's own seeded stream (`SplitMix64.Mix(seed ^ salt, station)`), so contracts never shift terrain, boons or supplies. One open job at a time; other boards refuse with "You're already carrying a job".
+- **Cargo:** a new 3.5 kg sealed parcel (3×3×2 cells, Cargo, Valuable, Kenney survival-kit box model) instead of the plan's 0.15 kg letter, which wouldn't move the centre of mass enough to feel. The letter, stone, glass, casket and map-tube jobs (CT_001–CT_005) come with Phase 2's condition and deadlines.
+- **Narration:** no new CSV lines. A narrator line needs a recorded voice file and `NarratorTests` expects 500 lines, so Phase 1 reuses voiced triggers that fit (`cargo_picked_up`, `trade_completed`; `cargo_lost` already fires for torn-pack losses). The plan's new contract lines wait for voicing (Phase 7).
+- **Score:** in-run only for now (`RunState.ScoreOf`, `RunSummary.Score`). Nothing new is written to `records.cfg`; that waits for Phase 6's versioned save.
+
+### Tests
+
+- New: `debug/tests/ContractTests.tscn`, 12 checks: definitions validated (broken ones refused); same mountain and station give the same job (checked with a second test contract over 12 stations); station 1 pins one job for station 2 on the ground by the fire; a full pack (36 ore samples) can't take it and nothing changes; taking it packs exactly one own copy, load 1.5 → 5.0 kg and the centre of mass moves; packed at the top the centre of mass rises 0.99 → 1.31 m; taking it twice, a second grant and delivery at the wrong station do nothing; drop → re-pickup keeps the same parcel, and delivery while it's on the ground is refused; at station 2 the first E only arms, the second removes that parcel and credits +30 once (repeated delivery and a repeated `ContractResolved` are ignored); station 2 then offers a job to station 3; cargo lost from a torn pack fails its job with no credit; dying with a job fails it, the summary counts 1 delivery and the score, and the new run has no offers, boards, post, job, cargo or counters.
+- `bash .claude/skills/smoke-test/smoke.sh`: RESULT PASS. Build 0 warnings 0 errors, import, 300-frame headless run clean, all 21 test scenes pass, including BalanceTests 13/13 (the A-vs-B check is unchanged) and the other session's new CharacterTests 15/15. After a last small change (the HUD tooltip refreshes when the board or post changes state), the build, ContractTests, UiTests and the headless run were run again: all clean.
+- Not done: no graphical render check (the director asked for few renders). The board and delivery table are primitives; their placement on the ground is checked by the test, not by eye.
+
+### Known issues and risks
+
+- Every first-reached station offers a job (`OfferChance` 1). Fine for the slice; Phase 2 should tune it.
+- The tooltip and board show the job's pay as "score"; there is no score display during the run, only in the death summary.
+- A job's delivery table is placed when it's taken, using the terrain height, and settled onto the physics ground when the destination is reached. If a station's terrace differs from the terrain height, it could float until then (the test found 0.00 m at station 2).
+- The dropped parcel is an ordinary `WorldItem`: it stays where it was dropped for the run, and it is cleared with the scene on a new run like any dropped item.
+- Score values (0.1 per metre, 20 per station, 30 per parcel) are INITIAL TUNING and untested in play.
+
+### Next smallest playable step (Phase 2)
+
+1. Cargo condition (0–100) on contract cargo only, damaged by hard landings and falls through the existing `Landed` / `DownedChanged` events, scaled by where it's packed; visible on the board/journal; a Preservation job (CT_003 The Glass Truth, ≥ 70) that fails below its threshold.
+2. The other first contracts as resources (CT_001 letter, CT_002 stone as a Burden job, CT_004 casket, CT_005 map tube over two stations), with eligibility by station and circle.
+3. Abandon at a board (E on the board of the active job), and a deadline in days for multi-station jobs.
+4. A HUD line for the active job (the descent note), and the companion's conversation context mentioning it.
+5. Tests: intact / damaged / broken deliveries, abandon, deadline, two seeds giving repeatable offers.
+
+- Push/merge/release: NOT PERFORMED
+
+## Continuation report — 2026-11-07
+
+| Phase | State |
+| --- | --- |
+| 0 Audit and baseline | DONE |
+| 1 Courier contract slice | DONE (one job type, tested end to end; no render check) |
+| 2 Contract reliability and variants | NOT STARTED (plan above) |
+| 3 Relics and lore | NOT STARTED |
+| 4 Trade-off boons | NOT STARTED |
+| 5 Encounters | NOT STARTED |
+| 6 Persistent journal, Witness Marks, sidegrades | NOT STARTED (no save changes yet; `records.cfg` untouched) |
+| 7 Narrative integration | NOT STARTED (new lines need voicing) |
+| 8 Circle content, beyond nine | NOT STARTED |
+| 9 Polish and beta | NOT STARTED |

@@ -13,6 +13,10 @@ namespace DownhillRoguelite.Core;
 /// <param name="Cause">What killed the carrier (damage source).</param>
 /// <param name="BestDepth">Deepest descent of any run, this one included.</param>
 /// <param name="NewRecord">Whether this run set BestDepth.</param>
+/// <param name="ContractsDelivered">Cargo contracts handed over at their station.</param>
+/// <param name="ContractsFailed">Contracts lost, abandoned or unfinished.</param>
+/// <param name="CargoScore">Score earned by delivering cargo.</param>
+/// <param name="Score">Depth, stations and cargo together (RunState.ScoreOf); depth stays the headline.</param>
 public readonly record struct RunSummary(
     int RunNumber,
     ulong Seed,
@@ -22,4 +26,8 @@ public readonly record struct RunSummary(
     string CircleName,
     string Cause,
     int BestDepth,
-    bool NewRecord);
+    bool NewRecord,
+    int ContractsDelivered = 0,
+    int ContractsFailed = 0,
+    int CargoScore = 0,
+    int Score = 0);
