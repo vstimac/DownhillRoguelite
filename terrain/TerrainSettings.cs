@@ -130,6 +130,25 @@ public partial class TerrainSettings : Resource
     /// <summary>Extra gap kept between obstacles and the spine band.</summary>
     [Export] public float SpineClearance { get; set; } = 2.0f;
     [Export(PropertyHint.File, "*.tres")] public string BoulderSurfacePath { get; set; } = "res://terrain/surfaces/rock.tres";
+    /// <summary>Models drawn for boulders (fitted to each collision box); empty draws boxes.</summary>
+    [Export] public string[] BoulderModels { get; set; } =
+    {
+        "res://art/props/kenney_nature_kit/GLB format/rock_largeA.glb",
+        "res://art/props/kenney_nature_kit/GLB format/rock_largeB.glb",
+        "res://art/props/kenney_nature_kit/GLB format/rock_largeC.glb",
+        "res://art/props/kenney_nature_kit/GLB format/rock_largeD.glb",
+        "res://art/props/kenney_nature_kit/GLB format/rock_largeE.glb",
+        "res://art/props/kenney_nature_kit/GLB format/rock_largeF.glb",
+        "res://art/props/kenney_nature_kit/GLB format/stone_largeA.glb",
+        "res://art/props/kenney_nature_kit/GLB format/stone_largeC.glb",
+        "res://art/props/kenney_nature_kit/GLB format/stone_largeE.glb",
+    };
+    /// <summary>Models drawn for fallen trunks (their long side along the trunk).</summary>
+    [Export] public string[] TrunkModels { get; set; } =
+    {
+        "res://art/props/kenney_nature_kit/GLB format/log.glb",
+        "res://art/props/kenney_nature_kit/GLB format/log_large.glb",
+    };
     [Export(PropertyHint.File, "*.tres")] public string TrunkSurfacePath { get; set; } = "res://terrain/surfaces/wood.tres";
 
     public float ChunkSize => ChunkCells * CellSize;

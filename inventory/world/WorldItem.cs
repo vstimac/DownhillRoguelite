@@ -33,6 +33,8 @@ public partial class WorldItem : Node3D, IInteractable
     [Export] public Color CargoColor { get; set; } = new(0.75f, 0.5f, 1.0f);
 
     public bool IndicatorVisible => _arrow != null && _arrow.Visible;
+    /// <summary>The fitted model (null when the item has none and shows a block).</summary>
+    public Node3D? ModelNode { get; private set; }
 
     /// <summary>Raised when the item has been packed and is about to disappear.</summary>
     public event System.Action<WorldItem>? Taken;
@@ -60,18 +62,31 @@ public partial class WorldItem : Node3D, IInteractable
         Vector3 size = (Vector3)Definition.SizeCells * CellSize * VisualScale;
         Color glow = CategoryColor(Definition.Category);
         _time = (float)(GetInstanceId() % 1000) * 0.01f;
-        AddChild(new MeshInstance3D
+        if (Definition.Model != null)
         {
-            Mesh = new BoxMesh { Size = size },
-            Position = Vector3.Up * size.Y * 0.5f,
-            MaterialOverride = new StandardMaterial3D
+            // The item's model, fitted (proportions kept) into its cell block.
+            Node3D holder = new();
+            Node3D model = Definition.Model.Instantiate<Node3D>();
+            holder.AddChild(model);
+            holder.Transform = ModelFit.FitOnGround(ModelFit.Bounds(holder), size, true);
+            AddChild(holder);
+            ModelNode = holder;
+        }
+        else
+        {
+            AddChild(new MeshInstance3D
             {
-                AlbedoColor = new Color(Definition.DebugColor, 0.55f),
-                Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-                EmissionEnabled = true,
-                Emission = Definition.DebugColor * 0.3f,
-            },
-        });
+                Mesh = new BoxMesh { Size = size },
+                Position = Vector3.Up * size.Y * 0.5f,
+                MaterialOverride = new StandardMaterial3D
+                {
+                    AlbedoColor = new Color(Definition.DebugColor, 0.55f),
+                    Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
+                    EmissionEnabled = true,
+                    Emission = Definition.DebugColor * 0.3f,
+                },
+            });
+        }
         _glow = new StandardMaterial3D
         {
             ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,

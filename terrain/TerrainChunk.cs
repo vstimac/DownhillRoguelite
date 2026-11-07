@@ -78,7 +78,10 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
 
         if (obstacle.Kind == ObstacleKind.Boulder)
         {
-            body.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = obstacle.Size }, MaterialOverride = boulderMaterial });
+            if (!AddModel(body, _generator!.Settings.BoulderModels, obstacle, obstacle.Size, false))
+            {
+                body.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = obstacle.Size }, MaterialOverride = boulderMaterial });
+            }
             body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = obstacle.Size } });
             if (boulderSurface != null)
             {
@@ -88,11 +91,14 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
         else
         {
             float radius = obstacle.Size.X * 0.5f;
-            body.AddChild(new MeshInstance3D
+            if (!AddModel(body, _generator!.Settings.TrunkModels, obstacle, new Vector3(radius * 2.0f, obstacle.Size.Y, radius * 2.0f), true))
             {
-                Mesh = new CylinderMesh { TopRadius = radius, BottomRadius = radius, Height = obstacle.Size.Y, RadialSegments = 6, Rings = 1 },
-                MaterialOverride = trunkMaterial,
-            });
+                body.AddChild(new MeshInstance3D
+                {
+                    Mesh = new CylinderMesh { TopRadius = radius, BottomRadius = radius, Height = obstacle.Size.Y, RadialSegments = 6, Rings = 1 },
+                    MaterialOverride = trunkMaterial,
+                });
+            }
             body.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = radius, Height = obstacle.Size.Y } });
             if (trunkSurface != null)
             {
@@ -100,5 +106,42 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             }
         }
         AddChild(body);
+    }
+
+    /// <summary>
+    /// Draws an obstacle with one of the art-pack models (picked by its position, so it never changes),
+    /// stretched to its collision shape; a log's long side is turned to the trunk's axis (Y).
+    /// Returns false when no model is available.
+    /// </summary>
+    private static bool AddModel(StaticBody3D body, string[] paths, ObstacleData obstacle, Vector3 size, bool alongY)
+    {
+        if (paths.Length == 0)
+        {
+            return false;
+        }
+        int pick = Mathf.Abs((int)(obstacle.Position.X * 73.0f) ^ (int)(obstacle.Position.Z * 37.0f)) % paths.Length;
+        Mesh? mesh = ModelFit.FirstMesh(paths[pick], out Transform3D local);
+        if (mesh == null)
+        {
+            return false;
+        }
+        Aabb bounds = local * mesh.GetAabb();
+        Transform3D turn = Transform3D.Identity;
+        if (alongY)
+        {
+            // Put the model's longest side along Y, where the trunk's cylinder runs.
+            Vector3 extent = bounds.Size;
+            if (extent.X >= extent.Y && extent.X >= extent.Z)
+            {
+                turn = new Transform3D(new Basis(Vector3.Back, Mathf.Pi * 0.5f), Vector3.Zero);
+            }
+            else if (extent.Z >= extent.Y)
+            {
+                turn = new Transform3D(new Basis(Vector3.Right, Mathf.Pi * 0.5f), Vector3.Zero);
+            }
+            bounds = turn * bounds;
+        }
+        body.AddChild(new MeshInstance3D { Mesh = mesh, Transform = ModelFit.FitCentred(bounds, size) * turn * local });
+        return true;
     }
 }

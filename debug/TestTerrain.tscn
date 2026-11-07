@@ -41,6 +41,7 @@
 [ext_resource type="Script" path="res://progression/BoonDefinition.cs" id="41_boon"]
 [ext_resource type="Script" path="res://progression/StartingKit.cs" id="42_kit"]
 [ext_resource type="Script" path="res://map/FieldMap.cs" id="43_map"]
+[ext_resource type="Script" path="res://audio/SoundEffects.cs" id="44_sfx"]
 
 [sub_resource type="Resource" id="Boon_steady_legs"]
 script = ExtResource("41_boon")
@@ -278,3 +279,6 @@ script = ExtResource("42_kit")
 
 [node name="FieldMap" type="Node3D" parent="."]
 script = ExtResource("43_map")
+
+[node name="SoundEffects" type="Node" parent="."]
+script = ExtResource("44_sfx")

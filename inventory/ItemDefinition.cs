@@ -30,6 +30,8 @@ public partial class ItemDefinition : Resource
 
     /// <summary>Colour of the placeholder box until real models exist.</summary>
     [Export] public Color DebugColor { get; set; } = new(0.6f, 0.6f, 0.6f);
+    /// <summary>The item's model (an art-pack scene), fitted into its cell block; none shows a coloured block.</summary>
+    [Export] public PackedScene? Model { get; set; }
 
     public int Volume => SizeCells.X * SizeCells.Y * SizeCells.Z;
 }
