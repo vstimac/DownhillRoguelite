@@ -237,6 +237,29 @@ public partial class PackView : Node3D
     }
 
     /// <summary>The nearest packed or loose item a ray (station space) points at: a PackedItem, an ItemDefinition, or null.</summary>
+    /// <summary>Like ItemUnder, but skipping the nearest hit: the item underneath the top one (Alt+click).</summary>
+    public object? ItemBehind(Vector3 from, Vector3 direction)
+    {
+        List<(float Distance, object Item)> hits = new();
+        foreach ((PackedItem item, Aabb box) in _packedBoxes)
+        {
+            if (RayHits(box, from, direction, out float distance))
+            {
+                hits.Add((distance, item));
+            }
+        }
+        hits.Sort((a, b) => a.Distance.CompareTo(b.Distance));
+        if (hits.Count >= 2)
+        {
+            return hits[1].Item;
+        }
+        if (hits.Count == 1)
+        {
+            return hits[0].Item;
+        }
+        return ItemUnder(from, direction);
+    }
+
     public object? ItemUnder(Vector3 from, Vector3 direction)
     {
         object? nearest = null;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DownhillRoguelite.Core;
 using DownhillRoguelite.Player;
 using Godot;
@@ -15,6 +16,7 @@ namespace DownhillRoguelite.Inventory;
 public partial class PackingMode : Node3D
 {
     private static readonly StringName ActionToggle = "inventory_toggle_packing";
+    private static readonly StringName ActionPause = "pause";
     private static readonly StringName ActionPlace = "packing_place";
     private static readonly StringName ActionCancel = "packing_cancel";
     private static readonly StringName ActionTurnLeft = "packing_turn_left";
@@ -64,8 +66,63 @@ public partial class PackingMode : Node3D
         }
     }
 
+    /// <summary>The pack screen's controls, along the bottom of the screen while packing.</summary>
+    [Export(PropertyHint.MultilineText)] public string HelpText { get; set; } =
+        "Click an item to lift it  ·  click in the pack to place it (green fits)  ·  click away to set it on the mat
+" +
+        "Q / E turn  ·  R / F tip  ·  Alt+click: the item underneath  ·  X: arrange everything  ·  Esc or Tab: done";
+
+    private CanvasLayer? _help;
+
+    private void ShowHelp(bool show)
+    {
+        if (show && _help == null)
+        {
+            _help = new CanvasLayer { Layer = 30 };
+            Label label = new()
+            {
+                Text = HelpText,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                AnchorLeft = 0.0f,
+                AnchorRight = 1.0f,
+                AnchorTop = 1.0f,
+                AnchorBottom = 1.0f,
+                OffsetTop = -70.0f,
+                OffsetBottom = -14.0f,
+            };
+            label.AddThemeFontSizeOverride("font_size", 18);
+            label.AddThemeColorOverride("font_color", new Color(1.0f, 0.96f, 0.88f));
+            label.AddThemeColorOverride("font_outline_color", new Color(0.0f, 0.0f, 0.0f, 0.8f));
+            label.AddThemeConstantOverride("outline_size", 6);
+            _help.AddChild(label);
+            AddChild(_help);
+        }
+        else if (!show && _help != null)
+        {
+            _help.QueueFree();
+            _help = null;
+        }
+    }
+
+    public override void _Input(InputEvent @event)
+    {
+        // Esc leaves the pack screen too, before the pause menu sees it.
+        if (Active && @event.IsActionPressed(ActionPause))
+        {
+            Exit();
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
     public override void _UnhandledInput(InputEvent @event)
     {
+        // X auto-arranges the whole pack, heaviest first, low and close to the back.
+        if (Active && @event is InputEventKey key && key.Pressed && !key.Echo && key.PhysicalKeycode == Key.X)
+        {
+            AutoArrange();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (@event.IsActionPressed(ActionToggle))
         {
             if (Active)
@@ -86,7 +143,8 @@ public partial class PackingMode : Node3D
 
         if (@event.IsActionPressed(ActionPlace))
         {
-            Click();
+            bool behind = @event is InputEventMouseButton mouse && mouse.AltPressed;
+            Click(behind);
         }
         else if (@event.IsActionPressed(ActionCancel))
         {
@@ -119,6 +177,12 @@ public partial class PackingMode : Node3D
     {
         if (!Active || _camera == null || _station == null || _view == null)
         {
+            return;
+        }
+        // Slid out of the fire's shelter: the pack goes back on.
+        if (!GameEvents.InShelter && !AllowAnywhere)
+        {
+            Exit();
             return;
         }
 
@@ -214,6 +278,7 @@ public partial class PackingMode : Node3D
         _camera.MakeCurrent();
 
         Active = true;
+        ShowHelp(true);
         _held = null;
         _view.Refresh(Inventory, _held);
         Input.MouseMode = Input.MouseModeEnum.Visible;
@@ -224,6 +289,7 @@ public partial class PackingMode : Node3D
     {
         _held = null;
         Active = false;
+        ShowHelp(false);
         _station?.QueueFree();
         _station = null;
         _camera = null;
@@ -233,7 +299,30 @@ public partial class PackingMode : Node3D
         GameEvents.PublishPackingMode(false);
     }
 
-    private void Click()
+    /// <summary>Packs everything again, heaviest first: for when Tetris isn't the mood.</summary>
+    public void AutoArrange()
+    {
+        if (Inventory == null || _view == null)
+        {
+            return;
+        }
+        List<ItemDefinition> all = new();
+        foreach (PackedItem packed in Inventory.Grid!.Items)
+        {
+            all.Add(packed.Definition);
+        }
+        all.AddRange(Inventory.LooseItems);
+        if (_held != null)
+        {
+            all.Add(_held);
+            _held = null;
+        }
+        all.Sort((a, b) => b.MassKg.CompareTo(a.MassKg));
+        Inventory.Repack(all, 0.5f);
+        _view.Refresh(Inventory, _held);
+    }
+
+    private void Click(bool behind = false)
     {
         if (Inventory == null || _view == null || _camera == null || _station == null)
         {
@@ -247,12 +336,23 @@ public partial class PackingMode : Node3D
                 _held = null;
                 _view.Refresh(Inventory, _held);
             }
+            else if (!_ghostValid)
+            {
+                // Clicking away from the pack puts it down on the mat: that's how things come out.
+                PutBack();
+            }
             return;
         }
 
         Vector2 mouse = GetViewport().GetMousePosition();
         Transform3D toStation = _station.GlobalTransform.AffineInverse();
-        object? target = _view.ItemUnder(toStation * _camera.ProjectRayOrigin(mouse), (toStation.Basis * _camera.ProjectRayNormal(mouse)).Normalized());
+        Vector3 rayFrom = toStation * _camera.ProjectRayOrigin(mouse);
+        Vector3 rayDirection = (toStation.Basis * _camera.ProjectRayNormal(mouse)).Normalized();
+        object? target = _view.ItemUnder(rayFrom, rayDirection);
+        if (behind)
+        {
+            target = _view.ItemBehind(rayFrom, rayDirection);
+        }
         if (target is PackedItem packed)
         {
             Inventory.Unpack(packed);
