@@ -269,6 +269,8 @@ public partial class TerrainTests : Node3D
         Check("streaming stays bounded", mostChunks <= MaxLoadedChunks, $"most chunks loaded {mostChunks}, now {streamer.LoadedCount}");
         Check("adding a chunk doesn't hitch", streamer.MaxApplyMilliseconds <= MaxApplyMilliseconds,
             $"slowest chunk add {streamer.MaxApplyMilliseconds:0.0} ms, last build {streamer.LastBuildMilliseconds:0} ms");
+        Check("adding a chunk's trees and grass doesn't hitch", TerrainChunk.MaxPlantMilliseconds <= MaxApplyMilliseconds,
+            $"slowest plants frame {TerrainChunk.MaxPlantMilliseconds:0.0} ms");
 
         RunState? run = GetNodeOrNull<RunState>("/root/RunState");
         Check("depth reaches RunState", run != null && run.Depth >= (int)streamer.Depth - 1 && run.Depth > 0,
