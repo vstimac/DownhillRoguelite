@@ -14,6 +14,8 @@ public partial class InteractionTooltip : ParchmentPanel
     public bool Showing { get; private set; }
     public string TitleText => _title?.Text ?? "";
 
+    private float _baseHeight = 170.0f;
+    private Vector2 _homeBase;
     private ItemSlot? _icon;
     private Label? _title;
     private Label? _body;
@@ -35,6 +37,7 @@ public partial class InteractionTooltip : ParchmentPanel
         _body.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _body.Size = new Vector2(Size.X - 112, 80);
         AddChild(_body);
+        _baseHeight = Size.Y;
         _prompt = new KeyPrompt { Position = new Vector2(16, Size.Y - 40), Size = new Vector2(Size.X - 30, 30) };
         AddChild(_prompt);
         GameEvents.FocusChanged += OnFocus;
@@ -50,6 +53,7 @@ public partial class InteractionTooltip : ParchmentPanel
     public void SetHome(Vector2 home)
     {
         _home = home;
+        _homeBase = home;
         Position = home;
     }
 
@@ -61,8 +65,22 @@ public partial class InteractionTooltip : ParchmentPanel
             return;
         }
         _title.Text = described.Title;
+        _title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        _title.Size = new Vector2(Size.X - 112, 34);
         _body.Text = described.Description + "\n" + described.Details;
         _prompt.Text = described.Prompt;
+        // The card grows to fit its words (keeping its bottom edge where it was), never clipping them.
+        float bodyHeight = UiStyle.Wrapped(_body.Text, UiStyle.SmallSize, Size.X - 112).Y;
+        _body.Size = new Vector2(Size.X - 112, bodyHeight);
+        float wanted = Mathf.Max(_baseHeight, 48.0f + bodyHeight + 52.0f);
+        if (!Mathf.IsEqualApprox(wanted, Size.Y))
+        {
+            float grow = wanted - Size.Y;
+            Size = new Vector2(Size.X, wanted);
+            Position -= new Vector2(0.0f, grow);
+            _home = _homeBase - new Vector2(0.0f, Size.Y - _baseHeight);
+            _prompt.Position = new Vector2(16, Size.Y - 40);
+        }
         _prompt.QueueRedraw();
         _icon.SetItem(described.IconSource as ItemDefinition, 1);
         _icon.EmptyGlyph = InkIcon.Backpack;

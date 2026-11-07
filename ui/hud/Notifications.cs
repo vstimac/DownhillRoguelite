@@ -142,7 +142,9 @@ public partial class Notifications : Control
         {
             oldest.QueueFree();
         }
-        Vector2 size = new(Mathf.Min(320.0f, UiStyle.Hand.GetStringSize(text, HorizontalAlignment.Left, -1, UiStyle.TextSize).X + 40.0f), 40.0f);
+        // As wide as its words (up to 320 px), as many lines tall as it needs: notes never cut off.
+        Vector2 words = UiStyle.Wrapped(text, UiStyle.TextSize, 280.0f);
+        Vector2 size = new(Mathf.Min(320.0f, words.X + 40.0f), words.Y + 14.0f);
         ColorRect paper = new() { Size = size, MouseFilter = MouseFilterEnum.Ignore };
         paper.Material = UiStyle.Parchment(size, _random.Randf() * 50.0f, 2.5f, 3.0f);
         Color ink = UiStyle.Ink;
@@ -151,7 +153,9 @@ public partial class Notifications : Control
             ink = UiStyle.Warning.Darkened(0.25f);
         }
         Label label = UiStyle.MakeLabel(text, UiStyle.TextSize, false, ink);
+        label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         label.Position = new Vector2(18, 6);
+        label.Size = new Vector2(size.X - 30.0f, words.Y + 4.0f);
         paper.AddChild(label);
         AddChild(paper);
         Restack();
