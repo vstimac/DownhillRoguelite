@@ -21,10 +21,10 @@ This folder (`downhill-roguelite-(copy)`) is the active project; `D:\Game dev\Do
 - Tunable values go in `[Export]` fields or Resource files, never magic numbers in logic.
 
 ## Architecture rules
-- Folders: core/, player/, balance/, inventory/, terrain/, map/, progression/, world_ui/, narrative/, environment/, wildlife/, debug/, art/, audio/
+- Folders: core/, player/, balance/, inventory/, terrain/, map/, progression/, world_ui/, ui/, narrative/, environment/, wildlife/, debug/, art/, audio/
 - Systems communicate through C# events / signals and the RunState autoload — no direct cross-system references.
 - Every gameplay system gets a debug scene in debug/ and a debug overlay (COM, foot targets, forces).
-- No flat UI during runs: interfaces are 3D objects in the world (debug overlays excepted).
+- UI: the director's journal UI (Don't Starve-inspired, hand-drawn parchment) lives in ui/: HUD (survival dials, descent note, compass, equipment, hotbar, tooltip, notes) and pages (inventory I, map M, journal J). In-world labels (cairns, signs, boons) stay 3D. UI is presentation only: it reads GameEvents/RunState and asks for actions through events.
 - Inventory is a snapped 3D cell grid with 90° rotations, not free placement; carried cargo is calculated, not simulated. Read docs/inventory-design.md before any inventory or balance work.
 - Balance: read docs/balance-model.md before changing balance/; keep debug/tests/BalanceTests passing (the A-vs-B test is the core check).
 

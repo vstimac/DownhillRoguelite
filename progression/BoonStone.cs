@@ -7,7 +7,7 @@ namespace DownhillRoguelite.Progression;
 /// One offering at a station: a small glowing stone with the boon's name above it; up close (when
 /// the carrier faces it) the description shows too. E chooses it (through PickupInteractor).
 /// </summary>
-public partial class BoonStone : Node3D, IInteractable
+public partial class BoonStone : Node3D, IInteractable, IDescribed
 {
     public BoonDefinition? Boon { get; private set; }
     public int Station { get; private set; }
@@ -17,6 +17,12 @@ public partial class BoonStone : Node3D, IInteractable
     private Label3D? _description;
 
     public Vector3 InteractionPoint => GlobalPosition + Vector3.Up * 0.5f;
+
+    public string Title => Boon?.DisplayName ?? "";
+    public string Description => Boon?.Description ?? "";
+    public string Details => "A boon lasts for the rest of this run.\nOne per station.";
+    public string Prompt => "E  Take this boon";
+    public Resource? IconSource => null;
 
     public void Setup(BoonDefinition boon, int station, BoonOfferings offerings)
     {

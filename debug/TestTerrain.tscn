@@ -42,6 +42,7 @@
 [ext_resource type="Script" path="res://progression/StartingKit.cs" id="42_kit"]
 [ext_resource type="Script" path="res://map/FieldMap.cs" id="43_map"]
 [ext_resource type="Script" path="res://audio/SoundEffects.cs" id="44_sfx"]
+[ext_resource type="Script" path="res://ui/Hud.cs" id="45_hud"]
 
 [sub_resource type="Resource" id="Boon_steady_legs"]
 script = ExtResource("41_boon")
@@ -282,3 +283,6 @@ script = ExtResource("43_map")
 
 [node name="SoundEffects" type="Node" parent="."]
 script = ExtResource("44_sfx")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("45_hud")

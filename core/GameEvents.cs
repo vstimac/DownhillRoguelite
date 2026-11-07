@@ -171,6 +171,34 @@ public static class GameEvents
         RunEnded?.Invoke(summary);
     }
 
+    /// <summary>What the carrier is looking at and could interact with (null when nothing).</summary>
+    public static object? Focused { get; private set; }
+
+    /// <summary>Raised when the focused interactable changes (the UI tooltip).</summary>
+    public static event Action<object?>? FocusChanged;
+
+    public static void PublishFocus(object? focused)
+    {
+        Focused = focused;
+        FocusChanged?.Invoke(focused);
+    }
+
+    /// <summary>Asks the inventory to use one carried item with this id (eat or drink it), e.g. from the hotbar.</summary>
+    public static event Action<string>? UseItemRequested;
+
+    public static void RequestUseItem(string itemId)
+    {
+        UseItemRequested?.Invoke(itemId);
+    }
+
+    /// <summary>True while a full-screen UI page (inventory, journal) is open: the mouse belongs to it.</summary>
+    public static bool IsScreenOpen { get; private set; }
+
+    public static void PublishScreenOpen(bool open)
+    {
+        IsScreenOpen = open;
+    }
+
     /// <summary>True while the carrier holds the map up (slow walking, no leaning or bracing).</summary>
     public static bool IsMapOpen { get; private set; }
 

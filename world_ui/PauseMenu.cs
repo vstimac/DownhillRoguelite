@@ -19,7 +19,8 @@ public partial class PauseMenu : CanvasLayer
         "WASD walk · Shift sprint · C brake (careful steps) · Space jump\n" +
         "Mouse look · LMB / RMB lean left / right · both brace\n" +
         "E pick up / sleep at a bedroll · F eat · Q drink · Tab pack (at stations)\n" +
-        "M map (click: waypoint · right-click: remove · wheel: zoom · drag: draw with paper and pencil)\n" +
+        "I inventory · J journal · M map (click: waypoint · right-click: remove · wheel: zoom · drag: draw)\n" +
+        "1-9 choose from the hotbar · V eat or drink it\n" +
         "R give up · T skip an hour · F3 debug overlays · F4 cycle weather\n\n" +
         "Death is permanent: every run starts on the summit of a new mountain.\n" +
         "Reach the next station before night. Stamina runs out walking — rest by standing still.\n" +

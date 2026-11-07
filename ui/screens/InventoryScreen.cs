@@ -1,0 +1,233 @@
+using System.Collections.Generic;
+using DownhillRoguelite.Core;
+using DownhillRoguelite.Inventory;
+using Godot;
+
+namespace DownhillRoguelite.Ui;
+
+/// <summary>
+/// The inventory page (I): everything the carrier owns, one parchment slot per kind of item with
+/// its count, on a grid that can be rearranged by dragging (the order is the page's own; packing
+/// itself still happens in the 3D pack at stations). Clicking a slot opens its details: picture,
+/// description, real properties and the actions that exist for it (eat, drink). The load's weight
+/// is shown on a scale at the bottom. Unfolds on open, folds away on close.
+/// </summary>
+public partial class InventoryScreen : ParchmentPanel
+{
+    public const int Columns = 5;
+    public const int Rows = 4;
+
+    public IReadOnlyList<string> Order => _order;
+    public int SelectedIndex { get; private set; } = -1;
+
+    private readonly List<ItemSlot> _slots = new();
+    private readonly List<string> _order = new();
+    private readonly Dictionary<string, int> _counts = new();
+    private string _signature = "";
+    private ItemSlot? _detailIcon;
+    private Label? _detailTitle;
+    private Label? _detailBody;
+    private InkButton? _use;
+    private WeightScale? _weight;
+
+    public override void _Ready()
+    {
+        Title = "Inventory";
+        Closable = true;
+        Seed = 41.0f;
+        Size = new Vector2(640, 520);
+        base._Ready();
+        float cell = 72.0f;
+        for (int i = 0; i < Columns * Rows; i++)
+        {
+            ItemSlot slot = new()
+            {
+                Position = new Vector2(24 + (i % Columns) * (cell + 6), 60 + (i / Columns) * (cell + 6)),
+                Size = new Vector2(cell, cell),
+                Index = i,
+                SlotSeed = 3.0f,
+                Draggable = true,
+            };
+            slot.Clicked += OnClicked;
+            slot.DroppedOn = OnDropped;
+            AddChild(slot);
+            _slots.Add(slot);
+        }
+        float detailX = 24 + Columns * (cell + 6) + 12;
+        _detailIcon = new ItemSlot { Position = new Vector2(detailX, 64), Size = new Vector2(96, 96), Index = 99 };
+        AddChild(_detailIcon);
+        _detailTitle = UiStyle.MakeLabel("", 26, true);
+        _detailTitle.Position = new Vector2(detailX, 168);
+        AddChild(_detailTitle);
+        _detailBody = UiStyle.MakeLabel("Choose something to read about it.", UiStyle.SmallSize);
+        _detailBody.Position = new Vector2(detailX, 204);
+        _detailBody.Size = new Vector2(Size.X - detailX - 20, 140);
+        _detailBody.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        AddChild(_detailBody);
+        _use = new InkButton { Text = "Eat", Paper = true, Position = new Vector2(detailX, 360), Size = new Vector2(110, 40), Visible = false };
+        _use.Pressed += UseSelected;
+        AddChild(_use);
+        _weight = new WeightScale { Position = new Vector2(24, Size.Y - 64), Size = new Vector2(Size.X - 48, 40) };
+        AddChild(_weight);
+        SetOpenNow(false);
+    }
+
+    public override void _Process(double delta)
+    {
+        if (!Visible)
+        {
+            return;
+        }
+        IReadOnlyList<string> carried = GameEvents.CarriedItems;
+        string signature = string.Join(",", carried);
+        if (signature != _signature)
+        {
+            _signature = signature;
+            Refresh(carried);
+        }
+        if (_weight != null)
+        {
+            _weight.Mass = GameEvents.CurrentLoad.Mass;
+            _weight.QueueRedraw();
+        }
+    }
+
+    private void Refresh(IReadOnlyList<string> carried)
+    {
+        _counts.Clear();
+        foreach (string id in carried)
+        {
+            _counts[id] = _counts.GetValueOrDefault(id) + 1;
+        }
+        _order.RemoveAll(id => !_counts.ContainsKey(id));
+        foreach (string id in carried)
+        {
+            if (!_order.Contains(id))
+            {
+                _order.Add(id);
+            }
+        }
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            if (i < _order.Count)
+            {
+                _slots[i].SetItem(ItemText.Find(_order[i]), _counts[_order[i]]);
+            }
+            else
+            {
+                _slots[i].SetItem(null, 0);
+            }
+        }
+        if (SelectedIndex >= _order.Count)
+        {
+            Select(-1);
+        }
+        else
+        {
+            Select(SelectedIndex);
+        }
+    }
+
+    private void OnClicked(ItemSlot slot, int button)
+    {
+        Select(slot.Index);
+        if (button == (int)MouseButton.Right)
+        {
+            UseSelected();
+        }
+    }
+
+    /// <summary>Moves the item dragged from one slot onto another (swapping), and keeps it selected.</summary>
+    private void OnDropped(int from, int to)
+    {
+        if (from == to || from >= _order.Count)
+        {
+            return;
+        }
+        to = Mathf.Min(to, _order.Count - 1);
+        (_order[from], _order[to]) = (_order[to], _order[from]);
+        _signature = "";
+        SelectedIndex = to;
+        _slots[to].Pop();
+    }
+
+    public void Select(int index)
+    {
+        SelectedIndex = index;
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            _slots[i].SetSelected(i == index && index < _order.Count);
+        }
+        ItemDefinition? item = null;
+        if (index >= 0 && index < _order.Count)
+        {
+            item = ItemText.Find(_order[index]);
+        }
+        if (_detailIcon == null || _detailTitle == null || _detailBody == null || _use == null)
+        {
+            return;
+        }
+        if (item == null)
+        {
+            _detailIcon.SetItem(null, 0);
+            _detailTitle.Text = "";
+            _detailBody.Text = "Choose something to read about it.";
+            _use.Visible = false;
+            return;
+        }
+        _detailIcon.SetItem(item, _counts.GetValueOrDefault(item.ItemId));
+        _detailTitle.Text = item.DisplayName;
+        _detailBody.Text = ItemText.Describe(item) + "\n" + ItemText.Properties(item);
+        _use.Visible = item.Category == ItemCategory.Food || item.Category == ItemCategory.Water;
+        _use.Text = "Eat";
+        if (item.Category == ItemCategory.Water)
+        {
+            _use.Text = "Drink";
+        }
+        _use.QueueRedraw();
+    }
+
+    private void UseSelected()
+    {
+        if (SelectedIndex < 0 || SelectedIndex >= _order.Count)
+        {
+            return;
+        }
+        ItemDefinition? item = ItemText.Find(_order[SelectedIndex]);
+        if (item != null && (item.Category == ItemCategory.Food || item.Category == ItemCategory.Water))
+        {
+            _slots[SelectedIndex].Pop();
+            GameEvents.RequestUseItem(item.ItemId);
+        }
+    }
+
+    /// <summary>A hand-drawn balance and a bar for the load's weight.</summary>
+    private partial class WeightScale : Control
+    {
+        public float Mass { get; set; }
+        /// <summary>The bar is full at this weight (a heavy expedition load), in kg.</summary>
+        public float FullMass { get; set; } = 40.0f;
+
+        public override void _Ready()
+        {
+            MouseFilter = MouseFilterEnum.Ignore;
+        }
+
+        public override void _Draw()
+        {
+            Vector2 p = new(4, 6);
+            DrawLine(p + new Vector2(14, 0), p + new Vector2(14, 26), UiStyle.Ink, 2.5f);
+            DrawLine(p + new Vector2(0, 6), p + new Vector2(28, 6), UiStyle.Ink, 2.5f);
+            InkDraw.Arc(this, p + new Vector2(3, 14), 6.0f, Mathf.Pi * 0.5f, Mathf.Pi * 1.5f, 2.0f, UiStyle.Ink);
+            InkDraw.Arc(this, p + new Vector2(25, 14), 6.0f, Mathf.Pi * 0.5f, Mathf.Pi * 1.5f, 2.0f, UiStyle.Ink);
+            Rect2 bar = new(new Vector2(48, 10), new Vector2(Size.X - 200, 16));
+            InkDraw.Shape(this, new[] { bar.Position, new Vector2(bar.End.X, bar.Position.Y), bar.End, new Vector2(bar.Position.X, bar.End.Y) }, UiStyle.PaperDark, 2.0f, 51);
+            float fill = Mathf.Clamp(Mass / FullMass, 0.0f, 1.0f);
+            if (fill > 0.0f)
+            {
+                DrawRect(new Rect2(bar.Position + new Vector2(2, 2), new Vector2((bar.Size.X - 4) * fill, bar.Size.Y - 4)), new Color(0.45f, 0.3f, 0.18f));
+            }
+            DrawString(UiStyle.Hand, new Vector2(bar.End.X + 14, 26), $"{Mass:0.0} / {FullMass:0} kg", HorizontalAlignment.Left, -1, UiStyle.TextSize, UiStyle.Ink);
+        }
+    }
+}

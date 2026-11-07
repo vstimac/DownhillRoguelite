@@ -58,6 +58,7 @@ public partial class CarrierInventory : Node
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.ItemsGranted += OnItemsGranted;
         GameEvents.ItemUseRequested += OnItemUseRequested;
+        GameEvents.UseItemRequested += OnUseItemRequested;
         foreach (string path in StartingItemPaths)
         {
             if (ResourceLoader.Load(path) is ItemDefinition item)
@@ -91,6 +92,7 @@ public partial class CarrierInventory : Node
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.ItemsGranted -= OnItemsGranted;
         GameEvents.ItemUseRequested -= OnItemUseRequested;
+        GameEvents.UseItemRequested -= OnUseItemRequested;
         // Managed references keep resources alive until the GC runs; drop them with the node.
         _loose.Clear();
         _all.Clear();
@@ -262,6 +264,33 @@ public partial class CarrierInventory : Node
                 Publish();
                 return;
             }
+        }
+    }
+
+    /// <summary>Eats or drinks one packed item with this id (the hotbar's use); other items can't be used yet.</summary>
+    private void OnUseItemRequested(string itemId)
+    {
+        if (Grid == null)
+        {
+            return;
+        }
+        foreach (PackedItem item in Grid.Items)
+        {
+            if (item.Definition.ItemId != itemId)
+            {
+                continue;
+            }
+            if (item.Definition.Category == ItemCategory.Food)
+            {
+                Consume(item);
+                GameEvents.PublishItemConsumed(SupplyNeed.Hunger, itemId, RestoreOf(item.Definition));
+            }
+            else if (item.Definition.Category == ItemCategory.Water)
+            {
+                Consume(item);
+                GameEvents.PublishItemConsumed(SupplyNeed.Thirst, itemId, RestoreOf(item.Definition));
+            }
+            return;
         }
     }
 

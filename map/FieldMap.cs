@@ -64,6 +64,10 @@ public partial class FieldMap : Node3D
     public float InkUsed => _inkUsed;
     public Node3D? Compass => _compass;
     public Node3D? Needle => _needle;
+    /// <summary>Hold the map up as a 3D sheet in front of the camera; off when a UI page shows the chart instead.</summary>
+    public bool ShowSheet { get; set; } = true;
+    /// <summary>The chart as a texture (for a UI page).</summary>
+    public Texture2D? SheetTexture => _viewport?.GetTexture();
 
     private readonly List<WaypointMarker> _markers = new();
     private RunState? _run;
@@ -215,7 +219,7 @@ public partial class FieldMap : Node3D
 
     public override void _Input(InputEvent @event)
     {
-        if (!IsOpen)
+        if (!IsOpen || !ShowSheet)
         {
             return;
         }
@@ -254,12 +258,24 @@ public partial class FieldMap : Node3D
         {
             if (SheetPixel(screen, out Vector2 pixel))
             {
-                _pressing = true;
-                _drawing = false;
-                _pressPixel = pixel;
+                PressAt(pixel);
             }
             return;
         }
+        Release();
+    }
+
+    /// <summary>A press on the chart at a texture pixel (a click sets a waypoint, a drag draws).</summary>
+    public void PressAt(Vector2 pixel)
+    {
+        _pressing = true;
+        _drawing = false;
+        _pressPixel = pixel;
+    }
+
+    /// <summary>The press ends: without a drag it was a click, which sets a waypoint.</summary>
+    public void Release()
+    {
         if (_pressing && !_drawing)
         {
             AddWaypoint(PixelToWorld(_pressPixel));
@@ -268,9 +284,30 @@ public partial class FieldMap : Node3D
         _drawing = false;
     }
 
+    public void RightClickAt(Vector2 pixel)
+    {
+        RemoveWaypointAt(PixelToWorld(pixel));
+    }
+
+    /// <summary>Zooms one step in (negative) or out (positive).</summary>
+    public void ZoomStep(int direction)
+    {
+        _zoom = Mathf.Clamp(_zoom + direction, 0, Zooms.Length - 1);
+        Redraw();
+    }
+
     private void OnDrag(Vector2 screen)
     {
-        if (!SheetPixel(screen, out Vector2 pixel) || !CanDraw)
+        if (SheetPixel(screen, out Vector2 pixel))
+        {
+            DragTo(pixel);
+        }
+    }
+
+    /// <summary>The press moves on the chart: past a few pixels it becomes a pencil line (with paper and pencil).</summary>
+    public void DragTo(Vector2 pixel)
+    {
+        if (!_pressing || !CanDraw)
         {
             return;
         }
@@ -426,10 +463,20 @@ public partial class FieldMap : Node3D
         {
             target = 1.0f;
         }
+        if (!ShowSheet)
+        {
+            target = 0.0f;
+        }
         _raise = Mathf.MoveToward(_raise, target, RaiseSpeed * dt);
         _sheet.Visible = _raise > 0.01f;
         if (!_sheet.Visible)
         {
+            // Shown on a UI page instead: keep the chart fresh while it is open.
+            _redrawTimer -= dt;
+            if (IsOpen && _redrawTimer <= 0.0f)
+            {
+                Redraw();
+            }
             return;
         }
         Vector3 offset = LoweredOffset.Lerp(HeldOffset, Mathf.SmoothStep(0.0f, 1.0f, _raise));

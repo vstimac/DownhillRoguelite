@@ -7,13 +7,19 @@ namespace DownhillRoguelite.Map;
 /// The bedroll in a station's lean-to. E sleeps until dawn once it's late enough (WorldClock
 /// SleepFromHour, or any time at night); before that the in-world prompt says when.
 /// </summary>
-public partial class SleepSpot : Node3D, IInteractable
+public partial class SleepSpot : Node3D, IInteractable, IDescribed
 {
     [Export] public int LabelFontSize { get; set; } = 40;
     [Export] public float LabelPixelSize { get; set; } = 0.004f;
     [Export] public float LabelHeight { get; set; } = 0.9f;
 
     public Vector3 InteractionPoint => GlobalPosition;
+
+    public string Title => "Bedroll";
+    public string Description => "Sleep through the night, safe from the cold.";
+    public string Details => "From 16:00 or after dark.\nHeals and refills stamina.";
+    public string Prompt => "E  Sleep";
+    public Resource? IconSource => null;
 
     private Label3D? _label;
     private WorldClock? _clock;

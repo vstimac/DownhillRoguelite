@@ -112,7 +112,7 @@ public partial class ChaseCamera : Node3D
     public override void _UnhandledInput(InputEvent @event)
     {
         // The held map uses the mouse while it is up.
-        if (Camera == null || !Camera.Current || GameEvents.IsMapOpen)
+        if (Camera == null || !Camera.Current || GameEvents.IsMapOpen || GameEvents.IsScreenOpen)
         {
             return;
         }
