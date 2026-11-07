@@ -47,6 +47,26 @@ def main():
     draw.text((31, 119), "CHARACTER CONCEPTS  /  NPCs, BOSSES & ENEMIES",
               font=subtitle, fill=(235, 235, 235, 255),
               stroke_width=1, stroke_fill=(12, 12, 12, 255))
+    # State clearly that this illustration is not a distributable 3D asset pack.
+    draw.rectangle((1299, 0, 1437, 103), fill=(10, 11, 15, 255))
+    draw.text((1308, 14), "CONCEPT", font=load_font(17),
+              fill=(242, 242, 242, 255))
+    draw.text((1308, 37), "ART ONLY", font=load_font(17),
+              fill=(218, 46, 44, 255))
+    draw.text((1308, 70), "NO 3D FILES", font=load_font(12),
+              fill=(215, 215, 215, 255))
+    draw.rectangle((0, 723, 455, 753), fill=(14, 15, 17, 255))
+    draw.text((11, 725), "KONCEPTNI PRIKAZI LIKOVA",
+              font=load_font(23), fill=(240, 240, 239, 255))
+    draw.rectangle((0, 939, width, height), fill=(12, 13, 15, 255))
+    draw.line((0, 939, width, 939), fill=(85, 88, 91, 255), width=2)
+    draw.text((30, 951), "CONCEPT ART  /  NOT GAMEPLAY OR 3D ASSETS",
+              font=load_font(26), fill=(240, 240, 239, 255))
+    draw.text((31, 989),
+              "Playable models, rigs, animations and asset packs must be developed separately.",
+              font=load_font(17), fill=(180, 180, 185, 255))
+    draw.text((1215, 970), "DownhillRoguelite",
+              font=load_font(18), fill=(208, 54, 49, 255))
     image.save(target, optimize=True)
 
     readme_path = Path("README.md")
