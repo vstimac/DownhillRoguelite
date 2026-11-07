@@ -43,6 +43,7 @@ public partial class GearTests : Node
         TestPockets(Inventory, gear);
         TestDrop(Inventory);
         TestLooks();
+        TestPackOddShapes(Inventory);
         await TestThrow(Inventory);
         await TestNewRun(Inventory, gear);
 
@@ -286,6 +287,37 @@ public partial class GearTests : Node
         }
         Check(Carried(inventory, "leather_patch") == 0 && distance > inventory.ThrowDistance * 0.8f,
             $"a thrown item flies {distance:0.0} m out of the way and lands", $"throw: carried {Carried(inventory, "leather_patch")}, landed {distance:0.0} m away");
+    }
+
+    /// <summary>Paper and the fur cape (flat and wide) go into the pack, come out, go back, and leave room for others.</summary>
+    private void TestPackOddShapes(CarrierInventory inventory)
+    {
+        foreach (string id in new[] { "paper", "fur_cape" })
+        {
+            Reset(inventory);
+            bool added = inventory.TryAdd(Item(id), -1.0f, false);
+            PackedItem? packed = null;
+            foreach (PackedItem item in inventory.Grid!.Items)
+            {
+                if (item.Definition.ItemId == id)
+                {
+                    packed = item;
+                }
+            }
+            bool other = inventory.TryAdd(Item("cord"), -1.0f, false);
+            bool outOk = false;
+            bool backOk = false;
+            if (packed != null)
+            {
+                Vector3I origin = packed.Origin;
+                int orientation = packed.Orientation;
+                inventory.Unpack(packed);
+                outOk = !System.Linq.Enumerable.Any(inventory.Grid.Items, i => i.Definition.ItemId == id) && System.Linq.Enumerable.Contains(inventory.LooseItems, Item(id));
+                backOk = inventory.Pack(Item(id), origin, orientation) != null;
+            }
+            Check(added && other && outOk && backOk, $"{id} packs, comes out, goes back, and leaves room for more",
+                $"{id}: added {added}, other item {other}, out {outOk}, back {backOk}");
+        }
     }
 
     /// <summary>Every item has a look: its own model, a piece of the carrier, or an ink outline drawing.</summary>
