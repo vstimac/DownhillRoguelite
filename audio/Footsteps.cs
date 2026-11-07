@@ -20,7 +20,7 @@ public partial class Footsteps : Node
     [Export(PropertyHint.Dir)] public string RecordedFolder { get; set; } = "res://audio/sfx/kenney_impact_sounds";
     [Export] public int Variants { get; set; } = 4;
     [Export] public StringName Bus { get; set; } = "Ambience";
-    [Export] public float VolumeDb { get; set; } = -10.0f;
+    [Export] public float VolumeDb { get; set; } = -5.0f;
     /// <summary>Speed range from quietest to loudest step, in m/s.</summary>
     [Export] public Vector2 SpeedRange { get; set; } = new(0.3f, 6.0f);
     /// <summary>Volume of a step at the slowest speed, as a fraction of the loudest.</summary>

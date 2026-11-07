@@ -51,6 +51,7 @@ public partial class UiTests : Node3D
         await TestInventory(needs);
         await TestMap();
         await TestJournal();
+        TestDragging();
         TestLayout();
 
         if (_failures.Count == 0)
@@ -245,6 +246,31 @@ public partial class UiTests : Node3D
         {
             await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
         }
+    }
+
+    /// <summary>Moved pieces and pages stay where the player put them through a re-layout; reset restores them.</summary>
+    private void TestDragging()
+    {
+        UiLayoutEditor? editor = Ui?.LayoutEditor;
+        if (Ui == null || editor == null || Ui.Hotbar == null || Ui.Inventory == null)
+        {
+            Check("the UI can be dragged", false, "no layout editor");
+            return;
+        }
+        Vector2 screen = new(1280, 720);
+        Ui.LayoutFor(screen);
+        Vector2 home = Ui.Hotbar.Position;
+        bool moved = editor.MoveTo("hotbar", new Vector2(40, 300)) && editor.MoveTo("inventory", new Vector2(10, 20));
+        Ui.LayoutFor(screen);
+        bool kept = Ui.Hotbar.Position.IsEqualApprox(new Vector2(40, 300)) && Ui.Inventory.Position.IsEqualApprox(new Vector2(10, 20));
+        editor.MoveTo("hotbar", new Vector2(5000, 5000));
+        Ui.LayoutFor(screen);
+        bool onScreen = Ui.Hotbar.Position.X < screen.X && Ui.Hotbar.Position.Y < screen.Y;
+        editor.ResetLayout();
+        Ui.LayoutFor(screen);
+        bool reset = Ui.Hotbar.Position.IsEqualApprox(home);
+        Check("HUD pieces and pages can be moved, stay put through re-layout, stay on screen, and reset", moved && kept && onScreen && reset,
+            $"moved {moved}, kept {kept}, on screen {onScreen}, reset {reset}");
     }
 
     private void Check(string name, bool passed, string detail)
