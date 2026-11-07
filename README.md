@@ -77,7 +77,7 @@ Features may vary by released build and development branch.
 
 *Visual concept board, not a gameplay screenshot or proof of game-ready 3D models. Depicted characters and props are concepts until implemented and validated in-game.*
 
-**Gameplay screenshots / GIF:** Not yet included in the repository. Only actual captured gameplay will be presented as gameplay; concept renders and AI artwork are labelled separately.
+**Gameplay screenshots / GIF:** Not yet included in the repository. Only actual captured gameplay will be presented as gameplay; concept renders and AI artwork are labelled separately. See the [capture and publishing guide](docs/MEDIA_CAPTURE.md).
 
 ## Optional: local AI companion
 
