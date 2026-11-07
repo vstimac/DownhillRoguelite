@@ -320,20 +320,11 @@ public partial class GearTests : Node
         }
     }
 
-    /// <summary>Every item has a look: its own model, a piece of the carrier, or an ink outline drawing.</summary>
+    /// <summary>Every item has a 3D model (its own, a piece of the carrier, or one built in code): no flat placeholders.</summary>
     private void TestLooks()
     {
         List<string> missing = new();
-        int drawings = 0;
-        int pieces = 0;
-        string save = "";
-        foreach (string arg in OS.GetCmdlineUserArgs())
-        {
-            if (arg.StartsWith("--save-outlines="))
-            {
-                save = arg.Substring("--save-outlines=".Length);
-            }
-        }
+        int models = 0;
         foreach (string file in DirAccess.GetFilesAt("res://inventory/items"))
         {
             string name = file.Replace(".remap", "");
@@ -346,28 +337,25 @@ public partial class GearTests : Node
             {
                 continue;
             }
-            if (item.Model == null && item.ModelSource.Length > 0)
+            Node3D? model = ItemVisual.BuildModel(item);
+            bool solid = model != null && model.FindChildren("*", "MeshInstance3D", true, false).Count > 0;
+            if (model != null && !solid)
             {
-                pieces++;
+                // An art-pack scene: its meshes appear once instanced in the tree.
+                AddChild(model);
+                solid = model.FindChildren("*", "MeshInstance3D", true, false).Count > 0;
+                RemoveChild(model);
             }
-            if (ItemVisual.HasModel(item))
-            {
-                continue;
-            }
-            Texture2D outline = ItemVisual.Outline(item);
-            if (outline.GetWidth() < 64)
+            model?.Free();
+            if (!solid)
             {
                 missing.Add(item.ItemId);
                 continue;
             }
-            drawings++;
-            if (save.Length > 0)
-            {
-                outline.GetImage().SavePng($"{save}/{item.ItemId}.png");
-            }
+            models++;
         }
-        Check(missing.Count == 0 && drawings > 0, $"every item has a look ({drawings} ink outlines, {pieces} pieces of the carrier)",
-            $"items with no look: {string.Join(", ", missing)}");
+        Check(missing.Count == 0 && models > 0, $"every item has a 3D model ({models} items)",
+            $"items with no 3D model: {string.Join(", ", missing)}");
     }
 
     private void TestDrop(CarrierInventory inventory)

@@ -43,6 +43,7 @@ public partial class ItemSlot : Control
     private ShaderMaterial? _iconMaterial;
     private float _time;
     private bool _hover;
+    private bool _dragging;
     private Tween? _tween;
 
     public override void _Ready()
@@ -136,6 +137,8 @@ public partial class ItemSlot : Control
     public bool Draggable { get; set; }
     /// <summary>Called with (from, to) slot indexes when a dragged item is dropped here.</summary>
     public System.Action<int, int>? DroppedOn { get; set; }
+    /// <summary>Called with this slot's index when its item was dragged off and dropped where nothing took it.</summary>
+    public System.Action<int>? DraggedAway { get; set; }
 
     public override Variant _GetDragData(Vector2 atPosition)
     {
@@ -151,6 +154,7 @@ public partial class ItemSlot : Control
         preview.Position = -Size * 0.5f;
         SetDragPreview(holder);
         Modulate = new Color(1, 1, 1, 0.4f);
+        _dragging = true;
         return Index;
     }
 
@@ -169,6 +173,14 @@ public partial class ItemSlot : Control
         if (what == NotificationDragEnd)
         {
             Modulate = Colors.White;
+            if (_dragging)
+            {
+                _dragging = false;
+                if (!GetViewport().GuiIsDragSuccessful())
+                {
+                    DraggedAway?.Invoke(Index);
+                }
+            }
         }
     }
 
