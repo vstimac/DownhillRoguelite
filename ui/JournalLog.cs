@@ -41,6 +41,8 @@ public partial class JournalLog : Node
         GameEvents.Slept += OnSlept;
         GameEvents.Mended += OnMended;
         GameEvents.ItemLost += OnLost;
+        GameEvents.AskRequested += OnAsked;
+        GameEvents.CompanionReplied += OnReplied;
         CallDeferred(MethodName.Begin);
     }
 
@@ -57,6 +59,18 @@ public partial class JournalLog : Node
         GameEvents.Slept -= OnSlept;
         GameEvents.Mended -= OnMended;
         GameEvents.ItemLost -= OnLost;
+        GameEvents.AskRequested -= OnAsked;
+        GameEvents.CompanionReplied -= OnReplied;
+    }
+
+    private void OnAsked(string question) => Write($"I said: \"{question.StripEdges()}\"");
+
+    private void OnReplied(string text, bool done)
+    {
+        if (done && text.Length > 0)
+        {
+            Write(text, true);
+        }
     }
 
     private void OnMended(string what, float amount)

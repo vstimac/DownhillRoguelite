@@ -131,7 +131,7 @@ M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain
 | **M8 Weather** (built) | Fog, rain, snow, wind, heat per circle and time; effects on visibility, grip, balance and needs |
 | **M9 Wildlife** (built) | Animals per circle (Quaternius farm animals and creatures, Kenney cube pets beyond the ninth), grazing, wandering, watching, fleeing, scattering on falls; population kept around the carrier; see wildlife/README.md |
 | **M10 Routes** (built) | Branching paths from each shelter's lookout; route types (safe, hazardous, supply-rich) |
-| **M11 Narrator** (voiced lines built for the demo) | The voiced companion: the 500 lines triggered by game events, then NobodyWho for live conversation |
+| **M11 Narrator** (voiced lines built for the demo; conversation built, branch `m11-conversation`) | The voiced companion: the 500 lines triggered by game events, then NobodyWho for live conversation (Enter: talk with the companion, a local model, context-aware replies; see narrative/README.md). Next: NPCs at camps |
 | **M12 Progression** (built, contracts wait for M14) | Summit start and a new mountain every run, permadeath with records; boons at stations; depth scaling; starting-kit unlocks |
 | **M13 Map and compass** (built) | A map held up in the world with a compass on top; waypoints that show as markers in the world; drawing with found paper and pencil. See docs/gear-and-map.md |
 | **M14 Gear and durability** (built, branch `m14-gear`) | Backpack, pockets and clothing slots (all 3D grids, not lists); gear found in the world with durability and no rarity; mending with found materials (sewing kit and others). See docs/gear-and-map.md |

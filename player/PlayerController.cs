@@ -32,6 +32,8 @@ public partial class PlayerController : CharacterBody3D
 
     /// <summary>When false, movement input is ignored, e.g. while a debug camera is active.</summary>
     [Export] public bool InputEnabled { get; set; } = true;
+    /// <summary>Keys move the carrier: input is on and the player isn't typing to the companion.</summary>
+    private bool Controls => InputEnabled && !GameEvents.IsConversing;
 
     public LocomotionState State { get; private set; } = LocomotionState.Idle;
     public bool Sprinting { get; private set; }
@@ -119,7 +121,7 @@ public partial class PlayerController : CharacterBody3D
         }
 
         Vector3 input = ReadInputDirection();
-        bool braking = InputEnabled && Input.IsActionPressed(ActionBrake);
+        bool braking = Controls && Input.IsActionPressed(ActionBrake);
         // Exhausted carriers can't walk until they've rested.
         bool exhausted = Stamina != null && Stamina.Exhausted;
         bool held = _balanceState == BalanceState.Fallen || _bracing || GameEvents.IsPacking || exhausted;
@@ -131,7 +133,7 @@ public partial class PlayerController : CharacterBody3D
         FloorMaxAngle = Mathf.DegToRad(WalkableAngle());
 
         bool grounded = IsOnFloor();
-        Sprinting = grounded && InputEnabled && !held && !braking && !GameEvents.IsMapOpen
+        Sprinting = grounded && Controls && !held && !braking && !GameEvents.IsMapOpen
             && input.Length() > SprintInputThreshold
             && Input.IsActionPressed(ActionSprint)
             && Stamina != null && Stamina.CanSprint;
@@ -184,7 +186,7 @@ public partial class PlayerController : CharacterBody3D
         {
             return Flatten(DirectionOverride.Value, false).LimitLength(1.0f);
         }
-        if (!InputEnabled)
+        if (!Controls)
         {
             return Vector3.Zero;
         }
@@ -362,7 +364,7 @@ public partial class PlayerController : CharacterBody3D
     /// <summary>Jumps if the button was just pressed and there is stamina for it; a heavier load jumps lower.</summary>
     private void TryJump()
     {
-        if (!InputEnabled || !Input.IsActionJustPressed(ActionJump))
+        if (!Controls || !Input.IsActionJustPressed(ActionJump))
         {
             return;
         }
