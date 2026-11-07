@@ -147,7 +147,14 @@ public partial class CarrierNeeds : Node
                 }
                 Cold = (1.0f - _clock.Daylight) * harshness;
             }
-            Cold = Mathf.Clamp(Cold + Chill, 0.0f, 1.0f);
+            float colder = 1.0f;
+            float resistance = 0.0f;
+            if (_run != null)
+            {
+                colder = _run.DepthColdFactor;
+                resistance = Mathf.Clamp(_run.Modifiers.ColdResistance, 0.0f, 0.9f);
+            }
+            Cold = Mathf.Clamp((Cold + Chill) * colder * (1.0f - resistance), 0.0f, 1.0f);
         }
 
         if (Stamina != null)
@@ -161,6 +168,11 @@ public partial class CarrierNeeds : Node
             if (Hunger < LowThreshold)
             {
                 Stamina.MaxMultiplier = HungryMaxStamina;
+            }
+            if (_run != null)
+            {
+                Stamina.MaxMultiplier *= _run.Modifiers.StaminaMax;
+                Stamina.RecoveryMultiplier *= _run.Modifiers.StaminaRecovery;
             }
         }
 
@@ -190,7 +202,7 @@ public partial class CarrierNeeds : Node
         }
         if (_run != null)
         {
-            rate *= _run.DifficultySettings.NeedsDrainMultiplier;
+            rate *= _run.DifficultySettings.NeedsDrainMultiplier * _run.DepthNeedsFactor * _run.Modifiers.NeedsDrain;
         }
         return rate;
     }

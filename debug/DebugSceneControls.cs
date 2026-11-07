@@ -53,6 +53,14 @@ public partial class DebugSceneControls : Node
         {
             Input.ActionPress("player_brake");
         }
+        // `--at-station=2` starts the carrier at station 2 (render checks, trying boons).
+        foreach (string arg in args)
+        {
+            if (arg.StartsWith("--at-station=") && int.TryParse(arg.Substring("--at-station=".Length), out int station) && station > 0)
+            {
+                CallDeferred(MethodName.GoToStation, station);
+            }
+        }
         // `--weather=rain` (or fog, snow, wind, heat, clear) forces a front; `--hour=22` sets the clock.
         foreach (string arg in args)
         {
@@ -107,7 +115,16 @@ public partial class DebugSceneControls : Node
         }
     }
 
-    private void Respawn()
+    private void GoToStation(int station)
+    {
+        IRouteQuery? route = GetNodeOrNull<RunState>("/root/RunState")?.Route;
+        if (route != null && PlayerBody != null)
+        {
+            PlayerBody.Teleport(route.Station(station) + new Vector3(0.0f, 0.3f, 6.0f), 0.0f);
+        }
+    }
+
+        private void Respawn()
     {
         if (Streamer != null)
         {

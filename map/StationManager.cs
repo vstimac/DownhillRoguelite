@@ -228,7 +228,12 @@ public partial class StationManager : Node3D
         }
         if (_summitLabel != null && _run != null)
         {
-            _summitLabel.Text = $"Summit\nrun {_run.RunNumber} · mountain {_run.Seed}";
+            string kit = "an empty pack";
+            if (_run.StartingKit.Count > 0)
+            {
+                kit = string.Join(", ", _run.StartingKit);
+            }
+            _summitLabel.Text = $"Summit\nrun {_run.RunNumber} · mountain {_run.Seed}\nyou carry {kit}";
         }
     }
 

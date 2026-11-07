@@ -1,3 +1,4 @@
+using DownhillRoguelite.Core;
 using Godot;
 
 namespace DownhillRoguelite.Player;
@@ -53,8 +54,11 @@ public partial class CarrierStamina : Node
 
     private float _sinceUse;
 
+    private RunState? _run;
+
     public override void _Ready()
     {
+        _run = GetNodeOrNull<RunState>("/root/RunState");
         Current = Max;
     }
 
@@ -91,7 +95,15 @@ public partial class CarrierStamina : Node
         {
             drain += SprintDrain;
         }
-        return drain * (1.0f + LoadDrainPerKg * loadMass);
+        // Boons (RunState.Modifiers) can ease walking and the load's cost.
+        float walkModifier = 1.0f;
+        float loadModifier = 1.0f;
+        if (_run != null)
+        {
+            walkModifier = _run.Modifiers.WalkDrain;
+            loadModifier = _run.Modifiers.LoadDrain;
+        }
+        return drain * walkModifier * (1.0f + LoadDrainPerKg * loadModifier * loadMass);
     }
 
     /// <summary>Drains one physics step of moving under one's own power.</summary>

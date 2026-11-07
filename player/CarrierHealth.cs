@@ -57,7 +57,13 @@ public partial class CarrierHealth : Node
 
     private void OnSlept(float hours)
     {
-        Heal(Max * SleepHealFraction);
+        float modifier = 1.0f;
+        RunState? run = GetNodeOrNull<RunState>("/root/RunState");
+        if (run != null)
+        {
+            modifier = run.Modifiers.SleepHeal;
+        }
+        Heal(Max * SleepHealFraction * modifier);
     }
 
     public void TakeDamage(float amount, string source)

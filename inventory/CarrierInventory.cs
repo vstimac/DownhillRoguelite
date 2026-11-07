@@ -56,6 +56,7 @@ public partial class CarrierInventory : Node
         Grid = new BackpackGrid(Backpack.GridSize);
         GameEvents.ConsumeRequested += OnConsumeRequested;
         GameEvents.RespawnRequested += OnRespawnRequested;
+        GameEvents.ItemsGranted += OnItemsGranted;
         foreach (string path in StartingItemPaths)
         {
             if (ResourceLoader.Load(path) is ItemDefinition item)
@@ -87,6 +88,7 @@ public partial class CarrierInventory : Node
     {
         GameEvents.ConsumeRequested -= OnConsumeRequested;
         GameEvents.RespawnRequested -= OnRespawnRequested;
+        GameEvents.ItemsGranted -= OnItemsGranted;
         // Managed references keep resources alive until the GC runs; drop them with the node.
         _loose.Clear();
         _all.Clear();
@@ -221,6 +223,18 @@ public partial class CarrierInventory : Node
         }
         Consume(item);
         GameEvents.PublishItemConsumed(need, item.Definition.ItemId, RestoreOf(item.Definition));
+    }
+
+    /// <summary>Items given to the carrier (the starting kit): packed where they fit best.</summary>
+    private void OnItemsGranted(string[] itemPaths)
+    {
+        foreach (string path in itemPaths)
+        {
+            if (ResourceLoader.Load(path) is ItemDefinition item)
+            {
+                TryAdd(item);
+            }
+        }
     }
 
     private void OnRespawnRequested()
