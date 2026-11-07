@@ -20,3 +20,6 @@ GripBonus = 0.0
 WindCatch = 0.0
 Pockets = 1
 MendType = "cloth"
+ModelSource = "res://art/characters/mixamo/carrier.fbx"
+ModelMesh = "Ch17_Pants"
+ModelLieFlat = true

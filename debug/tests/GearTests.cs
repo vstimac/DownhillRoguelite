@@ -42,6 +42,8 @@ public partial class GearTests : Node
         TestTornPack(Inventory, gear);
         TestPockets(Inventory, gear);
         TestDrop(Inventory);
+        TestLooks();
+        await TestThrow(Inventory);
         await TestNewRun(Inventory, gear);
 
         GameEvents.ItemLost -= OnLost;
@@ -267,6 +269,73 @@ public partial class GearTests : Node
         int before = gear.PocketItems.Count;
         Check(gear.TakeFromPocket("sewing_kit", out ItemDefinition? taken) && taken == kit && gear.PocketItems.Count == before - 1,
             "items come back out of a pocket", "couldn't take an item out of a pocket");
+    }
+
+    private async Task TestThrow(CarrierInventory inventory)
+    {
+        Reset(inventory);
+        inventory.TryAdd(Item("leather_patch"), -1.0f, false);
+        Vector3 start = GameEvents.CarrierPosition;
+        GameEvents.RequestThrow("leather_patch");
+        WorldItem? thrown = inventory.LastDropped;
+        await ToSignal(GetTree().CreateTimer(inventory.ThrowTime + 0.2f), SceneTreeTimer.SignalName.Timeout);
+        float distance = 0.0f;
+        if (thrown != null && IsInstanceValid(thrown))
+        {
+            distance = new Vector2(thrown.GlobalPosition.X - start.X, thrown.GlobalPosition.Z - start.Z).Length();
+        }
+        Check(Carried(inventory, "leather_patch") == 0 && distance > inventory.ThrowDistance * 0.8f,
+            $"a thrown item flies {distance:0.0} m out of the way and lands", $"throw: carried {Carried(inventory, "leather_patch")}, landed {distance:0.0} m away");
+    }
+
+    /// <summary>Every item has a look: its own model, a piece of the carrier, or an ink outline drawing.</summary>
+    private void TestLooks()
+    {
+        List<string> missing = new();
+        int drawings = 0;
+        int pieces = 0;
+        string save = "";
+        foreach (string arg in OS.GetCmdlineUserArgs())
+        {
+            if (arg.StartsWith("--save-outlines="))
+            {
+                save = arg.Substring("--save-outlines=".Length);
+            }
+        }
+        foreach (string file in DirAccess.GetFilesAt("res://inventory/items"))
+        {
+            string name = file.Replace(".remap", "");
+            if (!name.EndsWith(".tres"))
+            {
+                continue;
+            }
+            ItemDefinition? item = GD.Load<ItemDefinition>("res://inventory/items/" + name);
+            if (item == null)
+            {
+                continue;
+            }
+            if (item.Model == null && item.ModelSource.Length > 0)
+            {
+                pieces++;
+            }
+            if (ItemVisual.HasModel(item))
+            {
+                continue;
+            }
+            Texture2D outline = ItemVisual.Outline(item);
+            if (outline.GetWidth() < 64)
+            {
+                missing.Add(item.ItemId);
+                continue;
+            }
+            drawings++;
+            if (save.Length > 0)
+            {
+                outline.GetImage().SavePng($"{save}/{item.ItemId}.png");
+            }
+        }
+        Check(missing.Count == 0 && drawings > 0, $"every item has a look ({drawings} ink outlines, {pieces} pieces of the carrier)",
+            $"items with no look: {string.Join(", ", missing)}");
     }
 
     private void TestDrop(CarrierInventory inventory)
