@@ -61,6 +61,8 @@ public partial class MusicPlayer : Node
                 player.Stream = null;
             }
         }
+        DayTrack = null;
+        NightTrack = null;
     }
 
     public override void _Process(double delta)

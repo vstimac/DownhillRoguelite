@@ -28,6 +28,9 @@
 [ext_resource type="AudioStream" path="res://audio/music/descent_night.wav" id="28_night_track"]
 [ext_resource type="Script" path="res://narrative/NarratorDirector.cs" id="29_narrator"]
 [ext_resource type="Script" path="res://world_ui/PauseMenu.cs" id="30_pause"]
+[ext_resource type="Script" path="res://audio/WeatherAudio.cs" id="31_weather_audio"]
+[ext_resource type="AudioStream" path="res://audio/ambience/wind.wav" id="32_wind"]
+[ext_resource type="AudioStream" path="res://audio/ambience/rain.wav" id="33_rain"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
@@ -145,6 +148,11 @@ Streamer = NodePath("../Terrain")
 script = ExtResource("26_music")
 DayTrack = ExtResource("27_day_track")
 NightTrack = ExtResource("28_night_track")
+
+[node name="WeatherAudio" type="Node" parent="."]
+script = ExtResource("31_weather_audio")
+WindLoop = ExtResource("32_wind")
+RainLoop = ExtResource("33_rain")
 
 [node name="Narrator" type="Node" parent="."]
 script = ExtResource("29_narrator")
