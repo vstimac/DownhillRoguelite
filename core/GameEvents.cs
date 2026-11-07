@@ -248,6 +248,16 @@ public static class GameEvents
 
     public static void PublishVaulted(bool cleared) => Vaulted?.Invoke(cleared);
 
+    /// <summary>True while a landing roll is primed (Space in the window while falling): the next landing is soft.</summary>
+    public static bool RollPrimed { get; private set; }
+
+    public static void PublishRollPrimed(bool primed) => RollPrimed = primed;
+
+    /// <summary>Raised when a primed landing became a roll.</summary>
+    public static event Action? Rolled;
+
+    public static void PublishRolled() => Rolled?.Invoke();
+
     /// <summary>The player throws one carried item with this id out of the way (dragged off the inventory page).</summary>
     public static event Action<string>? ThrowRequested;
 

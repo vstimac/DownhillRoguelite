@@ -32,6 +32,8 @@ public partial class PlayerController : CharacterBody3D
 
     /// <summary>When false, movement input is ignored, e.g. while a debug camera is active.</summary>
     [Export] public bool InputEnabled { get; set; } = true;
+    /// <summary>A rolled landing (Dive) counts as this share of its impact speed.</summary>
+    [Export] public float RollSoftening { get; set; } = 0.15f;
     /// <summary>Keys move the carrier: input is on and the player isn't typing to the companion.</summary>
     private bool Controls => InputEnabled && !GameEvents.IsConversing;
 
@@ -178,6 +180,14 @@ public partial class PlayerController : CharacterBody3D
         {
             // Speed into the surface, not raw vertical speed, so landing on a slope going with it is softer.
             float impactSpeed = -preMoveVelocity.Dot(GetFloorNormal());
+            if (GameEvents.RollPrimed)
+            {
+                // A timed roll (Dive): the landing is taken by the roll, not the legs.
+                GameEvents.PublishRollPrimed(false);
+                impactSpeed *= RollSoftening;
+                GameEvents.PublishVaulted(true);
+                GameEvents.PublishRolled();
+            }
             if (impactSpeed >= Settings.MinReportedLanding)
             {
                 GameEvents.PublishLanded(impactSpeed);
@@ -389,11 +399,7 @@ public partial class PlayerController : CharacterBody3D
         {
             return;
         }
-        // With a vault on offer, Space belongs to the vault (Vault), not to an ordinary jump.
-        if (GameEvents.CurrentVault.Active)
-        {
-            return;
-        }
+
         if (Stamina != null && !Stamina.TrySpend(Stamina.JumpCost))
         {
             return;

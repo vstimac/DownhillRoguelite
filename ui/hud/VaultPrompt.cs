@@ -39,11 +39,11 @@ public partial class VaultPrompt : Control
         _resultLeft = ResultTime;
         if (cleared)
         {
-            _result = "Vault!";
+            _result = "Rolled!";
         }
         else
         {
-            _result = "Tripped!";
+            _result = "Hard landing!";
         }
     }
 
@@ -58,7 +58,7 @@ public partial class VaultPrompt : Control
 
     private float RadiusFor(float distance, VaultCue cue)
     {
-        return Mathf.Max(6.0f, SweetRadius + (distance - cue.Sweet) * PixelsPerMetre);
+        return Mathf.Clamp(SweetRadius + (distance - cue.Sweet) * PixelsPerMetre, 6.0f, 150.0f);
     }
 
     public override void _Draw()

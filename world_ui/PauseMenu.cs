@@ -16,7 +16,7 @@ public partial class PauseMenu : CanvasLayer
     [Export] public int TitleSize { get; set; } = 40;
     [Export] public int TextSize { get; set; } = 18;
     [Export(PropertyHint.MultilineText)] public string ControlsText { get; set; } =
-        "WASD walk · Shift sprint · C brake (careful steps) · Space jump\n" +
+        "WASD walk · Shift sprint · C brake (careful steps) · Space jump (and, falling, roll on landing) · Left Ctrl dive\n" +
         "Mouse look · LMB / RMB lean left / right · both brace\n" +
         "E pick up / sleep at a bedroll · F eat · Q drink · Tab pack (at stations)\n" +
         "I inventory (Wear clothes, Mend gear at stations) · J journal · Enter talk with the companion\n" +
