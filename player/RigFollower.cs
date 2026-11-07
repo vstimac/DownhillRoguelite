@@ -22,10 +22,23 @@ public partial class RigFollower : SkeletonModifier3D
     [Export] public string[] BonePairs { get; set; } = DefaultPairs();
     [Export] public string HipsBone { get; set; } = "mixamorig1_Hips";
     [Export] public string DriverHipsBone { get; set; } = "DEF-hips";
+    /// <summary>Turn each limb's rest onto the mannequin's (for models not resting in its T-pose).</summary>
+    [Export] public bool AlignRestPose { get; set; } = true;
+    /// <summary>
+    /// The bones whose rest is aligned: the long limb bones, where A-pose and T-pose models differ.
+    /// Clavicles, spine and fingers keep their own rest (their angles differ between rigs only because
+    /// the joints sit in different places, and turning them would hunch the shoulders).
+    /// </summary>
+    [Export] public string[] AlignBones { get; set; } =
+    {
+        "LeftArm", "LeftForeArm", "RightArm", "RightForeArm", "LeftUpLeg", "LeftLeg", "RightUpLeg", "RightLeg",
+    };
 
     private readonly List<(int Target, int Source)> _pairs = new();
     private Quaternion[] _sourceRest = System.Array.Empty<Quaternion>();
     private Quaternion[] _targetRest = System.Array.Empty<Quaternion>();
+    /// <summary>Per target bone: turns its rest so it points where the driver's bone points at rest (T-pose vs A-pose).</summary>
+    private Quaternion[] _align = System.Array.Empty<Quaternion>();
     private Quaternion _space = Quaternion.Identity;
     private int _hips = -1;
     private int _driverHips = -1;
@@ -35,6 +48,13 @@ public partial class RigFollower : SkeletonModifier3D
     private bool _ready;
 
     public int Followed => _pairs.Count;
+    /// <summary>
+    /// Tests: keep each frame's resulting bone origins (skeleton space), since a modifier's pose is
+    /// only used for skinning and can't be read back from the skeleton afterwards. Driver origins too.
+    /// </summary>
+    public bool RecordPose { get; set; }
+    public Vector3[] TargetPose { get; private set; } = System.Array.Empty<Vector3>();
+    public Vector3[] DriverPose { get; private set; } = System.Array.Empty<Vector3>();
 
     /// <summary>Mixamo bones and the mannequin (Rigify) bones they follow.</summary>
     public static string[] DefaultPairs()
@@ -90,7 +110,7 @@ public partial class RigFollower : SkeletonModifier3D
         _pairs.Clear();
         for (int i = 0; i + 1 < BonePairs.Length; i += 2)
         {
-            int t = target.FindBone(BonePairs[i]);
+            int t = FindBone(target, BonePairs[i]);
             int s = Driver.FindBone(BonePairs[i + 1]);
             if (t >= 0 && s >= 0)
             {
@@ -111,7 +131,8 @@ public partial class RigFollower : SkeletonModifier3D
         }
         // The driver's skeleton space seen from this one (constant: both ride on the same body).
         _space = (target.GlobalBasis.Orthonormalized().Inverse() * Driver.GlobalBasis.Orthonormalized()).GetRotationQuaternion();
-        _hips = target.FindBone(HipsBone);
+        AlignRests(target);
+        _hips = FindBone(target, HipsBone);
         _driverHips = Driver.FindBone(DriverHipsBone);
         if (_hips >= 0 && _driverHips >= 0)
         {
@@ -132,6 +153,126 @@ public partial class RigFollower : SkeletonModifier3D
         _ready = true;
     }
 
+    /// <summary>
+    /// Models don't all rest in the mannequin's T-pose (an A-pose has the arms down at 45°). For each
+    /// followed bone with exactly one followed child, the shortest turn that makes its rest direction
+    /// (bone to child) match the driver's is recorded and applied under the driver's motion, so arms
+    /// and legs end up where the mannequin's are. Rigs that already match get (almost) no turn.
+    /// </summary>
+    private void AlignRests(Skeleton3D target)
+    {
+        _align = new Quaternion[target.GetBoneCount()];
+        for (int i = 0; i < _align.Length; i++)
+        {
+            _align[i] = Quaternion.Identity;
+        }
+        if (!AlignRestPose)
+        {
+            return;
+        }
+        foreach ((int t, int s) in _pairs)
+        {
+            if (!Listed(target.GetBoneName(t)))
+            {
+                continue;
+            }
+            int childT = -1;
+            int childS = -1;
+            int children = 0;
+            foreach ((int t2, int s2) in _pairs)
+            {
+                if (target.GetBoneParent(t2) == t)
+                {
+                    childT = t2;
+                    childS = s2;
+                    children++;
+                }
+            }
+            if (children != 1)
+            {
+                continue;
+            }
+            Vector3 own = target.GetBoneGlobalRest(childT).Origin - target.GetBoneGlobalRest(t).Origin;
+            Vector3 driver = _space * (Driver!.GetBoneGlobalRest(childS).Origin - Driver.GetBoneGlobalRest(s).Origin);
+            if (own.LengthSquared() < 1e-10f || driver.LengthSquared() < 1e-10f)
+            {
+                continue;
+            }
+            own = own.Normalized();
+            driver = driver.Normalized();
+            if (own.Dot(driver) < -0.99f)
+            {
+                continue;
+            }
+            _align[t] = new Quaternion(own, driver).Normalized();
+        }
+    }
+
+    private bool Listed(string bone)
+    {
+        foreach (string name in AlignBones)
+        {
+            if (bone == name || bone.EndsWith("_" + name) || bone.EndsWith(":" + name))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>The bones whose rest is turned more than <paramref name="degrees"/>, with the turn (diagnostics and tests).</summary>
+    public string AlignedBones(float degrees)
+    {
+        Skeleton3D? target = GetSkeleton();
+        System.Text.StringBuilder list = new();
+        for (int i = 0; target != null && i < _align.Length; i++)
+        {
+            float angle = Mathf.RadToDeg(_align[i].GetAngle());
+            if (angle > degrees)
+            {
+                list.Append($"{target.GetBoneName(i)} {angle:0}°, ");
+            }
+        }
+        return list.ToString().TrimEnd(',', ' ');
+    }
+
+    /// <summary>Largest rest correction applied (degrees): near 0 for a model in the same rest pose as the mannequin.</summary>
+    public float LargestAlignDegrees
+    {
+        get
+        {
+            float largest = 0.0f;
+            foreach (Quaternion q in _align)
+            {
+                largest = Mathf.Max(largest, Mathf.RadToDeg(q.GetAngle()));
+            }
+            return largest;
+        }
+    }
+
+    /// <summary>
+    /// A bone by its exact name, or else by the part after the Mixamo prefix, so any prefix works
+    /// (mixamorig1_Hips, mixamorig_Hips from "mixamorig:Hips", or plain Hips).
+    /// </summary>
+    public static int FindBone(Skeleton3D skeleton, string name)
+    {
+        int exact = skeleton.FindBone(name);
+        if (exact >= 0)
+        {
+            return exact;
+        }
+        string bare = name.Substring(name.IndexOf('_') + 1);
+        for (int i = 0; i < skeleton.GetBoneCount(); i++)
+        {
+            string bone = skeleton.GetBoneName(i);
+            if (bone == bare || bone.EndsWith("_" + bare) || bone.EndsWith(":" + bare))
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     public override void _ProcessModificationWithDelta(double delta)
     {
         Skeleton3D? target = GetSkeleton();
@@ -145,7 +286,7 @@ public partial class RigFollower : SkeletonModifier3D
             // The driver's rotation away from its rest, carried into this skeleton's space and onto this bone's rest.
             Quaternion driverNow = Driver.GetBoneGlobalPose(s).Basis.GetRotationQuaternion();
             Quaternion away = _space * driverNow * _sourceRest[s].Inverse() * inverseSpace;
-            Quaternion wanted = (away * _targetRest[t]).Normalized();
+            Quaternion wanted = (away * _align[t] * _targetRest[t]).Normalized();
             int parent = target.GetBoneParent(t);
             Quaternion parentGlobal = Quaternion.Identity;
             if (parent >= 0)
@@ -166,6 +307,19 @@ public partial class RigFollower : SkeletonModifier3D
                     parentBasis = parentPose.Basis;
                 }
                 target.SetBonePosePosition(t, parentBasis.Inverse() * (hipsGlobal - parentOrigin));
+            }
+        }
+        if (RecordPose)
+        {
+            TargetPose = new Vector3[target.GetBoneCount()];
+            for (int i = 0; i < TargetPose.Length; i++)
+            {
+                TargetPose[i] = target.GetBoneGlobalPose(i).Origin;
+            }
+            DriverPose = new Vector3[Driver.GetBoneCount()];
+            for (int i = 0; i < DriverPose.Length; i++)
+            {
+                DriverPose[i] = Driver.GetBoneGlobalPose(i).Origin;
             }
         }
     }

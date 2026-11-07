@@ -30,6 +30,8 @@ public partial class OptionsPanel : VBoxContainer
         Choice("Survival stats", new[] { "Dials", "Bars (0-100)" }, (int)GameOptions.Stats, i => GameOptions.SetStats((StatStyle)i));
         Slider("Field of view", 60.0, 120.0, 1.0, GameOptions.FieldOfView, "{0:0}°", v => GameOptions.SetFieldOfView((float)v));
 
+        CharacterChoice();
+
         Heading("Accessibility");
         Choice("Colour-blind filter", new[] { "Off", "Protanopia (red)", "Deuteranopia (green)", "Tritanopia (blue)" }, (int)GameOptions.Filter,
             i => GameOptions.SetFilter((ColourFilter)i));
@@ -39,6 +41,32 @@ public partial class OptionsPanel : VBoxContainer
         back.AddThemeFontSizeOverride("font_size", TextSize + 2);
         back.Pressed += () => BackPressed?.Invoke();
         AddChild(back);
+    }
+
+    /// <summary>The character to play (only those whose model is in the game; changes on the spot).</summary>
+    private void CharacterChoice()
+    {
+        CarrierRoster? roster = CarrierRoster.Load();
+        if (roster == null)
+        {
+            return;
+        }
+        System.Collections.Generic.List<CarrierCharacter> characters = roster.Available();
+        if (characters.Count < 2)
+        {
+            return;
+        }
+        string[] names = new string[characters.Count];
+        int selected = 0;
+        for (int i = 0; i < characters.Count; i++)
+        {
+            names[i] = characters[i].DisplayName;
+            if (characters[i].Id == GameOptions.Character)
+            {
+                selected = i;
+            }
+        }
+        Choice("Character", names, selected, i => GameOptions.SetCharacter(characters[i].Id));
     }
 
     private void Heading(string text)

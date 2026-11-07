@@ -21,6 +21,17 @@ public partial class CarrierWornGear : Node
     /// <summary>The items shown by CarrierModel from his own pieces, skipped here.</summary>
     public string HelmetItem { get; set; } = "hard_hat";
     public string VestItem { get; set; } = "hi_vis_vest";
+    /// <summary>Drawn here as a yellow hard hat and a hi-vis vest when the model has no pieces for them.</summary>
+    [Export] public string HardHatId { get; set; } = "hard_hat";
+    [Export] public string HiVisId { get; set; } = "hi_vis_vest";
+    /// <summary>The body under a drawn coat or vest when the model has no vest mesh to copy (m).</summary>
+    [Export] public float TorsoRadius { get; set; } = 0.17f;
+    [Export] public float TorsoDepth { get; set; } = 0.72f;
+    /// <summary>The drawn torso's half width as a share of the shoulder joints' half spacing.</summary>
+    [Export] public float ShoulderShare { get; set; } = 0.95f;
+    /// <summary>Slack over the body mesh's half depth, so a drawn vest sits on the clothes (m).</summary>
+    [Export] public float TorsoSlack { get; set; } = 0.02f;
+    [Export] public float TorsoMaxRadius { get; set; } = 0.3f;
 
     [Export] public float HatRadius { get; set; } = 0.105f;
     [Export] public float GloveRadius { get; set; } = 0.045f;
@@ -34,6 +45,8 @@ public partial class CarrierWornGear : Node
     private readonly Dictionary<EquipSlot, string> _shownItem = new();
     private Basis _frame = Basis.Identity;
     private float _metresPerUnit = 1.0f;
+    private float _torsoX;
+    private float _torsoZ;
 
     public override void _Ready()
     {
@@ -57,6 +70,7 @@ public partial class CarrierWornGear : Node
         Vector3 back = right.Cross(up).Normalized();
         right = up.Cross(back).Normalized();
         _frame = new Basis(right, up, back);
+        MeasureTorso();
         GameEvents.GearChanged += OnGear;
         OnGear(GameEvents.CurrentGear);
     }
@@ -107,14 +121,21 @@ public partial class CarrierWornGear : Node
         switch (slot)
         {
             case EquipSlot.Head:
-                ShowHat(nodes);
+                ShowHat(nodes, id == HardHatId);
                 break;
             case EquipSlot.Hands:
                 ShowGlove(nodes, "Left", 1.0f);
                 ShowGlove(nodes, "Right", -1.0f);
                 break;
             case EquipSlot.Torso:
-                ShowCoat(nodes);
+                if (id == HiVisId)
+                {
+                    ShowVest(nodes);
+                }
+                else
+                {
+                    ShowCoat(nodes);
+                }
                 break;
             case EquipSlot.Cape:
                 ShowCape(nodes);
@@ -122,7 +143,7 @@ public partial class CarrierWornGear : Node
         }
     }
 
-    private void ShowHat(List<Node3D> nodes)
+    private void ShowHat(List<Node3D> nodes, bool hardHat)
     {
         Node3D? piece = Attach("Head", nodes);
         if (piece == null)
@@ -134,7 +155,14 @@ public partial class CarrierWornGear : Node
         {
             top = Vector3.Up * 0.18f;
         }
-        ItemModels.AddHat(piece, top * 0.52f, HatRadius);
+        if (hardHat)
+        {
+            ItemModels.AddHardHat(piece, top * 0.55f, HatRadius);
+        }
+        else
+        {
+            ItemModels.AddHat(piece, top * 0.52f, HatRadius);
+        }
     }
 
     private void ShowGlove(List<Node3D> nodes, string side, float sign)
@@ -177,6 +205,10 @@ public partial class CarrierWornGear : Node
             parent.AddChild(body);
             nodes.Add(body);
         }
+        else
+        {
+            Torso(nodes, ItemModels.Oilskin, 1.0f);
+        }
         foreach (string side in new[] { "Left", "Right" })
         {
             Sleeve(nodes, side + "Arm", side + "ForeArm", SleeveRadius);
@@ -189,6 +221,78 @@ public partial class CarrierWornGear : Node
                 ItemModels.Oilskin, Vector3.Down * 0.1f, default, 0.45f);
             skirt.Scale = new Vector3(1.0f, 1.0f, 0.72f);
         }
+    }
+
+    /// <summary>
+    /// The drawn torso's half width and half depth (m), from this model: width from the shoulder
+    /// joints, depth from the body meshes' rest bounds, so a broad character's vest isn't swallowed.
+    /// </summary>
+    private void MeasureTorso()
+    {
+        _torsoX = TorsoRadius;
+        _torsoZ = TorsoRadius * TorsoDepth;
+        if (Skeleton == null)
+        {
+            return;
+        }
+        float shoulders = (RestOrigin("LeftArm") - RestOrigin("RightArm")).Length() * 0.5f * _metresPerUnit;
+        _torsoX = Mathf.Clamp(Mathf.Max(TorsoRadius, shoulders * ShoulderShare), TorsoRadius, TorsoMaxRadius);
+        Vector3 back = _frame.Z.Abs();
+        foreach (Node node in Skeleton.GetChildren())
+        {
+            if (node is MeshInstance3D mesh && mesh.Mesh != null)
+            {
+                Vector3 size = mesh.GetAabb().Size * mesh.Scale;
+                float depth = (size.X * back.X + size.Y * back.Y + size.Z * back.Z) * 0.5f * _metresPerUnit;
+                _torsoZ = Mathf.Max(_torsoZ, depth + TorsoSlack);
+            }
+        }
+        _torsoZ = Mathf.Min(_torsoZ, TorsoMaxRadius);
+    }
+
+    /// <summary>A hi-vis vest: an open torso shell with two reflective bands.</summary>
+    /// <summary>The drawn torso's half width and half depth (m), for tests.</summary>
+    public Vector2 TorsoSize => new(_torsoX, _torsoZ);
+
+    private void ShowVest(List<Node3D> nodes)
+    {
+        Node3D? piece = Torso(nodes, ItemModels.HiVis, 0.85f);
+        if (piece == null)
+        {
+            return;
+        }
+        Vector3 chest = Local("Spine1", RestOrigin("Neck")) * 0.55f;
+        foreach (float y in new[] { 0.0f, -0.14f })
+        {
+            MeshInstance3D band = ItemModels.Part(piece, new CylinderMesh { TopRadius = _torsoX * 1.04f, BottomRadius = _torsoX * 1.04f, Height = 0.035f, RadialSegments = 20, CapTop = false, CapBottom = false },
+                ItemModels.Reflective, chest + Vector3.Up * y, default, 0.2f);
+            band.Scale = new Vector3(1.0f, 1.0f, _torsoZ / _torsoX);
+        }
+    }
+
+    /// <summary>
+    /// A rigid shell round the torso (hips to the base of the neck), for models without a vest mesh to
+    /// grow; <paramref name="length"/> is the share of that height it covers, from the top.
+    /// </summary>
+    private Node3D? Torso(List<Node3D> nodes, Color colour, float length)
+    {
+        Node3D? piece = Attach("Spine1", nodes);
+        if (piece == null)
+        {
+            return null;
+        }
+        Vector3 hips = Local("Spine1", RestOrigin("Hips"));
+        Vector3 neck = Local("Spine1", RestOrigin("Neck"));
+        if (neck.LengthSquared() < 0.0001f)
+        {
+            return piece;
+        }
+        float height = (neck.Y - hips.Y) * length;
+        Vector3 centre = new(0.0f, neck.Y - height * 0.5f - 0.03f, 0.0f);
+        MeshInstance3D shell = ItemModels.Part(piece, new CylinderMesh { TopRadius = _torsoX * 0.97f, BottomRadius = _torsoX, Height = height, RadialSegments = 20, CapTop = false, CapBottom = false },
+            colour, centre, default, 0.5f);
+        shell.Scale = new Vector3(1.0f, 1.0f, _torsoZ / _torsoX);
+        return piece;
     }
 
     private void Sleeve(List<Node3D> nodes, string bone, string next, float radius)

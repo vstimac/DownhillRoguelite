@@ -85,6 +85,12 @@ public partial class DebugSceneControls : Node
                 string items = arg.Substring("--wear=".Length);
                 GetTree().CreateTimer(0.8).Timeout += () => GiveItems(items, true);
             }
+            if (arg.StartsWith("--portrait="))
+            {
+                // `--portrait=180` brings the camera close and turns it that many degrees (180: from the front).
+                float turn = float.Parse(arg.Substring("--portrait=".Length), System.Globalization.CultureInfo.InvariantCulture);
+                GetTree().CreateTimer(1.0).Timeout += () => Portrait(GetTree().Root, turn);
+            }
             if (arg.StartsWith("--herd="))
             {
                 string spec = arg.Substring("--herd=".Length);
@@ -367,6 +373,18 @@ public partial class DebugSceneControls : Node
             FlyCamera.MakeCurrent();
             PlayerBody.InputEnabled = false;
             Input.MouseMode = Input.MouseModeEnum.Visible;
+        }
+    }
+
+    private static void Portrait(Node node, float turn)
+    {
+        if (node is Player.ChaseCamera camera)
+        {
+            camera.Portrait(2.6f, turn);
+        }
+        foreach (Node child in node.GetChildren())
+        {
+            Portrait(child, turn);
         }
     }
 }

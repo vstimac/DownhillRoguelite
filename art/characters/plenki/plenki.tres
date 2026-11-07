@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="CarrierCharacter" format=3]
+
+[ext_resource type="Script" path="res://core/CarrierCharacter.cs" id="1_character"]
+
+[resource]
+script = ExtResource("1_character")
+Id = "plenki"
+DisplayName = "Plenki"
+ModelPath = "res://art/characters/plenki/plenki.glb"

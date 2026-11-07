@@ -30,6 +30,9 @@ public static class GameOptions
     /// <summary>Size of the whole interface and its text, for 2K/4K screens (0.75–1.5).</summary>
     public static float UiScale { get; private set; } = 1.0f;
 
+    /// <summary>The chosen character's id (CarrierRoster); an unknown or missing one falls back to the first.</summary>
+    public static string Character { get; private set; } = "default";
+
     private static bool _loaded;
 
     /// <summary>Reads the saved options (once; later calls do nothing).</summary>
@@ -53,6 +56,7 @@ public static class GameOptions
         PathLines = (bool)file.GetValue(Section, "path_lines", PathLines);
         Filter = (ColourFilter)(int)file.GetValue(Section, "colour_filter", (int)Filter);
         UiScale = Mathf.Clamp((float)file.GetValue(Section, "ui_scale", UiScale), 0.75f, 1.5f);
+        Character = (string)file.GetValue(Section, "character", Character);
         Changed?.Invoke();
     }
 
@@ -64,6 +68,7 @@ public static class GameOptions
     public static void SetPathLines(bool on) => Set(() => PathLines = on);
     public static void SetFilter(ColourFilter filter) => Set(() => Filter = filter);
     public static void SetUiScale(float scale) => Set(() => UiScale = Mathf.Clamp(scale, 0.75f, 1.5f));
+    public static void SetCharacter(string id) => Set(() => Character = id);
 
     private static void Set(Action change)
     {
@@ -84,6 +89,7 @@ public static class GameOptions
         file.SetValue(Section, "path_lines", PathLines);
         file.SetValue(Section, "colour_filter", (int)Filter);
         file.SetValue(Section, "ui_scale", UiScale);
+        file.SetValue(Section, "character", Character);
         file.Save(FilePath);
     }
 }

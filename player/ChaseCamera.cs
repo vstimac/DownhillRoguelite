@@ -99,6 +99,19 @@ public partial class ChaseCamera : Node3D
         }
     }
 
+    /// <summary>Debug portraits (--portrait): a close camera turned round by <paramref name="turnDegrees"/> (180 = from the front).</summary>
+    public void Portrait(float distance, float turnDegrees)
+    {
+        if (Arm != null)
+        {
+            Arm.SpringLength = distance;
+        }
+        _yawDegrees += turnDegrees;
+        _pitchDegrees = -6.0f;
+        PivotHeight = 1.2f;
+        ApplyRotation();
+    }
+
     /// <summary>Puts the camera straight behind the target at the default pitch, e.g. after a respawn.</summary>
     private void SnapBehindTarget()
     {
