@@ -1,6 +1,6 @@
 <div align="center">
 
-# THE DESCENT
+# DownhillRoguelite
 
 **An endless downhill survival roguelite about carrying too much, losing your footing, and chasing an unreachable godhood.**
 
@@ -47,4 +47,4 @@ Explore [docs/](docs/) for game design and systems, [narrative/](narrative/) for
 
 ---
 
-**The Descent** is an independent game project in development.
+**DownhillRoguelite** is an independent game project in development.
