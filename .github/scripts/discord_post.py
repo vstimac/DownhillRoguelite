@@ -1,5 +1,8 @@
 """Posts GitHub pushes and releases to Discord as full patch notes (run by .github/workflows/discord.yml).
 
+Release posts end with "Play now" buttons (Windows, Linux) that download the newest build: they
+point at GitHub's latest-release links, so even an old post's buttons fetch the current patch.
+
 Discord's own GitHub hook shows only the first ~50 characters of each commit. This posts every
 commit's whole message, and a release's whole notes split into one card per section (tables
 turned into lines, since Discord can't show tables), with the download links at the end.
@@ -25,8 +28,15 @@ MESSAGE_LIMIT = 5800
 EMBEDS_PER_MESSAGE = 10
 
 
-def send(content, embeds):
-    """Sends embeds in as many messages as Discord's limits need (10 cards, ~6000 characters each)."""
+# Assets with these names are what the Play now buttons download (the newest full release's).
+PLAY_BUTTONS = [
+    ("Play now (Windows)", "DownhillRoguelite-playtest1-windows.zip"),
+    ("Play now (Linux)", "DownhillRoguelite-linux-beta.tar.gz"),
+]
+
+
+def send(content, embeds, buttons=None):
+    """Sends embeds in as many messages as Discord's limits need (10 cards, ~6000 characters each); buttons go on the last."""
     batches = []
     batch = []
     size = 0
@@ -44,13 +54,16 @@ def send(content, embeds):
         payload = {"embeds": embeds_part, "username": "Downhill Roguelite", "allowed_mentions": {"parse": []}}
         if index == 0 and content:
             payload["content"] = content
+        if buttons and index == len(batches) - 1:
+            payload["components"] = [{"type": 1, "components": buttons}]
         post(payload)
 
 
 def post(payload):
     data = json.dumps(payload).encode("utf-8")
     for attempt in range(5):
-        request = urllib.request.Request(WEBHOOK + "?wait=true", data=data, method="POST")
+        # with_components lets a plain channel webhook send link buttons.
+        request = urllib.request.Request(WEBHOOK + "?wait=true&with_components=true", data=data, method="POST")
         request.add_header("Content-Type", "application/json")
         request.add_header("User-Agent", "DownhillRoguelite-Updates (github actions)")
         try:
@@ -63,6 +76,11 @@ def post(payload):
                 time.sleep(float(retry) + 0.5)
                 continue
             print("Discord said", error.code, error.read()[:300], file=sys.stderr)
+            if error.code == 400 and "components" in payload:
+                # Buttons refused: post the message without them rather than not at all.
+                payload = {k: v for k, v in payload.items() if k != "components"}
+                data = json.dumps(payload).encode("utf-8")
+                continue
             raise
     raise RuntimeError("Discord kept rate-limiting")
 
@@ -153,7 +171,18 @@ def on_release(event):
         lines = [f"[{a['name']}]({a['browser_download_url']}) ({a['size'] / 1_000_000:.0f} MB)" for a in assets]
         embeds.append({"title": "Downloads", "url": url, "color": EMBER, "description": cut("\n".join(lines), DESCRIPTION_LIMIT)})
     kind = "pre-release" if release.get("prerelease") else "release"
-    send(f"**New {kind}: {name}**\n<{url}>", embeds)
+    repo = event.get("repository", {}).get("html_url", "")
+    names = {a["name"] for a in assets}
+    buttons = []
+    for label, asset in PLAY_BUTTONS:
+        if asset in names:
+            # A full release: the latest-release link always gives the newest patch. A pre-release: its own file.
+            link = f"{repo}/releases/latest/download/{asset}"
+            if release.get("prerelease"):
+                link = f"{url.replace('/tag/', '/download/')}/{asset}"
+            buttons.append({"type": 2, "style": 5, "label": label, "url": link})
+    buttons.append({"type": 2, "style": 5, "label": "Patch notes", "url": url})
+    send(f"**New {kind}: {name}**\n<{url}>", embeds, buttons)
 
 
 def main():
