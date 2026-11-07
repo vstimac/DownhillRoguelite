@@ -43,16 +43,24 @@ public partial class InventoryScreen : ParchmentPanel
 
     private void OnVitals(VitalsSnapshot vitals) => _vitals = vitals;
 
-    /// <summary>The carrier's state beside the pack: body, load, what the gear gives, where they are.</summary>
+    /// <summary>
+    /// The character sheet beside the pack: body, load, then each ability as its total with what it
+    /// is made of (base, what the gear adds, what this run's boons add), and where the carrier is.
+    /// </summary>
     public string StatsText()
     {
         List<string> lines = new() { "THE CARRIER", "" };
+        RunModifiers? mods = _run?.Modifiers;
         if (_vitals is VitalsSnapshot v)
         {
             lines.Add($"Health  {v.Health:0} / {v.MaxHealth:0}");
-            lines.Add($"Hunger  {v.Hunger:0} / 100");
-            lines.Add($"Thirst  {v.Thirst:0} / 100");
-            lines.Add($"Stamina  {v.Stamina:0} / {v.MaxStamina:0}");
+            lines.Add($"Hunger {v.Hunger:0}  ·  Thirst {v.Thirst:0}");
+            float baseStamina = v.MaxStamina;
+            if (mods != null && mods.StaminaMax > 0.01f)
+            {
+                baseStamina = v.MaxStamina / mods.StaminaMax;
+            }
+            lines.Add($"Stamina  {v.Stamina:0} / {v.MaxStamina:0}" + Parts(baseStamina, 0.0f, v.MaxStamina - baseStamina, ""));
             lines.Add("");
         }
         GearSnapshot gear = GameEvents.CurrentGear;
@@ -62,12 +70,32 @@ public partial class InventoryScreen : ParchmentPanel
             lines.Add($"Pack  {gear.Backpack.Durability:0} / {gear.Backpack.MaxDurability:0}");
         }
         lines.Add($"Pockets  {gear.PocketsUsed} / {gear.Pockets}");
-        lines.Add($"Warmth  +{gear.Warmth * 100.0f:0}%");
-        lines.Add($"Rain cover  {gear.RainProof * 100.0f:0}%");
-        lines.Add($"Grip  +{gear.Grip * 100.0f:0}%");
+        lines.Add("");
+        float boonGrip = 0.0f;
+        float boonBalance = 0.0f;
+        float boonSpeed = 0.0f;
+        float boonCold = 0.0f;
+        float boonRecovery = 0.0f;
+        float boonNeeds = 0.0f;
+        if (mods != null)
+        {
+            boonGrip = (mods.Grip - 1.0f) * 100.0f;
+            boonBalance = (mods.Balance - 1.0f) * 100.0f;
+            boonSpeed = (mods.WalkSpeed - 1.0f) * 100.0f;
+            boonCold = mods.ColdResistance * 100.0f;
+            boonRecovery = (mods.StaminaRecovery - 1.0f) * 100.0f;
+            boonNeeds = (mods.NeedsDrain - 1.0f) * 100.0f;
+        }
+        lines.Add(Stat("Grip", 100.0f, gear.Grip * 100.0f, boonGrip));
+        lines.Add(Stat("Balance", 100.0f, 0.0f, boonBalance));
+        lines.Add(Stat("Walk speed", 100.0f, 0.0f, boonSpeed));
+        lines.Add(Stat("Warmth", 0.0f, gear.Warmth * 100.0f, boonCold));
+        lines.Add(Stat("Rain cover", 0.0f, gear.RainProof * 100.0f, 0.0f));
+        lines.Add(Stat("Recovery", 100.0f, 0.0f, boonRecovery));
+        lines.Add(Stat("Hunger rate", 100.0f, 0.0f, boonNeeds));
         if (gear.WindCatch > 0.0f)
         {
-            lines.Add($"Catches wind  +{gear.WindCatch:0.00} m\u00b2");
+            lines.Add($"Catches wind  +{gear.WindCatch:0.00} m²");
         }
         if (_run != null)
         {
@@ -79,6 +107,40 @@ public partial class InventoryScreen : ParchmentPanel
             }
         }
         return string.Join("\n", lines);
+    }
+
+    /// <summary>"Grip 125%  (100 +15 gear +10 boons)": the total, then its parts when there are bonuses.</summary>
+    private static string Stat(string name, float baseValue, float gear, float boons)
+    {
+        float total = baseValue + gear + boons;
+        return $"{name}  {total:0}%" + Parts(baseValue, gear, boons, "");
+    }
+
+    private static string Parts(float baseValue, float gear, float boons, string unit)
+    {
+        if (Mathf.Abs(gear) < 0.5f && Mathf.Abs(boons) < 0.5f)
+        {
+            return "";
+        }
+        string parts = $"  ({baseValue:0}{unit}";
+        if (Mathf.Abs(gear) >= 0.5f)
+        {
+            parts += $" {Signed(gear)} gear";
+        }
+        if (Mathf.Abs(boons) >= 0.5f)
+        {
+            parts += $" {Signed(boons)} boons";
+        }
+        return parts + ")";
+    }
+
+    private static string Signed(float value)
+    {
+        if (value >= 0.0f)
+        {
+            return $"+{value:0}";
+        }
+        return $"{value:0}";
     }
 
     public override void _Ready()
@@ -124,7 +186,8 @@ public partial class InventoryScreen : ParchmentPanel
         AddChild(_drop);
         _stats = UiStyle.MakeLabel("", UiStyle.SmallSize);
         _stats.Position = new Vector2(StatsX, 60);
-        _stats.Size = new Vector2(Size.X - StatsX - 20, 400);
+        _stats.Size = new Vector2(Size.X - StatsX - 20, 470);
+        _stats.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         AddChild(_stats);
         GameEvents.VitalsUpdated += OnVitals;
         _run = GetNodeOrNull<RunState>("/root/RunState");
