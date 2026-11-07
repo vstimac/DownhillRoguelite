@@ -212,8 +212,8 @@ public partial class StationManager : Node3D
             });
             _summitLabel = new Label3D
             {
-                FontSize = 44,
-                PixelSize = 0.006f,
+                FontSize = 30,
+                PixelSize = 0.005f,
                 Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
                 OutlineSize = 8,
                 Position = new Vector3(0.0f, 1.9f, 0.0f),

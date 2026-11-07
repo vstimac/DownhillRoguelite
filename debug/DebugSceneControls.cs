@@ -68,6 +68,11 @@ public partial class DebugSceneControls : Node
         // `--walk-seconds=3` walks forward that long, then stops.
         foreach (string arg in args)
         {
+            if (arg.StartsWith("--drop="))
+            {
+                string items = arg.Substring("--drop=".Length);
+                GetTree().CreateTimer(1.0).Timeout += () => DropItems(items);
+            }
             if (arg.StartsWith("--herd="))
             {
                 string spec = arg.Substring("--herd=".Length);
@@ -143,6 +148,37 @@ public partial class DebugSceneControls : Node
         if (PlayerBody != null && PlayerBody.GlobalPosition.Y < KillHeight)
         {
             GameEvents.PublishKill("fell");
+        }
+    }
+
+    /// <summary>Lays items (comma-separated ids from inventory/items) on the ground ahead of the carrier (screenshots).</summary>
+    private void DropItems(string ids)
+    {
+        if (PlayerBody == null)
+        {
+            return;
+        }
+        string[] list = ids.Split(',');
+        Vector3 forward = -PlayerBody.GlobalBasis.Z;
+        forward.Y = 0.0f;
+        forward = forward.Normalized();
+        Vector3 side = forward.Cross(Vector3.Up);
+        PhysicsDirectSpaceState3D space = PlayerBody.GetWorld3D().DirectSpaceState;
+        for (int i = 0; i < list.Length; i++)
+        {
+            if (ResourceLoader.Load($"res://inventory/items/{list[i].Trim()}.tres") is not Inventory.ItemDefinition definition)
+            {
+                continue;
+            }
+            Vector3 at = PlayerBody.GlobalPosition + forward * (5.0f + i * 2.5f) + side * ((i % 2) * 2.0f - 1.0f) * 1.8f;
+            Godot.Collections.Dictionary hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(at + Vector3.Up * 10.0f, at + Vector3.Down * 10.0f, 1));
+            if (hit.Count > 0)
+            {
+                at = (Vector3)hit["position"];
+            }
+            Inventory.WorldItem item = new() { Definition = definition };
+            GetTree().CurrentScene.AddChild(item);
+            item.GlobalPosition = at;
         }
     }
 
