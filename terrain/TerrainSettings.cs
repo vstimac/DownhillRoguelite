@@ -48,6 +48,18 @@ public partial class TerrainSettings : Resource
     /// <summary>Z where the run starts.</summary>
     [Export] public float SpawnZ { get; set; } = 0.0f;
 
+    [ExportGroup("Summit (M12)")]
+    /// <summary>The run starts on the summit: nothing near the start rises above it. Height of the summit above the start, in m.</summary>
+    [Export] public float SummitRise { get; set; } = 0.5f;
+    /// <summary>The summit plateau runs this far behind the start before the cliff, in m.</summary>
+    [Export] public float SummitBack { get; set; } = 10.0f;
+    /// <summary>The cliff behind the summit, in degrees: far too steep to climb, a slide into the abyss.</summary>
+    [Export] public float SummitCliffSlope { get; set; } = 60.0f;
+    /// <summary>Ahead and to the sides, nothing rises above a plane falling from the summit at this angle, in degrees.</summary>
+    [Export] public float SummitCapSlope { get; set; } = 12.0f;
+    /// <summary>A carrier this far below the summit, behind it, has fallen into the abyss and dies, in m.</summary>
+    [Export] public float AbyssDrop { get; set; } = 25.0f;
+
     [ExportGroup("Stations")]
     /// <summary>Metres of descent between stations (one day's stage).</summary>
     [Export] public float StationDepthInterval { get; set; } = 600.0f;

@@ -206,7 +206,7 @@ public partial class VitalsTests : Node3D
         await WaitSeconds(0.2f);
         Check("zero health collapses the carrier", health.Dead && GameEvents.IsDowned, $"dead {health.Dead}, downed {GameEvents.IsDowned}");
 
-        await WaitUntil(() => !health.Dead, health.RespawnDelay + 1.0f);
+        await WaitUntil(() => !health.Dead, GetNode<RunState>("/root/RunState").SummaryDelay + 1.0f);
         await WaitSeconds(0.2f);
         Check("dead carrier respawns healed and standing", !health.Dead && !GameEvents.IsDowned && health.Current >= health.Max,
             $"health {health.Current:0}, downed {GameEvents.IsDowned}");

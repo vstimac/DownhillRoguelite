@@ -143,6 +143,41 @@ public static class GameEvents
         RouteChosen?.Invoke(stage, kind);
     }
 
+    /// <summary>
+    /// Raised when a new run begins on a new mountain, before RespawnRequested resets the systems:
+    /// terrain rebuilds from the seed first, so everything placed afterwards lands on the new world.
+    /// </summary>
+    public static event Action<ulong>? NewMountain;
+
+    public static void PublishNewMountain(ulong seed)
+    {
+        NewMountain?.Invoke(seed);
+    }
+
+    /// <summary>Raised when the carrier dies, with what killed it.</summary>
+    public static event Action<string>? CarrierDied;
+
+    public static void PublishCarrierDied(string cause)
+    {
+        CarrierDied?.Invoke(cause);
+    }
+
+    /// <summary>Raised once per run when it ends: the journey's summary.</summary>
+    public static event Action<RunSummary>? RunEnded;
+
+    public static void PublishRunEnded(RunSummary summary)
+    {
+        RunEnded?.Invoke(summary);
+    }
+
+    /// <summary>Asks for the carrier to die at once (falling into the abyss), with a cause.</summary>
+    public static event Action<string>? KillRequested;
+
+    public static void PublishKill(string cause)
+    {
+        KillRequested?.Invoke(cause);
+    }
+
     /// <summary>True while a narrator line is playing (music ducks under it).</summary>
     public static bool IsNarrating { get; private set; }
 

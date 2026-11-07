@@ -3,8 +3,11 @@ using Godot;
 namespace DownhillRoguelite.Core;
 
 /// <summary>
-/// Autoload holding state for the current run. Systems share run-wide data through
-/// this node instead of referencing each other directly. Placeholder until the run loop exists.
+/// Autoload holding state for the current run, and the run loop (M12): death is permanent. When
+/// the carrier dies the run ends (RunEnded, with a summary that goes into the records); after
+/// SummaryDelay a new run starts on a new mountain: a new seed (NewMountain, so terrain rebuilds),
+/// then RespawnRequested so every system resets. Systems share run-wide data through this node
+/// instead of referencing each other directly.
 /// </summary>
 public partial class RunState : Node
 {
@@ -16,6 +19,26 @@ public partial class RunState : Node
 
     /// <summary>Highest station reached this run (0 before the first).</summary>
     public int Stage { get; set; }
+
+    /// <summary>This run's number in the save (1 = first).</summary>
+    public int RunNumber { get; private set; } = 1;
+    /// <summary>Seconds between the carrier's death and the next run on a new mountain.</summary>
+    public float SummaryDelay { get; set; } = 7.0f;
+    /// <summary>False keeps the same mountain after death (tests that compare before and after).</summary>
+    public bool NewMountainOnDeath { get; set; } = true;
+    public bool RunOver { get; private set; }
+    public RunSummary LastSummary { get; private set; }
+
+    /// <summary>What carries over between runs (user://records.cfg).</summary>
+    public RunRecords Records
+    {
+        get
+        {
+            // Headless runs are tests and tools: keep their runs out of the player's records.
+            _records ??= new RunRecords(DisplayServer.GetName() != "headless");
+            return _records;
+        }
+    }
 
     public Difficulty Difficulty
     {
@@ -54,12 +77,77 @@ public partial class RunState : Node
     private Difficulty _difficulty = Difficulty.Normal;
     private DifficultySettings? _difficultySettings;
     private CircleTable? _circles;
+    private RunRecords? _records;
+    private float _overTimer;
 
     public override void _Ready()
     {
         GameEvents.DepthChanged += OnDepthChanged;
         GameEvents.StationReached += OnStationReached;
         GameEvents.RespawnRequested += OnRespawnRequested;
+        GameEvents.CarrierDied += OnCarrierDied;
+        RunNumber = Records.Runs + 1;
+    }
+
+    /// <summary>A seed nobody chose: the clock's microseconds through SplitMix64.</summary>
+    public static ulong RandomSeed()
+    {
+        return new SplitMix64((ulong)Time.GetTicksUsec() ^ (ulong)System.DateTime.UtcNow.Ticks).Next();
+    }
+
+    /// <summary>
+    /// Ends whatever run is going and starts the next one: a new mountain from <paramref name="seed"/>
+    /// (random when null), then a full reset of every system.
+    /// </summary>
+    public void StartNewRun(ulong? seed = null)
+    {
+        Seed = seed ?? RandomSeed();
+        RunOver = false;
+        _overTimer = 0.0f;
+        GameEvents.PublishNewMountain(Seed);
+        GameEvents.PublishRespawnRequest();
+    }
+
+    private void OnCarrierDied(string cause)
+    {
+        if (RunOver)
+        {
+            return;
+        }
+        RunOver = true;
+        _overTimer = 0.0f;
+        int day = 1;
+        WorldClock? clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
+        if (clock != null)
+        {
+            day = clock.Day;
+        }
+        bool record = Records.Add(Depth, Stage);
+        LastSummary = new RunSummary(RunNumber, Seed, Depth, Stage, day, Circles.NameOf(Circles.CircleAt(Depth)), cause, Records.BestDepth, record);
+        GameEvents.PublishRunEnded(LastSummary);
+    }
+
+    public override void _Process(double delta)
+    {
+        if (!RunOver)
+        {
+            return;
+        }
+        _overTimer += (float)delta;
+        if (_overTimer < SummaryDelay)
+        {
+            return;
+        }
+        RunNumber++;
+        if (NewMountainOnDeath)
+        {
+            StartNewRun();
+        }
+        else
+        {
+            RunOver = false;
+            GameEvents.PublishRespawnRequest();
+        }
     }
 
     private void OnStationReached(int station)
@@ -83,6 +171,7 @@ public partial class RunState : Node
         GameEvents.DepthChanged -= OnDepthChanged;
         GameEvents.StationReached -= OnStationReached;
         GameEvents.RespawnRequested -= OnRespawnRequested;
+        GameEvents.CarrierDied -= OnCarrierDied;
         _difficultySettings = null;
         _circles = null;
         Route = null;

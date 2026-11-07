@@ -1,6 +1,7 @@
 using DownhillRoguelite.Core;
 using DownhillRoguelite.Environment;
 using DownhillRoguelite.Player;
+using DownhillRoguelite.Terrain;
 using Godot;
 
 namespace DownhillRoguelite.Debug;
@@ -22,6 +23,8 @@ public partial class DebugSceneControls : Node
     [Export] public Camera3D? PlayerCamera { get; set; }
     [Export] public FreeFlyCamera? FlyCamera { get; set; }
     [Export] public WeatherSystem? Weather { get; set; }
+    /// <summary>When set, a new run starts at this streamer's spawn point (the new mountain's summit).</summary>
+    [Export] public TerrainStreamer? Streamer { get; set; }
 
     /// <summary>Respawn when the player falls below this height, in m.</summary>
     [Export] public float KillHeight { get; set; } = -30.0f;
@@ -37,7 +40,7 @@ public partial class DebugSceneControls : Node
             _spawnYaw = PlayerBody.GlobalRotation.Y;
         }
 
-        // Until runs have a real fail state, death sends the carrier back to the start.
+        // A new run (RespawnRequested) puts the carrier on the summit of the new mountain.
         GameEvents.RespawnRequested += Respawn;
 
         // For rendered checks (--write-movie): `-- --autowalk` holds forward, `--autobrake` also brakes.
@@ -83,7 +86,8 @@ public partial class DebugSceneControls : Node
         }
         else if (@event.IsActionPressed(ActionRespawn))
         {
-            Respawn();
+            // Giving up ends the run like any death: summary, then a new mountain.
+            GameEvents.PublishKill("gave up");
         }
         else if (@event.IsActionPressed(ActionSkipHour))
         {
@@ -99,12 +103,17 @@ public partial class DebugSceneControls : Node
     {
         if (PlayerBody != null && PlayerBody.GlobalPosition.Y < KillHeight)
         {
-            Respawn();
+            GameEvents.PublishKill("fell");
         }
     }
 
     private void Respawn()
     {
+        if (Streamer != null)
+        {
+            PlayerBody?.Teleport(Streamer.SpawnPoint + Vector3.Up * 0.1f, 0.0f);
+            return;
+        }
         PlayerBody?.Teleport(_spawnPosition, _spawnYaw);
     }
 

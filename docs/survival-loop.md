@@ -99,6 +99,13 @@ Values live in `DifficultySettings` resources and are tuned by play-testing.
 - About 60 m past the split, the path you're on counts as your choice (`GameEvents.RouteChosen`). The narrator comments on the options and on a safe or hazardous choice.
 - Settings: `terrain/default_terrain.tres` (Routes group) and `inventory/world/default_supplies.tres`. Tests: `debug/tests/RouteTests.tscn`.
 
+## Permadeath and new mountains (M12, first part built)
+
+- **Every run starts on the summit,** the highest point of its mountain. Nothing near the start rises above it, and behind it a 60° cliff drops into the abyss: the only way is down. Falling into the abyss ends the run. Climbing behind the summit doesn't count as descent.
+- **Death is permanent.** The run ends, and its summary is written in the air: depth, stations, day, circle, cause, and the best depth of any run. It goes into the records (`user://records.cfg`: runs, best depth, best station, total descent). After a few seconds a **new mountain** rises: a new random seed, new terrain, routes, stations, weather, supplies and wildlife. The carrier stands on its summit with an empty pack. R gives up the run the same way.
+- A stone on the summit names the run and the mountain's seed. `-- --seed=N` replays a mountain.
+- Still to come in M12: boons chosen at stations, difficulty scaling with depth, and starting-kit unlocks from the records.
+
 M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain). From here:
 
 | Milestone | Scope |
@@ -110,5 +117,7 @@ M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain
 | **M10 Routes** (built) | Branching paths from each shelter's lookout; route types (safe, hazardous, supply-rich) |
 | **M11 Narrator** (voiced lines built for the demo) | The voiced companion: the 500 lines triggered by game events, then NobodyWho for live conversation |
 | **M12 Progression** | Run upgrades, meta unlocks (starting kits, packs), contracts, depth scaling |
+| **M13 Map and compass** | A map held up in the world with a compass on top; waypoints that show as markers in the world; drawing with found paper and pencil. See docs/gear-and-map.md |
+| **M14 Gear and durability** | Backpack, pockets and clothing slots (all 3D grids, not lists); gear found in the world with durability and no rarity; mending with found materials (sewing kit and others). See docs/gear-and-map.md |
 
 Open decisions for the director: same mountain or a new one after each death, whether a light source is in the first starting kit, and the exact day lengths after play-testing.

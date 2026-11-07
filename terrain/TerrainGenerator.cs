@@ -18,6 +18,9 @@ namespace DownhillRoguelite.Terrain;
 /// path) plus one or two seeded branches that leave it below the top station and rejoin it above
 /// the bottom one: a hazardous branch (straight, narrow, rough, loose ground) or a supply-rich
 /// one (winding, longer). Branches are bands like the spine and blend into the terrain the same way.
+///
+/// Summit (M12): the run starts on the mountain's highest point. Nothing near the start rises above
+/// a plane falling gently from the summit, and behind it a cliff drops into the abyss.
 /// </summary>
 public sealed class TerrainGenerator
 {
@@ -50,6 +53,8 @@ public sealed class TerrainGenerator
     private readonly GradientNoise _hazardBumps;
     private readonly float _gradeTangent;
     private readonly float _clearingSlopeTangent;
+    private readonly float _summitCliffTangent;
+    private readonly float _summitCapTangent;
     private readonly float _startHeight;
     private readonly object _stationLock = new();
     // Replaced, never modified, so readers on other threads can use it without the lock.
@@ -76,6 +81,8 @@ public sealed class TerrainGenerator
         _hazardBumps = new GradientNoise(SplitMix64.Mix(seed, HazardBumpSalt));
         _gradeTangent = Mathf.Tan(Mathf.DegToRad(settings.Grade));
         _clearingSlopeTangent = Mathf.Tan(Mathf.DegToRad(settings.ClearingSlope));
+        _summitCliffTangent = Mathf.Tan(Mathf.DegToRad(settings.SummitCliffSlope));
+        _summitCapTangent = Mathf.Tan(Mathf.DegToRad(settings.SummitCapSlope));
         _startHeight = SpineHeight(settings.SpawnZ);
         EnsureStations(settings.PrecomputedStations);
     }
@@ -389,7 +396,34 @@ public sealed class TerrainGenerator
 
     public float Height(float x, float z)
     {
-        return ApplyClearings(x, z, RawHeight(x, z));
+        return Mathf.Min(ApplyClearings(x, z, RawHeight(x, z)), SummitCap(z));
+    }
+
+    /// <summary>Height of the summit plateau: the highest ground of the whole mountain.</summary>
+    public float SummitHeight => _startHeight + _settings.SummitRise;
+
+    /// <summary>
+    /// The most the ground may rise at <paramref name="z"/>: a plane falling gently ahead of the
+    /// summit, flat over the plateau just behind the start, then a cliff into the abyss.
+    /// </summary>
+    public float SummitCap(float z)
+    {
+        float behind = z - _settings.SpawnZ;
+        if (behind <= 0.0f)
+        {
+            return SummitHeight + behind * _summitCapTangent;
+        }
+        if (behind <= _settings.SummitBack)
+        {
+            return SummitHeight;
+        }
+        return SummitHeight - (behind - _settings.SummitBack) * _summitCliffTangent;
+    }
+
+    /// <summary>Whether a point has fallen off the back of the summit into the abyss.</summary>
+    public bool InAbyss(Vector3 position)
+    {
+        return position.Z > _settings.SpawnZ + _settings.SummitBack && position.Y < SummitHeight - _settings.AbyssDrop;
     }
 
     /// <summary>Height before station clearings are cut in.</summary>
