@@ -58,6 +58,8 @@ public partial class PackingMode : Node3D
 
     public override async void _Ready()
     {
+        // The pack screen keeps working while the world is stopped for it (PageFreeze).
+        ProcessMode = ProcessModeEnum.Always;
         // For rendered checks (--write-movie): `-- --open-pack` sets the pack down once the carrier has landed.
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--open-pack") >= 0)
         {
@@ -103,10 +105,13 @@ public partial class PackingMode : Node3D
         }
     }
 
+    /// <summary>True while the pause menu or title screen holds the game (not the pages' own freeze).</summary>
+    private bool MenuPaused => GetTree().Paused && !GameEvents.PagesFrozen;
+
     public override void _Input(InputEvent @event)
     {
         // Esc leaves the pack screen too, before the pause menu sees it.
-        if (Active && @event.IsActionPressed(ActionPause))
+        if (Active && !MenuPaused && @event.IsActionPressed(ActionPause))
         {
             Exit();
             GetViewport().SetInputAsHandled();
@@ -115,6 +120,10 @@ public partial class PackingMode : Node3D
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (MenuPaused)
+        {
+            return;
+        }
         // X auto-arranges the whole pack, heaviest first, low and close to the back.
         if (Active && @event is InputEventKey key && key.Pressed && !key.Echo && key.PhysicalKeycode == Key.X)
         {

@@ -135,6 +135,7 @@ public partial class UiTests : Node3D
         Ui.Toggle(page);
         await Wait(0.6f);
         bool open = page.Visible && page.IsOpen && GameEvents.IsScreenOpen && Input.MouseMode == Input.MouseModeEnum.Visible;
+        bool frozen = GetTree().Paused && GameEvents.PagesFrozen;
         string firstBefore = "";
         if (page.Order.Count > 0)
         {
@@ -158,8 +159,10 @@ public partial class UiTests : Node3D
         bool drank = needs.Thirst > 30.0f && !page.Order.Contains("water_flask");
         page.Close();
         await Wait(0.5f);
-        Check("the inventory page takes the mouse, reorders by drag and drop, and drinks", open && swapped && drank && !page.Visible && !GameEvents.IsScreenOpen,
-            $"open {open}, swapped {swapped}, drank {drank} (thirst {needs.Thirst:0}), closed {!page.Visible}");
+        bool running = !GetTree().Paused && !GameEvents.PagesFrozen;
+        Check("the inventory page takes the mouse, stops the world while open, reorders by drag and drop, and drinks",
+            open && frozen && running && swapped && drank && !page.Visible && !GameEvents.IsScreenOpen,
+            $"open {open}, world stopped {frozen} then running again {running}, swapped {swapped}, drank {drank} (thirst {needs.Thirst:0}), closed {!page.Visible}");
     }
 
     private async Task TestMap()

@@ -50,6 +50,9 @@ public partial class Hud : CanvasLayer
         Layer = 20;
         Name = "Hud";
         AddToGroup(Group);
+        // The HUD keeps running while the world is stopped for the inventory or the pack (PageFreeze).
+        ProcessMode = ProcessModeEnum.Always;
+        GameOptions.Load();
         AddChild(new ItemIcons());
         Log = new JournalLog();
         AddChild(Log);
@@ -87,6 +90,7 @@ public partial class Hud : CanvasLayer
         Inventory = new InventoryScreen();
         _root.AddChild(Inventory);
         ThrowZone.Inventory = Inventory;
+        AddChild(new PageFreeze { Name = "PageFreeze", Inventory = Inventory });
         MapPage = new MapScreen();
         foreach (Node node in GetTree().GetNodesInGroup(FieldMap.Group))
         {
@@ -238,9 +242,12 @@ public partial class Hud : CanvasLayer
         }
     }
 
+    /// <summary>True while the pause menu or title screen holds the game (not the pages' own freeze).</summary>
+    private bool MenuPaused => GetTree().Paused && !GameEvents.PagesFrozen;
+
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (GameEvents.IsPacking)
+        if (GameEvents.IsPacking || MenuPaused)
         {
             return;
         }
@@ -265,7 +272,7 @@ public partial class Hud : CanvasLayer
     public override void _Input(InputEvent @event)
     {
         // Esc closes the open page before the pause menu sees it.
-        if (!@event.IsActionPressed("pause"))
+        if (!@event.IsActionPressed("pause") || MenuPaused)
         {
             return;
         }
