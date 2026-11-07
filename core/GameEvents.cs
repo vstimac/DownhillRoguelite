@@ -287,6 +287,11 @@ public static class GameEvents
     /// <summary>Raised when the map is raised (true) or lowered (false).</summary>
     public static event Action<bool>? MapOpened;
 
+    /// <summary>True while the world is stopped because the inventory or the pack is open (PageFreeze), not the pause menu.</summary>
+    public static bool PagesFrozen { get; private set; }
+
+    public static void PublishPagesFrozen(bool frozen) => PagesFrozen = frozen;
+
     public static void PublishMapOpen(bool open)
     {
         IsMapOpen = open;
