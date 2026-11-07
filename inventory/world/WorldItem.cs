@@ -43,6 +43,9 @@ public partial class WorldItem : Node3D, IInteractable, IDescribed
     public string SlotKey { get; set; } = "";
 
     public Vector3 InteractionPoint => GlobalPosition;
+    /// <summary>The group the field map reads for supply dots, and the meta key holding each one's colour.</summary>
+    public const string MapLootGroup = "map_loot";
+    public const string MapColourMeta = "map_colour";
 
     public string Title => Definition?.DisplayName ?? "";
     public string Description => ItemText.Describe(Definition);
@@ -67,6 +70,9 @@ public partial class WorldItem : Node3D, IInteractable, IDescribed
 
         Vector3 size = (Vector3)Definition.SizeCells * CellSize * VisualScale;
         Color glow = CategoryColor(Definition.Category);
+        // The field map draws seen supplies as dots in their colour (a group, so the map needn't know items).
+        AddToGroup(MapLootGroup);
+        SetMeta(MapColourMeta, glow);
         _time = (float)(GetInstanceId() % 1000) * 0.01f;
         Node3D? holder = ItemVisual.BuildModel(Definition);
         if (holder != null)
