@@ -36,6 +36,103 @@
 [ext_resource type="Script" path="res://wildlife/WildlifeSpawner.cs" id="36_wildlife"]
 [ext_resource type="Resource" path="res://wildlife/default_wildlife.tres" id="37_wildlife_table"]
 [ext_resource type="Script" path="res://debug/WildlifeDebugOverlay.cs" id="38_wildlife_overlay"]
+[ext_resource type="Script" path="res://world_ui/RunSummaryView.cs" id="39_summary"]
+[ext_resource type="Script" path="res://progression/BoonOfferings.cs" id="40_boons"]
+[ext_resource type="Script" path="res://progression/BoonDefinition.cs" id="41_boon"]
+[ext_resource type="Script" path="res://progression/StartingKit.cs" id="42_kit"]
+[ext_resource type="Script" path="res://map/FieldMap.cs" id="43_map"]
+[ext_resource type="Script" path="res://audio/SoundEffects.cs" id="44_sfx"]
+[ext_resource type="Script" path="res://ui/Hud.cs" id="45_hud"]
+[ext_resource type="Script" path="res://narrative/CompanionChat.cs" id="46_companion"]
+[ext_resource type="Script" path="res://narrative/CompanionVoice.cs" id="47_voice"]
+[ext_resource type="Script" path="res://environment/FootTrail.cs" id="49_trail"]
+[ext_resource type="Script" path="res://narrative/StationVisitors.cs" id="48_visitors"]
+[ext_resource type="Resource" path="res://narrative/npcs/pilgrim.tres" id="48_pilgrim"]
+[ext_resource type="Resource" path="res://narrative/npcs/cartographer.tres" id="48_cartographer"]
+[ext_resource type="Resource" path="res://narrative/npcs/old_carrier.tres" id="48_old_carrier"]
+[ext_resource type="Resource" path="res://narrative/npcs/fire_keeper.tres" id="48_fire_keeper"]
+[ext_resource type="Resource" path="res://narrative/npcs/penitent.tres" id="48_penitent"]
+[ext_resource type="Script" path="res://world_ui/StartScreen.cs" id="49_start_screen"]
+
+[sub_resource type="Resource" id="Boon_steady_legs"]
+script = ExtResource("41_boon")
+Id = "steady_legs"
+DisplayName = "Steady Legs"
+Description = "The pack sways less: balance is a fifth stronger."
+Glow = Color(0.6, 0.85, 1.0, 1)
+Balance = 1.2
+
+[sub_resource type="Resource" id="Boon_iron_lungs"]
+script = ExtResource("41_boon")
+Id = "iron_lungs"
+DisplayName = "Iron Lungs"
+Description = "Rest comes quicker: stamina recovers a quarter faster."
+Glow = Color(0.5, 1.0, 0.7, 1)
+StaminaRecovery = 1.25
+
+[sub_resource type="Resource" id="Boon_deep_reserves"]
+script = ExtResource("41_boon")
+Id = "deep_reserves"
+DisplayName = "Deep Reserves"
+Description = "More in the tank: a fifth more stamina."
+Glow = Color(0.4, 0.8, 1.0, 1)
+StaminaMax = 1.2
+
+[sub_resource type="Resource" id="Boon_light_step"]
+script = ExtResource("41_boon")
+Id = "light_step"
+DisplayName = "Light Step"
+Description = "Walking costs 15 % less stamina."
+Glow = Color(0.8, 1.0, 0.6, 1)
+WalkDrain = 0.85
+
+[sub_resource type="Resource" id="Boon_strong_back"]
+script = ExtResource("41_boon")
+Id = "strong_back"
+DisplayName = "Strong Back"
+Description = "The load's weight costs a fifth less stamina."
+Glow = Color(1.0, 0.7, 0.4, 1)
+LoadDrain = 0.8
+
+[sub_resource type="Resource" id="Boon_lean_belly"]
+script = ExtResource("41_boon")
+Id = "lean_belly"
+DisplayName = "Lean Belly"
+Description = "Hunger and thirst grow 15 % slower."
+Glow = Color(1.0, 0.85, 0.5, 1)
+NeedsDrain = 0.85
+
+[sub_resource type="Resource" id="Boon_thick_blood"]
+script = ExtResource("41_boon")
+Id = "thick_blood"
+DisplayName = "Thick Blood"
+Description = "A third of the cold can't reach you."
+Glow = Color(1.0, 0.45, 0.35, 1)
+ColdResistance = 0.33
+
+[sub_resource type="Resource" id="Boon_sure_footing"]
+script = ExtResource("41_boon")
+Id = "sure_footing"
+DisplayName = "Sure Footing"
+Description = "Feet find purchase: 15 % more grip on any ground."
+Glow = Color(0.75, 0.7, 0.6, 1)
+Grip = 1.15
+
+[sub_resource type="Resource" id="Boon_long_stride"]
+script = ExtResource("41_boon")
+Id = "long_stride"
+DisplayName = "Long Stride"
+Description = "You walk 8 % faster."
+Glow = Color(0.6, 1.0, 1.0, 1)
+WalkSpeed = 1.08
+
+[sub_resource type="Resource" id="Boon_deep_sleep"]
+script = ExtResource("41_boon")
+Id = "deep_sleep"
+DisplayName = "Deep Sleep"
+Description = "A night's sleep heals half again as much."
+Glow = Color(0.7, 0.6, 1.0, 1)
+SleepHeal = 1.5
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
@@ -77,6 +174,7 @@ directional_shadow_max_distance = 120.0
 [node name="Terrain" type="Node3D" parent="."]
 script = ExtResource("14_streamer")
 Settings = ExtResource("15_terrain_settings")
+RandomSeedOnStart = true
 
 [node name="DayNight" type="Node" parent="." node_paths=PackedStringArray("Sun", "World")]
 script = ExtResource("20_daynight")
@@ -122,13 +220,14 @@ script = ExtResource("16_terrain_controls")
 Streamer = NodePath("../Terrain")
 PlayerBody = NodePath("../Player")
 
-[node name="DebugControls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "PlayerCamera", "FlyCamera", "Weather")]
+[node name="DebugControls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "PlayerCamera", "FlyCamera", "Weather", "Streamer")]
 script = ExtResource("5_controls")
 KillHeight = -1e+09
 PlayerBody = NodePath("../Player")
 PlayerCamera = NodePath("../Player/CameraRig/SpringArm/Camera")
 FlyCamera = NodePath("../FlyCamera")
 Weather = NodePath("../Weather")
+Streamer = NodePath("../Terrain")
 
 [node name="LocomotionOverlay" type="CanvasLayer" parent="."]
 script = ExtResource("6_overlay")
@@ -172,9 +271,44 @@ script = ExtResource("35_circle_title")
 [node name="Narrator" type="Node" parent="."]
 script = ExtResource("29_narrator")
 
+[node name="Companion" type="Node" parent="."]
+script = ExtResource("46_companion")
+
+[node name="CompanionVoice" type="Node3D" parent="."]
+script = ExtResource("47_voice")
+
+[node name="FootTrail" type="Node3D" parent="."]
+script = ExtResource("49_trail")
+
+[node name="Visitors" type="Node3D" parent="."]
+script = ExtResource("48_visitors")
+Personas = [ExtResource("48_pilgrim"), ExtResource("48_cartographer"), ExtResource("48_old_carrier"), ExtResource("48_fire_keeper"), ExtResource("48_penitent")]
+
 [node name="PauseMenu" type="CanvasLayer" parent="."]
 script = ExtResource("30_pause")
 
 [node name="WildlifeOverlay" type="CanvasLayer" parent="." node_paths=PackedStringArray("Spawner")]
 script = ExtResource("38_wildlife_overlay")
 Spawner = NodePath("../Wildlife")
+
+[node name="RunSummary" type="Node3D" parent="."]
+script = ExtResource("39_summary")
+
+[node name="Boons" type="Node3D" parent="."]
+script = ExtResource("40_boons")
+Boons = [SubResource("Boon_steady_legs"), SubResource("Boon_iron_lungs"), SubResource("Boon_deep_reserves"), SubResource("Boon_light_step"), SubResource("Boon_strong_back"), SubResource("Boon_lean_belly"), SubResource("Boon_thick_blood"), SubResource("Boon_sure_footing"), SubResource("Boon_long_stride"), SubResource("Boon_deep_sleep")]
+
+[node name="StartingKit" type="Node" parent="."]
+script = ExtResource("42_kit")
+
+[node name="FieldMap" type="Node3D" parent="."]
+script = ExtResource("43_map")
+
+[node name="SoundEffects" type="Node" parent="."]
+script = ExtResource("44_sfx")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("45_hud")
+
+[node name="StartScreen" type="CanvasLayer" parent="."]
+script = ExtResource("49_start_screen")

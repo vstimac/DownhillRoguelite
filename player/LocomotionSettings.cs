@@ -88,6 +88,10 @@ public partial class LocomotionSettings : Resource
     /// <summary>Below this speed the carrier counts as idle, in m/s.</summary>
     [Export] public float IdleSpeed { get; set; } = 0.1f;
 
+    [ExportGroup("Map")]
+    /// <summary>Walking speed while holding the map up, as a fraction (no sprinting).</summary>
+    [Export] public float MapSpeedFactor { get; set; } = 0.45f;
+
     [ExportGroup("Weather")]
     /// <summary>Walking speed lost in full snow (0.3 = 30 % slower); route estimates include it.</summary>
     [Export] public float SnowSpeedPenalty { get; set; } = 0.3f;
@@ -101,6 +105,10 @@ public partial class LocomotionSettings : Resource
     [Export] public float MinTraction { get; set; } = 0.2f;
     /// <summary>Downhill creep at zero grip on a vertical face; scaled by (1 - grip) and the slope's sine, in m/s.</summary>
     [Export] public float SurfaceCreepSpeed { get; set; } = 1.5f;
+    /// <summary>With no input, the carrier stops at least this hard (feet planted), in m/s², before grip.</summary>
+    [Export] public float StopDeceleration { get; set; } = 14.0f;
+    /// <summary>How much poor grip lengthens that stop: traction never drops below this when stopping.</summary>
+    [Export] public float MinStopTraction { get; set; } = 0.5f;
 
     [ExportGroup("Sprint and jump")]
     /// <summary>Target speed on flat ground while sprinting, in m/s.</summary>

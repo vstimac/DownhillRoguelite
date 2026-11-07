@@ -26,6 +26,10 @@ public partial class WildlifeSpecies : Resource
     /// <summary>Clip speed multiplier while fleeing.</summary>
     [Export] public float FleeClipSpeed { get; set; } = 1.0f;
 
+    [ExportGroup("Body")]
+    /// <summary>The animal's body for collisions: width, height and length, in m (a capsule fits inside).</summary>
+    [Export] public Vector3 BodySize { get; set; } = new(0.6f, 1.2f, 1.6f);
+
     [ExportGroup("Movement")]
     [Export] public float WalkSpeed { get; set; } = 0.8f;
     [Export] public float FleeSpeed { get; set; } = 5.0f;

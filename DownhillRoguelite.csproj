@@ -1,9 +1,15 @@
 <Project Sdk="Godot.NET.Sdk/4.7.2">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <!-- Android export templates need .NET 9 (Windows and Linux stay on .NET 8). -->
+    <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <RootNamespace>DownhillRoguelite</RootNamespace>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- The launcher is its own program (tools/launcher), not part of the game. -->
+    <Compile Remove="tools/**" />
+  </ItemGroup>
 </Project>

@@ -17,6 +17,9 @@ public partial class DebugDraw3D : Node3D
     /// <summary>Whether debug drawing and debug overlays are shown: on in debug builds, off in a release export.</summary>
     public static bool Enabled { get; private set; } = OS.IsDebugBuild();
 
+    /// <summary>Hides every overlay including the vitals bars (clean screenshots: `-- --promo`).</summary>
+    public static bool HideHud { get; set; }
+
     public static void SetEnabled(bool enabled)
     {
         Enabled = enabled;

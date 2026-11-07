@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "hobnail_boots"
+DisplayName = "Hobnail boots"
+MassKg = 1.4
+Category = 4
+SizeCells = Vector3i(4, 3, 5)
+Tags = 0
+Orientation = 0
+DebugColor = Color(0.35, 0.25, 0.18, 1)
+Slot = 5
+MaxDurability = 100.0
+Warmth = 0.05
+RainProof = 0.1
+GripBonus = 0.15
+WindCatch = 0.0
+Pockets = 0
+MendType = "leather"
+ModelSource = "res://art/characters/mixamo/carrier.fbx"
+ModelMesh = "Ch17_Boots"

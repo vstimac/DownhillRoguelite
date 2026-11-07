@@ -32,6 +32,8 @@ public partial class PlayerController : CharacterBody3D
 
     /// <summary>When false, movement input is ignored, e.g. while a debug camera is active.</summary>
     [Export] public bool InputEnabled { get; set; } = true;
+    /// <summary>Keys move the carrier: input is on and the player isn't typing to the companion.</summary>
+    private bool Controls => InputEnabled && !GameEvents.IsConversing;
 
     public LocomotionState State { get; private set; } = LocomotionState.Idle;
     public bool Sprinting { get; private set; }
@@ -64,8 +66,11 @@ public partial class PlayerController : CharacterBody3D
     private bool _bracing;
     private Vector3 _lurchDirection;
 
+    private RunState? _run;
+
     public override void _Ready()
     {
+        _run = GetNodeOrNull<RunState>("/root/RunState");
         _gravity = ProjectSettings.GetSetting("physics/3d/default_gravity").AsSingle();
         Grip = Settings.DefaultGrip;
         FloorMaxAngle = Mathf.DegToRad(WalkableAngle());
@@ -104,6 +109,12 @@ public partial class PlayerController : CharacterBody3D
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta;
+        if (GameEvents.IsVaulting)
+        {
+            // The vault moves the body along its animation; nothing to do here until it lands.
+            Velocity = Vector3.Zero;
+            return;
+        }
         if (GameEvents.IsDowned)
         {
             // The ragdoll carries the body around; stand still and report being down.
@@ -116,19 +127,23 @@ public partial class PlayerController : CharacterBody3D
         }
 
         Vector3 input = ReadInputDirection();
-        bool braking = InputEnabled && Input.IsActionPressed(ActionBrake);
-        // Exhausted carriers can't walk until they've rested.
+        bool braking = Controls && Input.IsActionPressed(ActionBrake);
+        // Out of breath, the carrier still walks, just slower (no sprinting or jumping: CanSprint, TrySpend).
         bool exhausted = Stamina != null && Stamina.Exhausted;
-        bool held = _balanceState == BalanceState.Fallen || _bracing || GameEvents.IsPacking || exhausted;
+        bool held = _balanceState == BalanceState.Fallen || _bracing || GameEvents.IsPacking;
         if (held)
         {
             input = Vector3.Zero;
+        }
+        else if (exhausted && Stamina != null)
+        {
+            input *= Stamina.ExhaustedWalkFactor;
         }
         _moveGrade = 0.0f;
         FloorMaxAngle = Mathf.DegToRad(WalkableAngle());
 
         bool grounded = IsOnFloor();
-        Sprinting = grounded && InputEnabled && !held && !braking
+        Sprinting = grounded && Controls && !held && !braking && !GameEvents.IsMapOpen
             && input.Length() > SprintInputThreshold
             && Input.IsActionPressed(ActionSprint)
             && Stamina != null && Stamina.CanSprint;
@@ -181,7 +196,7 @@ public partial class PlayerController : CharacterBody3D
         {
             return Flatten(DirectionOverride.Value, false).LimitLength(1.0f);
         }
-        if (!InputEnabled)
+        if (!Controls)
         {
             return Vector3.Zero;
         }
@@ -249,20 +264,31 @@ public partial class PlayerController : CharacterBody3D
         }
         else
         {
+            // No input: plant the feet and stop within a step (slippery ground a little longer).
             float grade = direction.Dot(fallLine) * sinSlope;
-            float rate = DecelerationRate(braking, grade);
+            float rate = Mathf.Max(DecelerationRate(braking, grade), Settings.StopDeceleration);
             if (_balanceState == BalanceState.Fallen)
             {
                 rate = Settings.FallDeceleration;
             }
             else if (_bracing)
             {
-                rate = Settings.BraceDeceleration;
+                rate = Mathf.Max(Settings.BraceDeceleration, Settings.StopDeceleration);
             }
-            speed = Mathf.MoveToward(speed, 0.0f, rate * traction * dt);
+            float stopTraction = Mathf.Lerp(Settings.MinStopTraction, 1.0f, Grip);
+            speed = Mathf.MoveToward(speed, 0.0f, rate * stopTraction * dt);
+            if (speed < Settings.IdleSpeed)
+            {
+                speed = 0.0f;
+            }
         }
 
-        _externalVelocity = fallLine * Settings.SurfaceCreepSpeed * (1.0f - Grip) * sinSlope;
+        // Loose ground drags the feet downhill only while walking on it; standing still, they stay put.
+        _externalVelocity = Vector3.Zero;
+        if (inputAmount > Mathf.Epsilon)
+        {
+            _externalVelocity = fallLine * Settings.SurfaceCreepSpeed * (1.0f - Grip) * sinSlope;
+        }
         if (_balanceState == BalanceState.Stumbling)
         {
             _externalVelocity += _lurchDirection * Settings.StumbleLurchSpeed;
@@ -300,8 +326,12 @@ public partial class PlayerController : CharacterBody3D
             Grip = surface.Grip;
             _surfaceName = surface.DisplayName;
         }
-        // Rain and snow make every surface slicker.
+        // Rain and snow make every surface slicker; boons can improve footing.
         Grip *= GameEvents.CurrentWeather.GripFactor;
+        if (_run != null)
+        {
+            Grip = Mathf.Min(1.0f, Grip * _run.Modifiers.Grip * (1.0f + GameEvents.CurrentGear.Grip));
+        }
     }
 
     /// <summary>What the body stands or slides on and where it touches; false in the air (keeps the last surface).</summary>
@@ -355,7 +385,12 @@ public partial class PlayerController : CharacterBody3D
     /// <summary>Jumps if the button was just pressed and there is stamina for it; a heavier load jumps lower.</summary>
     private void TryJump()
     {
-        if (!InputEnabled || !Input.IsActionJustPressed(ActionJump))
+        if (!Controls || !Input.IsActionJustPressed(ActionJump))
+        {
+            return;
+        }
+        // With a vault on offer, Space belongs to the vault (Vault), not to an ordinary jump.
+        if (GameEvents.CurrentVault.Active)
         {
             return;
         }
@@ -402,10 +437,15 @@ public partial class PlayerController : CharacterBody3D
         return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor(), Settings.MaxSpeed);
     }
 
-    /// <summary>Snow underfoot slows every stride.</summary>
+    /// <summary>Snow underfoot slows every stride; a boon can lengthen it.</summary>
     public float WeatherSpeedFactor()
     {
-        return Mathf.Max(0.0f, 1.0f - Settings.SnowSpeedPenalty * GameEvents.CurrentWeather.Snow);
+        float factor = Mathf.Max(0.0f, 1.0f - Settings.SnowSpeedPenalty * GameEvents.CurrentWeather.Snow);
+        if (_run != null)
+        {
+            factor *= _run.Modifiers.WalkSpeed;
+        }
+        return factor;
     }
 
     private float TargetSpeed(bool braking, float grade)
@@ -432,7 +472,13 @@ public partial class PlayerController : CharacterBody3D
             speed *= Mathf.Max(Settings.MinUphillSpeedFactor, 1.0f + Settings.UphillSpeedPenalty * grade);
         }
 
-        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor(), Settings.MaxSpeed);
+        // Holding the map up slows the carrier now, but not the route estimates (WalkingSpeed).
+        float map = 1.0f;
+        if (GameEvents.IsMapOpen)
+        {
+            map = Settings.MapSpeedFactor;
+        }
+        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor() * map, Settings.MaxSpeed);
     }
 
     private float DecelerationRate(bool braking, float grade)

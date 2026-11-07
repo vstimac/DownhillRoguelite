@@ -48,6 +48,18 @@ public partial class TerrainSettings : Resource
     /// <summary>Z where the run starts.</summary>
     [Export] public float SpawnZ { get; set; } = 0.0f;
 
+    [ExportGroup("Summit (M12)")]
+    /// <summary>The run starts on the summit: nothing near the start rises above it. Height of the summit above the start, in m.</summary>
+    [Export] public float SummitRise { get; set; } = 0.5f;
+    /// <summary>The summit plateau runs this far behind the start before the cliff, in m.</summary>
+    [Export] public float SummitBack { get; set; } = 10.0f;
+    /// <summary>The cliff behind the summit, in degrees: far too steep to climb, a slide into the abyss.</summary>
+    [Export] public float SummitCliffSlope { get; set; } = 60.0f;
+    /// <summary>Ahead and to the sides, nothing rises above a plane falling from the summit at this angle, in degrees.</summary>
+    [Export] public float SummitCapSlope { get; set; } = 12.0f;
+    /// <summary>A carrier this far below the summit, behind it, has fallen into the abyss and dies, in m.</summary>
+    [Export] public float AbyssDrop { get; set; } = 25.0f;
+
     [ExportGroup("Stations")]
     /// <summary>Metres of descent between stations (one day's stage).</summary>
     [Export] public float StationDepthInterval { get; set; } = 600.0f;
@@ -59,6 +71,34 @@ public partial class TerrainSettings : Resource
     [Export] public float ClearingSlope { get; set; } = 10.0f;
     /// <summary>Stations worked out when the mountain is generated; more are added as needed.</summary>
     [Export] public int PrecomputedStations { get; set; } = 16;
+
+    [ExportGroup("Routes (M10)")]
+    /// <summary>Chance a stage gets both alternatives (one each side of the main path) instead of one.</summary>
+    [Export] public float BothBranchesChance { get; set; } = 0.35f;
+    /// <summary>Chance a single alternative is hazardous rather than supply-rich.</summary>
+    [Export] public float HazardousChance { get; set; } = 0.5f;
+    /// <summary>How far a branch swings away from the main path (min, max), in m.</summary>
+    [Export] public Vector2 BranchOffset { get; set; } = new(45.0f, 70.0f);
+    /// <summary>Branches leave this far (along Z) below a station and rejoin this far above the next, in m.</summary>
+    [Export] public float BranchStationGap { get; set; } = 110.0f;
+    /// <summary>Fraction of a branch spent swinging out, and again swinging back.</summary>
+    [Export] public float BranchRamp { get; set; } = 0.2f;
+    /// <summary>Stages whose branch zone would be shorter than this (along Z) get no branches, in m.</summary>
+    [Export] public float MinBranchLength { get; set; } = 400.0f;
+    /// <summary>Half width of a hazardous path's band: narrow.</summary>
+    [Export] public float HazardHalfWidth { get; set; } = 2.5f;
+    /// <summary>Rough, broken ground along a hazardous path.</summary>
+    [Export] public float HazardBumpAmplitude { get; set; } = 0.35f;
+    [Export] public float HazardBumpWavelength { get; set; } = 4.0f;
+    /// <summary>Gap kept between obstacles and a hazardous band (they crowd it), in m.</summary>
+    [Export] public float HazardClearance { get; set; } = 0.4f;
+    /// <summary>Within a branch zone the safe path winds like a real trail (so the hazardous line is a shortcut): swing and wavelength, in m.</summary>
+    [Export] public float SafeWindingAmplitude { get; set; } = 10.0f;
+    [Export] public float SafeWindingWavelength { get; set; } = 110.0f;
+    [Export] public float SupplyHalfWidth { get; set; } = 4.0f;
+    /// <summary>A supply-rich path winds: sideways swing and its wavelength, in m.</summary>
+    [Export] public float SupplyMeanderAmplitude { get; set; } = 12.0f;
+    [Export] public float SupplyMeanderWavelength { get; set; } = 90.0f;
 
     [ExportGroup("Surfaces")]
     [Export] public float RockSlope { get; set; } = 38.0f;
@@ -90,7 +130,68 @@ public partial class TerrainSettings : Resource
     /// <summary>Extra gap kept between obstacles and the spine band.</summary>
     [Export] public float SpineClearance { get; set; } = 2.0f;
     [Export(PropertyHint.File, "*.tres")] public string BoulderSurfacePath { get; set; } = "res://terrain/surfaces/rock.tres";
+    /// <summary>Models drawn for boulders (fitted to each collision box); empty draws boxes.</summary>
+    [Export] public string[] BoulderModels { get; set; } =
+    {
+        "res://art/props/kenney_nature_kit/GLB format/rock_largeA.glb",
+        "res://art/props/kenney_nature_kit/GLB format/rock_largeB.glb",
+        "res://art/props/kenney_nature_kit/GLB format/rock_largeC.glb",
+        "res://art/props/kenney_nature_kit/GLB format/rock_largeD.glb",
+        "res://art/props/kenney_nature_kit/GLB format/rock_largeE.glb",
+        "res://art/props/kenney_nature_kit/GLB format/rock_largeF.glb",
+        "res://art/props/kenney_nature_kit/GLB format/stone_largeA.glb",
+        "res://art/props/kenney_nature_kit/GLB format/stone_largeC.glb",
+        "res://art/props/kenney_nature_kit/GLB format/stone_largeE.glb",
+    };
+    /// <summary>Models drawn for fallen trunks (their long side along the trunk).</summary>
+    [Export] public string[] TrunkModels { get; set; } =
+    {
+        "res://art/props/kenney_nature_kit/GLB format/log.glb",
+        "res://art/props/kenney_nature_kit/GLB format/log_large.glb",
+    };
     [Export(PropertyHint.File, "*.tres")] public string TrunkSurfacePath { get; set; } = "res://terrain/surfaces/wood.tres";
+
+    private const string Kit = "res://art/props/kenney_nature_kit/GLB format/";
+
+    /// <summary>The land circle by circle (one biome per 1800 m of descent), blended over BiomeBlend metres.</summary>
+    [Export] public Biome[] Biomes { get; set; } = DefaultBiomes();
+    /// <summary>Width of the band where one biome turns into the next, in m of depth.</summary>
+    [Export] public float BiomeBlend { get; set; } = 240.0f;
+    /// <summary>Grass and flowers are drawn this far from the camera, in m.</summary>
+    [Export] public float GrassViewDistance { get; set; } = 75.0f;
+    /// <summary>Grass blades' colour before the biome's tint (a little deeper than the grassy ground).</summary>
+    [Export] public Color GrassColor { get; set; } = new(0.5f, 0.62f, 0.4f);
+    /// <summary>Trees keep this far from stations' fires, in m (on top of the clearing).</summary>
+    [Export] public float TreeStationGap { get; set; } = 6.0f;
+    /// <summary>Trees don't grow on ground steeper than this, in degrees.</summary>
+    [Export] public float TreeMaxSlope { get; set; } = 32.0f;
+
+    public static Biome[] DefaultBiomes()
+    {
+        return new[]
+        {
+            Biome.Make("Limbo", 0.0f, new Color(0.93f, 0.97f, 0.92f), new[] { Kit + "tree_pineRoundA.glb", Kit + "tree_pineRoundB.glb", Kit + "tree_pineRoundC.glb", Kit + "tree_pineRoundD.glb", Kit + "tree_pineTallA.glb", Kit + "tree_pineTallB.glb", Kit + "tree_pineTallC.glb", Kit + "tree_pineDefaultA.glb" }, 4.0f, new Vector2(4.5f, 9.0f), 2.0f,
+                new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.35f, new[] { Kit + "flower_purpleA.glb", Kit + "flower_purpleB.glb", Kit + "flower_purpleC.glb" }, 0.02f),
+            Biome.Make("Lust", 1800.0f, new Color(1.0f, 0.96f, 0.86f), new[] { Kit + "tree_tall.glb", Kit + "tree_thin.glb", Kit + "tree_pineSmallA.glb", Kit + "tree_pineSmallC.glb" }, 2.0f, new Vector2(4.0f, 7.0f), 14.0f,
+                new[] { Kit + "grass_large.glb", Kit + "grass_leafs.glb" }, 0.5f, new[] { Kit + "flower_redA.glb", Kit + "flower_redB.glb", Kit + "flower_redC.glb" }, 0.04f),
+            Biome.Make("Gluttony", 3600.0f, new Color(0.78f, 0.9f, 0.72f), new[] { Kit + "tree_oak_dark.glb", Kit + "tree_default_dark.glb", Kit + "tree_fat_darkh.glb", Kit + "tree_detailed_dark.glb" }, 6.0f, new Vector2(5.0f, 9.0f), 4.0f,
+                new[] { Kit + "grass_leafs.glb", Kit + "grass_leafsLarge.glb" }, 0.55f, System.Array.Empty<string>(), 0.0f),
+            Biome.Make("Greed", 5400.0f, new Color(1.06f, 0.95f, 0.78f), new[] { Kit + "tree_oak_fall.glb", Kit + "tree_default_fall.glb", Kit + "tree_fat_fall.glb", Kit + "tree_tall_fall.glb" }, 3.0f, new Vector2(4.5f, 8.0f), 3.0f,
+                new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.25f, new[] { Kit + "flower_yellowA.glb", Kit + "flower_yellowB.glb", Kit + "flower_yellowC.glb" }, 0.04f),
+            Biome.Make("Wrath", 7200.0f, new Color(0.7f, 0.78f, 0.7f), new[] { Kit + "tree_thin_dark.glb", Kit + "tree_simple_dark.glb" }, 3.0f, new Vector2(4.0f, 7.0f), 8.0f,
+                new[] { Kit + "grass_leafs.glb", Kit + "grass_leafsLarge.glb" }, 0.3f, System.Array.Empty<string>(), 0.0f),
+            Biome.Make("Heresy", 9000.0f, new Color(1.1f, 0.94f, 0.8f), new[] { Kit + "tree_thin_fall.glb", Kit + "tree_simple_fall.glb" }, 0.8f, new Vector2(3.5f, 6.0f), 6.0f,
+                new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.08f, System.Array.Empty<string>(), 0.0f),
+            Biome.Make("Violence", 10800.0f, new Color(1.05f, 0.85f, 0.76f), new[] { Kit + "tree_thin_dark.glb" }, 0.3f, new Vector2(3.0f, 5.0f), 10.0f,
+                new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.05f, System.Array.Empty<string>(), 0.0f),
+            Biome.Make("Fraud", 12600.0f, new Color(0.86f, 0.86f, 0.95f), new[] { Kit + "tree_pineSmallB.glb", Kit + "tree_pineSmallD.glb", Kit + "tree_pineRoundE.glb", Kit + "tree_pineRoundF.glb" }, 2.0f, new Vector2(3.5f, 7.0f), 4.0f,
+                new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.2f, System.Array.Empty<string>(), 0.0f),
+            Biome.Make("Treachery", 14400.0f, new Color(0.9f, 0.95f, 1.1f), System.Array.Empty<string>(), 0.0f, new Vector2(3.0f, 5.0f), 0.0f,
+                System.Array.Empty<string>(), 0.0f, System.Array.Empty<string>(), 0.0f),
+            Biome.Make("Beyond", 16200.0f, new Color(0.86f, 0.8f, 0.96f), new[] { Kit + "tree_blocks_dark.glb", Kit + "tree_blocks.glb", Kit + "tree_plateau_dark.glb" }, 1.5f, new Vector2(4.0f, 10.0f), 0.0f,
+                new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.1f, System.Array.Empty<string>(), 0.0f),
+        };
+    }
 
     public float ChunkSize => ChunkCells * CellSize;
 }

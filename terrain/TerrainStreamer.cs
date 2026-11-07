@@ -16,6 +16,11 @@ namespace DownhillRoguelite.Terrain;
 public partial class TerrainStreamer : Node3D
 {
     [Export] public TerrainSettings Settings { get; set; } = new();
+    /// <summary>
+    /// A new random mountain at start (the game); off keeps Settings.DefaultSeed (tests). A
+    /// `-- --seed=N` command-line argument always wins, to replay a mountain.
+    /// </summary>
+    [Export] public bool RandomSeedOnStart { get; set; }
     /// <summary>Chunks kept loaded downhill (-Z) of the carrier's chunk.</summary>
     [Export] public int ChunksAhead { get; set; } = 3;
     [Export] public int ChunksBehind { get; set; } = 1;
@@ -26,6 +31,7 @@ public partial class TerrainStreamer : Node3D
     /// <summary>Depth is published each time it grows by this much, in m.</summary>
     [Export] public float DepthStep { get; set; } = 1.0f;
 
+    private bool _inAbyss;
     public TerrainGenerator? Generator { get; private set; }
     /// <summary>Start of the run: on the spine at Settings.SpawnZ.</summary>
     public Vector3 SpawnPoint { get; private set; }
@@ -50,14 +56,34 @@ public partial class TerrainStreamer : Node3D
     private Vector3 _focus;
     private float _publishedDepth;
 
+    /// <summary>
+    /// Loads every biome's tree, grass and flower model once at start, so a chunk that first uses one
+    /// doesn't stall the game while the file loads.
+    /// </summary>
+    private void WarmPlantModels()
+    {
+        foreach (Biome biome in Settings.Biomes)
+        {
+            foreach (string[] models in new[] { biome.TreeModels, biome.GrassModels, biome.FlowerModels })
+            {
+                foreach (string model in models)
+                {
+                    ModelFit.FirstMesh(model, out _);
+                }
+            }
+        }
+    }
+
     public override void _Ready()
     {
         LoadSurfaces();
         _groundMaterial = new StandardMaterial3D { VertexColorUseAsAlbedo = true, Roughness = 1.0f };
         _boulderMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_boulderSurface, new Color(0.5f, 0.5f, 0.52f)), Roughness = 1.0f };
         _trunkMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_trunkSurface, new Color(0.42f, 0.3f, 0.2f)), Roughness = 1.0f };
+        WarmPlantModels();
 
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
+        GameEvents.NewMountain += Reseed;
 
         ulong seed = Settings.DefaultSeed;
         RunState? run = GetNodeOrNull<RunState>("/root/RunState");
@@ -65,12 +91,24 @@ public partial class TerrainStreamer : Node3D
         {
             seed = run.Seed;
         }
+        else if (RandomSeedOnStart)
+        {
+            seed = RunState.RandomSeed();
+        }
+        foreach (string arg in OS.GetCmdlineUserArgs())
+        {
+            if (arg.StartsWith("--seed=") && ulong.TryParse(arg.Substring("--seed=".Length), out ulong chosen))
+            {
+                seed = chosen;
+            }
+        }
         Reseed(seed);
     }
 
     public override void _ExitTree()
     {
         GameEvents.LocomotionUpdated -= OnLocomotionUpdated;
+        GameEvents.NewMountain -= Reseed;
         RunState? run = GetNodeOrNull<RunState>("/root/RunState");
         if (run != null)
         {
@@ -108,6 +146,7 @@ public partial class TerrainStreamer : Node3D
         _focus = SpawnPoint;
         Depth = 0.0f;
         _publishedDepth = 0.0f;
+        _inAbyss = false;
         MaxApplyMilliseconds = 0.0;
 
         RunState? run = GetNodeOrNull<RunState>("/root/RunState");
@@ -162,7 +201,21 @@ public partial class TerrainStreamer : Node3D
     private void OnLocomotionUpdated(LocomotionSnapshot snapshot)
     {
         _focus = snapshot.Position;
+        // Behind the summit is the abyss: a fall there ends the run and doesn't count as descent.
+        if (Generator != null && Generator.InAbyss(snapshot.Position))
+        {
+            if (!_inAbyss)
+            {
+                _inAbyss = true;
+                GameEvents.PublishKill("the abyss");
+            }
+            return;
+        }
         float depth = SpawnPoint.Y - snapshot.Position.Y;
+        if (snapshot.Position.Z > SpawnPoint.Z)
+        {
+            depth = 0.0f;
+        }
         if (depth > Depth)
         {
             Depth = depth;

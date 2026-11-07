@@ -13,9 +13,14 @@ namespace DownhillRoguelite.Audio;
 public partial class Footsteps : Node
 {
     [Export(PropertyHint.Dir)] public string Folder { get; set; } = "res://audio/footsteps";
+    /// <summary>Surfaces that use recorded footsteps (Kenney impact sounds) instead of the synthesized ones.</summary>
+    [Export] public string[] RecordedSurfaces { get; set; } = { "grass", "snow", "wood", "rock" };
+    /// <summary>File prefix for each recorded surface (variants _000 to _004).</summary>
+    [Export] public string[] RecordedPrefixes { get; set; } = { "footstep_grass", "footstep_snow", "footstep_wood", "footstep_concrete" };
+    [Export(PropertyHint.Dir)] public string RecordedFolder { get; set; } = "res://audio/sfx/kenney_impact_sounds";
     [Export] public int Variants { get; set; } = 4;
     [Export] public StringName Bus { get; set; } = "Ambience";
-    [Export] public float VolumeDb { get; set; } = -10.0f;
+    [Export] public float VolumeDb { get; set; } = -5.0f;
     /// <summary>Speed range from quietest to loudest step, in m/s.</summary>
     [Export] public Vector2 SpeedRange { get; set; } = new(0.3f, 6.0f);
     /// <summary>Volume of a step at the slowest speed, as a fraction of the loudest.</summary>
@@ -44,12 +49,27 @@ public partial class Footsteps : Node
         foreach (string surface in Surfaces)
         {
             List<AudioStream> variants = new();
-            for (int i = 0; i < Variants; i++)
+            int recorded = System.Array.IndexOf(RecordedSurfaces, surface);
+            if (recorded >= 0 && recorded < RecordedPrefixes.Length)
             {
-                AudioStream? stream = ResourceLoader.Load<AudioStream>($"{Folder}/{surface}_{i}.wav");
-                if (stream != null)
+                for (int i = 0; i < 5; i++)
                 {
-                    variants.Add(stream);
+                    string path = $"{RecordedFolder}/{RecordedPrefixes[recorded]}_{i:000}.ogg";
+                    if (ResourceLoader.Exists(path) && ResourceLoader.Load<AudioStream>(path) is AudioStream stream)
+                    {
+                        variants.Add(stream);
+                    }
+                }
+            }
+            if (variants.Count == 0)
+            {
+                for (int i = 0; i < Variants; i++)
+                {
+                    AudioStream? stream = ResourceLoader.Load<AudioStream>($"{Folder}/{surface}_{i}.wav");
+                    if (stream != null)
+                    {
+                        variants.Add(stream);
+                    }
                 }
             }
             _sounds[surface] = variants.ToArray();

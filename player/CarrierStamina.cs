@@ -1,43 +1,50 @@
+using DownhillRoguelite.Core;
 using Godot;
 
 namespace DownhillRoguelite.Player;
 
 /// <summary>
-/// Stamina is the carrier's endurance. Walking drains it (more with a heavier load, going uphill
-/// and on steep descents; careful braking steps cost a little less), sprinting drains it fast and
-/// jumps cost a fixed amount. It only recovers while standing still, after a short pause. At zero
-/// the carrier is exhausted: it can't walk, sprint or jump until stamina recovers to
-/// ExhaustedRecoverLevel, which costs time on the clock. Hunger lowers the maximum and thirst slows
-/// recovery (CarrierNeeds). See docs/survival-loop.md.
+/// Stamina is the carrier's breath, the way Valheim does it: walking on the flat and downhill is
+/// free, climbing a steep bit costs a little, sprinting and jumping are what spend it (more with a
+/// heavier load). It comes back quickly a moment after the last effort, while standing and (a bit
+/// slower) while walking. At zero the carrier is out of breath: still walking, a little slower, but
+/// no sprinting or jumping until stamina is back to ExhaustedRecoverLevel. Hunger lowers the maximum
+/// and thirst slows recovery (CarrierNeeds). See docs/survival-loop.md.
 /// </summary>
 public partial class CarrierStamina : Node
 {
     [Export] public float Max { get; set; } = 100.0f;
 
     [ExportGroup("Walking")]
-    /// <summary>Drain while walking on the flat with no load, per second.</summary>
-    [Export] public float WalkDrain { get; set; } = 0.5f;
+    /// <summary>Drain while walking on the flat with no load, per second (none: walking is free).</summary>
+    [Export] public float WalkDrain { get; set; } = 0.0f;
+    /// <summary>Drain while walking straight up a slope of grade 1 (45°), per second; gentle climbs cost little.</summary>
+    [Export] public float UphillDrain { get; set; } = 5.0f;
     /// <summary>Extra walk and sprint drain per kg of load, as a fraction: drain × (1 + this × kg).</summary>
     [Export] public float LoadDrainPerKg { get; set; } = 0.02f;
     /// <summary>Extra drain per unit of uphill grade (sine of the slope along the walk).</summary>
-    [Export] public float UphillDrainPerGrade { get; set; } = 3.0f;
+    [Export] public float UphillDrainPerGrade { get; set; } = 0.0f;
     /// <summary>Extra drain per unit of downhill grade: steep descents work the legs too.</summary>
-    [Export] public float DownhillDrainPerGrade { get; set; } = 1.0f;
+    [Export] public float DownhillDrainPerGrade { get; set; } = 0.0f;
     /// <summary>Drain multiplier for careful braking steps.</summary>
     [Export] public float BrakeDrainFactor { get; set; } = 0.8f;
 
     [ExportGroup("Sprint and jump")]
     /// <summary>Drain while sprinting with no load, per second (on top of walking).</summary>
-    [Export] public float SprintDrain { get; set; } = 18.0f;
-    [Export] public float JumpCost { get; set; } = 15.0f;
+    [Export] public float SprintDrain { get; set; } = 12.0f;
+    [Export] public float JumpCost { get; set; } = 10.0f;
 
     [ExportGroup("Recovery")]
     /// <summary>Recovery while standing still, per second.</summary>
-    [Export] public float RecoveryPerSecond { get; set; } = 6.0f;
-    /// <summary>Seconds after the last use before stamina starts recovering.</summary>
-    [Export] public float RecoveryDelay { get; set; } = 1.0f;
-    /// <summary>Once exhausted, stamina must recover to this before the carrier can move again.</summary>
-    [Export] public float ExhaustedRecoverLevel { get; set; } = 30.0f;
+    [Export] public float RecoveryPerSecond { get; set; } = 18.0f;
+    /// <summary>Recovery while walking, as a share of the standing rate.</summary>
+    [Export] public float WalkingRecovery { get; set; } = 0.75f;
+    /// <summary>Seconds after the last effort before stamina starts recovering.</summary>
+    [Export] public float RecoveryDelay { get; set; } = 0.8f;
+    /// <summary>Out of breath, the carrier walks at this share of its speed.</summary>
+    [Export] public float ExhaustedWalkFactor { get; set; } = 0.7f;
+    /// <summary>Once out of breath, stamina must recover to this before the carrier can sprint or jump again.</summary>
+    [Export] public float ExhaustedRecoverLevel { get; set; } = 20.0f;
 
     public float Current { get; private set; }
     /// <summary>Out of stamina: no walking, sprinting or jumping until it recovers.</summary>
@@ -53,8 +60,11 @@ public partial class CarrierStamina : Node
 
     private float _sinceUse;
 
+    private RunState? _run;
+
     public override void _Ready()
     {
+        _run = GetNodeOrNull<RunState>("/root/RunState");
         Current = Max;
     }
 
@@ -68,7 +78,13 @@ public partial class CarrierStamina : Node
             return;
         }
 
-        Current = Mathf.Min(EffectiveMax, Current + EffectiveRecovery * dt);
+        float rate = EffectiveRecovery;
+        if (_movingFor > 0.0f)
+        {
+            rate *= WalkingRecovery;
+        }
+        _movingFor -= dt;
+        Current = Mathf.Min(EffectiveMax, Current + rate * dt);
         if (Exhausted && Current >= ExhaustedRecoverLevel)
         {
             Exhausted = false;
@@ -82,7 +98,7 @@ public partial class CarrierStamina : Node
     public float WalkDrainPerSecond(float loadMass, float grade, bool braking, bool sprinting)
     {
         float slope = 1.0f + DownhillDrainPerGrade * Mathf.Max(0.0f, grade) + UphillDrainPerGrade * Mathf.Max(0.0f, -grade);
-        float drain = WalkDrain * slope;
+        float drain = WalkDrain * slope + UphillDrain * Mathf.Max(0.0f, -grade);
         if (braking)
         {
             drain *= BrakeDrainFactor;
@@ -91,14 +107,25 @@ public partial class CarrierStamina : Node
         {
             drain += SprintDrain;
         }
-        return drain * (1.0f + LoadDrainPerKg * loadMass);
+        // Boons (RunState.Modifiers) can ease walking and the load's cost.
+        float walkModifier = 1.0f;
+        float loadModifier = 1.0f;
+        if (_run != null)
+        {
+            walkModifier = _run.Modifiers.WalkDrain;
+            loadModifier = _run.Modifiers.LoadDrain;
+        }
+        return drain * walkModifier * (1.0f + LoadDrainPerKg * loadModifier * loadMass);
     }
 
     /// <summary>Drains one physics step of moving under one's own power.</summary>
     public void DrainMovement(float dt, float loadMass, float grade, bool braking, bool sprinting)
     {
+        _movingFor = 0.2f;
         Drain(WalkDrainPerSecond(loadMass, grade, braking, sprinting) * dt);
     }
+
+    private float _movingFor;
 
     /// <summary>Spends a fixed cost (a jump) if there is enough; returns whether it was spent.</summary>
     public bool TrySpend(float amount)
@@ -114,6 +141,11 @@ public partial class CarrierStamina : Node
     /// <summary>Sets stamina directly (tests and debugging).</summary>
     public void SetCurrent(float value)
     {
+        if (value < Current)
+        {
+            // Like spending it: recovery waits its moment.
+            _sinceUse = 0.0f;
+        }
         Current = Mathf.Clamp(value, 0.0f, EffectiveMax);
         Exhausted = Current <= 0.0f;
     }
@@ -126,6 +158,11 @@ public partial class CarrierStamina : Node
 
     private void Drain(float amount)
     {
+        // Effortless steps (walking on the flat or downhill) don't hold recovery back.
+        if (amount <= 0.0f)
+        {
+            return;
+        }
         Current -= amount;
         _sinceUse = 0.0f;
         if (Current <= 0.0f)

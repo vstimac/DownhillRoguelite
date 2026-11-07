@@ -22,7 +22,8 @@ public partial class WildlifeTests : Node3D
     [Export] public WildlifeSpawner? Spawner { get; set; }
     [Export] public float WalkDistance { get; set; } = 300.0f;
     [Export] public float StepDistance { get; set; } = 20.0f;
-    [Export] public float MaxGroundError { get; set; } = 0.05f;
+    /// <summary>A capsule's round foot rests a little above a slope (radius × (1/cos slope - 1)), so a few cm are allowed.</summary>
+    [Export] public float MaxGroundError { get; set; } = 0.08f;
     [Export] public float BudgetMilliseconds { get; set; } = 1.0f;
 
     /// <summary>Circle index meaning "beyond the ninth" (see WildlifeSpecies.Circles).</summary>
