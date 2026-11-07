@@ -1,0 +1,445 @@
+[gd_resource type="Resource" script_class="WildlifeTable" load_steps=41 format=3]
+
+[ext_resource type="Script" path="res://wildlife/WildlifeTable.cs" id="1_table"]
+[ext_resource type="Script" path="res://wildlife/WildlifeSpecies.cs" id="0_species"]
+[ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-bunny.glb" id="2_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-cat.glb" id="3_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-chick.glb" id="4_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-deer.glb" id="5_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-dog.glb" id="6_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-fox.glb" id="7_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-penguin.glb" id="8_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-polar.glb" id="9_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_enemies/FBX/Frog.fbx" id="10_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_enemies/FBX/Rat.fbx" id="11_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_enemies/FBX/Snake.fbx" id="12_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_enemies/FBX/Spider.fbx" id="13_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_enemies/FBX/Wasp.fbx" id="14_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_farm_animals/FBX/Cow.fbx" id="15_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_farm_animals/FBX/Horse.fbx" id="16_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_farm_animals/FBX/Llama.fbx" id="17_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_farm_animals/FBX/Pig.fbx" id="18_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_farm_animals/FBX/Sheep.fbx" id="19_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_farm_animals/FBX/Zebra.fbx" id="20_model"]
+
+[sub_resource type="Resource" id="WildlifeSpecies_cow"]
+script = ExtResource("0_species")
+DisplayName = "Cow"
+Model = ExtResource("15_model")
+ModelScale = 0.3
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "Armature|Idle"
+WalkClip = "Armature|WalkSlow"
+FleeClip = "Armature|Run"
+FleeClipSpeed = 1.0
+WalkSpeed = 0.7
+FleeSpeed = 4.5
+HoverHeight = 0.0
+FleeDistance = 11.0
+SprintFleeDistance = 22.0
+GroupSize = Vector2i(2, 4)
+GroupSpread = 7.0
+Weight = 2.0
+Circles = PackedInt32Array(0)
+Surfaces = PackedStringArray("Grass")
+MaxSlope = 25.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_horse"]
+script = ExtResource("0_species")
+DisplayName = "Horse"
+Model = ExtResource("16_model")
+ModelScale = 0.33
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "Armature|Idle"
+WalkClip = "Armature|Walk"
+FleeClip = "Armature|Run"
+FleeClipSpeed = 1.0
+WalkSpeed = 1.1
+FleeSpeed = 7.0
+HoverHeight = 0.0
+FleeDistance = 14.0
+SprintFleeDistance = 26.0
+GroupSize = Vector2i(1, 3)
+GroupSpread = 8.0
+Weight = 1.5
+Circles = PackedInt32Array(0, 1)
+Surfaces = PackedStringArray("Grass", "Scree")
+MaxSlope = 28.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_zebra"]
+script = ExtResource("0_species")
+DisplayName = "Zebra"
+Model = ExtResource("20_model")
+ModelScale = 0.32
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "Armature|Idle"
+WalkClip = "Armature|Walk"
+FleeClip = "Armature|Run"
+FleeClipSpeed = 1.0
+WalkSpeed = 1.1
+FleeSpeed = 7.5
+HoverHeight = 0.0
+FleeDistance = 14.0
+SprintFleeDistance = 26.0
+GroupSize = Vector2i(2, 5)
+GroupSpread = 9.0
+Weight = 2.0
+Circles = PackedInt32Array(1)
+Surfaces = PackedStringArray("Grass", "Scree", "Rock")
+MaxSlope = 28.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_sheep"]
+script = ExtResource("0_species")
+DisplayName = "Sheep"
+Model = ExtResource("19_model")
+ModelScale = 0.26
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "Armature|Idle"
+WalkClip = ""
+FleeClip = "Armature|Jump"
+FleeClipSpeed = 1.3
+WalkSpeed = 0.0
+FleeSpeed = 3.5
+HoverHeight = 0.0
+FleeDistance = 10.0
+SprintFleeDistance = 20.0
+GroupSize = Vector2i(3, 6)
+GroupSpread = 6.0
+Weight = 2.5
+Circles = PackedInt32Array(0)
+Surfaces = PackedStringArray("Grass", "Scree")
+MaxSlope = 30.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_llama"]
+script = ExtResource("0_species")
+DisplayName = "Llama"
+Model = ExtResource("17_model")
+ModelScale = 0.36
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "Armature|Idle"
+WalkClip = ""
+FleeClip = "Armature|Jump"
+FleeClipSpeed = 1.2
+WalkSpeed = 0.0
+FleeSpeed = 4.0
+HoverHeight = 0.0
+FleeDistance = 12.0
+SprintFleeDistance = 22.0
+GroupSize = Vector2i(1, 3)
+GroupSpread = 6.0
+Weight = 1.0
+Circles = PackedInt32Array(0, 3)
+Surfaces = PackedStringArray("Grass", "Rock", "Scree")
+MaxSlope = 34.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_pig"]
+script = ExtResource("0_species")
+DisplayName = "Pig"
+Model = ExtResource("18_model")
+ModelScale = 0.25
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "Armature|Idle"
+WalkClip = ""
+FleeClip = "Armature|Jump"
+FleeClipSpeed = 1.4
+WalkSpeed = 0.0
+FleeSpeed = 3.0
+HoverHeight = 0.0
+FleeDistance = 8.0
+SprintFleeDistance = 16.0
+GroupSize = Vector2i(2, 5)
+GroupSpread = 5.0
+Weight = 3.0
+Circles = PackedInt32Array(2)
+Surfaces = PackedStringArray("Mud", "Grass")
+MaxSlope = 25.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_rat"]
+script = ExtResource("0_species")
+DisplayName = "Rat"
+Model = ExtResource("11_model")
+ModelScale = 0.25
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "RatArmature|Rat_Idle"
+WalkClip = "RatArmature|Rat_Walk"
+FleeClip = "RatArmature|Rat_Run"
+FleeClipSpeed = 1.0
+WalkSpeed = 0.6
+FleeSpeed = 4.0
+HoverHeight = 0.0
+FleeDistance = 6.0
+SprintFleeDistance = 12.0
+GroupSize = Vector2i(1, 3)
+GroupSpread = 3.0
+Weight = 1.0
+Circles = PackedInt32Array(0, 2, 3, 8)
+Surfaces = PackedStringArray("Mud", "Grass", "Scree", "Snow")
+MaxSlope = 40.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_frog"]
+script = ExtResource("0_species")
+DisplayName = "Frog"
+Model = ExtResource("10_model")
+ModelScale = 0.22
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "FrogArmature|Frog_Idle"
+WalkClip = ""
+FleeClip = "FrogArmature|Frog_Jump"
+FleeClipSpeed = 1.2
+WalkSpeed = 0.0
+FleeSpeed = 2.5
+HoverHeight = 0.0
+FleeDistance = 5.0
+SprintFleeDistance = 9.0
+GroupSize = Vector2i(1, 3)
+GroupSpread = 3.0
+Weight = 1.5
+Circles = PackedInt32Array(0, 2, 4)
+Surfaces = PackedStringArray("Mud")
+MaxSlope = 30.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_snake"]
+script = ExtResource("0_species")
+DisplayName = "Snake"
+Model = ExtResource("12_model")
+ModelScale = 0.4
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "SnakeArmature|Snake_Idle"
+WalkClip = "SnakeArmature|Snake_Walk"
+FleeClip = "SnakeArmature|Snake_Walk"
+FleeClipSpeed = 2.5
+WalkSpeed = 0.4
+FleeSpeed = 2.2
+HoverHeight = 0.0
+FleeDistance = 5.0
+SprintFleeDistance = 8.0
+GroupSize = Vector2i(1, 2)
+GroupSpread = 3.0
+Weight = 1.5
+Circles = PackedInt32Array(4, 6, 7)
+Surfaces = PackedStringArray("Mud", "Grass", "Rock", "Scree")
+MaxSlope = 35.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_spider"]
+script = ExtResource("0_species")
+DisplayName = "Spider"
+Model = ExtResource("13_model")
+ModelScale = 0.45
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "SpiderArmature|Spider_Idle"
+WalkClip = "SpiderArmature|Spider_Walk"
+FleeClip = "SpiderArmature|Spider_Walk"
+FleeClipSpeed = 2.5
+WalkSpeed = 0.8
+FleeSpeed = 4.0
+HoverHeight = 0.0
+FleeDistance = 6.0
+SprintFleeDistance = 11.0
+GroupSize = Vector2i(1, 3)
+GroupSpread = 4.0
+Weight = 2.0
+Circles = PackedInt32Array(5, 7)
+Surfaces = PackedStringArray("Rock", "Scree")
+MaxSlope = 45.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_wasp"]
+script = ExtResource("0_species")
+DisplayName = "Wasp"
+Model = ExtResource("14_model")
+ModelScale = 0.3
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "WaspArmature|Wasp_Flying"
+WalkClip = "WaspArmature|Wasp_Flying"
+FleeClip = "WaspArmature|Wasp_Flying"
+FleeClipSpeed = 2.0
+WalkSpeed = 1.5
+FleeSpeed = 5.0
+HoverHeight = 1.4
+FleeDistance = 4.0
+SprintFleeDistance = 7.0
+GroupSize = Vector2i(2, 4)
+GroupSpread = 3.0
+Weight = 1.5
+Circles = PackedInt32Array(6)
+Surfaces = PackedStringArray()
+MaxSlope = 60.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_deer"]
+script = ExtResource("0_species")
+DisplayName = "Deer"
+Model = ExtResource("5_model")
+ModelScale = 0.9
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "idle"
+WalkClip = "walk"
+FleeClip = "run"
+FleeClipSpeed = 1.0
+WalkSpeed = 0.9
+FleeSpeed = 6.0
+HoverHeight = 0.0
+FleeDistance = 10.0
+SprintFleeDistance = 18.0
+GroupSize = Vector2i(1, 3)
+GroupSpread = 5.0
+Weight = 1.0
+Circles = PackedInt32Array(9)
+Surfaces = PackedStringArray()
+MaxSlope = 35.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_fox"]
+script = ExtResource("0_species")
+DisplayName = "Fox"
+Model = ExtResource("7_model")
+ModelScale = 0.7
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "idle"
+WalkClip = "walk"
+FleeClip = "run"
+FleeClipSpeed = 1.0
+WalkSpeed = 0.9
+FleeSpeed = 6.0
+HoverHeight = 0.0
+FleeDistance = 10.0
+SprintFleeDistance = 18.0
+GroupSize = Vector2i(1, 2)
+GroupSpread = 5.0
+Weight = 1.0
+Circles = PackedInt32Array(9)
+Surfaces = PackedStringArray()
+MaxSlope = 35.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_bunny"]
+script = ExtResource("0_species")
+DisplayName = "Bunny"
+Model = ExtResource("2_model")
+ModelScale = 0.5
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "idle"
+WalkClip = "walk"
+FleeClip = "run"
+FleeClipSpeed = 1.0
+WalkSpeed = 0.9
+FleeSpeed = 5.0
+HoverHeight = 0.0
+FleeDistance = 10.0
+SprintFleeDistance = 18.0
+GroupSize = Vector2i(2, 4)
+GroupSpread = 5.0
+Weight = 1.0
+Circles = PackedInt32Array(9)
+Surfaces = PackedStringArray()
+MaxSlope = 35.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_penguin"]
+script = ExtResource("0_species")
+DisplayName = "Penguin"
+Model = ExtResource("8_model")
+ModelScale = 0.6
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "idle"
+WalkClip = "walk"
+FleeClip = "run"
+FleeClipSpeed = 1.0
+WalkSpeed = 0.9
+FleeSpeed = 2.5
+HoverHeight = 0.0
+FleeDistance = 10.0
+SprintFleeDistance = 18.0
+GroupSize = Vector2i(2, 5)
+GroupSpread = 5.0
+Weight = 1.0
+Circles = PackedInt32Array(9)
+Surfaces = PackedStringArray()
+MaxSlope = 35.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_polar"]
+script = ExtResource("0_species")
+DisplayName = "Polar"
+Model = ExtResource("9_model")
+ModelScale = 1.0
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "idle"
+WalkClip = "walk"
+FleeClip = "run"
+FleeClipSpeed = 1.0
+WalkSpeed = 0.9
+FleeSpeed = 4.5
+HoverHeight = 0.0
+FleeDistance = 10.0
+SprintFleeDistance = 18.0
+GroupSize = Vector2i(1, 2)
+GroupSpread = 5.0
+Weight = 1.0
+Circles = PackedInt32Array(9)
+Surfaces = PackedStringArray()
+MaxSlope = 35.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_cat"]
+script = ExtResource("0_species")
+DisplayName = "Cat"
+Model = ExtResource("3_model")
+ModelScale = 0.55
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "idle"
+WalkClip = "walk"
+FleeClip = "run"
+FleeClipSpeed = 1.0
+WalkSpeed = 0.9
+FleeSpeed = 5.5
+HoverHeight = 0.0
+FleeDistance = 10.0
+SprintFleeDistance = 18.0
+GroupSize = Vector2i(1, 2)
+GroupSpread = 5.0
+Weight = 1.0
+Circles = PackedInt32Array(9)
+Surfaces = PackedStringArray()
+MaxSlope = 35.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_dog"]
+script = ExtResource("0_species")
+DisplayName = "Dog"
+Model = ExtResource("6_model")
+ModelScale = 0.65
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "idle"
+WalkClip = "walk"
+FleeClip = "run"
+FleeClipSpeed = 1.0
+WalkSpeed = 0.9
+FleeSpeed = 6.0
+HoverHeight = 0.0
+FleeDistance = 10.0
+SprintFleeDistance = 18.0
+GroupSize = Vector2i(1, 3)
+GroupSpread = 5.0
+Weight = 1.0
+Circles = PackedInt32Array(9)
+Surfaces = PackedStringArray()
+MaxSlope = 35.0
+
+[sub_resource type="Resource" id="WildlifeSpecies_chick"]
+script = ExtResource("0_species")
+DisplayName = "Chick"
+Model = ExtResource("4_model")
+ModelScale = 0.4
+ModelRotationDegrees = Vector3(0.0, 180.0, 0.0)
+IdleClip = "idle"
+WalkClip = "walk"
+FleeClip = "run"
+FleeClipSpeed = 1.0
+WalkSpeed = 0.9
+FleeSpeed = 3.0
+HoverHeight = 0.0
+FleeDistance = 10.0
+SprintFleeDistance = 18.0
+GroupSize = Vector2i(3, 6)
+GroupSpread = 5.0
+Weight = 1.0
+Circles = PackedInt32Array(9)
+Surfaces = PackedStringArray()
+MaxSlope = 35.0
+
+[resource]
+script = ExtResource("1_table")
+Species = [SubResource("WildlifeSpecies_cow"), SubResource("WildlifeSpecies_horse"), SubResource("WildlifeSpecies_zebra"), SubResource("WildlifeSpecies_sheep"), SubResource("WildlifeSpecies_llama"), SubResource("WildlifeSpecies_pig"), SubResource("WildlifeSpecies_rat"), SubResource("WildlifeSpecies_frog"), SubResource("WildlifeSpecies_snake"), SubResource("WildlifeSpecies_spider"), SubResource("WildlifeSpecies_wasp"), SubResource("WildlifeSpecies_deer"), SubResource("WildlifeSpecies_fox"), SubResource("WildlifeSpecies_bunny"), SubResource("WildlifeSpecies_penguin"), SubResource("WildlifeSpecies_polar"), SubResource("WildlifeSpecies_cat"), SubResource("WildlifeSpecies_dog"), SubResource("WildlifeSpecies_chick")]

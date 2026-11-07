@@ -33,6 +33,9 @@
 [ext_resource type="AudioStream" path="res://audio/ambience/rain.wav" id="33_rain"]
 [ext_resource type="Script" path="res://audio/Footsteps.cs" id="34_footsteps"]
 [ext_resource type="Script" path="res://world_ui/CircleTitle.cs" id="35_circle_title"]
+[ext_resource type="Script" path="res://wildlife/WildlifeSpawner.cs" id="36_wildlife"]
+[ext_resource type="Resource" path="res://wildlife/default_wildlife.tres" id="37_wildlife_table"]
+[ext_resource type="Script" path="res://debug/WildlifeDebugOverlay.cs" id="38_wildlife_overlay"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
@@ -89,6 +92,10 @@ script = ExtResource("24_weather_particles")
 
 [node name="Stations" type="Node3D" parent="."]
 script = ExtResource("21_stations")
+
+[node name="Wildlife" type="Node3D" parent="."]
+script = ExtResource("36_wildlife")
+Table = ExtResource("37_wildlife_table")
 
 [node name="Supplies" type="Node3D" parent="."]
 script = ExtResource("18_supplies")
@@ -167,3 +174,7 @@ script = ExtResource("29_narrator")
 
 [node name="PauseMenu" type="CanvasLayer" parent="."]
 script = ExtResource("30_pause")
+
+[node name="WildlifeOverlay" type="CanvasLayer" parent="." node_paths=PackedStringArray("Spawner")]
+script = ExtResource("38_wildlife_overlay")
+Spawner = NodePath("../Wildlife")
