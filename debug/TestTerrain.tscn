@@ -32,6 +32,7 @@
 [ext_resource type="AudioStream" path="res://audio/ambience/wind.wav" id="32_wind"]
 [ext_resource type="AudioStream" path="res://audio/ambience/rain.wav" id="33_rain"]
 [ext_resource type="Script" path="res://audio/Footsteps.cs" id="34_footsteps"]
+[ext_resource type="Script" path="res://world_ui/CircleTitle.cs" id="35_circle_title"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
@@ -157,6 +158,9 @@ RainLoop = ExtResource("33_rain")
 
 [node name="Footsteps" type="Node" parent="."]
 script = ExtResource("34_footsteps")
+
+[node name="CircleTitle" type="Node3D" parent="."]
+script = ExtResource("35_circle_title")
 
 [node name="Narrator" type="Node" parent="."]
 script = ExtResource("29_narrator")
