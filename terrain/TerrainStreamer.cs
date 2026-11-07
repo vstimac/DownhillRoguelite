@@ -56,12 +56,31 @@ public partial class TerrainStreamer : Node3D
     private Vector3 _focus;
     private float _publishedDepth;
 
+    /// <summary>
+    /// Loads every biome's tree, grass and flower model once at start, so a chunk that first uses one
+    /// doesn't stall the game while the file loads.
+    /// </summary>
+    private void WarmPlantModels()
+    {
+        foreach (Biome biome in Settings.Biomes)
+        {
+            foreach (string[] models in new[] { biome.TreeModels, biome.GrassModels, biome.FlowerModels })
+            {
+                foreach (string model in models)
+                {
+                    ModelFit.FirstMesh(model, out _);
+                }
+            }
+        }
+    }
+
     public override void _Ready()
     {
         LoadSurfaces();
         _groundMaterial = new StandardMaterial3D { VertexColorUseAsAlbedo = true, Roughness = 1.0f };
         _boulderMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_boulderSurface, new Color(0.5f, 0.5f, 0.52f)), Roughness = 1.0f };
         _trunkMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_trunkSurface, new Color(0.42f, 0.3f, 0.2f)), Roughness = 1.0f };
+        WarmPlantModels();
 
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
         GameEvents.NewMountain += Reseed;

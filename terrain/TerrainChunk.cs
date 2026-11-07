@@ -52,8 +52,41 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
         {
             AddObstacle(obstacle, boulderMaterial, trunkMaterial, boulderSurface, trunkSurface);
         }
-        AddPlants(data, trunkSurface);
+        // Plants follow on the next frame, so the ground and the plants never land in the same frame.
+        _pendingPlants = data;
+        _pendingTrunkSurface = trunkSurface;
+        SetProcess(true);
     }
+
+    private TerrainChunkData? _pendingPlants;
+    private SurfaceType? _pendingTrunkSurface;
+
+    public override void _Ready()
+    {
+        if (_pendingPlants == null)
+        {
+            SetProcess(false);
+        }
+    }
+
+    public override void _Process(double delta)
+    {
+        if (_pendingPlants != null)
+        {
+            TerrainChunkData data = _pendingPlants;
+            _pendingPlants = null;
+            ulong start = Time.GetTicksUsec();
+            AddPlants(data, _pendingTrunkSurface);
+            MaxPlantMilliseconds = Mathf.Max(MaxPlantMilliseconds, (Time.GetTicksUsec() - start) / 1000.0);
+        }
+        SetProcess(false);
+    }
+
+    /// <summary>The slowest frame spent adding one chunk's plants, in ms (for the streaming test).</summary>
+    public static double MaxPlantMilliseconds { get; set; }
+
+    /// <summary>True until the chunk's plants have been added (the frame after its ground).</summary>
+    public bool PlantsPending => _pendingPlants != null;
 
     /// <summary>Trees as bodies the carrier bumps into; grass and flowers batched per model.</summary>
     private void AddPlants(TerrainChunkData data, SurfaceType? trunkSurface)
@@ -96,12 +129,29 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
                 continue;
             }
             MultiMesh batch = new() { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = plants.Count };
+            // One buffer for all instances (12 floats each: the basis by rows, then the origin) instead
+            // of a call per tuft, which made adding a chunk hitch.
+            float[] buffer = new float[plants.Count * 12];
             for (int i = 0; i < plants.Count; i++)
             {
                 PlantData plant = plants[i];
                 Basis basis = new Basis(Vector3.Up, plant.Yaw).Scaled(Vector3.One * plant.Scale);
-                batch.SetInstanceTransform(i, new Transform3D(basis, plant.Position - Position) * local);
+                Transform3D t = new Transform3D(basis, plant.Position - Position) * local;
+                int o = i * 12;
+                buffer[o] = t.Basis.X.X;
+                buffer[o + 1] = t.Basis.Y.X;
+                buffer[o + 2] = t.Basis.Z.X;
+                buffer[o + 3] = t.Origin.X;
+                buffer[o + 4] = t.Basis.X.Y;
+                buffer[o + 5] = t.Basis.Y.Y;
+                buffer[o + 6] = t.Basis.Z.Y;
+                buffer[o + 7] = t.Origin.Y;
+                buffer[o + 8] = t.Basis.X.Z;
+                buffer[o + 9] = t.Basis.Y.Z;
+                buffer[o + 10] = t.Basis.Z.Z;
+                buffer[o + 11] = t.Origin.Z;
             }
+            batch.Buffer = buffer;
             Material? material = null;
             if (plants[0].Kind == PlantKind.Grass)
             {
