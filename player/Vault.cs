@@ -226,23 +226,30 @@ public partial class Vault : Node3D
         {
             return true;
         }
-        if (Look?.Model == null || !ResourceLoader.Exists(AnimationScene) || ResourceLoader.Load(AnimationScene) is not PackedScene scene)
+        if (Look?.Model == null || !ResourceLoader.Exists(AnimationScene))
         {
             return false;
         }
-        Node source = scene.Instantiate();
-        AnimationPlayer? sourcePlayer = null;
-        foreach (Node node in source.FindChildren("*", "AnimationPlayer", true, false))
-        {
-            sourcePlayer = node as AnimationPlayer;
-            break;
-        }
+        // The vault is imported as an animation library (no second copy of the character); a scene works too.
         Animation? animation = null;
-        if (sourcePlayer != null && sourcePlayer.HasAnimation(AnimationName))
+        Resource? source = ResourceLoader.Load(AnimationScene);
+        if (source is AnimationLibrary sourceLibrary && sourceLibrary.HasAnimation(AnimationName))
         {
-            animation = (Animation)sourcePlayer.GetAnimation(AnimationName).Duplicate();
+            animation = (Animation)sourceLibrary.GetAnimation(AnimationName).Duplicate();
         }
-        source.Free();
+        else if (source is PackedScene scene)
+        {
+            Node instance = scene.Instantiate();
+            foreach (Node node in instance.FindChildren("*", "AnimationPlayer", true, false))
+            {
+                if (node is AnimationPlayer sourcePlayer && sourcePlayer.HasAnimation(AnimationName))
+                {
+                    animation = (Animation)sourcePlayer.GetAnimation(AnimationName).Duplicate();
+                }
+                break;
+            }
+            instance.Free();
+        }
         if (animation == null)
         {
             return false;
