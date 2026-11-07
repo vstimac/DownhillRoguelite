@@ -6,9 +6,9 @@ namespace DownhillRoguelite.Ui;
 
 /// <summary>
 /// Subtitles for everything said aloud (GameEvents.SpeechStarted): a strip of parchment with the
-/// speaker's name and words, written on the side of the screen the voice comes from. A voice
-/// straight ahead is captioned low in the middle; one to the left, on the left; one behind, low
-/// at the side it's nearer, and an inked arrow points toward a speaker who is off to the side or
+/// speaker's name and words, in a band low on the screen (clear of the carrier and above the
+/// hotbar), leaning to the side the voice comes from: a voice ahead in the middle, one to the left
+/// on the left, and an inked arrow points toward a speaker who is off to the side or
 /// behind. The newest line sits at its spot, older ones above it; each stays as long as it is
 /// spoken, then fades. Up to MaxLines at once.
 /// </summary>
@@ -18,8 +18,12 @@ public partial class Subtitles : Control
     [Export] public float MaxWidth { get; set; } = 520.0f;
     /// <summary>How far toward the side a voice from the side is written, as a share of the screen's width.</summary>
     [Export] public float SideReach { get; set; } = 0.33f;
-    /// <summary>Height of a caption for a voice straight ahead, as a share of the screen's height.</summary>
-    [Export] public float BaseHeight { get; set; } = 0.72f;
+    /// <summary>Captions sit in a band this far above the bottom of the screen (clear of the hotbar), in px.</summary>
+    [Export] public float BottomMargin { get; set; } = 112.0f;
+    /// <summary>A voice from behind is written this much lower than one ahead, in px (still above BottomMargin's band).</summary>
+    [Export] public float BehindDrop { get; set; } = 0.0f;
+    /// <summary>Padding inside the strip, in px (sides, top, bottom).</summary>
+    [Export] public Vector2 Padding { get; set; } = new(14.0f, 6.0f);
     /// <summary>An arrow points at the speaker when they are more than this far off the view's centre, in degrees.</summary>
     [Export] public float ArrowFrom { get; set; } = 40.0f;
     [Export] public float Linger { get; set; } = 0.6f;
@@ -69,17 +73,20 @@ public partial class Subtitles : Control
         {
             return;
         }
-        Vector2 textSize = UiStyle.Hand.GetMultilineStringSize(speech.Text, HorizontalAlignment.Left, MaxWidth - 36.0f, UiStyle.TextSize);
-        Vector2 size = new(Mathf.Min(MaxWidth, textSize.X + 36.0f), textSize.Y + 44.0f);
+        // The strip fits its words: as wide as the text (wrapped at MaxWidth), as tall as its lines.
+        float nameHeight = UiStyle.Heading.GetHeight(UiStyle.SmallSize);
+        Vector2 textSize = WrappedSize(speech.Text, MaxWidth - Padding.X * 2.0f);
+        float nameWidth = UiStyle.Heading.GetStringSize(speech.Speaker, HorizontalAlignment.Left, -1, UiStyle.SmallSize).X;
+        Vector2 size = new(Mathf.Min(MaxWidth, Mathf.Max(textSize.X, nameWidth) + Padding.X * 2.0f + 4.0f), Padding.Y * 2.0f + nameHeight + textSize.Y);
         ColorRect paper = new() { Size = size, MouseFilter = MouseFilterEnum.Ignore };
         paper.Material = UiStyle.Parchment(size, _random.Randf() * 40.0f, 2.5f, 3.0f);
         Label name = UiStyle.MakeLabel(speech.Speaker, UiStyle.SmallSize, true, UiStyle.InkSoft);
-        name.Position = new Vector2(16, 4);
+        name.Position = new Vector2(Padding.X, Padding.Y - 2.0f);
         paper.AddChild(name);
         Label text = UiStyle.MakeLabel(speech.Text, UiStyle.TextSize);
-        text.Position = new Vector2(16, 26);
-        text.Size = new Vector2(size.X - 32.0f, textSize.Y + 8.0f);
+        text.Position = new Vector2(Padding.X, Padding.Y + nameHeight - 2.0f);
         text.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        text.Size = new Vector2(size.X - Padding.X * 2.0f, textSize.Y + 2.0f);
         paper.AddChild(text);
         paper.Modulate = new Color(1, 1, 1, 0);
         AddChild(paper);
@@ -90,6 +97,22 @@ public partial class Subtitles : Control
             _lines[0].Paper?.QueueFree();
             _lines.RemoveAt(0);
         }
+    }
+
+    /// <summary>The size of the words wrapped at a width the way the label wraps them: widest line, total height.</summary>
+    private static Vector2 WrappedSize(string text, float width)
+    {
+        TextParagraph paragraph = new() { Width = width, BreakFlags = TextServer.LineBreakFlag.Mandatory | TextServer.LineBreakFlag.WordBound | TextServer.LineBreakFlag.Adaptive };
+        paragraph.AddString(text, UiStyle.Hand, UiStyle.TextSize);
+        float widest = 0.0f;
+        float height = 0.0f;
+        for (int i = 0; i < paragraph.GetLineCount(); i++)
+        {
+            Vector2 line = paragraph.GetLineSize(i);
+            widest = Mathf.Max(widest, line.X);
+            height += line.Y;
+        }
+        return new Vector2(Mathf.Ceil(widest) + 2.0f, Mathf.Ceil(height) + 2.0f);
     }
 
     private void Clear()
@@ -127,8 +150,9 @@ public partial class Subtitles : Control
     /// <summary>Where the centre of a caption for a voice at this angle goes on a screen of this size.</summary>
     public Vector2 AnchorFor(float angle, Vector2 screen)
     {
+        // Low on the screen, clear of the carrier in the middle and of the hotbar below; leaning to the voice's side.
         float x = screen.X * 0.5f + Mathf.Sin(angle) * screen.X * SideReach;
-        float y = screen.Y * BaseHeight - Mathf.Cos(angle) * screen.Y * 0.06f;
+        float y = screen.Y - BottomMargin + (1.0f - Mathf.Cos(angle)) * 0.5f * BehindDrop;
         return new Vector2(x, y);
     }
 

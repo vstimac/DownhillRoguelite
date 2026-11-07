@@ -22,3 +22,6 @@ addons/nobodywho/*.so
 addons/nobodywho/*.dylib
 # Leftover copies Windows makes of locked DLLs
 addons/**/~*
+tools/launcher/bin/
+tools/launcher/obj/
+tools/launcher/out/

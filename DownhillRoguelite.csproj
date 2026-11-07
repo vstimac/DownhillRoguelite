@@ -8,4 +8,8 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- The launcher is its own program (tools/launcher), not part of the game. -->
+    <Compile Remove="tools/**" />
+  </ItemGroup>
 </Project>
