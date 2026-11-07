@@ -36,6 +36,8 @@ public sealed class TerrainGenerator
     private const ulong ObstacleSalt = 9;
     private const ulong RouteSalt = 10;
     private const ulong HazardBumpSalt = 11;
+    private const ulong BiomeSalt = 12;
+    private const ulong PlantSalt = 13;
     // 1D noise is read along a line off the lattice (noise is 0 on lattice points).
     private const float LineOffset = 0.5f;
     // Step for slope by finite differences, in m.
@@ -51,6 +53,7 @@ public sealed class TerrainGenerator
     private readonly GradientNoise _mud;
     private readonly GradientNoise _scree;
     private readonly GradientNoise _hazardBumps;
+    private readonly GradientNoise _biomeDither;
     private readonly float _gradeTangent;
     private readonly float _clearingSlopeTangent;
     private readonly float _summitCliffTangent;
@@ -79,6 +82,7 @@ public sealed class TerrainGenerator
         _mud = new GradientNoise(SplitMix64.Mix(seed, MudSalt));
         _scree = new GradientNoise(SplitMix64.Mix(seed, ScreeSalt));
         _hazardBumps = new GradientNoise(SplitMix64.Mix(seed, HazardBumpSalt));
+        _biomeDither = new GradientNoise(SplitMix64.Mix(seed, BiomeSalt));
         _gradeTangent = Mathf.Tan(Mathf.DegToRad(settings.Grade));
         _clearingSlopeTangent = Mathf.Tan(Mathf.DegToRad(settings.ClearingSlope));
         _summitCliffTangent = Mathf.Tan(Mathf.DegToRad(settings.SummitCliffSlope));
@@ -576,6 +580,7 @@ public sealed class TerrainGenerator
         data.Colors = colors;
 
         PlaceObstacles(data, coord, corner);
+        PlacePlants(data, coord, corner);
         data.BuildMilliseconds = timer.Elapsed.TotalMilliseconds;
         return data;
     }
@@ -589,6 +594,13 @@ public sealed class TerrainGenerator
         float pathWeight = PathWeight(centre.X, centre.Z, out RouteKind kind);
         TerrainSurface surface = Classify(centre.X, centre.Z, slope, pathWeight, kind);
         Color color = surfaceColors[(int)surface];
+        // The biome tints the ground: grass and mud fully, snow and rock half as much.
+        Color tint = BiomeTint(DepthAt(centre.Y));
+        if (surface != TerrainSurface.Grass && surface != TerrainSurface.Mud)
+        {
+            tint = Colors.White.Lerp(tint, 0.5f);
+        }
+        color = new Color(color.R * tint.R, color.G * tint.G, color.B * tint.B);
         float brightness = 1.0f + jitter.Range(-_settings.ColorJitter, _settings.ColorJitter);
         color = new Color(color.R * brightness, color.G * brightness, color.B * brightness);
 
@@ -661,6 +673,226 @@ public sealed class TerrainGenerator
                 data.Obstacles.Add(new ObstacleData(ObstacleKind.Trunk, centre, shape, rotation));
             }
         }
+    }
+
+    /// <summary>Metres below the summit at this height.</summary>
+    public float DepthAt(float height)
+    {
+        return Mathf.Max(0.0f, _startHeight - height);
+    }
+
+    /// <summary>
+    /// The two biomes around a depth and how far it is from the first to the second (0 to 1); away
+    /// from a boundary both are the same biome and the blend is 0.
+    /// </summary>
+    public void BiomesAt(float depth, out int from, out int to, out float blend)
+    {
+        Biome[] biomes = _settings.Biomes;
+        from = 0;
+        to = 0;
+        blend = 0.0f;
+        if (biomes.Length == 0)
+        {
+            return;
+        }
+        float half = _settings.BiomeBlend * 0.5f;
+        for (int k = 1; k < biomes.Length; k++)
+        {
+            float edge = biomes[k].FromDepth;
+            if (depth < edge - half)
+            {
+                from = k - 1;
+                to = k - 1;
+                return;
+            }
+            if (depth <= edge + half)
+            {
+                from = k - 1;
+                to = k;
+                blend = Mathf.SmoothStep(edge - half, edge + half, depth);
+                return;
+            }
+        }
+        from = biomes.Length - 1;
+        to = biomes.Length - 1;
+    }
+
+    /// <summary>The ground tint at a depth, blended smoothly between biomes.</summary>
+    public Color BiomeTint(float depth)
+    {
+        if (_settings.Biomes.Length == 0)
+        {
+            return Colors.White;
+        }
+        BiomesAt(depth, out int from, out int to, out float blend);
+        return _settings.Biomes[from].GroundTint.Lerp(_settings.Biomes[to].GroundTint, blend);
+    }
+
+    /// <summary>
+    /// Which biome a spot belongs to: inside a blend band the choice is dithered by noise, so the two
+    /// biomes' plants interleave in patches rather than switching along a line.
+    /// </summary>
+    public Biome? BiomeAt(float x, float z, float depth)
+    {
+        if (_settings.Biomes.Length == 0)
+        {
+            return null;
+        }
+        BiomesAt(depth, out int from, out int to, out float blend);
+        if (from == to)
+        {
+            return _settings.Biomes[from];
+        }
+        float dither = _biomeDither.Sample(x / 24.0f, z / 24.0f) * 0.5f + 0.5f;
+        if (dither < blend)
+        {
+            return _settings.Biomes[to];
+        }
+        return _settings.Biomes[from];
+    }
+
+    /// <summary>
+    /// Trees, grass and flowers by biome. Trees keep off paths, station clearings and steep ground;
+    /// grass and flowers grow on grassy ground off the trodden path. Grass reads heights from the
+    /// chunk's grid (cheap); trees from the terrain itself.
+    /// </summary>
+    private void PlacePlants(TerrainChunkData data, Vector2I coord, Vector3 corner)
+    {
+        if (_settings.Biomes.Length == 0)
+        {
+            return;
+        }
+        SplitMix64 random = new(SplitMix64.Mix(SplitMix64.Mix(Seed, PlantSalt), ChunkSalt(coord)));
+        float size = _settings.ChunkSize;
+        float maxTrees = 0.0f;
+        float maxGrass = 0.0f;
+        float maxFlowers = 0.0f;
+        foreach (Biome biome in _settings.Biomes)
+        {
+            maxTrees = Mathf.Max(maxTrees, biome.TreeDensity);
+            maxGrass = Mathf.Max(maxGrass, biome.GrassDensity);
+            maxFlowers = Mathf.Max(maxFlowers, biome.FlowerDensity);
+        }
+
+        // Trees: candidates at the densest biome's rate, kept with each spot's own biome's chance.
+        int treeTries = Mathf.RoundToInt(maxTrees * size * size / 1000.0f);
+        for (int n = 0; n < treeTries; n++)
+        {
+            float x = corner.X + random.Range(0.0f, size);
+            float z = corner.Z + random.Range(0.0f, size);
+            float keep = random.NextFloat();
+            float yaw = random.Range(-Mathf.Pi, Mathf.Pi);
+            float pick = random.NextFloat();
+            float tall = random.NextFloat();
+            Vector2 lean = new(random.Range(-1.0f, 1.0f), random.Range(-1.0f, 1.0f));
+            float ground = Height(x, z);
+            Biome? biome = BiomeAt(x, z, DepthAt(ground));
+            if (biome == null || biome.TreeModels.Length == 0 || keep * maxTrees >= biome.TreeDensity)
+            {
+                continue;
+            }
+            if (TooCloseToPath(x, z, 2.0f) || NearStation(x, z, _settings.ClearingRadius + _settings.TreeStationGap) || SlopeDegrees(x, z) > _settings.TreeMaxSlope)
+            {
+                continue;
+            }
+            string model = biome.TreeModels[Mathf.Min((int)(pick * biome.TreeModels.Length), biome.TreeModels.Length - 1)];
+            float height = Mathf.Lerp(biome.TreeHeight.X, biome.TreeHeight.Y, tall);
+            data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground, z), yaw, height, lean * Mathf.DegToRad(biome.TreeLean)));
+        }
+
+        // Grass and flowers: a jittered grid at the densest rate, thinned per biome; heights from the grid.
+        float density = maxGrass + maxFlowers;
+        if (density <= 0.0f)
+        {
+            return;
+        }
+        float step = 1.0f / Mathf.Sqrt(density);
+        int steps = Mathf.FloorToInt(size / step);
+        for (int j = 0; j < steps; j++)
+        {
+            for (int i = 0; i < steps; i++)
+            {
+                float lx = (i + random.NextFloat()) * step;
+                float lz = (j + random.NextFloat()) * step;
+                float keep = random.NextFloat() * density;
+                float pick = random.NextFloat();
+                float scale = random.NextFloat();
+                float yaw = random.Range(-Mathf.Pi, Mathf.Pi);
+                float x = corner.X + lx;
+                float z = corner.Z + lz;
+                float ground = GridHeight(data, lx, lz);
+                Biome? biome = BiomeAt(x, z, DepthAt(ground));
+                if (biome == null)
+                {
+                    continue;
+                }
+                PlantKind kind = PlantKind.Grass;
+                string[] models = biome.GrassModels;
+                if (keep >= biome.GrassDensity)
+                {
+                    if (keep - maxGrass < 0.0f || keep - maxGrass >= biome.FlowerDensity)
+                    {
+                        continue;
+                    }
+                    kind = PlantKind.Flower;
+                    models = biome.FlowerModels;
+                }
+                if (models.Length == 0)
+                {
+                    continue;
+                }
+                float pathWeight = PathWeight(x, z, out RouteKind route);
+                // Grass grows up to the path's trodden middle, and only on grassy ground.
+                if (pathWeight > 0.85f || Classify(x, z, GridSlope(data, lx, lz), 0.0f, route) != TerrainSurface.Grass)
+                {
+                    continue;
+                }
+                string model = models[Mathf.Min((int)(pick * models.Length), models.Length - 1)];
+                float s = Mathf.Lerp(biome.GrassScale.X, biome.GrassScale.Y, scale);
+                data.Plants.Add(new PlantData(kind, model, new Vector3(x, ground, z), yaw, s, Vector2.Zero));
+            }
+        }
+    }
+
+    /// <summary>Height inside a chunk from its grid (local x, z in m), bilinear.</summary>
+    private float GridHeight(TerrainChunkData data, float lx, float lz)
+    {
+        float cell = _settings.CellSize;
+        int points = data.GridPoints;
+        float gx = Mathf.Clamp(lx / cell, 0.0f, points - 1.001f);
+        float gz = Mathf.Clamp(lz / cell, 0.0f, points - 1.001f);
+        int i = (int)gx;
+        int j = (int)gz;
+        float fx = gx - i;
+        float fz = gz - j;
+        float h00 = data.Heights[i + j * points];
+        float h10 = data.Heights[i + 1 + j * points];
+        float h01 = data.Heights[i + (j + 1) * points];
+        float h11 = data.Heights[i + 1 + (j + 1) * points];
+        return Mathf.Lerp(Mathf.Lerp(h00, h10, fx), Mathf.Lerp(h01, h11, fx), fz);
+    }
+
+    /// <summary>Slope inside a chunk from its grid, in degrees.</summary>
+    private float GridSlope(TerrainChunkData data, float lx, float lz)
+    {
+        float cell = _settings.CellSize;
+        float dx = GridHeight(data, lx + cell, lz) - GridHeight(data, lx - cell, lz);
+        float dz = GridHeight(data, lx, lz + cell) - GridHeight(data, lx, lz - cell);
+        return Mathf.RadToDeg(Mathf.Atan(new Vector2(dx, dz).Length() / (2.0f * cell)));
+    }
+
+    /// <summary>True within a distance of a station's centre.</summary>
+    public bool NearStation(float x, float z, float distance)
+    {
+        Vector3[] stations = EnsureStationsBelow(z - distance);
+        foreach (Vector3 station in stations)
+        {
+            if (Mathf.Abs(station.Z - z) <= distance && new Vector2(x - station.X, z - station.Z).Length() < distance)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private bool TooCloseToPath(float x, float z, float extent)

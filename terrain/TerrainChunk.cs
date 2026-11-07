@@ -4,8 +4,9 @@ using Godot;
 namespace DownhillRoguelite.Terrain;
 
 /// <summary>
-/// One streamed piece of the mountain: a flat-shaded mesh, a HeightMapShape3D collider and its
-/// obstacles. Placed at the chunk's corner. Answers surface queries from the generator, so grip
+/// One streamed piece of the mountain: a flat-shaded mesh, a HeightMapShape3D collider, its
+/// obstacles and its plants (trees with solid trunks; grass and flowers drawn in batches, one
+/// MultiMesh per model, only near the camera). Placed at the chunk's corner. Answers surface queries from the generator, so grip
 /// and fall damage vary across the chunk.
 /// </summary>
 public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
@@ -51,6 +52,102 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
         {
             AddObstacle(obstacle, boulderMaterial, trunkMaterial, boulderSurface, trunkSurface);
         }
+        AddPlants(data, trunkSurface);
+    }
+
+    /// <summary>Trees as bodies the carrier bumps into; grass and flowers batched per model.</summary>
+    private void AddPlants(TerrainChunkData data, SurfaceType? trunkSurface)
+    {
+        if (data.Plants.Count == 0)
+        {
+            return;
+        }
+        System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<PlantData>> small = new();
+        foreach (PlantData plant in data.Plants)
+        {
+            if (plant.Kind == PlantKind.Tree)
+            {
+                AddTree(plant, trunkSurface);
+                continue;
+            }
+            if (!small.TryGetValue(plant.Model, out System.Collections.Generic.List<PlantData>? list))
+            {
+                list = new System.Collections.Generic.List<PlantData>();
+                small[plant.Model] = list;
+            }
+            list.Add(plant);
+        }
+        float view = _generator!.Settings.GrassViewDistance;
+        // Grass takes the biome's tint so it sits in the ground's colours (flowers keep their own).
+        Vector3 middle = Position + new Vector3(_generator.Settings.ChunkSize * 0.5f, 0.0f, _generator.Settings.ChunkSize * 0.5f);
+        Color tint = _generator.BiomeTint(_generator.DepthAt(_generator.Height(middle.X, middle.Z)));
+        Color blade = _generator.Settings.GrassColor;
+        StandardMaterial3D grassMaterial = new()
+        {
+            AlbedoColor = new Color(blade.R * tint.R, blade.G * tint.G, blade.B * tint.B),
+            Roughness = 1.0f,
+            CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+        };
+        foreach ((string model, System.Collections.Generic.List<PlantData> plants) in small)
+        {
+            Mesh? mesh = ModelFit.FirstMesh(model, out Transform3D local);
+            if (mesh == null)
+            {
+                continue;
+            }
+            MultiMesh batch = new() { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = plants.Count };
+            for (int i = 0; i < plants.Count; i++)
+            {
+                PlantData plant = plants[i];
+                Basis basis = new Basis(Vector3.Up, plant.Yaw).Scaled(Vector3.One * plant.Scale);
+                batch.SetInstanceTransform(i, new Transform3D(basis, plant.Position - Position) * local);
+            }
+            Material? material = null;
+            if (plants[0].Kind == PlantKind.Grass)
+            {
+                material = grassMaterial;
+            }
+            AddChild(new MultiMeshInstance3D
+            {
+                Name = "Plants",
+                MaterialOverride = material,
+                Multimesh = batch,
+                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
+                VisibilityRangeEnd = view,
+                VisibilityRangeEndMargin = 12.0f,
+                VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
+            });
+        }
+    }
+
+    /// <summary>A tree: its model scaled to its height, standing on the ground (leaning a little), with a solid trunk.</summary>
+    private void AddTree(PlantData plant, SurfaceType? trunkSurface)
+    {
+        Mesh? mesh = ModelFit.FirstMesh(plant.Model, out Transform3D local);
+        if (mesh == null)
+        {
+            return;
+        }
+        Aabb bounds = local * mesh.GetAabb();
+        float scale = plant.Scale / Mathf.Max(bounds.Size.Y, 0.01f);
+        Basis lean = Basis.FromEuler(new Vector3(plant.Lean.X, 0.0f, plant.Lean.Y));
+        StaticBody3D body = new()
+        {
+            Name = "Tree",
+            Transform = new Transform3D(lean * new Basis(Vector3.Up, plant.Yaw), plant.Position - Position),
+        };
+        // The model's foot on the ground: its lowest point at y = 0, centred over the trunk.
+        Vector3 foot = new(bounds.GetCenter().X, bounds.Position.Y, bounds.GetCenter().Z);
+        Transform3D fit = new(Basis.Identity.Scaled(Vector3.One * scale), -foot * scale);
+        body.AddChild(new MeshInstance3D { Mesh = mesh, Transform = fit * local });
+        float radius = Mathf.Clamp(plant.Scale * 0.035f, 0.12f, 0.4f);
+        float trunk = Mathf.Min(plant.Scale, 3.0f);
+        body.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = radius, Height = trunk }, Position = new Vector3(0.0f, trunk * 0.5f, 0.0f) });
+        if (trunkSurface != null)
+        {
+            body.SetMeta(SurfaceType.MetaKey, trunkSurface);
+        }
+        AddChild(body);
     }
 
     public SurfaceType? SurfaceAt(Vector3 worldPoint)

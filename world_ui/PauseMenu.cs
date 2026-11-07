@@ -51,6 +51,7 @@ public partial class PauseMenu : CanvasLayer
     {
         if (@event.IsActionPressed(ActionPause))
         {
+            GD.Print($"Pause menu toggled by {@event.GetType().Name} {@event.AsText()} (device {@event.Device})");
             Toggle();
             GetViewport().SetInputAsHandled();
         }

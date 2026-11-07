@@ -28,6 +28,8 @@ public sealed class TerrainChunkData
     public Vector3[] Normals { get; set; } = System.Array.Empty<Vector3>();
     public Color[] Colors { get; set; } = System.Array.Empty<Color>();
     public List<ObstacleData> Obstacles { get; } = new();
+    /// <summary>Trees, grass and flowers, by biome.</summary>
+    public List<PlantData> Plants { get; } = new();
     /// <summary>Time spent generating on the background thread, in ms.</summary>
     public double BuildMilliseconds { get; set; }
 }
