@@ -20,9 +20,26 @@ public static class ItemText
             ItemCategory.Clothing => "Wear: the Wear button or V. Take it off: click it on the equipment sheet.",
             ItemCategory.Material => "Mend worn gear or the pack: the Mend button, at a station's fire.",
             ItemCategory.Cargo => "Cargo: carry it down. Its weight and place in the pack shift your balance.",
-            _ => "Kept in the pack: it helps by being carried (paper and pencil let you draw on the map, M).",
+            _ => "Kept in the pack: it helps by being carried.",
         };
-        return use + "\nDrop it: the Drop button, or G on the hotbar.";
+        if (OpensMap(item))
+        {
+            use = "Right-click or V opens the map (M) to draw on: paper and pencil let you mark it.";
+        }
+        return use + "\nDrop it: the Drop button, G on the hotbar, or drag it off the page to throw it.";
+    }
+
+    /// <summary>Paper and pencil: using them (right-click, V) opens the map to draw on.</summary>
+    public static bool OpensMap(ItemDefinition? item)
+    {
+        return item != null && (item.ItemId == "paper" || item.ItemId == "pencil");
+    }
+
+    /// <summary>Opens (or closes) the map as if M were pressed.</summary>
+    public static void ToggleMap()
+    {
+        Input.ParseInputEvent(new InputEventAction { Action = "map_toggle", Pressed = true });
+        Input.ParseInputEvent(new InputEventAction { Action = "map_toggle", Pressed = false });
     }
 
     public static string Describe(ItemDefinition? item)

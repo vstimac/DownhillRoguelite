@@ -101,6 +101,7 @@ public partial class InventoryScreen : ParchmentPanel
             };
             slot.Clicked += OnClicked;
             slot.DroppedOn = OnDropped;
+            slot.DraggedAway = OnDraggedAway;
             AddChild(slot);
             _slots.Add(slot);
         }
@@ -246,8 +247,12 @@ public partial class InventoryScreen : ParchmentPanel
         _detailIcon.SetItem(item, _counts.GetValueOrDefault(item.ItemId));
         _detailTitle.Text = item.DisplayName;
         _detailBody.Text = ItemText.Describe(item) + "\n" + ItemText.Properties(item) + "\n\n" + ItemText.HowToUse(item);
-        _use.Visible = item.Category is ItemCategory.Food or ItemCategory.Water or ItemCategory.Clothing or ItemCategory.Material;
+        _use.Visible = item.Category is ItemCategory.Food or ItemCategory.Water or ItemCategory.Clothing or ItemCategory.Material || ItemText.OpensMap(item);
         _use.Text = "Eat";
+        if (ItemText.OpensMap(item))
+        {
+            _use.Text = "Map";
+        }
         if (item.Category == ItemCategory.Water)
         {
             _use.Text = "Drink";
@@ -269,6 +274,15 @@ public partial class InventoryScreen : ParchmentPanel
         {
             _drop.Visible = true;
             _drop.QueueRedraw();
+        }
+    }
+
+    /// <summary>Dropped where nothing took it: anywhere off the page throws it out of the way.</summary>
+    private void OnDraggedAway(int index)
+    {
+        if (!GetGlobalRect().HasPoint(GetGlobalMousePosition()))
+        {
+            ThrowSlot(index);
         }
     }
 
@@ -305,7 +319,11 @@ public partial class InventoryScreen : ParchmentPanel
             return;
         }
         _slots[SelectedIndex].Pop();
-        if (item.Category == ItemCategory.Food || item.Category == ItemCategory.Water)
+        if (ItemText.OpensMap(item))
+        {
+            ItemText.ToggleMap();
+        }
+        else if (item.Category == ItemCategory.Food || item.Category == ItemCategory.Water)
         {
             GameEvents.RequestUseItem(item.ItemId);
         }
