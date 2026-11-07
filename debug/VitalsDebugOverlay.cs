@@ -136,9 +136,23 @@ public partial class VitalsDebugOverlay : CanvasLayer
         {
             circle = _run.Circles.NameOf(_run.Circles.CircleAt(_run.Depth)) + "  ·  ";
         }
-        clock += $"{circle}{weather.Kind}  fog {weather.Fog:0.0} rain {weather.Rain:0.0} snow {weather.Snow:0.0} heat {weather.Heat:0.0}  wind {weather.WindSpeed:0} m/s  grip ×{weather.GripFactor:0.00}  (F4)\n";
+        if (DebugDraw3D.Enabled)
+        {
+            clock += $"{circle}{weather.Kind}  fog {weather.Fog:0.0} rain {weather.Rain:0.0} snow {weather.Snow:0.0} heat {weather.Heat:0.0}  wind {weather.WindSpeed:0} m/s  grip ×{weather.GripFactor:0.00}  (F4)\n";
+        }
+        else
+        {
+            // The player's line: where, what weather, how deep.
+            int depth = 0;
+            if (_run != null)
+            {
+                depth = _run.Depth;
+            }
+            clock += $"{circle}{weather.Kind}  ·  {depth} m down\n";
+        }
         _label.Text = $"{clock}Hunger {vitals.Hunger:0}  ·  Thirst {vitals.Thirst:0}\nHP {vitals.Health:0}/{vitals.MaxHealth:0}{hit}\nStamina {vitals.Stamina:0}{status}";
-        _label.Position = new Vector2(Margin.X + BarSize.X + 12.0f, hungerPosition.Y - 4.0f);
+        // Five lines of text beside four bars: start a line higher so the last one stays on screen.
+        _label.Position = new Vector2(Margin.X + BarSize.X + 12.0f, hungerPosition.Y - 4.0f - FontSize * 1.5f);
     }
 
     private void PlaceBar(ColorRect back, ColorRect fill, Vector2 position, float fraction)
