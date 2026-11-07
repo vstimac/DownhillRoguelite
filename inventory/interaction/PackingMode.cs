@@ -53,6 +53,9 @@ public partial class PackingMode : Node3D
     private PackView? _view;
     private ItemDefinition? _held;
     private int _heldOrientation = GridOrientations.Identity;
+    /// <summary>Mouse wheel steps the held item down into gaps lower in the pack (0: where it drops from above).</summary>
+    private int _layerPick;
+    private Vector2I _layerColumn = new(-1, -1);
     private Vector3I _ghostOrigin;
     private bool _ghostValid;
 
@@ -71,7 +74,7 @@ public partial class PackingMode : Node3D
     /// <summary>The pack screen's controls, along the bottom of the screen while packing.</summary>
     [Export(PropertyHint.MultilineText)] public string HelpText { get; set; } =
         "Click an item to lift it  ·  click in the pack to place it (green fits)  ·  click away to set it on the mat\n" +
-        "Q / E turn  ·  R / F tip  ·  Alt+click: the item underneath  ·  X: arrange everything  ·  Esc or Tab: done";
+        "Q / E turn  ·  R / F tip on its side  ·  wheel: slide it lower into a gap  ·  Alt+click: the item underneath  ·  X: arrange everything  ·  Esc or Tab: done";
 
     private CanvasLayer? _help;
 
@@ -149,6 +152,21 @@ public partial class PackingMode : Node3D
             return;
         }
 
+        if (_held != null && @event is InputEventMouseButton wheel && wheel.Pressed
+            && (wheel.ButtonIndex == MouseButton.WheelDown || wheel.ButtonIndex == MouseButton.WheelUp))
+        {
+            // The wheel slides the held item down into a gap under other things, or back up.
+            if (wheel.ButtonIndex == MouseButton.WheelDown)
+            {
+                _layerPick++;
+            }
+            else
+            {
+                _layerPick--;
+            }
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (@event.IsActionPressed(ActionPlace))
         {
             bool behind = @event is InputEventMouseButton mouse && mouse.AltPressed;
@@ -216,7 +234,19 @@ public partial class PackingMode : Node3D
         }
 
         Vector2I column = _view.ColumnAt(point, size);
+        if (column != _layerColumn)
+        {
+            _layerColumn = column;
+            _layerPick = 0;
+        }
         int rest = Inventory.Grid.DropHeight(size, column.X, column.Y);
+        List<int> heights = Inventory.Grid.RestingHeights(size, column.X, column.Y);
+        if (heights.Count > 0)
+        {
+            int start = Mathf.Max(0, heights.IndexOf(rest));
+            _layerPick = Mathf.Clamp(_layerPick, -start, heights.Count - 1 - start);
+            rest = heights[start + _layerPick];
+        }
         _ghostValid = rest >= 0;
         if (_ghostValid)
         {

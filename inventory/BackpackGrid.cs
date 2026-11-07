@@ -113,6 +113,25 @@ public sealed class BackpackGrid
     /// Where an item dropped in from the open top of column (x, z) comes to rest: the lowest y it
     /// fits with nothing in the way above it. Returns -1 if it doesn't fit even at the top.
     /// </summary>
+    /// <summary>
+    /// Every height in this column where an item of <paramref name="size"/> fits and rests (on the
+    /// pack's floor or on something), from the top down: the gaps under other items too, not just
+    /// the first landing from above.
+    /// </summary>
+    public List<int> RestingHeights(Vector3I size, int x, int z)
+    {
+        List<int> heights = new();
+        for (int y = Size.Y - size.Y; y >= 0; y--)
+        {
+            Vector3I at = new(x, y, z);
+            if (CanPlace(size, at) && (y == 0 || !CanPlace(size, new Vector3I(x, y - 1, z))))
+            {
+                heights.Add(y);
+            }
+        }
+        return heights;
+    }
+
     public int DropHeight(Vector3I size, int x, int z)
     {
         int rest = -1;
