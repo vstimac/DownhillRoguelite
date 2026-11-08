@@ -211,7 +211,7 @@ public partial class ContractDirector : Node3D
         {
             return null;
         }
-        if (ResourceLoader.Load(definition.CargoItemPath) is not ItemDefinition cargo)
+        if (definition.CargoItem is not ItemDefinition cargo)
         {
             return null;
         }

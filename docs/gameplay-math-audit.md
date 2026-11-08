@@ -153,9 +153,41 @@ The complete suite then passed **36 scenes and 413 checks** after resource impor
 One focused contract-variant run encountered a native Godot `gchandle.is_released()` fatal error
 during a resource finalizer, followed by invalid resource handles. The captured log is
 `pocket-final-ContractVariantTests.log`. An isolated repeat passed all 9 contract checks, and
-`ContractResourceTests` passed validation across 60 forced collections. The native crash has
-not been reproduced or attributed to a specific runtime defect; retain these logs and the
-resource stress check rather than treating the successful repeat as a fix.
+`ContractResourceTests` passed validation across 60 forced collections. Those initial checks
+did not reproduce the native crash; the follow-up below adds a stronger reproduction.
+
+## Per-copy condition and ownership
+
+Fourteen failing scenarios reproduced free repairs and item duplication during container
+transitions. `StoredItem` now retains each loose/pocket copy's durability. Pack/unpack, repack,
+drop/throw/pickup, dressing and pocket spill preserve wear, including zero durability. Repack
+normalizes an order against owned backpack/loose copies, ignores excess or foreign entries,
+and keeps omitted copies. Pockets stay in place. Stale packed references cannot be unpacked
+or consumed twice. Clearing supplies clears pockets too.
+
+`GearConditionTests` now passes all **14** checks, including different wear on two copies of
+the same shared definition. The public definition-list views remain live without allocating
+for Count/index access; instance wear never changes the shared item resource.
+
+## Contract resource lifetime
+
+The native finalizer failure recurred in a second focused run. A stronger diagnostic calls
+`GC.Collect()` immediately before revalidating the full cargo catalog, allowing finalizers
+and reloads to overlap. It reproduced the same fatal `gchandle.is_released()` error in
+`contract-full-gc-race-before.log`. Waiting for finalizers before reloading had hidden it.
+
+`ContractDefinition` now retains its typed `ItemDefinition` while its cargo path is unchanged;
+validation and offer creation reuse it. Changing the path invalidates that reference. The
+same full-scene diagnostic then passed **10 consecutive runs** (60 collections each), with
+all 9 gameplay checks passing every time. This mitigates the observed cargo lifetime race;
+it does not claim to repair Godot's native binding layer. Similar engine crash signatures
+are reported in [Godot issue 83762](https://github.com/godotengine/godot/issues/83762), which
+alone does not establish that our trigger has the same underlying cause.
+
+Run the stress variant with `ContractVariantTests.tscn -- --stress-resource-gc`.
+The complete follow-up passed **37 scenes and 427 checks**, with zero error lines and all
+processes exiting successfully (`condition-full-suite.csv`). C# builds without warnings;
+resource import and the 300-frame main-scene smoke check also pass.
 
 ## Reproduce the added checks
 

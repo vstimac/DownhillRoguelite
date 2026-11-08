@@ -55,6 +55,23 @@ public partial class ContractVariantTests : Node3D
         TestDefinitions(Director);
         TestRepeatableOffers(Director);
         TestRules();
+        if (System.Array.Exists(OS.GetCmdlineUserArgs(), argument => argument == "--stress-resource-gc"))
+        {
+            for (int sample = 0; sample < 60; sample++)
+            {
+                System.GC.Collect();
+                foreach (ContractDefinition definition in _shipped)
+                {
+                    string problem = definition.Problem();
+                    if (problem.Length > 0)
+                    {
+                        Check("cargo remains valid during concurrent finalization", false, problem);
+                    }
+                }
+                System.GC.WaitForPendingFinalizers();
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+        }
         TestPacking(Director, inventory);
         TestLandingsAndBreaking(Director);
         TestDeliveries(Director, inventory);

@@ -14,6 +14,8 @@ namespace DownhillRoguelite.Inventory;
 public partial class WorldItem : Node3D, IInteractable, IDescribed
 {
     [Export] public ItemDefinition? Definition { get; set; }
+    /// <summary>Per-copy wear carried through a drop and pickup; -1 means newly found gear.</summary>
+    [Export] public float Durability { get; set; } = -1.0f;
     /// <summary>Visual scale of the box compared to the item's real size.</summary>
     [Export] public float VisualScale { get; set; } = 3.0f;
     [Export] public float LabelHeight { get; set; } = 0.45f;
@@ -157,7 +159,7 @@ public partial class WorldItem : Node3D, IInteractable, IDescribed
             return false;
         }
         CarrierInventory? inventory = interactor.GetNodeOrNull<CarrierInventory>("Inventory");
-        if (inventory == null || !inventory.TryAdd(Definition))
+        if (inventory == null || !inventory.TryAdd(Definition, Durability))
         {
             if (_label != null)
             {

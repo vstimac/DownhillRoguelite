@@ -36,11 +36,12 @@ public partial class CarrierEquipment : Node
 
     public CarrierInventory? Inventory { get; set; }
     public float BackpackDurability { get; private set; }
-    public IReadOnlyList<ItemDefinition> PocketItems => _pockets;
+    public IReadOnlyList<ItemDefinition> PocketItems => _pocketDefinitions ??= new ItemDefinitions(_pockets);
 
     private readonly Dictionary<EquipSlot, ItemDefinition> _worn = new();
     private readonly Dictionary<EquipSlot, float> _durability = new();
-    private readonly List<ItemDefinition> _pockets = new();
+    private readonly List<StoredItem> _pockets = new();
+    private ItemDefinitions? _pocketDefinitions;
     private readonly RandomNumberGenerator _random = new();
     private WorldClock? _clock;
     private bool _moving;
@@ -107,10 +108,10 @@ public partial class CarrierEquipment : Node
         int pocket = -1;
         if (definition == null)
         {
-            pocket = _pockets.FindIndex(i => i.ItemId == itemId);
+            pocket = _pockets.FindIndex(i => i.Definition.ItemId == itemId);
             if (pocket >= 0)
             {
-                definition = _pockets[pocket];
+                definition = _pockets[pocket].Definition;
             }
         }
         if (definition == null || definition.Slot == EquipSlot.None || definition.MaxDurability <= 0.0f)
@@ -121,6 +122,10 @@ public partial class CarrierEquipment : Node
         if (packed != null && packed.Durability >= 0.0f)
         {
             durability = packed.Durability;
+        }
+        else if (pocket >= 0 && _pockets[pocket].Durability >= 0.0f)
+        {
+            durability = _pockets[pocket].Durability;
         }
         if (packed != null)
         {
@@ -177,12 +182,12 @@ public partial class CarrierEquipment : Node
         }
         while (_pockets.Count > PocketCapacity())
         {
-            ItemDefinition spilled = _pockets[^1];
+            StoredItem spilled = _pockets[^1];
             _pockets.RemoveAt(_pockets.Count - 1);
-            Inventory.ForgetOwned(spilled);
-            if (!Inventory.TryAdd(spilled, -1.0f, false))
+            Inventory.ForgetOwned(spilled.Definition);
+            if (!Inventory.TryAdd(spilled.Definition, spilled.Durability, false))
             {
-                GameEvents.PublishItemLost(spilled.ItemId);
+                GameEvents.PublishItemLost(spilled.Definition.ItemId);
             }
         }
         Changed(true);
@@ -190,14 +195,15 @@ public partial class CarrierEquipment : Node
     }
 
     /// <summary>Puts a small item in a free pocket (the pack is full); false if no pocket takes it.</summary>
-    public bool TryPocket(ItemDefinition item)
+    public bool TryPocket(ItemDefinition item, float durability = -1.0f)
     {
         Vector3I size = item.SizeCells;
-        if (size.X * size.Y * size.Z > PocketMaxCells || _pockets.Count >= PocketCapacity())
+        if (size.X <= 0 || size.Y <= 0 || size.Z <= 0
+            || (double)size.X * size.Y * size.Z > PocketMaxCells || _pockets.Count >= PocketCapacity())
         {
             return false;
         }
-        _pockets.Add(item);
+        _pockets.Add(new StoredItem(item, durability));
         Changed(true);
         return true;
     }
@@ -205,13 +211,21 @@ public partial class CarrierEquipment : Node
     /// <summary>Takes an item with this id out of a pocket (eaten, used); false if none.</summary>
     public bool TakeFromPocket(string itemId, out ItemDefinition? item)
     {
-        int index = _pockets.FindIndex(i => i.ItemId == itemId);
+        return TakeFromPocket(itemId, out item, out _);
+    }
+
+    /// <summary>Takes one pocket copy out, retaining its condition for another container.</summary>
+    public bool TakeFromPocket(string itemId, out ItemDefinition? item, out float durability)
+    {
+        int index = _pockets.FindIndex(i => i.Definition.ItemId == itemId);
         item = null;
+        durability = -1.0f;
         if (index < 0)
         {
             return false;
         }
-        item = _pockets[index];
+        item = _pockets[index].Definition;
+        durability = _pockets[index].Durability;
         _pockets.RemoveAt(index);
         Changed(true);
         return true;
@@ -220,7 +234,7 @@ public partial class CarrierEquipment : Node
     /// <summary>Removes this physical definition from a pocket (cargo copies have distinct identities).</summary>
     public bool TakeFromPocket(ItemDefinition item)
     {
-        int index = _pockets.IndexOf(item);
+        int index = _pockets.FindIndex(copy => copy.Definition == item);
         if (index < 0)
         {
             return false;
@@ -228,6 +242,16 @@ public partial class CarrierEquipment : Node
         _pockets.RemoveAt(index);
         Changed(true);
         return true;
+    }
+
+    public void ClearPockets()
+    {
+        if (_pockets.Count == 0)
+        {
+            return;
+        }
+        _pockets.Clear();
+        Changed(true);
     }
 
     public int PocketCapacity()
@@ -265,11 +289,11 @@ public partial class CarrierEquipment : Node
         }
         if (material == null)
         {
-            foreach (ItemDefinition pocketed in _pockets)
+            foreach (StoredItem pocketed in _pockets)
             {
-                if (pocketed.ItemId == materialId)
+                if (pocketed.Definition.ItemId == materialId)
                 {
-                    material = pocketed;
+                    material = pocketed.Definition;
                     break;
                 }
             }
@@ -470,9 +494,9 @@ public partial class CarrierEquipment : Node
             }
         }
         float pocketMass = 0.0f;
-        foreach (ItemDefinition item in _pockets)
+        foreach (StoredItem item in _pockets)
         {
-            pocketMass += item.MassKg;
+            pocketMass += item.Definition.MassKg;
         }
         string packName = GameEvents.CurrentLoad.Name;
         GameEvents.PublishGear(new GearSnapshot(slots, new WornPiece("backpack", packName, BackpackDurability, BackpackMaxDurability),

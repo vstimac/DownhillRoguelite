@@ -1,4 +1,5 @@
 using DownhillRoguelite.Core;
+using DownhillRoguelite.Inventory;
 using Godot;
 
 namespace DownhillRoguelite.Progression;
@@ -21,6 +22,26 @@ public partial class ContractDefinition : Resource
     [Export(PropertyHint.MultilineText)] public string OfferText { get; set; } = "";
     /// <summary>The cargo: an ItemDefinition resource.</summary>
     [Export(PropertyHint.File, "*.tres")] public string CargoItemPath { get; set; } = "";
+    private string _cargoPath = "";
+    private ItemDefinition? _cargo;
+
+    /// <summary>Keep the typed cargo alive while this definition uses it, including between validations.</summary>
+    public ItemDefinition? CargoItem
+    {
+        get
+        {
+            if (_cargoPath != CargoItemPath)
+            {
+                _cargo = null;
+                _cargoPath = CargoItemPath;
+            }
+            if (_cargo == null && CargoItemPath.Length > 0 && ResourceLoader.Exists(CargoItemPath))
+            {
+                _cargo = ResourceLoader.Load(CargoItemPath) as ItemDefinition;
+            }
+            return _cargo;
+        }
+    }
     /// <summary>How many stations further down it must go (1: the next one).</summary>
     [Export] public int StationsAhead { get; set; } = 1;
     /// <summary>First station whose board may offer it.</summary>
@@ -81,7 +102,7 @@ public partial class ContractDefinition : Resource
         {
             return Id + ": cargo " + CargoItemPath + " doesn't exist";
         }
-        if (ResourceLoader.Load(CargoItemPath) is not Resource cargo || cargo.Get("ItemId").AsString().Length == 0)
+        if (CargoItem is not ItemDefinition cargo || cargo.ItemId.Length == 0)
         {
             return Id + ": cargo " + CargoItemPath + " is not an item";
         }

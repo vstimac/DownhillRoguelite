@@ -8,4 +8,6 @@ The backpack: a 3D grid of 5 cm cells, items as Resources (`items/`), the auto-p
 
 Pocket supplies support eating/drinking, explicit tool consumption, mending and cargo hand-over. Food selection considers both containers; hand-over removes the exact cargo copy. Hotbar use leaves nonconsumables alone, and repair messages report actual restored hit points.
 
+`StoredItem` retains per-copy durability in loose supplies and pockets. Packing, auto-arranging, dressing, dropping, throwing and picking up preserve it, including broken gear at zero durability. Repack orders can select only owned backpack/loose copies; stale or repeated entries cannot duplicate items or remove pocket contents.
+
 Read `docs/inventory-design.md` first.

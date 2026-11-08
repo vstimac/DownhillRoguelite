@@ -43,10 +43,11 @@ public partial class CarrierInventory : Node
     public BackpackGrid? Grid { get; private set; }
     /// <summary>What the carrier wears (M14); created with the inventory.</summary>
     public CarrierEquipment? Equipment { get; private set; }
-    public IReadOnlyList<ItemDefinition> LooseItems => _loose;
+    public IReadOnlyList<ItemDefinition> LooseItems => _looseDefinitions ??= new ItemDefinitions(_loose);
     public IReadOnlyList<ItemDefinition> AllItems => _all;
 
-    private readonly List<ItemDefinition> _loose = new();
+    private readonly List<StoredItem> _loose = new();
+    private ItemDefinitions? _looseDefinitions;
     private readonly List<ItemDefinition> _all = new();
 
     public override void _Ready()
@@ -74,7 +75,7 @@ public partial class CarrierInventory : Node
             if (ResourceLoader.Load(path) is ItemDefinition item)
             {
                 _all.Add(item);
-                _loose.Add(item);
+                _loose.Add(new StoredItem(item));
             }
             else
             {
@@ -86,7 +87,7 @@ public partial class CarrierInventory : Node
         bool startUnpacked = System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--start-unpacked") >= 0;
         if (AutoPackOnStart && !startUnpacked)
         {
-            List<ItemDefinition> heaviestFirst = new(_loose);
+            List<ItemDefinition> heaviestFirst = new(LooseItems);
             heaviestFirst.Sort((a, b) => b.MassKg.CompareTo(a.MassKg));
             Repack(heaviestFirst, 0.5f);
         }
@@ -116,7 +117,8 @@ public partial class CarrierInventory : Node
     /// <summary>Packs a loose item; returns the placement, or null if it doesn't fit there.</summary>
     public PackedItem? Pack(ItemDefinition item, Vector3I origin, int orientation)
     {
-        if (Grid == null || !_loose.Contains(item))
+        int loose = _loose.FindIndex(copy => copy.Definition == item);
+        if (Grid == null || loose < 0)
         {
             return null;
         }
@@ -124,7 +126,8 @@ public partial class CarrierInventory : Node
         PackedItem? placed = Grid.Place(item, origin, orientation);
         if (placed != null)
         {
-            _loose.Remove(item);
+            placed.Durability = _loose[loose].Durability;
+            _loose.RemoveAt(loose);
             Publish();
         }
         return placed;
@@ -133,16 +136,15 @@ public partial class CarrierInventory : Node
     /// <summary>Takes an item out of the pack; it becomes loose.</summary>
     public void Unpack(PackedItem item)
     {
-        if (Grid == null)
+        if (Grid == null || !Grid.Remove(item))
         {
             return;
         }
-        Grid.Remove(item);
-        _loose.Add(item.Definition);
+        _loose.Add(new StoredItem(item.Definition, item.Durability));
         Publish();
     }
 
-    /// <summary>Empties the pack and auto-packs every item in the given order. Returns items that didn't fit.</summary>
+    /// <summary>Reorders pack and loose copies without changing ownership or wear. Pockets stay in place.</summary>
     public List<ItemDefinition> Repack(IEnumerable<ItemDefinition> order, float preferredX)
     {
         List<ItemDefinition> unplaced = new();
@@ -151,10 +153,53 @@ public partial class CarrierInventory : Node
             return unplaced;
         }
 
+        List<StoredItem> copies = new();
+        foreach (PackedItem packed in Grid.Items)
+        {
+            copies.Add(new StoredItem(packed.Definition, packed.Durability));
+        }
+        copies.AddRange(_loose);
+        Dictionary<ItemDefinition, int> remaining = new();
+        Dictionary<ItemDefinition, Queue<float>> wear = new();
+        foreach (StoredItem copy in copies)
+        {
+            remaining[copy.Definition] = remaining.GetValueOrDefault(copy.Definition) + 1;
+            if (!wear.TryGetValue(copy.Definition, out Queue<float>? values))
+            {
+                values = new Queue<float>();
+                wear[copy.Definition] = values;
+            }
+            values.Enqueue(copy.Durability);
+        }
+        List<ItemDefinition> ordered = new();
+        foreach (ItemDefinition definition in order)
+        {
+            if (remaining.GetValueOrDefault(definition) > 0)
+            {
+                ordered.Add(definition);
+                remaining[definition]--;
+            }
+        }
+        // Partial or stale order lists must neither discard an owned copy nor invent another one.
+        foreach (StoredItem copy in copies)
+        {
+            if (remaining[copy.Definition] > 0)
+            {
+                ordered.Add(copy.Definition);
+                remaining[copy.Definition]--;
+            }
+        }
         Grid.Clear();
         _loose.Clear();
-        unplaced = AutoPacker.Pack(Grid, order, preferredX);
-        _loose.AddRange(unplaced);
+        unplaced = AutoPacker.Pack(Grid, ordered, preferredX);
+        foreach (PackedItem packed in Grid.Items)
+        {
+            packed.Durability = wear[packed.Definition].Dequeue();
+        }
+        foreach (ItemDefinition definition in unplaced)
+        {
+            _loose.Add(new StoredItem(definition, wear[definition].Dequeue()));
+        }
         Publish();
         return unplaced;
     }
@@ -179,7 +224,7 @@ public partial class CarrierInventory : Node
         {
             placed.Durability = durability;
         }
-        else if (Equipment == null || !Equipment.TryPocket(item))
+        else if (Equipment == null || !Equipment.TryPocket(item, durability))
         {
             return false;
         }
@@ -233,21 +278,21 @@ public partial class CarrierInventory : Node
     /// <summary>Removes a packed item for good (eaten, drunk, used up).</summary>
     public void Consume(PackedItem item)
     {
-        if (Grid == null)
+        if (Grid == null || !Grid.Remove(item))
         {
             return;
         }
-        Grid.Remove(item);
         _all.Remove(item.Definition);
         Publish();
     }
 
-    /// <summary>Removes everything: pack, loose items and the record of owned items.</summary>
+    /// <summary>Removes owned supplies from pack, loose items and pockets; worn clothing stays on.</summary>
     public void Clear()
     {
         Grid?.Clear();
         _loose.Clear();
         _all.Clear();
+        Equipment?.ClearPockets();
         Publish();
     }
 
@@ -397,9 +442,9 @@ public partial class CarrierInventory : Node
         }
         for (int i = 0; i < _loose.Count; i++)
         {
-            if (_loose[i].CargoInstanceId == cargoId)
+            if (_loose[i].Definition.CargoInstanceId == cargoId)
             {
-                _all.Remove(_loose[i]);
+                _all.Remove(_loose[i].Definition);
                 _loose.RemoveAt(i);
                 Publish();
                 return true;
@@ -446,6 +491,7 @@ public partial class CarrierInventory : Node
     private void PutDown(string itemId, bool thrown)
     {
         ItemDefinition? item = null;
+        float durability = -1.0f;
         if (Grid != null)
         {
             foreach (PackedItem packed in Grid.Items)
@@ -453,6 +499,7 @@ public partial class CarrierInventory : Node
                 if (packed.Definition.ItemId == itemId)
                 {
                     item = packed.Definition;
+                    durability = packed.Durability;
                     Consume(packed);
                     break;
                 }
@@ -462,9 +509,10 @@ public partial class CarrierInventory : Node
         {
             for (int i = 0; i < _loose.Count; i++)
             {
-                if (_loose[i].ItemId == itemId)
+                if (_loose[i].Definition.ItemId == itemId)
                 {
-                    item = _loose[i];
+                    item = _loose[i].Definition;
+                    durability = _loose[i].Durability;
                     _all.Remove(item);
                     _loose.RemoveAt(i);
                     Publish();
@@ -472,9 +520,10 @@ public partial class CarrierInventory : Node
                 }
             }
         }
-        if (item == null && Equipment != null && Equipment.TakeFromPocket(itemId, out ItemDefinition? pocketed) && pocketed != null)
+        if (item == null && Equipment != null && Equipment.TakeFromPocket(itemId, out ItemDefinition? pocketed, out float pocketDurability) && pocketed != null)
         {
             item = pocketed;
+            durability = pocketDurability;
             ForgetOwned(pocketed);
         }
         if (item == null)
@@ -499,7 +548,7 @@ public partial class CarrierInventory : Node
             distance = ThrowDistance;
         }
         Vector3 at = from + forward * distance;
-        WorldItem dropped = new() { Definition = item, Name = $"Dropped_{item.ItemId}" };
+        WorldItem dropped = new() { Definition = item, Durability = durability, Name = $"Dropped_{item.ItemId}" };
         Node parent = GetTree().CurrentScene ?? GetTree().Root;
         parent.AddChild(dropped);
         if (carrier != null && carrier.IsInsideTree())
@@ -559,9 +608,9 @@ public partial class CarrierInventory : Node
         }
         for (int i = 0; i < _loose.Count; i++)
         {
-            if (_loose[i].ItemId == itemId)
+            if (_loose[i].Definition.ItemId == itemId)
             {
-                _all.Remove(_loose[i]);
+                _all.Remove(_loose[i].Definition);
                 _loose.RemoveAt(i);
                 Publish();
                 return;

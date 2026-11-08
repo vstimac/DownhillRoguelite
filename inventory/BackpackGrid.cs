@@ -99,12 +99,14 @@ public sealed class BackpackGrid
         return item;
     }
 
-    public void Remove(PackedItem item)
+    public bool Remove(PackedItem item)
     {
         if (_items.Remove(item))
         {
             Fill(item, null);
+            return true;
         }
+        return false;
     }
 
     public void Clear()
