@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LoreEntry" format=3]
+
+[ext_resource type="Script" path="res://narrative/LoreEntry.cs" id="1_lore"]
+
+[resource]
+script = ExtResource("1_lore")
+Id = "FRAG_005"
+Heading = "A philosopher's unfinished page"
+Text = "Perhaps divinity is simply the privilege of not having to carry what you love. I have tested this theory and found it unbearable."
+Form = 1
+EarliestStage = 2
+Circle = -1
+ExclusiveGroup = ""
+Weight = 1.0

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LoreEntry" format=3]
+
+[ext_resource type="Script" path="res://narrative/LoreEntry.cs" id="1_lore"]
+
+[resource]
+script = ExtResource("1_lore")
+Id = "KEEPER_LOG"
+Heading = "A station keeper's log"
+Text = "Night three. A carrier asked if the fire was for her. I said it was for whoever comes next. She laughed, and left it burning."
+Form = 2
+EarliestStage = 1
+Circle = -1
+ExclusiveGroup = ""
+Weight = 1.0

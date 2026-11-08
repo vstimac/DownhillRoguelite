@@ -63,6 +63,16 @@ public partial class RunState : Node
         }
     }
 
+    /// <summary>Found texts read, ever and this run (user://lore.cfg).</summary>
+    public LoreBook Lore
+    {
+        get
+        {
+            _lore ??= new LoreBook(DisplayServer.GetName() != "headless");
+            return _lore;
+        }
+    }
+
     public Difficulty Difficulty
     {
         get => _difficulty;
@@ -101,6 +111,7 @@ public partial class RunState : Node
     private DifficultySettings? _difficultySettings;
     private CircleTable? _circles;
     private RunRecords? _records;
+    private LoreBook? _lore;
     private float _overTimer;
 
     public override void _Ready()
@@ -208,6 +219,7 @@ public partial class RunState : Node
         Modifiers.Reset();
         Boons.Clear();
         Telemetry.Reset();
+        Lore.BeginRun();
     }
 
     private void OnDepthChanged(float depth)

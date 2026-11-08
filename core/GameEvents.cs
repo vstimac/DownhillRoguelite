@@ -393,6 +393,11 @@ public static class GameEvents
     /// <summary>Forgets the active contract without an ending (a new run started).</summary>
     public static void ClearActiveContract() => ActiveContract = null;
 
+    /// <summary>Raised when the carrier reads a found text (a sign, note, ledger or inscription). FirstThisRun is false on a re-read.</summary>
+    public static event Action<LoreNote>? LoreRead;
+
+    public static void PublishLoreRead(LoreNote note) => LoreRead?.Invoke(note);
+
     /// <summary>Asks for the carrier to die at once (falling into the abyss), with a cause.</summary>
     public static event Action<string>? KillRequested;
 

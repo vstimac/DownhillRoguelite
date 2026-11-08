@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LoreEntry" format=3]
+
+[ext_resource type="Script" path="res://narrative/LoreEntry.cs" id="1_lore"]
+
+[resource]
+script = ExtResource("1_lore")
+Id = "VIOLENCE_ROCKFALL"
+Heading = "A sign nailed over a rockfall"
+Text = "Path closed by order of nobody. Proceed carefully anyway."
+Form = 0
+EarliestStage = 2
+Circle = 6
+ExclusiveGroup = ""
+Weight = 1.0

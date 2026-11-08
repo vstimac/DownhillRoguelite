@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LoreEntry" format=3]
+
+[ext_resource type="Script" path="res://narrative/LoreEntry.cs" id="1_lore"]
+
+[resource]
+script = ExtResource("1_lore")
+Id = "FRAG_009"
+Heading = "A letter carried but never sent"
+Text = "I am taking this where we said we'd meet. I don't know whether you are beneath me or behind me any more."
+Form = 4
+EarliestStage = 2
+Circle = -1
+ExclusiveGroup = ""
+Weight = 1.0

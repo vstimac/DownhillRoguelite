@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LoreEntry" format=3]
+
+[ext_resource type="Script" path="res://narrative/LoreEntry.cs" id="1_lore"]
+
+[resource]
+script = ExtResource("1_lore")
+Id = "FRAG_001"
+Heading = "Inscription on a broken sign"
+Text = "THE WRONG WAY WAS UP. The right way has not yet been proved."
+Form = 0
+EarliestStage = 0
+Circle = -1
+ExclusiveGroup = ""
+Weight = 1.0

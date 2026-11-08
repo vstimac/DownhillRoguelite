@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LoreEntry" format=3]
+
+[ext_resource type="Script" path="res://narrative/LoreEntry.cs" id="1_lore"]
+
+[resource]
+script = ExtResource("1_lore")
+Id = "FRAG_008"
+Heading = "A ledger rimed with ice"
+Text = "The ninth circle is the last, the old map says. On the other side of the paper, someone has drawn a tenth."
+Form = 2
+EarliestStage = 3
+Circle = 8
+ExclusiveGroup = ""
+Weight = 1.0

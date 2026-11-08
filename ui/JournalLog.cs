@@ -45,6 +45,7 @@ public partial class JournalLog : Node
         GameEvents.CompanionReplied += OnReplied;
         GameEvents.ContractAccepted += OnContractAccepted;
         GameEvents.ContractResolved += OnContractResolved;
+        GameEvents.LoreRead += OnLoreRead;
         CallDeferred(MethodName.Begin);
     }
 
@@ -65,6 +66,7 @@ public partial class JournalLog : Node
         GameEvents.CompanionReplied -= OnReplied;
         GameEvents.ContractAccepted -= OnContractAccepted;
         GameEvents.ContractResolved -= OnContractResolved;
+        GameEvents.LoreRead -= OnLoreRead;
     }
 
     private void OnAsked(string question)
@@ -122,6 +124,15 @@ public partial class JournalLog : Node
         {
             Write("The job \"" + note.Title + "\" failed: the " + note.CargoName.ToLowerInvariant() + " " + note.Reason + ".");
         }
+    }
+
+    private void OnLoreRead(LoreNote note)
+    {
+        if (!note.FirstThisRun)
+        {
+            return;
+        }
+        Write(note.Heading + ": \"" + note.Text + "\"");
     }
 
     public override void _Process(double delta)

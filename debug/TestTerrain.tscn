@@ -55,6 +55,7 @@
 [ext_resource type="Script" path="res://world_ui/StartScreen.cs" id="49_start_screen"]
 [ext_resource type="Script" path="res://progression/contracts/ContractDirector.cs" id="50_contracts"]
 [ext_resource type="Resource" path="res://progression/contracts/resources/courier_sealed_parcel.tres" id="51_courier_parcel"]
+[ext_resource type="Script" path="res://narrative/LorePlacer.cs" id="52_lore"]
 
 [sub_resource type="Resource" id="Boon_steady_legs"]
 script = ExtResource("41_boon")
@@ -303,6 +304,9 @@ Boons = [SubResource("Boon_steady_legs"), SubResource("Boon_iron_lungs"), SubRes
 [node name="Contracts" type="Node3D" parent="."]
 script = ExtResource("50_contracts")
 Contracts = [ExtResource("51_courier_parcel")]
+
+[node name="Lore" type="Node3D" parent="."]
+script = ExtResource("52_lore")
 
 [node name="StartingKit" type="Node" parent="."]
 script = ExtResource("42_kit")
