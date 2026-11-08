@@ -23,6 +23,7 @@ config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 RunState="*res://core/RunState.cs"
 WorldClock="*res://core/WorldClock.cs"
 DebugDraw3D="*res://debug/DebugDraw3D.cs"
+PlaytestCapture="*res://debug/PlaytestCapture.tscn"
 
 [dotnet]
 
