@@ -169,7 +169,7 @@ public partial class PlayerController : CharacterBody3D
         // Walking under your own power costs stamina; standing still lets it recover.
         if (grounded && Stamina != null && input.Length() > SprintInputThreshold && IntendedVelocity().Length() >= Settings.IdleSpeed)
         {
-            Stamina.DrainMovement(dt, GameEvents.CurrentLoad.Mass, _moveGrade, braking, Sprinting);
+            Stamina.DrainMovement(dt, CarriedLoad.Mass, _moveGrade, braking, Sprinting);
         }
 
         // Only a real flight counts as a landing: sliding off a steep face onto flat ground doesn't.
@@ -407,7 +407,7 @@ public partial class PlayerController : CharacterBody3D
             return;
         }
 
-        float loadFraction = Mathf.Clamp(GameEvents.CurrentLoad.Mass / Settings.JumpLoadForMinimum, 0.0f, 1.0f);
+        float loadFraction = Mathf.Clamp(CarriedLoad.Mass / Settings.JumpLoadForMinimum, 0.0f, 1.0f);
         float speed = Settings.JumpSpeed * Mathf.Lerp(1.0f, Settings.MinJumpFactor, loadFraction);
         Velocity = new Vector3(Velocity.X, speed, Velocity.Z);
     }
@@ -613,7 +613,7 @@ public partial class PlayerController : CharacterBody3D
         }
 
         float targetYaw = Mathf.Atan2(-look.X, -look.Z);
-        float sharpness = Settings.FacingSharpness / (1.0f + Settings.FacingLoadSlowdownPerKg * GameEvents.CurrentLoad.Mass);
+        float sharpness = Settings.FacingSharpness / (1.0f + Settings.FacingLoadSlowdownPerKg * CarriedLoad.Mass);
         float weight = 1.0f - Mathf.Exp(-sharpness * dt);
         Rotation = new Vector3(0.0f, Mathf.LerpAngle(Rotation.Y, targetYaw, weight), 0.0f);
     }

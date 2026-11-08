@@ -409,8 +409,10 @@ public partial class CarrierEquipment : Node
         float rain = 0.0f;
         float grip = 0.0f;
         float wind = 0.0f;
+        float wornMass = 0.0f;
         foreach ((EquipSlot slot, ItemDefinition item) in _worn)
         {
+            wornMass += item.MassKg;
             float durability = _durability.GetValueOrDefault(slot);
             slots[(int)slot] = new WornPiece(item.ItemId, item.DisplayName, durability, item.MaxDurability);
             if (durability <= 0.0f)
@@ -429,8 +431,13 @@ public partial class CarrierEquipment : Node
                 slots[i] = new WornPiece("", "", 0.0f, 0.0f);
             }
         }
+        float pocketMass = 0.0f;
+        foreach (ItemDefinition item in _pockets)
+        {
+            pocketMass += item.MassKg;
+        }
         string packName = GameEvents.CurrentLoad.Name;
         GameEvents.PublishGear(new GearSnapshot(slots, new WornPiece("backpack", packName, BackpackDurability, BackpackMaxDurability),
-            Mathf.Min(warmth, MaxWarmth), Mathf.Min(rain, 0.9f), grip, wind, PocketCapacity(), _pockets.Count));
+            Mathf.Min(warmth, MaxWarmth), Mathf.Min(rain, 0.9f), grip, wind, PocketCapacity(), _pockets.Count, wornMass, pocketMass));
     }
 }

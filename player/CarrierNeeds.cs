@@ -180,7 +180,7 @@ public partial class CarrierNeeds : Node
 
     private float DrainMultiplier()
     {
-        float rate = 1.0f + LoadPerKg * GameEvents.CurrentLoad.Mass;
+        float rate = 1.0f + LoadPerKg * CarriedLoad.Mass;
         if (Body != null && Body.Sprinting)
         {
             rate *= SprintMultiplier;

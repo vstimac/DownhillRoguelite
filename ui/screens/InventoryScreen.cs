@@ -64,7 +64,7 @@ public partial class InventoryScreen : ParchmentPanel
             lines.Add("");
         }
         GearSnapshot gear = GameEvents.CurrentGear;
-        lines.Add($"Load  {GameEvents.CurrentLoad.Mass:0.0} kg");
+        lines.Add($"Load  {CarriedLoad.Mass:0.0} kg");
         if (gear.Backpack.MaxDurability > 0.0f)
         {
             lines.Add($"Pack  {gear.Backpack.Durability:0} / {gear.Backpack.MaxDurability:0}");

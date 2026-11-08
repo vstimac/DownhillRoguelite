@@ -108,7 +108,7 @@ public partial class RouteEstimator : Node
         {
             return default;
         }
-        float load = GameEvents.CurrentLoad.Mass;
+        float load = CarriedLoad.Mass;
 
         float walk = 0.0f;
         float drain = 0.0f;

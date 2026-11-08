@@ -118,6 +118,24 @@ The existing ray remains a contact-detection heuristic; this change does not rep
 engine contact impulses. Reported damage still uses bone linear velocity rather than full
 angular contact-point velocity.
 
+## Carried mass follow-up
+
+The stamina, jump, needs and route calculations previously used only `CurrentLoad.Mass`, which
+is the packed backpack. Wearing clothing or storing something in a pocket therefore removed its
+weight from effort calculations. Six conservation/effort checks reproduced this problem.
+
+`CarriedLoad.Mass` now adds backpack mass to `GearSnapshot.WornMass` and `PocketMass`. Broken
+clothing retains its mass. Movement effort, jumping, load-dependent turning, needs, route
+estimates and the character sheet use this total. The backpack's balance, inertia and packing
+readout continue to use its own packed mass and measured centre of mass. Pocket grids and
+individual body-space positions remain a separate design question; no artificial COM was added.
+
+All **12** carried-mass checks now pass, including dressing, taking off clothing, pocket food,
+consumption, pocket-to-pack transfers and a new run. The first focused regression pass covered
+**11 scenes and 163 checks**, including the existing balance, packing, jump, survival and UI tests.
+The complete follow-up passed **34 scenes and 402 checks**, followed by a clean import and
+300-frame main-scene smoke test.
+
 ## Reproduce the added checks
 
 ```powershell
@@ -128,6 +146,7 @@ dotnet build
 & $godot --headless --path . --fixed-fps 60 res://debug/tests/WildlifePhysicsTests.tscn
 & $godot --headless --path . --fixed-fps 60 res://debug/tests/ImpactMathTests.tscn
 & $godot --headless --path . --fixed-fps 60 res://debug/tests/BalanceDisturbanceTests.tscn
+& $godot --headless --path . --fixed-fps 60 res://debug/tests/CarriedMassTests.tscn
 ```
 
 For the rendered descent, omit `--headless`, pass `--audio-driver Dummy`, and append
