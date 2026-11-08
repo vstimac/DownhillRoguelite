@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="RelicDefinition" format=3]
+
+[ext_resource type="Script" path="res://progression/relics/RelicDefinition.cs" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+Id = "RL_001"
+DisplayName = "The Unsent Letter"
+SeenText = "A letter, sealed and addressed in a careful hand, left under a stone as if someone meant to come back for it. The address is a place further down."
+Interpretations = PackedStringArray("Whoever wrote it walked down to deliver it themselves, and saw no reason to send what they could carry.", "The seal was never broken because there was nothing inside but the address: the letter was the journey, not the words.", "It was written to the writer. Every carrier who finds it has the same handwriting, if they look closely.")
+ItemPath = "res://inventory/items/relic_unsent_letter.tres"
+CircleAffinity = 0
+StageRange = Vector2i(1, 3)
+BaseScore = 35
+Fragility = 1.0
+SpawnChance = 1.0
+CanDeliver = true

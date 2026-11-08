@@ -153,6 +153,49 @@ Relics as real items placed on side paths:
 - Persistent "seen" journal entries (the `LoreBook` pattern).
 - `RelicTests`.
 
+## Phase 3 — Relics — 2026-11-08
+
+- Status: DONE for the first two relics (the plan's "ship two" slice). Commit on `playtest-1` (see `git log`), not pushed.
+- Added:
+  - `progression/relics/RelicDefinition.cs`, `RelicDirector.cs`, `RelicAltar.cs`, `RelicShrine.cs`; `core/RelicNote.cs`.
+  - `progression/relics/resources/rl_001_unsent_letter.tres` (0.2 kg, fragile, 35 score, stages 1–3) and `rl_004_counterweight.tres` (8 kg, unbreakable, 90 score, stages 2–4), each with three contradictory readings.
+  - `inventory/items/relic_unsent_letter.tres`, `relic_counterweight.tres`.
+  - `debug/tests/RelicTests.tscn` + `.cs`.
+- Edited:
+  - `GameEvents` (`RelicDiscovered`, `RelicDelivered`).
+  - `RunState` (`RelicsSeen`, `RelicsStudied` lore books in `user://relics_seen.cfg` and `user://relics_studied.cfg`; both start a new run on respawn).
+  - `RunTelemetry` (`RelicsDelivered`; a relic's score adds to `CargoScore`), `RunSummary` / `RunSummaryView` ("N relics studied").
+  - `JournalLog` (found and left-at-the-altar entries), `NarratorDirector` (the voiced `relic_found` lines), `debug/TestTerrain.tscn` (a `Relics` node with both).
+
+### Decisions recorded
+
+- **A relic is an ordinary item** (a `Duplicate()` of its `ItemDefinition` tagged `CargoInstanceId = "relic:<Id>"`). Packing, pockets, load, dropping, throwing and exposure all work unchanged. The contract director ignores cargo ids it didn't issue.
+- **Placement:** one plan per seed. Each relic gets a stage in its range (never two relics on one stage), a random side path at 42–58% of the branch zone (or 40–60% down the main path when the stage has none), and 2.2 m beside the path's centre, on the ground. A worn stone with two candles marks the spot.
+- **Found** by coming within 4.5 m or by picking it up, once per run. The "seen" mark persists. The journal says when an earlier descent saw it.
+- **Condition:** the same knock model as contract cargo (landings over 6 m/s, falls), scaled by Fragility and exposure in the pack. A hard landing usually also downs the carrier, so the two knocks stack. A ruined relic can still be left, for nothing.
+- **Altars** stand at every station, 6 m right of and 3.5 m below the fire, beside the graves. E arms, E again leaves the first carried relic. Score is full at 90%+ condition, in proportion below. The interpretation is chosen by the seed. "Studied" persists.
+- **A new run** clears sites, altars, conditions and carried state. "Seen" and "studied" stay.
+- `CircleAffinity` is descriptive for now (the counterweight is Greed's). Stages decide where relics lie.
+
+### Tests
+
+- New `RelicTests`, 8 checks:
+  - The shipped relics are valid; a null, a missing item and a duplicate are skipped with warnings.
+  - Placement is repeatable per seed and differs between seeds. Over 20 seeds, all 40 placements are on the ground, in their stages, 2.2 m beside a path, and on a side path whenever the stage has one.
+  - Coming close finds the counterweight once, and picking it up adds 8.00 kg. The letter is found and taken too.
+  - Knocks: a soft landing does nothing, while a hard landing and a fall lower the letter. The counterweight stays at 100%.
+  - Dropping the letter and taking it again keeps the same item and its condition, with no second "found".
+  - At Station 1's altar, the first E arms and nothing more; four presses leave both relics. Score is 90 + the letter's share. Both are counted and studied, and a fifth press does nothing.
+  - A new run clears everything, and the seen and studied marks remain.
+- `bash .claude/skills/smoke-test/smoke.sh`: RESULT PASS, all 26 suites (RelicTests 8/8), headless run clean.
+
+### Known issues
+
+- Two of the nine relics. The other seven (and carried effects, shrine offerings) are later work.
+- Models are stand-ins: a survival-kit box for the letter, a castle tower base for the counterweight.
+- No new voiced lines beyond the existing `relic_found` set. There's no map marker for relics (by design they are found, not shown).
+- Tuning is unplayed.
+
 ## World, map and routes (the director's requests) — 2026-11-08
 
 - Status: DONE, four commits on `playtest-1`, not pushed: `9be4133` (map), `a6d850c` (routes), `25ced42` (found texts and path markers), `d51c91c` (set pieces and new art).
@@ -179,7 +222,7 @@ Relics as real items placed on side paths:
 | 0 Audit and baseline | DONE |
 | 1 Courier contract slice | DONE (one job type, tested end to end; no render check) |
 | 2 Contract reliability and variants | DONE (condition, five jobs, abandon, deadlines, HUD and companion; tested; tuning unplayed) |
-| 3 Relics and lore | PARTIAL (24 found texts, persistent lore book, journal; relics not started) |
+| 3 Relics and lore | DONE for the first slice (24 found texts; two relics on side paths with condition, station altars, persistent seen and studied; tested; seven relics to add) |
 | 4 Trade-off boons | NOT STARTED |
 | 5 Encounters | PARTIAL (witness cairns and found texts on side paths; set pieces dress the paths; no choice encounters yet) |
 | 6 Persistent journal, Witness Marks, sidegrades | NOT STARTED (no save changes yet; `records.cfg` untouched) |

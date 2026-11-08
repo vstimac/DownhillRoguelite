@@ -416,6 +416,16 @@ public static class GameEvents
     /// <summary>Forgets the active contract without an ending (a new run started).</summary>
     public static void ClearActiveContract() => ActiveContract = null;
 
+    /// <summary>Raised the first time in a run the carrier finds a relic (comes close to it, or picks it up).</summary>
+    public static event Action<RelicNote>? RelicDiscovered;
+
+    /// <summary>Raised when a relic is left at a station's altar and studied.</summary>
+    public static event Action<RelicNote>? RelicDelivered;
+
+    public static void PublishRelicDiscovered(RelicNote note) => RelicDiscovered?.Invoke(note);
+
+    public static void PublishRelicDelivered(RelicNote note) => RelicDelivered?.Invoke(note);
+
     /// <summary>Raised when the carrier reads a found text (a sign, note, ledger or inscription). FirstThisRun is false on a re-read.</summary>
     public static event Action<LoreNote>? LoreRead;
 

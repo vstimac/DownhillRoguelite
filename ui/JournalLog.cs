@@ -46,6 +46,8 @@ public partial class JournalLog : Node
         GameEvents.ContractAccepted += OnContractAccepted;
         GameEvents.ContractResolved += OnContractResolved;
         GameEvents.LoreRead += OnLoreRead;
+        GameEvents.RelicDiscovered += OnRelicDiscovered;
+        GameEvents.RelicDelivered += OnRelicDelivered;
         CallDeferred(MethodName.Begin);
     }
 
@@ -67,6 +69,8 @@ public partial class JournalLog : Node
         GameEvents.ContractAccepted -= OnContractAccepted;
         GameEvents.ContractResolved -= OnContractResolved;
         GameEvents.LoreRead -= OnLoreRead;
+        GameEvents.RelicDiscovered -= OnRelicDiscovered;
+        GameEvents.RelicDelivered -= OnRelicDelivered;
     }
 
     private void OnAsked(string question)
@@ -142,6 +146,23 @@ public partial class JournalLog : Node
             return;
         }
         Write(note.Heading + ": \"" + note.Text + "\"");
+    }
+
+    /// <summary>A relic found this run: what was seen (a "seen" entry; later runs remember it).</summary>
+    private void OnRelicDiscovered(RelicNote note)
+    {
+        string text = "Found " + note.Name + ". " + note.Text;
+        if (!note.FirstEver)
+        {
+            text += " (Seen on an earlier descent.)";
+        }
+        Write(text);
+    }
+
+    /// <summary>A relic left at an altar: one of its readings (a "studied" entry).</summary>
+    private void OnRelicDelivered(RelicNote note)
+    {
+        Write("Left " + note.Name + " at Station " + note.Station + "'s altar (+" + note.Score + "). " + note.Text, true);
     }
 
     public override void _Process(double delta)

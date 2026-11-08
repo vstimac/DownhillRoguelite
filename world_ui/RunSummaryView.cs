@@ -95,6 +95,14 @@ public partial class RunSummaryView : Node3D
         {
             cargo = summary.ContractsDelivered + " deliveries · ";
         }
+        if (summary.RelicsDelivered == 1)
+        {
+            cargo += "1 relic studied · ";
+        }
+        else if (summary.RelicsDelivered > 1)
+        {
+            cargo += summary.RelicsDelivered + " relics studied · ";
+        }
         _details.Text = $"Run {summary.RunNumber} · {summary.Depth} m down · {stations} · day {summary.Day}\n" +
             $"{summary.CircleName} · taken by {summary.Cause} · {record}\n" +
             cargo + "score " + summary.Score + "\n" +

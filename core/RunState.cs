@@ -63,6 +63,26 @@ public partial class RunState : Node
         }
     }
 
+    /// <summary>Relics found, ever and this run (user://relics_seen.cfg).</summary>
+    public LoreBook RelicsSeen
+    {
+        get
+        {
+            _relicsSeen ??= new LoreBook(DisplayServer.GetName() != "headless", "user://relics_seen.cfg");
+            return _relicsSeen;
+        }
+    }
+
+    /// <summary>Relics studied at an altar, ever and this run (user://relics_studied.cfg).</summary>
+    public LoreBook RelicsStudied
+    {
+        get
+        {
+            _relicsStudied ??= new LoreBook(DisplayServer.GetName() != "headless", "user://relics_studied.cfg");
+            return _relicsStudied;
+        }
+    }
+
     /// <summary>Found texts read, ever and this run (user://lore.cfg).</summary>
     public LoreBook Lore
     {
@@ -112,6 +132,8 @@ public partial class RunState : Node
     private CircleTable? _circles;
     private RunRecords? _records;
     private LoreBook? _lore;
+    private LoreBook? _relicsSeen;
+    private LoreBook? _relicsStudied;
     private float _overTimer;
 
     public override void _Ready()
@@ -122,6 +144,7 @@ public partial class RunState : Node
         GameEvents.CarrierDied += OnCarrierDied;
         GameEvents.ContractAccepted += OnContractAccepted;
         GameEvents.ContractResolved += OnContractResolved;
+        GameEvents.RelicDelivered += OnRelicDelivered;
         RunNumber = Records.Runs + 1;
     }
 
@@ -160,7 +183,7 @@ public partial class RunState : Node
         }
         bool record = Records.Add(Depth, Stage);
         LastSummary = new RunSummary(RunNumber, Seed, Depth, Stage, day, Circles.NameOf(Circles.CircleAt(Depth)), cause, Records.BestDepth, record,
-            Telemetry.ContractsDelivered, Telemetry.ContractsFailed, Telemetry.CargoScore, ScoreOf(Depth, Stage, Telemetry.CargoScore));
+            Telemetry.ContractsDelivered, Telemetry.ContractsFailed, Telemetry.CargoScore, ScoreOf(Depth, Stage, Telemetry.CargoScore), Telemetry.RelicsDelivered);
         GameEvents.PublishRunEnded(LastSummary);
     }
 
@@ -207,6 +230,11 @@ public partial class RunState : Node
         Telemetry.RecordResolved(note);
     }
 
+    private void OnRelicDelivered(RelicNote note)
+    {
+        Telemetry.RecordRelic(note);
+    }
+
     private void OnStationReached(int station)
     {
         Stage = Mathf.Max(Stage, station);
@@ -220,6 +248,8 @@ public partial class RunState : Node
         Boons.Clear();
         Telemetry.Reset();
         Lore.BeginRun();
+        RelicsSeen.BeginRun();
+        RelicsStudied.BeginRun();
     }
 
     private void OnDepthChanged(float depth)
@@ -235,6 +265,7 @@ public partial class RunState : Node
         GameEvents.CarrierDied -= OnCarrierDied;
         GameEvents.ContractAccepted -= OnContractAccepted;
         GameEvents.ContractResolved -= OnContractResolved;
+        GameEvents.RelicDelivered -= OnRelicDelivered;
         _difficultySettings = null;
         _circles = null;
         Route = null;

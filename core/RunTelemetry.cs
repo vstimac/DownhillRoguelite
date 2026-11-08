@@ -13,9 +13,26 @@ public sealed class RunTelemetry
     public int ContractsDelivered { get; private set; }
     public int ContractsFailed { get; private set; }
     public int CargoScore { get; private set; }
+    public int RelicsDelivered { get; private set; }
 
     private readonly HashSet<string> _accepted = new();
     private readonly HashSet<string> _resolved = new();
+    private readonly HashSet<string> _relics = new();
+
+    /// <summary>Counts a relic left at an altar (its score joins the cargo score); false if this relic was already counted.</summary>
+    public bool RecordRelic(RelicNote note)
+    {
+        if (!_relics.Add(note.Id))
+        {
+            return false;
+        }
+        RelicsDelivered++;
+        if (note.Score > 0)
+        {
+            CargoScore += note.Score;
+        }
+        return true;
+    }
 
     public void RecordAccepted(ContractNote note)
     {
@@ -53,6 +70,8 @@ public sealed class RunTelemetry
         ContractsDelivered = 0;
         ContractsFailed = 0;
         CargoScore = 0;
+        RelicsDelivered = 0;
+        _relics.Clear();
         _accepted.Clear();
         _resolved.Clear();
     }

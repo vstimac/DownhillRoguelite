@@ -134,6 +134,7 @@ public partial class NarratorDirector : Node
         GameEvents.ItemLost += OnItemLost;
         GameEvents.ContractAccepted += OnContractAccepted;
         GameEvents.ContractResolved += OnContractResolved;
+        GameEvents.RelicDiscovered += OnRelicDiscovered;
     }
 
     public override void _ExitTree()
@@ -158,6 +159,7 @@ public partial class NarratorDirector : Node
         GameEvents.ItemLost -= OnItemLost;
         GameEvents.ContractAccepted -= OnContractAccepted;
         GameEvents.ContractResolved -= OnContractResolved;
+        GameEvents.RelicDiscovered -= OnRelicDiscovered;
         Silence();
     }
 
@@ -642,6 +644,12 @@ public partial class NarratorDirector : Node
     private void OnContractAccepted(ContractNote note)
     {
         Say("cargo_picked_up");
+    }
+
+    /// <summary>A relic found: the voiced lines about something that looks almost holy.</summary>
+    private void OnRelicDiscovered(RelicNote note)
+    {
+        Say("relic_found");
     }
 
     /// <summary>A delivery: the voiced lines about giving up something carried a long way.</summary>
