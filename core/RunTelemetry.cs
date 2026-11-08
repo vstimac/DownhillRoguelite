@@ -22,21 +22,21 @@ public sealed class RunTelemetry
     /// <summary>Counts a relic left at an altar (its score joins the cargo score); false if this relic was already counted.</summary>
     public bool RecordRelic(RelicNote note)
     {
-        if (!_relics.Add(note.Id))
+        if (string.IsNullOrWhiteSpace(note.Id) || !_relics.Add(note.Id))
         {
             return false;
         }
         RelicsDelivered++;
         if (note.Score > 0)
         {
-            CargoScore += note.Score;
+            CargoScore = (int)System.Math.Min(int.MaxValue, (long)CargoScore + note.Score);
         }
         return true;
     }
 
     public void RecordAccepted(ContractNote note)
     {
-        if (_accepted.Add(note.InstanceId))
+        if (note.Status == ContractStatus.Accepted && !string.IsNullOrWhiteSpace(note.InstanceId) && _accepted.Add(note.InstanceId))
         {
             ContractsAccepted++;
         }
@@ -45,7 +45,11 @@ public sealed class RunTelemetry
     /// <summary>Counts a contract's ending; false if this contract was already counted.</summary>
     public bool RecordResolved(ContractNote note)
     {
-        if (!_resolved.Add(note.InstanceId))
+        if (note.Status != ContractStatus.Delivered && note.Status != ContractStatus.Failed && note.Status != ContractStatus.Abandoned)
+        {
+            return false;
+        }
+        if (string.IsNullOrWhiteSpace(note.InstanceId) || !_resolved.Add(note.InstanceId))
         {
             return false;
         }
@@ -54,7 +58,7 @@ public sealed class RunTelemetry
             ContractsDelivered++;
             if (note.Score > 0)
             {
-                CargoScore += note.Score;
+                CargoScore = (int)System.Math.Min(int.MaxValue, (long)CargoScore + note.Score);
             }
         }
         else

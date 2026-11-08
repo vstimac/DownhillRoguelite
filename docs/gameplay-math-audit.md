@@ -189,6 +189,23 @@ The complete follow-up passed **37 scenes and 427 checks**, with zero error line
 processes exiting successfully (`condition-full-suite.csv`). C# builds without warnings;
 resource import and the 300-frame main-scene smoke check also pass.
 
+## Delivery deadlines and score arithmetic
+
+The economy regression reproduced **11 failures** across late delivery, nonterminal telemetry
+notes and large rewards. Delivery previews now reject expired jobs immediately; committing
+delivery checks the clock before removing cargo and resolves an expired job only once. Exact
+deadline equality remains valid. The delivery post explains when the deadline has passed.
+
+Run telemetry only records identified, final contract outcomes, and only identified Accepted
+notes count as acceptances. Early/nonterminal notes do not consume the final-outcome dedupe key.
+Cargo and relic rewards accumulate with wide intermediates and saturate at `int.MaxValue`.
+The combined depth/station/cargo score also saturates, while damaged contract pay uses double
+precision before rounding to avoid losing integer reward precision. Ordinary rewards and score
+weights are unchanged. `EconomyTests` passes all **14** checks, including real cargo ownership
+at the deadline, repeated delivery, malformed notes, duplicate rewards and large valid values.
+The full regression passed **38 scenes and 441 checks**, all exiting successfully with no
+FAIL/error lines. Resource import and the 300-frame main-scene smoke check also passed.
+
 ## Reproduce the added checks
 
 ```powershell

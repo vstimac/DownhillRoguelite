@@ -20,4 +20,6 @@ public enum ContractResult
     WrongStation,
     /// <summary>The carrier isn't carrying its cargo (dropped, lost).</summary>
     CargoMissing,
+    /// <summary>The world-clock deadline has passed, even if the periodic check has not run yet.</summary>
+    Expired,
 }

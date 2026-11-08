@@ -109,7 +109,7 @@ public static class ContractResolver
         {
             return score;
         }
-        return (int)System.Math.Round(score * System.Math.Clamp(contract.Condition, 0.0f, 100.0f) / 100.0f);
+        return (int)System.Math.Round(score * (double)System.Math.Clamp(contract.Condition, 0.0f, 100.0f) / 100.0);
     }
 
     /// <summary>

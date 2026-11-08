@@ -216,8 +216,14 @@ public partial class RunState : Node
     /// </summary>
     public int ScoreOf(int depth, int stations, int cargoScore)
     {
-        int score = Mathf.FloorToInt(Mathf.Max(depth, 0) * ScorePerMetre) + Mathf.Max(stations, 0) * ScorePerStation + Mathf.Max(cargoScore, 0);
-        return Mathf.Max(score, 0);
+        double depthScore = 0.0;
+        if (depth > 0 && ScorePerMetre > 0.0f)
+        {
+            depthScore = System.Math.Floor(depth * (double)ScorePerMetre);
+        }
+        long stationScore = (long)System.Math.Max(stations, 0) * System.Math.Max(ScorePerStation, 0);
+        double score = depthScore + stationScore + System.Math.Max(cargoScore, 0);
+        return (int)System.Math.Min(score, int.MaxValue);
     }
 
     private void OnContractAccepted(ContractNote note)

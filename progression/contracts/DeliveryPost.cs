@@ -201,6 +201,10 @@ public partial class DeliveryPost : Node3D, IInteractable, IDescribed
             {
                 ShowMessage("The " + Contract.CargoName.ToLowerInvariant() + " isn't in your pack");
             }
+            else if (check == ContractResult.Expired)
+            {
+                ShowMessage("The job's deadline has passed");
+            }
             return false;
         }
         if (!Armed)

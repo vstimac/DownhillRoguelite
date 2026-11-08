@@ -262,6 +262,10 @@ public partial class ContractDirector : Node3D
     /// <summary>Whether the open job could be handed over at this station right now.</summary>
     public ContractResult CanDeliverAt(int station)
     {
+        if (_active != null && ContractResolver.IsLate(_active, Now))
+        {
+            return ContractResult.Expired;
+        }
         bool carried = _active != null && Carried(_active.InstanceId);
         return ContractResolver.CanDeliver(_active, station, carried);
     }
@@ -272,6 +276,10 @@ public partial class ContractDirector : Node3D
     /// </summary>
     public ContractResult Deliver(int station)
     {
+        if (CheckDeadline())
+        {
+            return ContractResult.Expired;
+        }
         ContractResult result = CanDeliverAt(station);
         if (result != ContractResult.Ok || _active == null)
         {
