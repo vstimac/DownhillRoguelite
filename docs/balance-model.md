@@ -32,6 +32,10 @@ Imbalance = the combined centre of mass's horizontal offset from the feet ÷ the
 - **Stumbling**: lasts at most `StumbleWindow` (0.9 s). Recovers below `RecoverThreshold` (0.75); falls at `FallThreshold` (2.5) or when the window runs out. Locomotion slows and lurches toward the tilt.
 - **Fallen**: input off for `FallDuration` (2.5 s), then upright and stable.
 
+Standing steadying protects against the pack alone. Nonzero knocks, landing impulses and wind
+torque refresh `PushMemory`, so external disturbances can still turn a standing stumble into a
+fall. A zero impulse leaves it alone; resetting balance clears both the impulse and its memory.
+
 ## Tuning targets (checked by `debug/tests/BalanceTests`)
 
 - Empty and load B stay stable at rest; load A rests wobbling toward its heavy side (~0.5) and is steadied by holding the counter-lean (~0.15).

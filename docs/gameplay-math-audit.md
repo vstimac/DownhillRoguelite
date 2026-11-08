@@ -83,6 +83,41 @@ Logs and seed results are in `D:\Game dev\math-audit-artifacts\wildlife-*`.
 The exact initial unseeded 70 cm observation cannot be uniquely attributed after the fact;
 the controlled stale-contact defect and the seeded false-positive case have both been addressed.
 
+## Impact and disturbance follow-up
+
+The previous ragdoll formula used the magnitude of the entire velocity change as impact speed.
+That counted tangential braking as a blow, added outward rebound speed to the incoming hit,
+and could count acceleration toward a surface as an impact. `ImpactMath.SpeedLost` now uses
+`u = max(0, -dot(velocity, unitNormal))` and `max(0, uBefore - uAfter)`. The existing safe speed,
+hardness, body-part weighting and damage tuning remain in use. The velocity-change magnitude
+is retained only as a cheap candidate filter before probing for a surface.
+
+Balance also failed to attribute landing impulses and wind torque as external pushes. That
+allowed automatic standing steadying to suppress their falls. Zero impulses could disable
+steadying, while resetting balance left a cancelled push's memory behind. Landings and wind
+now refresh push memory, zero impulses leave it alone, and a fresh/reset carrier has no
+remembered push. No stiffness, torque multiplier or normal gameplay threshold was retuned.
+
+The first analytical regression run reproduced **11 failures** before these fixes. The new
+scenarios cover head-on and glancing impacts, sliding, rebound, rotated normals, impulse
+attribution, reset, zero impulses, long push memory and a brief gust after the wind has stopped.
+The balance scenarios use sensitive test-only stumble thresholds to isolate push attribution.
+
+Validation after the impact changes:
+
+- Build: zero warnings/errors.
+- All **33 test scenes** passed, with **390 PASS checks** and no FAIL/error lines.
+- The new impact and disturbance suites account for **20** checks, including the brief gust.
+- A real 2 m rock drop still causes no damage. A 6 m drop causes **23.7** damage on rock versus
+  **9.6** on grass, retaining the existing surface-hardness criteria without changing thresholds.
+- The A-versus-B descent still ends Fallen for the high/lopsided load and Stable for the low load.
+- Main-scene descent: **129.2 m** downhill in 30 simulated seconds, health 100, finite motion.
+- Full suite results and logs: `D:\Game dev\math-audit-artifacts\impact-full-suite.csv` and `impact-suite-*.log`.
+
+The existing ray remains a contact-detection heuristic; this change does not replace it with
+engine contact impulses. Reported damage still uses bone linear velocity rather than full
+angular contact-point velocity.
+
 ## Reproduce the added checks
 
 ```powershell
@@ -90,6 +125,9 @@ $godot = 'D:\Game dev\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_wi
 dotnet build
 & $godot --headless --path . --fixed-fps 60 res://debug/tests/GameplayMathTests.tscn
 & $godot --headless --path . --fixed-fps 60 res://debug/tests/DescentPlaytestTests.tscn
+& $godot --headless --path . --fixed-fps 60 res://debug/tests/WildlifePhysicsTests.tscn
+& $godot --headless --path . --fixed-fps 60 res://debug/tests/ImpactMathTests.tscn
+& $godot --headless --path . --fixed-fps 60 res://debug/tests/BalanceDisturbanceTests.tscn
 ```
 
 For the rendered descent, omit `--headless`, pass `--audio-driver Dummy`, and append
