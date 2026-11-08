@@ -6,6 +6,7 @@
 script = ExtResource("1_character")
 Id = "default"
 DisplayName = "The Carrier"
+Description = "The mountain's regular porter: hard hat, hi-vis vest and a pack that never gets lighter. Knows every station by its fire."
 ModelPath = "res://art/characters/mixamo/carrier.fbx"
 HelmetMesh = "Ch17_Helmet"
 HairMesh = "Ch17_Hair"

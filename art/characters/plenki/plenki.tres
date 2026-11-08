@@ -6,4 +6,5 @@
 script = ExtResource("1_character")
 Id = "plenki"
 DisplayName = "Plenki"
+Description = "On the way. Their model isn't in the game yet."
 ModelPath = "res://art/characters/plenki/plenki.glb"

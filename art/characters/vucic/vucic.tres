@@ -6,4 +6,5 @@
 script = ExtResource("1_character")
 Id = "vucic"
 DisplayName = "Vučić"
+Description = "A newcomer to the descent, glasses on, carrying the same load as everyone else. The mountain doesn't care who you were."
 ModelPath = "res://art/characters/vucic/vucic.glb"

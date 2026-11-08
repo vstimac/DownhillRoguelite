@@ -7,6 +7,7 @@ using DownhillRoguelite.Map;
 using DownhillRoguelite.Player;
 using DownhillRoguelite.Terrain;
 using DownhillRoguelite.Ui;
+using DownhillRoguelite.WorldUi;
 using Godot;
 
 namespace DownhillRoguelite.Debug;
@@ -18,7 +19,9 @@ namespace DownhillRoguelite.Debug;
 /// for what the carrier looks at; notes appear for events; the inventory page opens (taking the
 /// mouse), reorders by drag and drop and drinks through its action; the map page shows the field
 /// map's chart and a click on it sets a waypoint; the journal records events and turns pages;
-/// everything sits inside the screen.
+/// everything sits inside the screen. The front end: options are saved and applied the moment they
+/// change; the start screen waits paused and silent, is driven by keys alone through its pages and
+/// starts the run; the menus and Options sheet fit unclipped at 720p and 1080p.
 /// Run: godot --headless --path . --fixed-fps 60 res://debug/tests/UiTests.tscn
 /// </summary>
 public partial class UiTests : Node3D
@@ -30,8 +33,13 @@ public partial class UiTests : Node3D
 
     private readonly List<string> _failures = new();
 
+    private const string TestOptionsPath = "user://options_uitests.cfg";
+
     public override async void _Ready()
     {
+        // Tests change options: keep the player's own file untouched and start from defaults.
+        DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(TestOptionsPath));
+        GameOptions.UseFile(TestOptionsPath);
         CarrierInventory? inventory = PlayerBody?.GetNodeOrNull<CarrierInventory>("Inventory");
         CarrierNeeds? needs = PlayerBody?.GetNodeOrNull<CarrierNeeds>("Needs");
         if (PlayerBody?.Health == null || Streamer == null || Ui == null || Map == null || inventory == null || needs == null)
@@ -55,6 +63,9 @@ public partial class UiTests : Node3D
         TestDragging();
         TestSubtitles();
         TestLayout();
+        await TestOptionsSaved();
+        await TestMenuLayout();
+        await TestStartScreen();
 
         if (_failures.Count == 0)
         {
@@ -270,6 +281,257 @@ public partial class UiTests : Node3D
         Ui!.Layout();
         Check("the HUD and pages fit 720p to 1440p without overlapping", outside.Count == 0 && overlaps.Count == 0,
             $"outside: [{string.Join(", ", outside)}], overlapping: [{string.Join(", ", overlaps)}]");
+    }
+
+    /// <summary>Rows of the shared Options sheet save to the options file at once and are applied (buses, captions, camera speed).</summary>
+    private async Task TestOptionsSaved()
+    {
+        CanvasLayer layer = new();
+        AddChild(layer);
+        OptionsPanel sheet = new() { ShowCharacter = true };
+        layer.AddChild(sheet);
+        sheet.FitInto(new Rect2(Vector2.Zero, new Vector2(1280, 720)));
+        await Wait(0.1f);
+        SliderRow? master = sheet.Row("Master volume") as SliderRow;
+        ChoiceRow? subtitles = sheet.Row("Subtitles") as ChoiceRow;
+        SliderRow? look = sheet.Row("Look sensitivity") as SliderRow;
+        ChoiceRow? window = sheet.Row("Window") as ChoiceRow;
+        if (master == null || subtitles == null || look == null || window == null)
+        {
+            Check("options are saved and applied the moment they change", false, "rows missing");
+            layer.QueueFree();
+            return;
+        }
+        for (int i = 0; i < 10; i++)
+        {
+            master.Step(-1);
+        }
+        subtitles.Step(1);
+        look.Step(1);
+        window.Step(1);
+        await Wait(0.05f);
+        ConfigFile file = new();
+        bool read = file.Load(TestOptionsPath) == Error.Ok;
+        float savedMaster = -1.0f;
+        bool savedSubtitles = false;
+        bool savedDisplay = false;
+        if (read)
+        {
+            savedMaster = (float)file.GetValue("options", "volume_master", -1.0f);
+            savedSubtitles = !(bool)file.GetValue("options", "subtitles", true);
+            savedDisplay = (int)file.GetValue("options", "display", 0) == (int)DisplayMode.Borderless;
+        }
+        float busDb = AudioServer.GetBusVolumeDb(AudioServer.GetBusIndex("Master"));
+        float wantDb = Mathf.LinearToDb(Mathf.Max(GameOptions.MasterVolume * OptionsApplier.Hush, 0.0001f));
+        bool bus = Mathf.Abs(busDb - wantDb) < 0.1f && Mathf.IsEqualApprox(GameOptions.MasterVolume, 0.5f);
+        bool captions = Ui?.Captions != null && !Ui.Captions.Visible;
+        bool sensitivity = GameOptions.LookSensitivity > 1.0f;
+        Check("options are saved and applied the moment they change",
+            Mathf.IsEqualApprox(savedMaster, 0.5f) && savedSubtitles && savedDisplay && bus && captions && sensitivity,
+            $"saved master {savedMaster:0.00}, subtitles off {savedSubtitles}, borderless {savedDisplay}, Master bus {busDb:0.0} dB (want {wantDb:0.0}), captions hidden {captions}, look x{GameOptions.LookSensitivity:0.00}");
+
+        // Reset all asks once more, then puts everything back (and the rows show it).
+        InkButton? reset = null;
+        foreach (Node child in sheet.GetChildren())
+        {
+            if (child is InkButton button && button.Text == "Reset all")
+            {
+                reset = button;
+            }
+        }
+        reset?.EmitSignal(BaseButton.SignalName.Pressed);
+        bool held = !Mathf.IsEqualApprox(GameOptions.MasterVolume, 1.0f);
+        reset?.EmitSignal(BaseButton.SignalName.Pressed);
+        await Wait(0.05f);
+        SliderRow? fresh = sheet.Row("Master volume") as SliderRow;
+        bool restored = Mathf.IsEqualApprox(GameOptions.MasterVolume, 1.0f) && GameOptions.Subtitles && Ui?.Captions?.Visible == true
+            && fresh != null && Mathf.IsEqualApprox(fresh.Value, 1.0);
+        Check("Reset all asks twice, then restores every option", reset != null && held && restored,
+            $"button {reset != null}, held after one press {held}, restored {restored}");
+
+        // Q / E (and the shoulder buttons) change tab.
+        sheet.SetOpenNow(true);
+        int before = sheet.CurrentTab;
+        await Key(Godot.Key.E);
+        bool tabbed = sheet.CurrentTab == before + 1 && sheet.Page(sheet.CurrentTab).Visible && !sheet.Page(before).Visible;
+        Check("E steps to the next Options tab", tabbed, $"tab {before} -> {sheet.CurrentTab}");
+        layer.QueueFree();
+        await Wait(0.05f);
+    }
+
+    /// <summary>The start screen, pause menu and every Options tab fit 720p and 1080p with nothing clipped.</summary>
+    private async Task TestMenuLayout()
+    {
+        Camera3D? game = GetViewport().GetCamera3D();
+        CanvasLayer layer = new();
+        AddChild(layer);
+        StartScreen start = new() { ForceShow = true, WarmupSeconds = 1000.0f };
+        PauseMenu pause = new();
+        layer.AddChild(start);
+        layer.AddChild(pause);
+        await Wait(0.05f);
+        List<string> problems = new();
+        foreach (Vector2 size in new[] { new Vector2(1280, 720), new Vector2(1920, 1080) })
+        {
+            Rect2 screen = new(Vector2.Zero, size);
+            start.LayoutFor(size);
+            pause.LayoutFor(size);
+            start.Options!.SetOpenNow(true);
+            start.Characters!.SetOpenNow(true);
+            start.About!.SetOpenNow(true);
+            pause.Visible = true;
+            pause.Options!.SetOpenNow(true);
+            await Wait(0.05f);
+            foreach (Control? control in new Control?[] { start.TitleLabel, start.FooterHint, start.FooterKeys, start.VersionLabel, start.Options, start.Characters, start.About, pause.Options })
+            {
+                if (control != null && !screen.Encloses(control.GetGlobalRect()))
+                {
+                    problems.Add($"{control.Name} outside at {size}");
+                }
+            }
+            foreach (MenuItem item in start.Items.Concat(pause.Items))
+            {
+                if (!screen.Encloses(item.GetGlobalRect()) || item.TextWidth() > item.Size.X + 0.5f)
+                {
+                    problems.Add($"menu entry {item.Text} clipped at {size}");
+                }
+                if (item.Hint.Length > 0 && UiStyle.Hand.GetStringSize(item.Hint, HorizontalAlignment.Left, -1, UiStyle.TextSize - 2).X > start.FooterHint!.Size.X)
+                {
+                    problems.Add($"hint of {item.Text} too long at {size}");
+                }
+            }
+            if (start.MenuBottom() > start.FooterHint!.Position.Y)
+            {
+                problems.Add($"menu runs into the footer at {size} ({start.MenuBottom():0} > {start.FooterHint.Position.Y:0})");
+            }
+            if (UiStyle.Wrapped(start.FooterKeys!.Text, UiStyle.SmallSize, 100000.0f).X > start.FooterKeys.Size.X)
+            {
+                problems.Add($"footer keys clipped at {size}");
+            }
+            foreach (OptionsPanel sheet in new[] { start.Options, pause.Options })
+            {
+                if (sheet.Tabs == null || !sheet.Tabs.FitsWidth())
+                {
+                    problems.Add($"tabs clipped at {size}");
+                }
+                for (int tab = 0; tab < OptionsPanel.TabNames.Length; tab++)
+                {
+                    sheet.ShowTab(tab, false);
+                    await Wait(0.03f);
+                    foreach (OptionRow row in sheet.Rows(tab))
+                    {
+                        if (!row.Fits())
+                        {
+                            problems.Add($"{OptionsPanel.TabNames[tab]}: '{row.Label}' clipped at {size} (row {row.Size.X:0} px)");
+                        }
+                        if (UiStyle.Wrapped(row.Hint, UiStyle.SmallSize, sheet.HintLabel!.Size.X).Y > sheet.HintLabel.Size.Y)
+                        {
+                            problems.Add($"hint for '{row.Label}' too long at {size}");
+                        }
+                    }
+                }
+                if (sheet.BackButton == null || !sheet.GetGlobalRect().Grow(1.0f).Encloses(sheet.BackButton.GetGlobalRect()))
+                {
+                    problems.Add($"Options Back button off the sheet at {size}");
+                }
+            }
+            CharacterCarousel? carousel = start.Characters.Carousel;
+            if (carousel != null)
+            {
+                for (int i = 0; i < carousel.Characters.Count; i++)
+                {
+                    if (carousel.NeededHeight() > carousel.Size.Y || carousel.NameWidth() > carousel.Size.X - 112.0f)
+                    {
+                        problems.Add($"character {carousel.Character?.DisplayName} clipped at {size}");
+                    }
+                    carousel.Step(1);
+                }
+            }
+        }
+        Check("the start screen, pause menu and every Options tab fit 720p and 1080p unclipped", problems.Count == 0,
+            $"[{string.Join("; ", problems)}]");
+        pause.Visible = false;
+        layer.QueueFree();
+        await Wait(0.05f);
+        GetTree().Paused = false;
+        OptionsApplier.SetHush(1.0f);
+        game?.MakeCurrent();
+        GameOptions.SetCharacter("default");
+        await Wait(0.1f);
+    }
+
+    /// <summary>The start screen waits paused and silent, is driven by keys alone through its pages, and starts the run.</summary>
+    private async Task TestStartScreen()
+    {
+        Camera3D? game = GetViewport().GetCamera3D();
+        StartScreen start = new() { ForceShow = true, WarmupSeconds = 0.1f, CurtainSeconds = 0.1f, FadeInSeconds = 0.5f };
+        AddChild(start);
+        await Wait(0.4f);
+        bool waiting = start.Waiting && GetTree().Paused && OptionsApplier.Hush < 0.01f && GetViewport().GetCamera3D() == start.Camera;
+        MenuItem? first = GetViewport().GuiGetFocusOwner() as MenuItem;
+
+        await Press("ui_down");
+        MenuItem? second = GetViewport().GuiGetFocusOwner() as MenuItem;
+        bool moved = first?.Text == "New Run" && second != null && second != first;
+
+        // Character page (if there is more than one character), then back.
+        bool character = true;
+        if (start.Item("Character") is MenuItem characterItem && second == characterItem)
+        {
+            await Press("ui_accept");
+            await Wait(0.3f);
+            bool open = start.Current == StartScreen.Page.Character && start.Camera?.CurrentShot == MenuCamera.Shot.Portrait
+                && GetViewport().GuiGetFocusOwner() is CharacterCarousel;
+            int index = start.Characters?.Carousel?.Index ?? -1;
+            await Press("ui_right");
+            bool stepped = start.Characters?.Carousel?.Index != index;
+            await Press("ui_cancel");
+            await Wait(0.3f);
+            character = open && stepped && start.Current == StartScreen.Page.Main;
+            await Press("ui_down");
+        }
+
+        // Options, tab across with E, back out.
+        bool options = false;
+        if (GetViewport().GuiGetFocusOwner() is MenuItem item && item.Text == "Options")
+        {
+            await Press("ui_accept");
+            await Wait(0.3f);
+            bool open = start.Current == StartScreen.Page.Options && GetViewport().GuiGetFocusOwner() is OptionRow;
+            await Key(Godot.Key.E);
+            bool tabbed = start.Options?.CurrentTab == 1;
+            await Press("ui_cancel");
+            await Wait(0.3f);
+            options = open && tabbed && start.Current == StartScreen.Page.Main && (GetViewport().GuiGetFocusOwner() as MenuItem)?.Text == "Options";
+        }
+
+        start.StartRun();
+        bool woke = !GetTree().Paused;
+        await Wait(2.4f);
+        bool gone = !IsInstanceValid(start) || !start.IsInsideTree();
+        bool handedOver = game == null || GetViewport().GetCamera3D() == game;
+        bool loud = OptionsApplier.Hush > 0.99f;
+        Check("the start screen waits paused and silent, keys alone reach Character and Options and back, and New Run starts the run",
+            waiting && moved && character && options && woke && gone && handedOver && loud,
+            $"waiting {waiting}, focus moved {moved} ({first?.Text} -> {second?.Text}), character page {character}, options page {options}, " +
+            $"world woke {woke}, screen gone {gone}, run camera back {handedOver}, sound up {loud}");
+        GameOptions.SetCharacter("default");
+    }
+
+    private async Task Press(string action)
+    {
+        Input.ParseInputEvent(new InputEventAction { Action = action, Pressed = true });
+        await Wait(0.05f);
+        Input.ParseInputEvent(new InputEventAction { Action = action, Pressed = false });
+        await Wait(0.05f);
+    }
+
+    private async Task Key(Key key)
+    {
+        Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = key, Keycode = key, Pressed = true });
+        await Wait(0.05f);
+        Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = key, Keycode = key, Pressed = false });
+        await Wait(0.05f);
     }
 
     private async Task Wait(float seconds)

@@ -136,8 +136,8 @@ public partial class ChaseCamera : Node3D
 
         if (@event is InputEventMouseMotion motion && Input.MouseMode == Input.MouseModeEnum.Captured)
         {
-            _yawDegrees -= motion.Relative.X * MouseSensitivity;
-            _pitchDegrees -= motion.Relative.Y * MouseSensitivity;
+            _yawDegrees -= motion.Relative.X * MouseSensitivity * GameOptions.LookSensitivity;
+            _pitchDegrees -= motion.Relative.Y * MouseSensitivity * GameOptions.LookSensitivity * LookPitchSign();
             _timeSinceLook = 0.0f;
         }
         else if (@event.IsActionPressed(ActionReleaseMouse))
@@ -148,6 +148,16 @@ public partial class ChaseCamera : Node3D
         {
             Input.MouseMode = Input.MouseModeEnum.Captured;
         }
+    }
+
+    /// <summary>-1 when Options → Controls inverts the look.</summary>
+    private static float LookPitchSign()
+    {
+        if (GameOptions.InvertLook)
+        {
+            return -1.0f;
+        }
+        return 1.0f;
     }
 
     public override void _Process(double delta)
@@ -165,8 +175,8 @@ public partial class ChaseCamera : Node3D
             Vector2 stick = Input.GetVector(ActionLookLeft, ActionLookRight, ActionLookUp, ActionLookDown);
             if (!stick.IsZeroApprox())
             {
-                _yawDegrees -= stick.X * StickSpeed * dt;
-                _pitchDegrees -= stick.Y * StickSpeed * dt;
+                _yawDegrees -= stick.X * StickSpeed * GameOptions.LookSensitivity * dt;
+                _pitchDegrees -= stick.Y * StickSpeed * GameOptions.LookSensitivity * LookPitchSign() * dt;
                 _timeSinceLook = 0.0f;
             }
         }

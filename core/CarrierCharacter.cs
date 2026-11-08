@@ -13,6 +13,8 @@ public partial class CarrierCharacter : Resource
 {
     [Export] public string Id { get; set; } = "";
     [Export] public string DisplayName { get; set; } = "";
+    /// <summary>A line or two about the character for the start screen's character page.</summary>
+    [Export(PropertyHint.MultilineText)] public string Description { get; set; } = "";
     [Export(PropertyHint.File, "*.fbx,*.glb,*.gltf,*.tscn")] public string ModelPath { get; set; } = "";
     [Export] public string HelmetMesh { get; set; } = "";
     [Export] public string HairMesh { get; set; } = "";

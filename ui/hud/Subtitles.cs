@@ -70,12 +70,21 @@ public partial class Subtitles : Control
         _random.Seed = 11;
         GameEvents.SpeechStarted += OnSpeech;
         GameEvents.RespawnRequested += Clear;
+        GameOptions.Changed += ApplyOptions;
+        ApplyOptions();
+    }
+
+    /// <summary>Options → Accessibility → Subtitles hides the captions (lines are still kept, so turning them on mid-line shows it).</summary>
+    private void ApplyOptions()
+    {
+        Visible = GameOptions.Subtitles;
     }
 
     public override void _ExitTree()
     {
         GameEvents.SpeechStarted -= OnSpeech;
         GameEvents.RespawnRequested -= Clear;
+        GameOptions.Changed -= ApplyOptions;
     }
 
     private void OnSpeech(SpeechLine speech)

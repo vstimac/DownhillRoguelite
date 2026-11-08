@@ -1,36 +1,39 @@
+using System.Collections.Generic;
 using DownhillRoguelite.Core;
+using DownhillRoguelite.Ui;
 using Godot;
 
 namespace DownhillRoguelite.WorldUi;
 
 /// <summary>
-/// Esc (or P) pauses the run and shows the one flat screen the game has: resume, music and voice
-/// volume, debug overlays on or off, the controls, and quit. It exists only while the run is
-/// stopped, so the "no flat UI during runs" rule holds. Volumes set the "Music" and "Voice" buses.
+/// Esc (or P, or a controller's Start) pauses the run and shows the one flat screen the game has
+/// during a run: Resume, Options (the same tabbed sheet as the main menu: volumes, video, controls
+/// reference and the rest) and Quit, styled like the start screen. It exists only while the run is
+/// stopped, so the "no flat UI during runs" rule holds.
 /// </summary>
 public partial class PauseMenu : CanvasLayer
 {
     private static readonly StringName ActionPause = "pause";
 
-    [Export] public Color DimColor { get; set; } = new(0.0f, 0.0f, 0.0f, 0.6f);
-    [Export] public int TitleSize { get; set; } = 40;
-    [Export] public int TextSize { get; set; } = 18;
-    [Export(PropertyHint.MultilineText)] public string ControlsText { get; set; } =
-        "WASD walk · Shift sprint · C brake (careful steps) · Space jump (and, falling, roll on landing) · Left Ctrl dive\n" +
-        "Mouse look · LMB / RMB lean left / right · both brace\n" +
-        "E pick up / sleep at a bedroll · F eat · Q drink · Tab pack (at stations)\n" +
-        "I inventory (Wear clothes, Mend gear at stations) · J journal · Enter talk with the companion\n" +
-        "M map (click: waypoint · right-click: remove · wheel: zoom · drag: draw)\n" +
-        "1-9 choose from the hotbar · V use it · click a worn piece (left sheet) to take it off\n" +
-        "Alt + drag: move any part of the UI (pages drag by their title) · Alt+Backspace: reset\n" +
-        "R twice: give up the run\n\n" +
+    [Export] public Color DimColor { get; set; } = new(0.02f, 0.015f, 0.01f, 0.55f);
+    [Export] public int TitleSize { get; set; } = 64;
+    [Export(PropertyHint.MultilineText)] public string TipsText { get; set; } =
         "Death is permanent: every run starts on the summit of a new mountain.\n" +
-        "Reach the next station before night. Sprinting and jumping cost stamina; it comes back quickly when you ease off.\n" +
-        "Below each station the paths split: a lookout sign compares them. Cairns show the way.";
+        "Reach the next station before night. Below each station the paths split: a lookout sign compares them; cairns show the way.\n" +
+        "Options → Controls lists every key and button.";
 
     public bool IsOpen => Visible;
+    public OptionsPanel? Options => _options;
+    public IReadOnlyList<MenuItem> Items => _items;
+    public bool ShowingOptions => _options != null && _options.Visible && _options.IsOpen;
 
+    private readonly List<MenuItem> _items = new();
     private Control? _root;
+    private Control? _column;
+    private Label? _title;
+    private VBoxContainer? _menu;
+    private Label? _tips;
+    private OptionsPanel? _options;
     private AudioStreamPlayer? _click;
     private AudioStream? _openSound;
     private AudioStream? _closeSound;
@@ -45,25 +48,16 @@ public partial class PauseMenu : CanvasLayer
         _closeSound = LoadSound("res://audio/sfx/kenney_interface_sounds/close_001.ogg");
         _click = new AudioStreamPlayer { VolumeDb = -6.0f };
         AddChild(_click);
+        GetViewport().SizeChanged += Relayout;
+        Relayout();
         // Render checks: `-- --options` opens the menu on its Options page after a moment.
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--options") >= 0)
         {
-            GetTree().CreateTimer(2.0, true).Timeout += ShowOptions;
-        }
-    }
-
-    private void ShowOptions()
-    {
-        Open();
-        if (_options != null && _options.GetParent() is Node parent)
-        {
-            foreach (Node child in parent.GetChildren())
+            GetTree().CreateTimer(2.0, true).Timeout += () =>
             {
-                if (child is Control control)
-                {
-                    control.Visible = child == _options;
-                }
-            }
+                Open();
+                ShowOptions();
+            };
         }
     }
 
@@ -74,6 +68,13 @@ public partial class PauseMenu : CanvasLayer
         {
             GD.Print($"Pause menu toggled by {@event.GetType().Name} {@event.AsText()} (device {@event.Device})");
             Toggle();
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+        // B / Esc on the menu itself resumes (the Options sheet handles its own Back first).
+        if (Visible && @event.IsActionPressed("ui_cancel"))
+        {
+            Resume();
             GetViewport().SetInputAsHandled();
         }
     }
@@ -117,6 +118,10 @@ public partial class PauseMenu : CanvasLayer
         }
         _openSound = null;
         _closeSound = null;
+        if (IsInstanceValid(GetViewport()))
+        {
+            GetViewport().SizeChanged -= Relayout;
+        }
     }
 
     public void Open()
@@ -125,12 +130,21 @@ public partial class PauseMenu : CanvasLayer
         Visible = true;
         GetTree().Paused = true;
         Input.MouseMode = Input.MouseModeEnum.Visible;
+        ShowMenu();
+        if (_root != null)
+        {
+            _root.Modulate = new Color(1, 1, 1, 0);
+            CreateTween().TweenProperty(_root, "modulate:a", 1.0f, 0.15);
+        }
     }
 
     public void Resume()
     {
         Sound(_closeSound);
         Visible = false;
+        // A sheet left open would keep taking Esc during the run.
+        _options?.SetOpenNow(false);
+        GetViewport().GuiReleaseFocus();
         GetTree().Paused = false;
         if (!GameEvents.IsPacking)
         {
@@ -138,7 +152,50 @@ public partial class PauseMenu : CanvasLayer
         }
     }
 
-    private OptionsPanel? _options;
+    /// <summary>The menu's first page: the entries, Resume focused.</summary>
+    public void ShowMenu()
+    {
+        if (_options != null)
+        {
+            _options.SetOpenNow(false);
+        }
+        SetMenuFocusable(true);
+        if (_column != null)
+        {
+            _column.Visible = true;
+        }
+        if (_items.Count > 0)
+        {
+            _items[0].GrabFocus();
+        }
+    }
+
+    public void ShowOptions()
+    {
+        if (_options == null)
+        {
+            return;
+        }
+        if (_column != null)
+        {
+            _column.Visible = false;
+        }
+        SetMenuFocusable(false);
+        _options.OpenSheet();
+    }
+
+    private void SetMenuFocusable(bool on)
+    {
+        Control.FocusModeEnum mode = Control.FocusModeEnum.None;
+        if (on)
+        {
+            mode = Control.FocusModeEnum.All;
+        }
+        foreach (MenuItem item in _items)
+        {
+            item.FocusMode = mode;
+        }
+    }
 
     private void Build()
     {
@@ -150,94 +207,73 @@ public partial class PauseMenu : CanvasLayer
         dim.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         _root.AddChild(dim);
 
-        CenterContainer center = new();
-        center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-        _root.AddChild(center);
+        _column = new Control { MouseFilter = Control.MouseFilterEnum.Ignore };
+        _root.AddChild(_column);
+        _title = UiStyle.MakeLabel("Paused", TitleSize, true, UiStyle.Paper);
+        _title.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.6f));
+        _title.AddThemeConstantOverride("shadow_offset_x", 3);
+        _title.AddThemeConstantOverride("shadow_offset_y", 3);
+        _column.AddChild(_title);
+        _menu = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+        _menu.AddThemeConstantOverride("separation", 4);
+        _column.AddChild(_menu);
+        AddItem("Resume", Resume);
+        AddItem("Options", ShowOptions);
+        AddItem("Quit", () => GetTree().Quit());
+        _tips = UiStyle.MakeLabel(TipsText, UiStyle.SmallSize, false, UiStyle.PaperDark);
+        _tips.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _tips.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.7f));
+        _column.AddChild(_tips);
 
-        VBoxContainer column = new() { CustomMinimumSize = new Vector2(560.0f, 0.0f) };
-        column.AddThemeConstantOverride("separation", 14);
-        center.AddChild(column);
-
-        Label title = new() { Text = "Paused", HorizontalAlignment = HorizontalAlignment.Center };
-        title.AddThemeFontSizeOverride("font_size", TitleSize);
-        column.AddChild(title);
-
-        Button resume = AddButton(column, "Resume");
-        resume.Pressed += Resume;
-
-        AddVolume(column, "Music", "Music");
-        AddVolume(column, "Voice", "Voice");
-        AddVolume(column, "Weather", "Ambience");
-
-        Button options = AddButton(column, "Options");
-        _options = new OptionsPanel { TextSize = TextSize, Visible = false };
-        center.AddChild(_options);
-        options.Pressed += () =>
-        {
-            column.Visible = false;
-            _options.Visible = true;
-        };
-        _options.BackPressed += () =>
-        {
-            _options.Visible = false;
-            column.Visible = true;
-        };
-
-        Label controls = new() { Text = ControlsText, AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        controls.AddThemeFontSizeOverride("font_size", TextSize - 2);
-        controls.AddThemeColorOverride("font_color", new Color(0.85f, 0.85f, 0.85f));
-        column.AddChild(controls);
-
-        Button quit = AddButton(column, "Quit");
-        quit.Pressed += () => GetTree().Quit();
-
-        // The menu always opens on its first page.
-        VisibilityChanged += () =>
-        {
-            if (_options != null)
-            {
-                _options.Visible = false;
-            }
-            column.Visible = true;
-        };
+        _options = new OptionsPanel { Name = "Options", ShowCharacter = true };
+        _options.BackPressed += ShowMenu;
+        _root.AddChild(_options);
+        _options.SetOpenNow(false);
     }
 
-    private Button AddButton(Container parent, string text)
+    private void AddItem(string text, System.Action action)
     {
-        Button button = new() { Text = text, CustomMinimumSize = new Vector2(0.0f, 44.0f) };
-        button.AddThemeFontSizeOverride("font_size", TextSize + 2);
-        parent.AddChild(button);
-        return button;
+        MenuItem item = new() { Text = text };
+        item.Pressed += () => action();
+        _menu?.AddChild(item);
+        _items.Add(item);
     }
 
-    private void AddVolume(Container parent, string label, string bus)
+    private void Relayout()
     {
-        int index = AudioServer.GetBusIndex(bus);
-        HBoxContainer row = new();
-        Label name = new() { Text = label, CustomMinimumSize = new Vector2(90.0f, 0.0f) };
-        name.AddThemeFontSizeOverride("font_size", TextSize);
-        row.AddChild(name);
-        HSlider slider = new()
+        LayoutFor(GetViewport().GetVisibleRect().Size);
+    }
+
+    public void LayoutFor(Vector2 screen)
+    {
+        if (_column == null || _title == null || _menu == null || _tips == null)
         {
-            MinValue = 0.0,
-            MaxValue = 1.0,
-            Step = 0.01,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
-        };
-        if (index >= 0)
-        {
-            slider.Value = Mathf.DbToLinear(AudioServer.GetBusVolumeDb(index));
+            return;
         }
-        slider.ValueChanged += value =>
+        float margin = Mathf.Max(28.0f, screen.X * 0.06f);
+        float width = Mathf.Clamp(screen.X * 0.36f, 300.0f, 540.0f);
+        int titleSize = (int)Mathf.Clamp(screen.Y * 0.09f, 40.0f, TitleSize);
+        int itemSize = (int)Mathf.Clamp(screen.Y * 0.05f, 26.0f, 40.0f);
+        _column.Position = new Vector2(margin, 0.0f);
+        _column.Size = new Vector2(width, screen.Y);
+        float y = screen.Y * 0.16f;
+        _title.AddThemeFontSizeOverride("font_size", titleSize);
+        _title.Position = new Vector2(0.0f, y);
+        _title.Size = new Vector2(width, titleSize * 1.3f);
+        y += titleSize * 1.3f + screen.Y * 0.04f;
+        float itemHeight = itemSize * 1.45f;
+        foreach (MenuItem item in _items)
         {
-            if (index >= 0)
-            {
-                AudioServer.SetBusVolumeDb(index, Mathf.LinearToDb(Mathf.Max((float)value, 0.0001f)));
-                AudioServer.SetBusMute(index, value <= 0.001);
-            }
-        };
-        row.AddChild(slider);
-        parent.AddChild(row);
+            item.FontSize = itemSize;
+            item.CustomMinimumSize = new Vector2(width, itemHeight);
+            item.QueueRedraw();
+        }
+        _menu.Position = new Vector2(0.0f, y);
+        _menu.Size = new Vector2(width, (itemHeight + 4.0f) * _items.Count);
+        y += _menu.Size.Y + screen.Y * 0.05f;
+        Vector2 tips = UiStyle.Wrapped(TipsText, UiStyle.SmallSize, width);
+        _tips.Position = new Vector2(4.0f, y);
+        _tips.Size = new Vector2(width, tips.Y);
+        _options?.FitInto(new Rect2(new Vector2(24.0f, 24.0f), screen - new Vector2(48.0f, 48.0f)));
     }
 }
