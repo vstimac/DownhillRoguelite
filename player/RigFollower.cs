@@ -36,6 +36,14 @@ public partial class RigFollower : SkeletonModifier3D
 
     private readonly List<(int Target, int Source)> _pairs = new();
     private Quaternion[] _sourceRest = System.Array.Empty<Quaternion>();
+    /// <summary>
+    /// The driver's final pose (after its own modifiers: foot IK, spine lean, body dynamics), taken on
+    /// its SkeletonUpdated. A modifier's result can't be read back later in the frame, so reading the
+    /// driver directly would copy the bare animation without the procedural layers.
+    /// </summary>
+    private Quaternion[] _driverRotations = System.Array.Empty<Quaternion>();
+    private Vector3 _driverHipsNow;
+    private bool _driverPosed;
     private Quaternion[] _targetRest = System.Array.Empty<Quaternion>();
     /// <summary>Per target bone: turns its rest so it points where the driver's bone points at rest (T-pose vs A-pose).</summary>
     private Quaternion[] _align = System.Array.Empty<Quaternion>();
@@ -119,6 +127,8 @@ public partial class RigFollower : SkeletonModifier3D
         }
         // Parents before children, so each bone's parent pose is set before it.
         _pairs.Sort((a, b) => a.Target.CompareTo(b.Target));
+        _driverRotations = new Quaternion[Driver.GetBoneCount()];
+        Driver.SkeletonUpdated += OnDriverUpdated;
         _sourceRest = new Quaternion[Driver.GetBoneCount()];
         for (int i = 0; i < _sourceRest.Length; i++)
         {
@@ -273,6 +283,49 @@ public partial class RigFollower : SkeletonModifier3D
         return -1;
     }
 
+    public override void _ExitTree()
+    {
+        if (Driver != null && _driverRotations.Length > 0)
+        {
+            Driver.SkeletonUpdated -= OnDriverUpdated;
+        }
+    }
+
+    private void OnDriverUpdated()
+    {
+        if (Driver == null)
+        {
+            return;
+        }
+        for (int i = 0; i < _driverRotations.Length; i++)
+        {
+            _driverRotations[i] = Driver.GetBoneGlobalPose(i).Basis.GetRotationQuaternion();
+        }
+        if (_driverHips >= 0)
+        {
+            _driverHipsNow = Driver.GetBoneGlobalPose(_driverHips).Origin;
+        }
+        _driverPosed = true;
+        if (RecordPose)
+        {
+            Vector3[] origins = new Vector3[_driverRotations.Length];
+            for (int i = 0; i < origins.Length; i++)
+            {
+                origins[i] = Driver.GetBoneGlobalPose(i).Origin;
+            }
+            DriverPose = origins;
+        }
+    }
+
+    private Quaternion DriverRotation(int bone)
+    {
+        if (_driverPosed && bone < _driverRotations.Length)
+        {
+            return _driverRotations[bone];
+        }
+        return Driver!.GetBoneGlobalPose(bone).Basis.GetRotationQuaternion();
+    }
+
     public override void _ProcessModificationWithDelta(double delta)
     {
         Skeleton3D? target = GetSkeleton();
@@ -284,7 +337,7 @@ public partial class RigFollower : SkeletonModifier3D
         foreach ((int t, int s) in _pairs)
         {
             // The driver's rotation away from its rest, carried into this skeleton's space and onto this bone's rest.
-            Quaternion driverNow = Driver.GetBoneGlobalPose(s).Basis.GetRotationQuaternion();
+            Quaternion driverNow = DriverRotation(s);
             Quaternion away = _space * driverNow * _sourceRest[s].Inverse() * inverseSpace;
             Quaternion wanted = (away * _align[t] * _targetRest[t]).Normalized();
             int parent = target.GetBoneParent(t);
@@ -296,7 +349,12 @@ public partial class RigFollower : SkeletonModifier3D
             target.SetBonePoseRotation(t, (parentGlobal.Inverse() * wanted).Normalized());
             if (t == _hips && _driverHips >= 0)
             {
-                Vector3 moved = Driver.GetBoneGlobalPose(_driverHips).Origin - _sourceHipsRest;
+                Vector3 hipsNow = Driver.GetBoneGlobalPose(_driverHips).Origin;
+                if (_driverPosed)
+                {
+                    hipsNow = _driverHipsNow;
+                }
+                Vector3 moved = hipsNow - _sourceHipsRest;
                 Vector3 hipsGlobal = _targetHipsRest + _space * moved * _hipsScale;
                 Vector3 parentOrigin = Vector3.Zero;
                 Basis parentBasis = Basis.Identity;
@@ -315,11 +373,6 @@ public partial class RigFollower : SkeletonModifier3D
             for (int i = 0; i < TargetPose.Length; i++)
             {
                 TargetPose[i] = target.GetBoneGlobalPose(i).Origin;
-            }
-            DriverPose = new Vector3[Driver.GetBoneCount()];
-            for (int i = 0; i < DriverPose.Length; i++)
-            {
-                DriverPose[i] = Driver.GetBoneGlobalPose(i).Origin;
             }
         }
     }

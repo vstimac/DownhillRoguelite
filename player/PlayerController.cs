@@ -447,6 +447,8 @@ public partial class PlayerController : CharacterBody3D
 
     /// <summary>How the ground underfoot slows a stride: 1 on firm ground, less in deep snow or mud.</summary>
     public float SurfaceSpeed { get; private set; } = 1.0f;
+    /// <summary>Grade of the ground along this frame's walk (+ downhill, - uphill), for posture and stamina.</summary>
+    public float MoveGrade => _moveGrade;
 
     /// <summary>Falling snow and sinking ground (deep snow, mud) slow every stride; a boon can lengthen it.</summary>
     public float WeatherSpeedFactor()
@@ -611,7 +613,8 @@ public partial class PlayerController : CharacterBody3D
         }
 
         float targetYaw = Mathf.Atan2(-look.X, -look.Z);
-        float weight = 1.0f - Mathf.Exp(-Settings.FacingSharpness * dt);
+        float sharpness = Settings.FacingSharpness / (1.0f + Settings.FacingLoadSlowdownPerKg * GameEvents.CurrentLoad.Mass);
+        float weight = 1.0f - Mathf.Exp(-sharpness * dt);
         Rotation = new Vector3(0.0f, Mathf.LerpAngle(Rotation.Y, targetYaw, weight), 0.0f);
     }
 
