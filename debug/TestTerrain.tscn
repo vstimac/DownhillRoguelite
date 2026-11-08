@@ -56,6 +56,7 @@
 [ext_resource type="Script" path="res://progression/contracts/ContractDirector.cs" id="50_contracts"]
 [ext_resource type="Resource" path="res://progression/contracts/resources/courier_sealed_parcel.tres" id="51_courier_parcel"]
 [ext_resource type="Script" path="res://narrative/LorePlacer.cs" id="52_lore"]
+[ext_resource type="Script" path="res://environment/SetPiecePlacer.cs" id="53_set_pieces"]
 
 [sub_resource type="Resource" id="Boon_steady_legs"]
 script = ExtResource("41_boon")
@@ -307,6 +308,9 @@ Contracts = [ExtResource("51_courier_parcel")]
 
 [node name="Lore" type="Node3D" parent="."]
 script = ExtResource("52_lore")
+
+[node name="SetPieces" type="Node3D" parent="."]
+script = ExtResource("53_set_pieces")
 
 [node name="StartingKit" type="Node" parent="."]
 script = ExtResource("42_kit")

@@ -1,0 +1,34 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/SetPieceTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://terrain/TerrainStreamer.cs" id="2_streamer"]
+[ext_resource type="Resource" path="res://terrain/default_terrain.tres" id="3_terrain_settings"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="4_player"]
+[ext_resource type="Script" path="res://map/StationManager.cs" id="5_stations"]
+[ext_resource type="Script" path="res://environment/SetPiecePlacer.cs" id="6_placer"]
+[ext_resource type="Script" path="res://debug/DebugSceneControls.cs" id="7_controls"]
+
+[node name="SetPieceTests" type="Node3D" node_paths=PackedStringArray("PlayerBody", "Streamer", "Stations", "Placer")]
+script = ExtResource("1_tests")
+PlayerBody = NodePath("Player")
+Streamer = NodePath("Terrain")
+Stations = NodePath("Stations")
+Placer = NodePath("Placer")
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_streamer")
+Settings = ExtResource("3_terrain_settings")
+
+[node name="Stations" type="Node3D" parent="."]
+script = ExtResource("5_stations")
+
+[node name="Placer" type="Node3D" parent="."]
+script = ExtResource("6_placer")
+
+[node name="Player" parent="." instance=ExtResource("4_player")]
+
+[node name="Controls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "Streamer")]
+script = ExtResource("7_controls")
+KillHeight = -1e+09
+PlayerBody = NodePath("../Player")
+Streamer = NodePath("../Terrain")

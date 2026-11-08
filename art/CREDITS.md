@@ -15,6 +15,9 @@ Each pack folder has its own LICENSE.txt and README.md.
 | items/kenney_food_kit | Food Kit | Kenney (www.kenney.nl) |
 | props/kenney_graveyard_kit | Graveyard Kit | Kenney (www.kenney.nl) |
 | props/kenney_nature_kit | Nature Kit | Kenney (www.kenney.nl) |
+| props/kenney_fantasy_town_kit | Fantasy Town Kit 2.0 | Kenney (www.kenney.nl) |
+| props/kenney_castle_kit | Castle Kit | Kenney (www.kenney.nl) |
+| props/quaternius_medieval_village | Medieval Village MegaKit (Standard; 15 models, textures cut to 512 px) | Quaternius (quaternius.com) |
 
 ## Audio
 

@@ -12,11 +12,11 @@ namespace DownhillRoguelite.Narrative;
 /// </summary>
 public partial class LoreMark : Node3D, IInteractable, IDescribed
 {
-    [Export(PropertyHint.File, "*.glb")] public string SignModel { get; set; } = "res://art/items/kenney_survival_kit/signpost-single.glb";
-    [Export(PropertyHint.File, "*.glb")] public string NoteModel { get; set; } = "res://art/items/kenney_survival_kit/box.glb";
+    [Export(PropertyHint.File, "*.glb")] public string SignModel { get; set; } = "res://art/items/kenney_survival_kit/GLB format/signpost-single.glb";
+    [Export(PropertyHint.File, "*.glb")] public string NoteModel { get; set; } = "res://art/items/kenney_survival_kit/GLB format/box.glb";
     [Export(PropertyHint.File, "*.glb")] public string LedgerModel { get; set; } = "res://art/props/kenney_graveyard_kit/GLB format/altar-wood.glb";
     [Export(PropertyHint.File, "*.glb")] public string StoneModel { get; set; } = "res://art/props/kenney_graveyard_kit/GLB format/gravestone-wide.glb";
-    [Export(PropertyHint.File, "*.glb")] public string LetterModel { get; set; } = "res://art/items/kenney_survival_kit/bedroll-packed.glb";
+    [Export(PropertyHint.File, "*.glb")] public string LetterModel { get; set; } = "res://art/items/kenney_survival_kit/GLB format/bedroll-packed.glb";
     [Export(PropertyHint.File, "*.glb")] public string CairnModel { get; set; } = "res://art/props/kenney_graveyard_kit/GLB format/rocks-tall.glb";
     [Export(PropertyHint.File, "*.glb")] public string CandleModel { get; set; } = "res://art/props/kenney_graveyard_kit/GLB format/candle.glb";
     [Export] public Color PaperColor { get; set; } = new(0.9f, 0.84f, 0.68f);

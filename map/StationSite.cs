@@ -139,22 +139,32 @@ public partial class StationSite : Node3D
     private void AddProps()
     {
         const string Kit = "res://art/props/kenney_graveyard_kit/GLB format/";
+        const string Town = "res://art/props/kenney_fantasy_town_kit/GLB format/";
+        const string Castle = "res://art/props/kenney_castle_kit/GLB format/";
         (string Model, Vector3 At, float Yaw, float Height)[] props =
         {
-            ("gravestone-round", new Vector3(7.6f, 0.0f, 2.6f), 15.0f, 1.0f),
-            ("gravestone-cross", new Vector3(8.8f, 0.0f, 0.6f), -10.0f, 1.2f),
-            ("gravestone-broken", new Vector3(7.2f, 0.0f, -1.6f), 30.0f, 0.7f),
-            ("lantern-candle", new Vector3(-1.3f, 0.0f, 1.1f), 0.0f, 0.5f),
+            (Kit + "gravestone-round", new Vector3(7.6f, 0.0f, 2.6f), 15.0f, 1.0f),
+            (Kit + "gravestone-cross", new Vector3(8.8f, 0.0f, 0.6f), -10.0f, 1.2f),
+            (Kit + "gravestone-broken", new Vector3(7.2f, 0.0f, -1.6f), 30.0f, 0.7f),
+            (Kit + "lantern-candle", new Vector3(-1.3f, 0.0f, 1.1f), 0.0f, 0.5f),
+            // A trader's stall and a cart on the far side of the fire, a banner by the beacon,
+            // a fence behind the graves and a lamp by the job board (Kenney fantasy town and castle kits).
+            (Town + "stall-green", new Vector3(-8.0f, 0.0f, -2.8f), 90.0f, 2.4f),
+            (Town + "cart", new Vector3(-7.4f, 0.0f, 4.0f), 25.0f, 1.0f),
+            (Castle + "flag-banner-long", new Vector3(3.0f, 0.0f, -5.0f), 0.0f, 3.8f),
+            (Town + "fence", new Vector3(10.0f, 0.0f, 1.0f), 0.0f, 0.9f),
+            (Town + "fence-broken", new Vector3(10.1f, 0.0f, -1.4f), 6.0f, 0.9f),
+            (Town + "lantern", new Vector3(-3.4f, 0.0f, -3.6f), 0.0f, 2.2f),
         };
         float tilt = Mathf.Tan(Mathf.DegToRad(TerraceSlope));
         foreach ((string model, Vector3 at, float yaw, float height) in props)
         {
-            string path = Kit + model + ".glb";
+            string path = model + ".glb";
             if (!ResourceLoader.Exists(path) || ResourceLoader.Load(path) is not PackedScene scene)
             {
                 continue;
             }
-            Node3D holder = new() { Name = model };
+            Node3D holder = new() { Name = path.GetFile().GetBaseName() };
             holder.AddChild(scene.Instantiate<Node3D>());
             Aabb bounds = DownhillRoguelite.Core.ModelFit.Bounds(holder);
             float scale = height / Mathf.Max(bounds.Size.Y, 0.01f);

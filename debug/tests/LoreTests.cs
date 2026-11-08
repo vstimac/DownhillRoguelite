@@ -94,6 +94,20 @@ public partial class LoreTests : Node3D
         }
         Check("every text resource loads and is valid", library.Entries.Count == files && files >= 20 && unique,
             library.Entries.Count + " valid of " + files + " files, ids unique " + unique);
+        LoreMark probe = new();
+        PathMarker marker = new();
+        string[] models = { probe.SignModel, probe.NoteModel, probe.LedgerModel, probe.StoneModel, probe.LetterModel, probe.CairnModel, probe.CandleModel, marker.PostModel };
+        string missing = "";
+        foreach (string model in models)
+        {
+            if (!ResourceLoader.Exists(model))
+            {
+                missing += " " + model;
+            }
+        }
+        probe.Free();
+        marker.Free();
+        Check("every model a text or marker stands on exists", missing.Length == 0, "missing:" + missing);
         LoreEntry? first = library.Find("FRAG_001");
         Check("the first stage's text is the broken sign", first != null && first.EarliestStage == 0 && firstStage == 1,
             firstStage + " texts allowed in stage 0");

@@ -1,0 +1,77 @@
+[gd_resource type="Resource" script_class="SetPiece" format=3]
+
+[ext_resource type="Script" path="res://environment/SetPiece.cs" id="1_piece"]
+[ext_resource type="Script" path="res://environment/SetPiecePart.cs" id="2_part"]
+
+[sub_resource type="Resource" id="part_0"]
+script = ExtResource("2_part")
+Model = "res://art/props/quaternius_medieval_village/Wall_Arch.gltf"
+Offset = Vector3(0, 0, 0)
+Yaw = 0
+Tilt = Vector2(0, 0)
+Height = 3
+Solid = false
+
+[sub_resource type="Resource" id="part_1"]
+script = ExtResource("2_part")
+Model = "res://art/props/quaternius_medieval_village/Wall_UnevenBrick_Straight.gltf"
+Offset = Vector3(-2, 0, 0)
+Yaw = 0
+Tilt = Vector2(0, 0)
+Height = 3.1
+Solid = true
+
+[sub_resource type="Resource" id="part_2"]
+script = ExtResource("2_part")
+Model = "res://art/props/quaternius_medieval_village/Wall_UnevenBrick_Window_Wide_Round.gltf"
+Offset = Vector3(1.85, 0, 0.15)
+Yaw = 8
+Tilt = Vector2(0, 4)
+Height = 2.4
+Solid = true
+
+[sub_resource type="Resource" id="part_3"]
+script = ExtResource("2_part")
+Model = "res://art/props/quaternius_medieval_village/Prop_Vine5.gltf"
+Offset = Vector3(-2, 0, 0.3)
+Yaw = 0
+Tilt = Vector2(0, 0)
+Height = 2.8
+Solid = false
+
+[sub_resource type="Resource" id="part_4"]
+script = ExtResource("2_part")
+Model = "res://art/props/quaternius_medieval_village/Prop_Brick2.gltf"
+Offset = Vector3(1.2, 0, 1.3)
+Yaw = 30
+Tilt = Vector2(0, 0)
+Height = 0.2
+Solid = false
+
+[sub_resource type="Resource" id="part_5"]
+script = ExtResource("2_part")
+Model = "res://art/props/quaternius_medieval_village/Prop_Brick3.gltf"
+Offset = Vector3(-0.6, 0, 1.8)
+Yaw = 75
+Tilt = Vector2(0, 0)
+Height = 0.18
+Solid = false
+
+[sub_resource type="Resource" id="part_6"]
+script = ExtResource("2_part")
+Model = "res://art/props/quaternius_medieval_village/Prop_Brick4.gltf"
+Offset = Vector3(1.8, 0, -1)
+Yaw = -20
+Tilt = Vector2(0, 0)
+Height = 0.2
+Solid = false
+
+[resource]
+script = ExtResource("1_piece")
+Id = "ruined_arch"
+Kind = 0
+Parts = [SubResource("part_0"), SubResource("part_1"), SubResource("part_2"), SubResource("part_3"), SubResource("part_4"), SubResource("part_5"), SubResource("part_6")]
+FavouredCircles = PackedInt32Array(0, 5)
+FirstCircle = 0
+Weight = 1
+Radius = 3.5

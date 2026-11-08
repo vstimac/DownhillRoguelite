@@ -11,7 +11,7 @@ namespace DownhillRoguelite.Map;
 /// </summary>
 public partial class PathMarker : Node3D
 {
-    [Export(PropertyHint.File, "*.glb")] public string PostModel { get; set; } = "res://art/items/kenney_survival_kit/signpost-single.glb";
+    [Export(PropertyHint.File, "*.glb")] public string PostModel { get; set; } = "res://art/items/kenney_survival_kit/GLB format/signpost-single.glb";
     [Export] public float PostHeight { get; set; } = 1.5f;
     [Export] public int FontSize { get; set; } = 30;
     [Export] public float PixelSize { get; set; } = 0.005f;
