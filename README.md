@@ -23,10 +23,16 @@ A dark survival adventure about descending a mountain that never ends — toward
 **Latest published Windows build: [v0.2.1-beta](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.2.1-beta)** (7 November 2026).
 
 1. Download [`DownhillRoguelite-playtest1-windows.zip`](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.1-beta/DownhillRoguelite-playtest1-windows.zip) (~230 MB).
-2. Right-click the ZIP and choose **Extract All**.
-3. Run **`DownhillRoguelite.exe`** from the extracted folder.
+2. Right-click the ZIP and choose **Extract All**. **Don't run the game from inside the ZIP**: Windows then copies only the `.exe` out and the game closes straight away.
+3. Open the extracted folder and run **`DownhillRoguelite.exe`**. Keep the files in that folder together.
 
-**Requirements:** 64-bit Windows 10/11 and a Vulkan-capable GPU. Headphones recommended.
+**Nothing else to install:** .NET is included in the download. **Requirements:** 64-bit Windows 10/11 and up-to-date graphics drivers (Vulkan) from NVIDIA, AMD or Intel. Headphones recommended.
+
+**If the game closes straight away or shows a .NET error:**
+- Make sure you extracted the whole ZIP (step 2) and are starting the `.exe` inside the extracted `DownhillRoguelite-playtest1` folder, not a copy of the `.exe` on its own.
+- Update your graphics drivers.
+- The talking companion (optional) also needs the [Microsoft Visual C++ Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe) on older builds; the game runs without it.
+- Still stuck? [Open an issue](https://github.com/vstimac/DownhillRoguelite/issues/new/choose) and attach `%APPDATA%\Godot\app_userdata\Downhill Roguelite\logs\godot.log`.
 
 **Linux:** An **older**, experimental Linux build is available with [v0.1.2-playtest1](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.1.2-playtest1). It does not represent the Windows Beta 2.1 build. Follow [Linux instructions](docs/LINUX.md).
 
