@@ -91,6 +91,25 @@ Tracks the director's master plan (*The Descent — Master Narrative & Roguelite
 
 - Push/merge/release: NOT PERFORMED
 
+## World, map and routes (the director's requests) — 2026-11-08
+
+- Status: DONE, four commits on `playtest-1`, not pushed: `9be4133` (map), `a6d850c` (routes), `25ced42` (found texts and path markers), `d51c91c` (set pieces and new art).
+- **Map:** explored ground is painted once into tile textures (`map/ChartTiles.cs`, 32 cells per tile) instead of being drawn cell by cell. While the map is open the sheet stays still (it is anchored and only re-centres near the edge), and it redraws only when something changes (`MapChart.Version`, a move of 2+ px, a turn of 4°+). `MapTests` 9/9.
+- **Routes:** besides the inner hazardous and supply branches, a stage may get an outer supply-rich path on either side (`OuterBranchChance` 0.45, offset 130–155 m). That gives up to five paths, with 15 of 30 stages having four or more (tested). The lookout sign lists up to five, signed "far left" / "far right". `RouteTests` 9/9.
+- **Found texts (start of Phase 3's lore):**
+  - 24 texts in `narrative/lore/*.tres` (`LoreEntry`): the plan's FRAG_001–010, plus 14 new ones, 9 of them tied to a circle.
+  - `LorePlacer` stands at most one per stage, chosen by seed: always FRAG_001 in the first stage, about two thirds of later stages, and usually halfway along a side path. FRAG_006/007 share an exclusive group, so only one appears per run.
+  - `LoreMark` shows the heading from afar and the words up close. E copies it into the journal (`GameEvents.LoreRead`).
+  - `LoreBook` (`RunState.Lore`) remembers what was read across runs in a new `user://lore.cfg`; `records.cfg` is untouched. Unread texts are favoured.
+- **Path markers:** `map/PathMarker.cs`, a signpost a little way down every path of a split. It shows the path's kind, its measured length and drop to where it rejoins, and a one-line note.
+- **Set pieces:**
+  - `environment/SetPiece*.cs` and 14 pieces in `environment/set_pieces/*.tres`: 11 wayside (ruins, wagon, banners, shrine, stall, iron fence and graves, siege wreck, fallen wall, watchpost, fence and lantern, dry fountain) and 3 landmarks (windmill, stone tower, broken tower).
+  - `SetPiecePlacer` places 2–4 wayside pieces per stage, at least 6.5 m from every path and 30 m from stations, and a landmark 45–85 m off the path in about half the stages. Placement is by seed and favours each piece's circles. Solid parts get box colliders.
+  - Stations also got a stall, a cart, a banner, a fence and a lamp.
+- **New CC0 art** (downloaded with the director's go-ahead, credited in `art/CREDITS.md`): Kenney Fantasy Town Kit 2.0 and Castle Kit (full GLB sets), and 15 models of Quaternius's Medieval Village MegaKit with their textures cut to 512 px (3.5 MB instead of about 50 MB).
+- **Tests:** new `LoreTests` 13/13 and `SetPieceTests` 6/6. Full smoke on the commit before the set pieces: RESULT PASS (22 suites). The full smoke after the set pieces shows FAILs only from another session's uncommitted start-screen and options work (`UiTests` layout and start-screen checks; `keyboard_get_keycode_from_physical` errors from the untracked `ui/menu/InputGlyphs.cs`). Every other suite passes.
+- **Not done:** no render check of the set pieces (few renders asked for). Model heights were chosen from measured bounds, not by eye. Lore texts and landmarks are not shown on the map yet. No narrator line for reading a text (new lines need voicing).
+
 ## Continuation report — 2026-11-07
 
 | Phase | State |
@@ -98,9 +117,9 @@ Tracks the director's master plan (*The Descent — Master Narrative & Roguelite
 | 0 Audit and baseline | DONE |
 | 1 Courier contract slice | DONE (one job type, tested end to end; no render check) |
 | 2 Contract reliability and variants | NOT STARTED (plan above) |
-| 3 Relics and lore | NOT STARTED |
+| 3 Relics and lore | PARTIAL (24 found texts, persistent lore book, journal; relics not started) |
 | 4 Trade-off boons | NOT STARTED |
-| 5 Encounters | NOT STARTED |
+| 5 Encounters | PARTIAL (witness cairns and found texts on side paths; set pieces dress the paths; no choice encounters yet) |
 | 6 Persistent journal, Witness Marks, sidegrades | NOT STARTED (no save changes yet; `records.cfg` untouched) |
 | 7 Narrative integration | NOT STARTED (new lines need voicing) |
 | 8 Circle content, beyond nine | NOT STARTED |
