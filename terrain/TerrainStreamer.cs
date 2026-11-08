@@ -43,18 +43,68 @@ public partial class TerrainStreamer : Node3D
     public float Depth { get; private set; }
     public IEnumerable<Vector2I> LoadedChunks => _chunks.Keys;
 
+    [ExportGroup("Ground look")]
+    /// <summary>The ground shader (patches, grain, bumps, rocky slopes); empty: plain vertex colours.</summary>
+    [Export(PropertyHint.File, "*.gdshader")] public string GroundShader { get; set; } = "res://terrain/terrain_ground.gdshader";
+    /// <summary>Patches of lighter and darker ground: 1 / their size in m, and how strong.</summary>
+    [Export] public float PatchScale { get; set; } = 0.03f;
+    [Export] public float PatchStrength { get; set; } = 0.34f;
+    /// <summary>Fine grain in the ground colour.</summary>
+    [Export] public float GrainScale { get; set; } = 0.22f;
+    [Export] public float GrainStrength { get; set; } = 0.16f;
+    /// <summary>Small bumps that catch the light.</summary>
+    [Export] public float BumpScale { get; set; } = 0.35f;
+    [Export] public float BumpStrength { get; set; } = 0.9f;
+    /// <summary>Steep ground turns rocky (from slope RockStart to RockEnd, as 1 - normal.y) and darker.</summary>
+    [Export] public Color RockColor { get; set; } = new(0.34f, 0.32f, 0.3f);
+    [Export] public float RockStart { get; set; } = 0.3f;
+    [Export] public float RockEnd { get; set; } = 0.62f;
+    [Export] public float RockAmount { get; set; } = 0.65f;
+    [Export] public float SlopeDarkening { get; set; } = 0.28f;
+    [Export] public int NoiseSize { get; set; } = 256;
+
     private readonly Dictionary<Vector2I, TerrainChunk> _chunks = new();
     private readonly SurfaceType?[] _surfaces = new SurfaceType?[System.Enum.GetValues<TerrainSurface>().Length];
     private Color[] _surfaceColors = System.Array.Empty<Color>();
     private SurfaceType? _boulderSurface;
     private SurfaceType? _trunkSurface;
-    private StandardMaterial3D? _groundMaterial;
+    private Material? _groundMaterial;
     private StandardMaterial3D? _boulderMaterial;
     private StandardMaterial3D? _trunkMaterial;
     private Task<TerrainChunkData>? _pending;
     private int _generation;
     private Vector3 _focus;
     private float _publishedDepth;
+
+    /// <summary>The ground's material: the ground shader with a seamless height noise, or plain vertex colours.</summary>
+    private Material MakeGroundMaterial()
+    {
+        if (GroundShader.Length == 0 || ResourceLoader.Load(GroundShader) is not Shader shader)
+        {
+            return new StandardMaterial3D { VertexColorUseAsAlbedo = true, Roughness = 1.0f };
+        }
+        NoiseTexture2D noise = new()
+        {
+            Width = NoiseSize,
+            Height = NoiseSize,
+            Seamless = true,
+            Noise = new FastNoiseLite { NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth, Frequency = 0.012f, FractalOctaves = 4 },
+        };
+        ShaderMaterial material = new() { Shader = shader };
+        material.SetShaderParameter("height_noise", noise);
+        material.SetShaderParameter("macro_scale", PatchScale);
+        material.SetShaderParameter("macro_strength", PatchStrength);
+        material.SetShaderParameter("micro_scale", GrainScale);
+        material.SetShaderParameter("micro_strength", GrainStrength);
+        material.SetShaderParameter("bump_scale", BumpScale);
+        material.SetShaderParameter("bump_strength", BumpStrength);
+        material.SetShaderParameter("rock_color", RockColor);
+        material.SetShaderParameter("rock_start", RockStart);
+        material.SetShaderParameter("rock_end", RockEnd);
+        material.SetShaderParameter("rock_amount", RockAmount);
+        material.SetShaderParameter("slope_darkening", SlopeDarkening);
+        return material;
+    }
 
     /// <summary>
     /// Loads every biome's tree, grass and flower model once at start, so a chunk that first uses one
@@ -77,7 +127,7 @@ public partial class TerrainStreamer : Node3D
     public override void _Ready()
     {
         LoadSurfaces();
-        _groundMaterial = new StandardMaterial3D { VertexColorUseAsAlbedo = true, Roughness = 1.0f };
+        _groundMaterial = MakeGroundMaterial();
         _boulderMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_boulderSurface, new Color(0.5f, 0.5f, 0.52f)), Roughness = 1.0f };
         _trunkMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_trunkSurface, new Color(0.42f, 0.3f, 0.2f)), Roughness = 1.0f };
         WarmPlantModels();

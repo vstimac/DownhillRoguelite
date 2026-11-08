@@ -160,13 +160,20 @@ sky = SubResource("Sky_main")
 ambient_light_source = 3
 reflected_light_source = 2
 tonemap_mode = 2
+ssao_enabled = true
+ssao_radius = 1.6
+ssao_intensity = 1.8
+ssao_power = 1.4
+ssao_detail = 0.6
+ssao_light_affect = 0.15
 fog_enabled = true
 fog_light_color = Color(0.5, 0.51, 0.53, 1)
 fog_density = 0.012
+fog_aerial_perspective = 0.55
 fog_sky_affect = 0.6
 adjustment_enabled = true
-adjustment_saturation = 0.55
-adjustment_contrast = 1.05
+adjustment_saturation = 0.72
+adjustment_contrast = 1.1
 
 [node name="TestTerrain" type="Node3D"]
 
