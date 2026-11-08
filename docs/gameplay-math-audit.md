@@ -206,6 +206,32 @@ at the deadline, repeated delivery, malformed notes, duplicate rewards and large
 The full regression passed **38 scenes and 441 checks**, all exiting successfully with no
 FAIL/error lines. Resource import and the 300-frame main-scene smoke check also passed.
 
+## First-station main-scene playtest
+
+`DescentPlaytestTests` now accepts `-- --first-station --seed=N`. It follows the safe route
+with normal walking input until station 1's shelter is reached, with a 600-second limit.
+There is no teleport, invulnerability, stamina refill or needs refill in the walk. It checks
+finite motion, body springs, health, stamina and carried mass, and verifies survival, shelter,
+station progress, bounded needs and zero teleports. The short default test remains 30 seconds.
+
+Seed 1 reached shelter after **1,643.1 m and 392 simulated seconds**, with health **100**,
+hunger **85.4**, thirst **75.6**, carried load **1.5 kg**, and **zero teleports**. These results
+use the current working game's resources, including the user's separate weather/wildlife edits;
+those edits were preserved. The test replays terrain and wildlife seeds; it does not establish
+that every generated route, weather history or possible load is safe.
+
+Seed 2 also reached shelter: **1,639.1 m in 391 simulated seconds**, health **100**, hunger
+**85.4**, thirst **75.6**, load **1.5 kg**, **zero falls and zero teleports**. This run used
+the final instrumented test, including explicit health/stamina finiteness and needs bounds.
+The final default 30-second test also passed (129.3 m, health 100). Both station processes
+exited successfully and their logs contain no FAIL/error lines.
+
+Use a quit limit above the station walk's duration, for example:
+
+```powershell
+& $godot --headless --path . --fixed-fps 60 --quit-after 45000 res://debug/tests/DescentPlaytestTests.tscn -- --first-station --seed=1 --wildlife-seed=8
+```
+
 ## Reproduce the added checks
 
 ```powershell
@@ -218,6 +244,8 @@ dotnet build
 & $godot --headless --path . --fixed-fps 60 res://debug/tests/BalanceDisturbanceTests.tscn
 & $godot --headless --path . --fixed-fps 60 res://debug/tests/CarriedMassTests.tscn
 & $godot --headless --path . --fixed-fps 60 res://debug/tests/PocketUseTests.tscn
+& $godot --headless --path . --fixed-fps 60 res://debug/tests/GearConditionTests.tscn
+& $godot --headless --path . --fixed-fps 60 res://debug/tests/EconomyTests.tscn
 ```
 
 For the rendered descent, omit `--headless`, pass `--audio-driver Dummy`, and append
