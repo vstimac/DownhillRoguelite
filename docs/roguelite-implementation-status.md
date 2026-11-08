@@ -91,6 +91,68 @@ Tracks the director's master plan (*The Descent — Master Narrative & Roguelite
 
 - Push/merge/release: NOT PERFORMED
 
+## Phase 2 — Contract reliability and variants — 2026-11-08
+
+- Status: DONE. Commit `de88c59` "Five new jobs, and cargo that can break" on `playtest-1`, not pushed.
+- Added:
+  - `inventory/items/` sealed_letter, carved_stone, glass_reliquary (upright), sacred_casket, map_tube.
+  - `progression/contracts/resources/ct_001`–`ct_005`.
+  - `debug/tests/ContractVariantTests.tscn` + `.cs`.
+- Edited:
+  - `ContractKind` (Preservation, Burden, Pilgrim).
+  - `ContractDefinition` (Fragility, MinCondition, DeadlineDays, MinCircle/MaxCircle, circle-aware `EligibleAt`).
+  - `ContractInstance` (Condition, DeadlineHours).
+  - `ContractResolver` (`Accept` starts the deadline; `Deliver` pays in full at 90%+, in proportion below, and fails below MinCondition; `Damage`, `PayFor`, `IsLate`).
+  - `ContractDirector` (knocks from `Landed` / `DownedChanged`, scaled by packing; break means fail; deadline check; `Abandon`; `CircleOf`).
+  - `ContractBoard` (abandon on E then E at any board; terms show the condition required and the deadline).
+  - `DeliveryPost` (condition, too-damaged warning).
+  - `ContractNote` (Condition, MinCondition, DeadlineHours, Breakable; defaulted, so old callers compile).
+  - `GameEvents` (`ContractUpdated`, `CargoExposure`).
+  - `CarrierInventory` (publishes each cargo's exposure: 0 when centred with 2+ cells of padding on each axis, 1 when touching a face or in a pocket).
+  - `DescentPanel` (job line), `CompanionChat.WithJob` (situation note), `JournalLog` (condition on delivery, abandoned text), `debug/TestTerrain.tscn` (all six contracts).
+
+### Decisions recorded
+
+- **Condition** lives on the contract instance, not the item, so ordinary items stay unchanged.
+- **Knock size:**
+  - A knock is `(landing speed − 6 m/s) × 5`, or 12 for a ragdoll fall.
+  - It is multiplied by the definition's Fragility (0 for the stone, 2 for glass).
+  - It is then multiplied by Lerp(0.4, 1.4, exposure): packed deep, the cargo takes 0.4 of the knock; against the outside, 1.4. All of these are INITIAL TUNING exports on `ContractDirector`.
+- **Exposure is per axis,** relative to the best placement the pack allows. A centred item always scores 0 even when the pack is shallow. The auto-packer's low spot touches the bottom, so it is fully exposed. Fragile jobs therefore say "pack it deep inside (I)" when taken.
+- **Abandon at any board, not just the original one.** Carriers can't walk uphill, so a job that could only be given up at its own board would trap them. The cargo is removed from the pack and left there. Telemetry counts it as failed (no new counter).
+- **Deadlines use `WorldClock.TotalHours`,** checked once a second; sleeping counts.
+- **Pilgrim has no extra penalty on failure** (as the plan says). There are no Favor tokens or caches yet: rewards are score only.
+
+### Tests
+
+- New `ContractVariantTests`, 9 checks:
+  - The five jobs are valid and cover all four kinds.
+  - Two seeds give repeatable, different offers, and station 1 offers only early jobs.
+  - Intact delivery pays +30, damaged pays in proportion (+18 at 60%), too damaged fails, the stone can't break, and the deadline triggers between 71 h and 73 h.
+  - Packed deep, a knock of 10 takes 8 condition; at the edge it takes 28.
+  - A soft landing does nothing, while a hard landing and a fall each lower the condition, and breaking fails the job.
+  - A too-damaged hand-over takes the cargo for nothing, and a parcel at 72% pays +22.
+  - Abandoning at another station's board takes two presses of E, leaves the cargo and frees you for the next job.
+  - The deadline fails the job after `AdvanceHours`.
+  - The HUD and companion texts mention the job.
+- `ContractTests` 12/12 (one check now reads "the board doesn't offer to take", since a taken job's board offers to give it up).
+- `bash .claude/skills/smoke-test/smoke.sh`: RESULT PASS. All suites, headless run clean (this time including the other session's new title screen and options work).
+
+### Known issues
+
+- Tuning is unplayed, and glass is meant to be hard.
+- Weather doesn't damage cargo yet (the plan mentions it for Preservation).
+- The new cargo models are stand-ins from the survival and castle kits (a box for the letter, a log for the map tube).
+- No new narrator lines (they need voicing).
+
+### Next smallest playable step (Phase 3)
+
+Relics as real items placed on side paths:
+- One heavy relic and one fragile one, at seed-consistent spots (the lore placer's side-path positions are a ready hook).
+- Discover, carry, drop and recover them; deliver them at a station.
+- Persistent "seen" journal entries (the `LoreBook` pattern).
+- `RelicTests`.
+
 ## World, map and routes (the director's requests) — 2026-11-08
 
 - Status: DONE, four commits on `playtest-1`, not pushed: `9be4133` (map), `a6d850c` (routes), `25ced42` (found texts and path markers), `d51c91c` (set pieces and new art).
@@ -110,13 +172,13 @@ Tracks the director's master plan (*The Descent — Master Narrative & Roguelite
 - **Tests:** new `LoreTests` 13/13 and `SetPieceTests` 6/6. Full smoke on the commit before the set pieces: RESULT PASS (22 suites). The full smoke after the set pieces shows FAILs only from another session's uncommitted start-screen and options work (`UiTests` layout and start-screen checks; `keyboard_get_keycode_from_physical` errors from the untracked `ui/menu/InputGlyphs.cs`). Every other suite passes.
 - **Not done:** no render check of the set pieces (few renders asked for). Model heights were chosen from measured bounds, not by eye. Lore texts and landmarks are not shown on the map yet. No narrator line for reading a text (new lines need voicing).
 
-## Continuation report — 2026-11-07
+## Continuation report — 2026-11-08
 
 | Phase | State |
 | --- | --- |
 | 0 Audit and baseline | DONE |
 | 1 Courier contract slice | DONE (one job type, tested end to end; no render check) |
-| 2 Contract reliability and variants | NOT STARTED (plan above) |
+| 2 Contract reliability and variants | DONE (condition, five jobs, abandon, deadlines, HUD and companion; tested; tuning unplayed) |
 | 3 Relics and lore | PARTIAL (24 found texts, persistent lore book, journal; relics not started) |
 | 4 Trade-off boons | NOT STARTED |
 | 5 Encounters | PARTIAL (witness cairns and found texts on side paths; set pieces dress the paths; no choice encounters yet) |
