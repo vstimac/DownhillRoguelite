@@ -260,6 +260,29 @@ public partial class CarrierInventory : Node
         }
 
         PackedItem? item = BestConsumable(category, deficit);
+        ItemDefinition? best = item?.Definition;
+        ItemDefinition? pocketChoice = null;
+        if (Equipment != null)
+        {
+            foreach (ItemDefinition pocketed in Equipment.PocketItems)
+            {
+                if (pocketed.Category == category && BetterConsumable(pocketed, best, deficit))
+                {
+                    best = pocketed;
+                    pocketChoice = pocketed;
+                }
+            }
+        }
+        if (pocketChoice != null)
+        {
+            if (RemovePocketItem(pocketChoice))
+            {
+                GameEvents.PublishItemConsumed(need, pocketChoice.ItemId, RestoreOf(pocketChoice));
+                return;
+            }
+            GameEvents.PublishConsumeFailed(need);
+            return;
+        }
         if (item == null)
         {
             GameEvents.PublishConsumeFailed(need);
@@ -267,6 +290,32 @@ public partial class CarrierInventory : Node
         }
         Consume(item);
         GameEvents.PublishItemConsumed(need, item.Definition.ItemId, RestoreOf(item.Definition));
+    }
+
+    private static bool BetterConsumable(ItemDefinition candidate, ItemDefinition? best, float deficit)
+    {
+        if (best == null)
+        {
+            return true;
+        }
+        float restore = RestoreOf(candidate);
+        float previous = RestoreOf(best);
+        if (restore >= deficit)
+        {
+            return previous < deficit || restore < previous;
+        }
+        return previous < deficit && restore > previous;
+    }
+
+    private bool RemovePocketItem(ItemDefinition item)
+    {
+        if (Equipment == null || !Equipment.TakeFromPocket(item))
+        {
+            return false;
+        }
+        _all.Remove(item);
+        Publish();
+        return true;
     }
 
     /// <summary>Items given to the carrier (the starting kit): packed where they fit best.</summary>
@@ -333,6 +382,16 @@ public partial class CarrierInventory : Node
                 {
                     Consume(packed);
                     return true;
+                }
+            }
+        }
+        if (Equipment != null)
+        {
+            foreach (ItemDefinition pocketed in Equipment.PocketItems)
+            {
+                if (pocketed.CargoInstanceId == cargoId)
+                {
+                    return RemovePocketItem(pocketed);
                 }
             }
         }
@@ -487,6 +546,17 @@ public partial class CarrierInventory : Node
                 }
             }
         }
+        if (Equipment != null)
+        {
+            foreach (ItemDefinition pocketed in Equipment.PocketItems)
+            {
+                if (pocketed.ItemId == itemId)
+                {
+                    RemovePocketItem(pocketed);
+                    return;
+                }
+            }
+        }
         for (int i = 0; i < _loose.Count; i++)
         {
             if (_loose[i].ItemId == itemId)
@@ -512,19 +582,29 @@ public partial class CarrierInventory : Node
             Equipment?.Wear(itemId);
             return;
         }
-        if (Equipment != null && Equipment.TakeFromPocket(itemId, out ItemDefinition? pocketed) && pocketed != null)
+        if (Equipment != null)
         {
-            _all.Remove(pocketed);
-            Publish();
-            if (pocketed.Category == ItemCategory.Food)
+            foreach (ItemDefinition pocketed in Equipment.PocketItems)
             {
-                GameEvents.PublishItemConsumed(SupplyNeed.Hunger, itemId, RestoreOf(pocketed));
+                if (pocketed.ItemId != itemId)
+                {
+                    continue;
+                }
+                if (pocketed.Category != ItemCategory.Food && pocketed.Category != ItemCategory.Water)
+                {
+                    return;
+                }
+                if (RemovePocketItem(pocketed))
+                {
+                    SupplyNeed need = SupplyNeed.Hunger;
+                    if (pocketed.Category == ItemCategory.Water)
+                    {
+                        need = SupplyNeed.Thirst;
+                    }
+                    GameEvents.PublishItemConsumed(need, itemId, RestoreOf(pocketed));
+                }
+                return;
             }
-            else if (pocketed.Category == ItemCategory.Water)
-            {
-                GameEvents.PublishItemConsumed(SupplyNeed.Thirst, itemId, RestoreOf(pocketed));
-            }
-            return;
         }
         foreach (PackedItem item in Grid.Items)
         {

@@ -136,6 +136,27 @@ consumption, pocket-to-pack transfers and a new run. The first focused regressio
 The complete follow-up passed **34 scenes and 402 checks**, followed by a clean import and
 300-frame main-scene smoke test.
 
+## Pocket actions follow-up
+
+Nine new failures showed that pocket items were not handled consistently: eat/drink requests
+searched only the backpack, hotbar use could delete a pocketed material, tool-use requests
+ignored pocket tools, and hand-over could not remove pocket cargo. Mending also ignored pocket
+materials and reported the kit's full restoration even when the gear reached its cap sooner.
+
+Food selection now compares backpack and pocket supplies using the same deficit rule. Explicit
+tool use, mending and cargo hand-over consume the actual pocket item, while hotbar use preserves
+nonconsumables. Cargo removal uses the copy's definition identity, so two parcels of one kind
+cannot be confused. Mending publishes the amount actually restored. All **10** pocket-use
+checks pass, including exact cargo identity and prevention of a second hand-over.
+The complete suite then passed **36 scenes and 413 checks** after resource import.
+
+One focused contract-variant run encountered a native Godot `gchandle.is_released()` fatal error
+during a resource finalizer, followed by invalid resource handles. The captured log is
+`pocket-final-ContractVariantTests.log`. An isolated repeat passed all 9 contract checks, and
+`ContractResourceTests` passed validation across 60 forced collections. The native crash has
+not been reproduced or attributed to a specific runtime defect; retain these logs and the
+resource stress check rather than treating the successful repeat as a fix.
+
 ## Reproduce the added checks
 
 ```powershell
@@ -147,6 +168,7 @@ dotnet build
 & $godot --headless --path . --fixed-fps 60 res://debug/tests/ImpactMathTests.tscn
 & $godot --headless --path . --fixed-fps 60 res://debug/tests/BalanceDisturbanceTests.tscn
 & $godot --headless --path . --fixed-fps 60 res://debug/tests/CarriedMassTests.tscn
+& $godot --headless --path . --fixed-fps 60 res://debug/tests/PocketUseTests.tscn
 ```
 
 For the rendered descent, omit `--headless`, pass `--audio-driver Dummy`, and append

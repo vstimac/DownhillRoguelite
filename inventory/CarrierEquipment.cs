@@ -217,6 +217,19 @@ public partial class CarrierEquipment : Node
         return true;
     }
 
+    /// <summary>Removes this physical definition from a pocket (cargo copies have distinct identities).</summary>
+    public bool TakeFromPocket(ItemDefinition item)
+    {
+        int index = _pockets.IndexOf(item);
+        if (index < 0)
+        {
+            return false;
+        }
+        _pockets.RemoveAt(index);
+        Changed(true);
+        return true;
+    }
+
     public int PocketCapacity()
     {
         int pockets = 0;
@@ -239,20 +252,33 @@ public partial class CarrierEquipment : Node
             GameEvents.PublishMended("Mending needs a station's shelter", 0.0f);
             return false;
         }
-        PackedItem? material = null;
+        PackedItem? packedMaterial = null;
+        ItemDefinition? material = null;
         foreach (PackedItem packed in Inventory.Grid.Items)
         {
             if (packed.Definition.ItemId == materialId)
             {
-                material = packed;
+                packedMaterial = packed;
+                material = packed.Definition;
                 break;
             }
         }
-        if (material == null || material.Definition.MendAmount <= 0.0f)
+        if (material == null)
+        {
+            foreach (ItemDefinition pocketed in _pockets)
+            {
+                if (pocketed.ItemId == materialId)
+                {
+                    material = pocketed;
+                    break;
+                }
+            }
+        }
+        if (material == null || material.MendAmount <= 0.0f)
         {
             return false;
         }
-        HashSet<string> mends = new(material.Definition.MendsTypes);
+        HashSet<string> mends = new(material.MendsTypes);
         EquipSlot best = EquipSlot.None;
         bool pack = false;
         float worst = 1.0f;
@@ -274,22 +300,34 @@ public partial class CarrierEquipment : Node
         }
         if (!pack && best == EquipSlot.None)
         {
-            GameEvents.PublishMended($"Nothing {material.Definition.DisplayName} can mend", 0.0f);
+            GameEvents.PublishMended($"Nothing {material.DisplayName} can mend", 0.0f);
             return false;
         }
-        float amount = material.Definition.MendAmount;
+        float amount = material.MendAmount;
         string name = "the pack";
         if (pack)
         {
+            float before = BackpackDurability;
             BackpackDurability = Mathf.Min(BackpackMaxDurability, BackpackDurability + amount);
+            amount = BackpackDurability - before;
         }
         else
         {
             ItemDefinition item = _worn[best];
+            float before = _durability[best];
             _durability[best] = Mathf.Min(item.MaxDurability, _durability[best] + amount);
+            amount = _durability[best] - before;
             name = item.DisplayName;
         }
-        Inventory.Consume(material);
+        if (packedMaterial != null)
+        {
+            Inventory.Consume(packedMaterial);
+        }
+        else
+        {
+            TakeFromPocket(material);
+            Inventory.ForgetOwned(material);
+        }
         Changed(true);
         GameEvents.PublishMended(name, amount);
         return true;
