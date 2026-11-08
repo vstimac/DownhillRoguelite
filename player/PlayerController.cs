@@ -442,7 +442,7 @@ public partial class PlayerController : CharacterBody3D
         {
             speed *= Mathf.Max(Settings.MinUphillSpeedFactor, 1.0f + Settings.UphillSpeedPenalty * grade);
         }
-        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor(), Settings.MaxSpeed);
+        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor() * GameEvents.CurrentGear.SpeedFactor, Settings.MaxSpeed);
     }
 
     /// <summary>How the ground underfoot slows a stride: 1 on firm ground, less in deep snow or mud.</summary>
@@ -491,7 +491,7 @@ public partial class PlayerController : CharacterBody3D
         {
             map = Settings.MapSpeedFactor;
         }
-        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor() * map, Settings.MaxSpeed);
+        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor() * map * GameEvents.CurrentGear.SpeedFactor, Settings.MaxSpeed);
     }
 
     private float DecelerationRate(bool braking, float grade)

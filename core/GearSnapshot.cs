@@ -1,3 +1,4 @@
+using DownhillRoguelite.Inventory;
 namespace DownhillRoguelite.Core;
 
 /// <summary>One worn piece of gear (or the backpack): what it is and how worn.</summary>
@@ -5,7 +6,8 @@ namespace DownhillRoguelite.Core;
 /// <param name="Name">Display name.</param>
 /// <param name="Durability">Hit points left.</param>
 /// <param name="MaxDurability">Hit points when new.</param>
-public readonly record struct WornPiece(string ItemId, string Name, float Durability, float MaxDurability)
+public readonly record struct WornPiece(string ItemId, string Name, float Durability, float MaxDurability,
+    ItemDefinition? Definition = null, ItemAppearance Appearance = default)
 {
     // default(WornPiece) has a null id: that's empty too.
     public bool Empty => string.IsNullOrEmpty(ItemId);
@@ -39,9 +41,14 @@ public readonly record struct GearSnapshot(
     int Pockets,
     int PocketsUsed,
     float WornMass = 0.0f,
-    float PocketMass = 0.0f)
+    float PocketMass = 0.0f,
+    float SpeedFactor = 1.0f,
+    float StaminaFactor = 1.0f,
+    float WindProof = 0.0f,
+    float FallProtection = 0.0f,
+    float PhysicalProtection = 0.0f)
 {
-    public static GearSnapshot None => new(new WornPiece[7], new WornPiece("", "", 0, 0), 0, 0, 0, 0, 0, 0);
+    public static GearSnapshot None => new(new WornPiece[EquipmentSlots.Count], new WornPiece("", "", 0, 0), 0, 0, 0, 0, 0, 0);
 
     public WornPiece In(EquipSlot slot)
     {

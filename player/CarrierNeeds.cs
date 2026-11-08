@@ -135,7 +135,7 @@ public partial class CarrierNeeds : Node
         Thirst = Mathf.Max(0.0f, Thirst - ThirstPerHour * rate * (1.0f + HeatThirst * heat) * hours);
 
         GearSnapshot gear = GameEvents.CurrentGear;
-        Chill = weather.Rain * RainChill * (1.0f - gear.RainProof) + weather.Snow * SnowChill + Mathf.Clamp((weather.WindSpeed - WindChillFrom) * WindChillPerMs, 0.0f, WindChillMax);
+        Chill = weather.Rain * RainChill * (1.0f - gear.RainProof) + weather.Snow * SnowChill + Mathf.Clamp((weather.WindSpeed - WindChillFrom) * WindChillPerMs, 0.0f, WindChillMax) * (1.0f - gear.WindProof);
         Cold = 0.0f;
         if (!GameEvents.InShelter)
         {

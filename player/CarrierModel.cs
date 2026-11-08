@@ -31,6 +31,7 @@ public partial class CarrierModel : Node3D
 
     public Node3D? Model { get; private set; }
     public RigFollower? Follower { get; private set; }
+    public ClothingVisualController? Clothing { get; private set; }
     /// <summary>The id of the character shown ("" while it's the mannequin).</summary>
     public string CharacterId { get; private set; } = "";
 
@@ -109,6 +110,7 @@ public partial class CarrierModel : Node3D
         if (Driver == null || character == null || ResourceLoader.Load(character.ModelPath) is not PackedScene scene)
         {
             GD.Print("CarrierModel: no character model found; the mannequin stays.");
+            UseFallbackOutfit();
             return;
         }
         Model = scene.Instantiate<Node3D>();
@@ -124,6 +126,23 @@ public partial class CarrierModel : Node3D
         {
             GD.PushWarning($"CarrierModel: {character.ModelPath} has no skeleton.");
             Unload();
+            UseFallbackOutfit();
+            return;
+        }
+        bool textured = false;
+        foreach (Node node in Model.FindChildren("*", "MeshInstance3D", true, false))
+        {
+            if (node is not MeshInstance3D mesh || mesh.Mesh == null) { continue; }
+            for (int surface = 0; surface < mesh.Mesh.GetSurfaceCount(); surface++)
+            {
+                if (mesh.GetActiveMaterial(surface) is BaseMaterial3D material && material.AlbedoTexture != null) { textured = true; }
+            }
+        }
+        if (!textured)
+        {
+            GD.PushWarning("CarrierModel: no usable albedo textures for " + character.Id + "; showing the default rig.");
+            Unload();
+            UseFallbackOutfit();
             return;
         }
         CharacterId = character.Id;
@@ -145,7 +164,16 @@ public partial class CarrierModel : Node3D
         }
         _worn = new CarrierWornGear { Name = "WornGear", Skeleton = skeleton, Vest = _vest, HelmetItem = helmetItem, VestItem = vestItem };
         AddChild(_worn);
+        Clothing = new ClothingVisualController { Name = "ClothingVisuals", Skeleton = skeleton, CharacterId = CharacterId };
+        AddChild(Clothing);
         OnGear(GameEvents.CurrentGear);
+    }
+
+    private void UseFallbackOutfit()
+    {
+        if (Driver == null) { return; }
+        Clothing = new ClothingVisualController { Name = "ClothingVisuals", Skeleton = Driver, CharacterId = "mannequin" };
+        AddChild(Clothing);
     }
 
     private static MeshInstance3D? Piece(Skeleton3D skeleton, string name)
@@ -160,6 +188,12 @@ public partial class CarrierModel : Node3D
     /// <summary>Removes the shown character and brings the mannequin's own meshes back.</summary>
     private void Unload()
     {
+        if (Clothing != null)
+        {
+            RemoveChild(Clothing);
+            Clothing.QueueFree();
+            Clothing = null;
+        }
         _worn?.QueueFree();
         _worn = null;
         if (Model != null)

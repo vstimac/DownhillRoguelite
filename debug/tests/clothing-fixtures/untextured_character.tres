@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="CarrierCharacter" format=3]
+[ext_resource type="Script" path="res://core/CarrierCharacter.cs" id="1_character"]
+[resource]
+script = ExtResource("1_character")
+Id = "untextured_fixture"
+DisplayName = "Untextured fallback fixture"
+ModelPath = "res://art/characters/quaternius_ual/UAL_Mannequin.glb"

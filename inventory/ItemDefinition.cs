@@ -36,6 +36,15 @@ public partial class ItemDefinition : Resource
     [Export] public EquipSlot Slot { get; set; } = EquipSlot.None;
     /// <summary>Hit points when new (worn gear only).</summary>
     [Export] public float MaxDurability { get; set; }
+    [Export(PropertyHint.MultilineText)] public string Description { get; set; } = "";
+    [Export] public ClothingVisual? Clothing { get; set; }
+    [Export] public float SpeedMultiplier { get; set; } = 1.0f;
+    [Export] public float StaminaMultiplier { get; set; } = 1.0f;
+    [Export] public float WindProof { get; set; }
+    [Export] public float FallProtection { get; set; }
+    [Export] public float PhysicalProtection { get; set; }
+    /// <summary>Content metadata only; rarity does not multiply stats.</summary>
+    [Export] public string Rarity { get; set; } = "Common";
     /// <summary>Fraction of cold and chill it keeps off (summed over everything worn, capped).</summary>
     [Export] public float Warmth { get; set; }
     /// <summary>Fraction of the rain's chill it keeps off.</summary>
@@ -68,6 +77,7 @@ public partial class ItemDefinition : Resource
     /// Not saved: it is set on the runtime copy.
     /// </summary>
     public string CargoInstanceId { get; set; } = "";
+    public string SourceItemPath { get; set; } = "";
 
     public bool IsContractCargo => CargoInstanceId.Length > 0;
 

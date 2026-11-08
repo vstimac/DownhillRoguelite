@@ -85,6 +85,7 @@ public partial class CarrierWornGear : Node
         foreach (EquipSlot slot in new[] { EquipSlot.Head, EquipSlot.Torso, EquipSlot.Hands, EquipSlot.Cape })
         {
             string id = gear.In(slot).ItemId ?? "";
+            if (gear.In(slot).Definition?.Clothing != null) { id = ""; }
             if (id == HelmetItem || id == VestItem)
             {
                 id = "";

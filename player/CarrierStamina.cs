@@ -122,7 +122,7 @@ public partial class CarrierStamina : Node
             walkModifier = _run.Modifiers.WalkDrain;
             loadModifier = _run.Modifiers.LoadDrain;
         }
-        return drain * walkModifier * (1.0f + LoadDrainPerKg * loadModifier * loadMass);
+        return drain * walkModifier * (1.0f + LoadDrainPerKg * loadModifier * loadMass) * GameEvents.CurrentGear.StaminaFactor;
     }
 
     /// <summary>Drains one physics step of moving under one's own power.</summary>
