@@ -23,7 +23,7 @@ The existing uncommitted objective, wayside, NPC and UI work was preserved.
 It now passes all **23 checks**, including frame-partition invariance in four damping regimes,
 undamped energy conservation, low stamina capacity and invalid route parameters.
 
-## Validation
+## Initial validation (`b541fe7`)
 
 - Godot 4.7.2 .NET, .NET SDK 10.0.401, Windows.
 - Build: zero warnings, zero errors.
@@ -47,12 +47,41 @@ formal verification of every script or every possible mountain. Third-party addo
 The documented point-mass load inertia approximation and the calibrated balance model were retained.
 
 One baseline wildlife run failed the grounding check: the worst animal was 70 cm above the
-ground ray's result. The diagnostic run, five focused repeats and the complete final suite passed
-without a wildlife runtime change. The cause remains unconfirmed; collision-support diagnostics
-were added to the failing assertion to make a recurrence actionable. The assertion was not relaxed.
+ground ray's result. Its random population seed was not captured. The follow-up below adds
+replayable population seeds and distinguishes missing support from valid capsule clearance.
 
 Route estimates still assume current equipment/weather/health, average walking speed and deliberate
 rests at exhaustion. They do not predict future weather, collision detours, falls or player choices.
+
+## Wildlife follow-up
+
+Controlled physics tests confirmed that idle animals skipped `MoveAndSlide`, retaining stale
+`IsOnFloor` and `HasGround` flags. Removing a ledge left a grazing animal suspended one metre
+above the floor with zero velocity. Displacing an idle animal upward also left it hanging.
+The first regression run failed three checks before the fix. Grazing animals now refresh their
+physics contacts every tick, allowing gravity to act when support disappears.
+
+The investigation also reproduced a false grounding failure with population seed 8: the central
+vertical ray was 15 cm below a sheep's origin, but its capsule was only **2.4 mm** from the
+actual supporting surface. On a plane, a capsule's vertical clearance is `r * (1 / cos(slope) - 1)`;
+on an obstacle edge the contact can be on a different face from the centre ray's hit. The test
+now requires live support and measures `abs(dot(bottomSphereCentre - contactPoint, normal) - r)`.
+The tolerance remains 8 cm; missing support fails explicitly. A separate 45-degree plane test
+checks both the analytical vertical clearance and the actual sphere-to-plane contact.
+
+Follow-up validation:
+
+- Build: zero warnings/errors.
+- All **7** controlled wildlife physics checks passed.
+- Population seeds **1–16** all passed their **112** checks, including the formerly failing seed 8.
+- Reported smoothed wildlife cost ranged from **0.249 to 0.546 ms**, within the existing 1 ms budget.
+- The earlier **23** math checks still passed.
+- Main-scene descent passed again: **124.3 m** downhill in 30 simulated seconds, health 100.
+- Population RNG seeds are printed and can be supplied using `-- --wildlife-seed=8`.
+
+Logs and seed results are in `D:\Game dev\math-audit-artifacts\wildlife-*`.
+The exact initial unseeded 70 cm observation cannot be uniquely attributed after the fact;
+the controlled stale-contact defect and the seeded false-positive case have both been addressed.
 
 ## Reproduce the added checks
 

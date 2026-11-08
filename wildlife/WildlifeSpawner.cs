@@ -27,6 +27,12 @@ public partial class WildlifeSpawner : Node3D
     public int Circle { get; private set; }
     /// <summary>Where the carrier was last seen (LocomotionUpdated).</summary>
     public Vector3 Carrier => _carrier;
+    /// <summary>Population RNG seed; set before the first tick to replay a wildlife scenario.</summary>
+    public ulong PopulationSeed
+    {
+        get => _random.Seed;
+        set => _random.Seed = value;
+    }
 
     private readonly List<WildlifeAnimal> _animals = new();
     private readonly RandomNumberGenerator _random = new();

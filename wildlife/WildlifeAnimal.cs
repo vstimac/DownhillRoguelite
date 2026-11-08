@@ -206,12 +206,8 @@ public partial class WildlifeAnimal : CharacterBody3D
         }
         else if (IsOnFloor())
         {
-            // Standing still on the ground: nothing to move, so skip the physics step (most animals graze).
-            if (walk.LengthSquared() < 0.0001f && Velocity.LengthSquared() < 0.25f)
-            {
-                Velocity = Vector3.Zero;
-                return;
-            }
+            // Refresh contact even when grazing: streamed terrain or another animal may have moved.
+            // IsOnFloor describes the previous MoveAndSlide, not the current world's support.
             vertical = -0.5f;
         }
         else

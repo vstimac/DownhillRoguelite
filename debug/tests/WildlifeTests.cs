@@ -22,7 +22,7 @@ public partial class WildlifeTests : Node3D
     [Export] public WildlifeSpawner? Spawner { get; set; }
     [Export] public float WalkDistance { get; set; } = 300.0f;
     [Export] public float StepDistance { get; set; } = 20.0f;
-    /// <summary>A capsule's round foot rests a little above a slope (radius × (1/cos slope - 1)), so a few cm are allowed.</summary>
+    /// <summary>Allowed gap from the capsule's round foot to its supporting plane, in m.</summary>
     [Export] public float MaxGroundError { get; set; } = 0.08f;
     [Export] public float BudgetMilliseconds { get; set; } = 1.0f;
 
@@ -41,6 +41,16 @@ public partial class WildlifeTests : Node3D
             GetTree().Quit(1);
             return;
         }
+        foreach (string argument in OS.GetCmdlineUserArgs())
+        {
+            const string prefix = "--wildlife-seed=";
+            if (argument.StartsWith(prefix, System.StringComparison.Ordinal)
+                && ulong.TryParse(argument[prefix.Length..], out ulong seed))
+            {
+                Spawner.PopulationSeed = seed;
+            }
+        }
+        GD.Print($"Wildlife population seed: {Spawner.PopulationSeed}");
         await Place(PlayerBody, Streamer.SpawnPoint, 1.0f);
 
         await TestPopulation(PlayerBody, Spawner);
@@ -93,27 +103,38 @@ public partial class WildlifeTests : Node3D
         PhysicsDirectSpaceState3D space = GetWorld3D().DirectSpaceState;
         float worst = 0.0f;
         int checkedCount = 0;
+        int unsupported = 0;
         foreach (WildlifeAnimal animal in spawner.Animals)
         {
             if (animal.Species == null || animal.Species.HoverHeight > 0.0f || !animal.HasGround)
             {
                 continue;
             }
-            if (spawner.Ground(space, animal.GlobalPosition, out Vector3 ground, out string _, out float _))
+            KinematicCollision3D support = new();
+            bool supported = animal.TestMove(animal.GlobalTransform, Vector3.Down * 0.1f, support);
+            if (!supported || support.GetNormal().Y <= 0.0f
+                || animal.GetChild(0) is not CollisionShape3D shape || shape.Shape is not CapsuleShape3D capsule)
             {
-                float error = Mathf.Abs(animal.GlobalPosition.Y - ground.Y);
-                worst = Mathf.Max(worst, error);
-                if (error > MaxGroundError)
-                {
-                    KinematicCollision3D support = new();
-                    animal.TestMove(animal.GlobalTransform, Vector3.Down * 0.1f, support);
-                    GD.Print($"      ground mismatch: {animal.Name} at {animal.GlobalPosition}, ground {ground}, support {support.GetCollider()}");
-                }
-                checkedCount++;
+                unsupported++;
+                GD.Print($"      missing live support: {animal.Name} at {animal.GlobalPosition}, cached grounded {animal.HasGround}");
+                continue;
             }
+            // On slopes and edges the capsule touches away from its vertical centre ray.
+            // Measure the bottom sphere against the actual contact plane instead.
+            Vector3 centre = shape.GlobalTransform * new Vector3(0.0f, capsule.Radius - capsule.Height * 0.5f, 0.0f);
+            float radius = capsule.Radius * shape.GlobalBasis.X.Length();
+            Vector3 normal = support.GetNormal();
+            float error = Mathf.Abs((centre - support.GetPosition()).Dot(normal) - radius);
+            worst = Mathf.Max(worst, error);
+            if (error > MaxGroundError)
+            {
+                spawner.Ground(space, animal.GlobalPosition, out Vector3 ground, out string _, out float _);
+                GD.Print($"      ground mismatch: {animal.Name} at {animal.GlobalPosition}, ground {ground}, collider {support.GetCollider()}, normal {normal}, plane gap {error}");
+            }
+            checkedCount++;
         }
-        Check("animals stand on the ground", checkedCount > 0 && worst <= MaxGroundError,
-            $"{checkedCount} animals, worst {worst * 100.0f:0.0} cm off the ground (max {MaxGroundError * 100.0f:0} cm)");
+        Check("animals stand on the ground", checkedCount > 0 && unsupported == 0 && worst <= MaxGroundError,
+            $"{checkedCount} animals, {unsupported} without support, worst contact error {worst * 100.0f:0.0} cm (max {MaxGroundError * 100.0f:0} cm)");
     }
 
     private void TestHabitat(WildlifeSpawner spawner, int circle)
