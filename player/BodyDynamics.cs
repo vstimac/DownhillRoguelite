@@ -188,9 +188,9 @@ public partial class BodyDynamics : SkeletonModifier3D
         float accelPitch = Mathf.Clamp(acceleration.Dot(forward) * AccelPitch, -MaxAccelPitch, MaxAccelPitch);
         float bank = Mathf.Clamp(-yawRate * speed * BankPerTurnSpeed, -MaxBank, MaxBank);
         float lead = Mathf.Clamp(yawRate * LeadSeconds, -MaxLead, MaxLead);
-        Spring(ref _pitch, ref _pitchVelocity, accelPitch, LeanFrequency, LeanDamping, dt);
-        Spring(ref _roll, ref _rollVelocity, bank, LeanFrequency, LeanDamping, dt);
-        Spring(ref _twist, ref _twistVelocity, lead, TwistFrequency, TwistDamping, dt);
+        DampedSpring.Step(ref _pitch, ref _pitchVelocity, accelPitch, LeanFrequency, LeanDamping, dt);
+        DampedSpring.Step(ref _roll, ref _rollVelocity, bank, LeanFrequency, LeanDamping, dt);
+        DampedSpring.Step(ref _twist, ref _twistVelocity, lead, TwistFrequency, TwistDamping, dt);
         Hunch = Mathf.Lerp(Hunch, Mathf.Min(load * HunchPerKg, MaxHunch), 1.0f - Mathf.Exp(-4.0f * dt));
         float rate = BreathRate + BreathRateMoving * Mathf.Clamp(speed / BreathFullSpeed, 0.0f, 1.0f);
         _breathPhase = Mathf.PosMod(_breathPhase + rate * dt, 1.0f);
@@ -203,15 +203,6 @@ public partial class BodyDynamics : SkeletonModifier3D
             return LoadMassOverride;
         }
         return GameEvents.CurrentLoad.Mass;
-    }
-
-    /// <summary>A damped spring toward <paramref name="target"/> (semi-implicit, stable at game frame rates).</summary>
-    private static void Spring(ref float value, ref float velocity, float target, float frequency, float damping, float dt)
-    {
-        float stiffness = Mathf.Pow(Mathf.Tau * frequency, 2.0f);
-        float friction = 2.0f * damping * Mathf.Sqrt(stiffness);
-        velocity += (stiffness * (target - value) - friction * velocity) * dt;
-        value += velocity * dt;
     }
 
     private static void Rotate(Skeleton3D skeleton, int bone, Quaternion turn)

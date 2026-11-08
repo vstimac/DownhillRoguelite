@@ -101,7 +101,14 @@ public partial class WildlifeTests : Node3D
             }
             if (spawner.Ground(space, animal.GlobalPosition, out Vector3 ground, out string _, out float _))
             {
-                worst = Mathf.Max(worst, Mathf.Abs(animal.GlobalPosition.Y - ground.Y));
+                float error = Mathf.Abs(animal.GlobalPosition.Y - ground.Y);
+                worst = Mathf.Max(worst, error);
+                if (error > MaxGroundError)
+                {
+                    KinematicCollision3D support = new();
+                    animal.TestMove(animal.GlobalTransform, Vector3.Down * 0.1f, support);
+                    GD.Print($"      ground mismatch: {animal.Name} at {animal.GlobalPosition}, ground {ground}, support {support.GetCollider()}");
+                }
                 checkedCount++;
             }
         }

@@ -70,10 +70,16 @@ public static class LoadCalculator
             sizes.Add((Vector3)item.Size * pack.CellSize);
         }
 
+        Vector3 centerOfMass = Vector3.Zero;
+        if (mass > 0.0f)
+        {
+            centerOfMass = weighted / mass;
+        }
+
         return new LoadSnapshot(
             $"{pack.DisplayName} ({grid.Items.Count} items)",
             mass,
-            weighted / mass,
+            centerOfMass,
             rollInertia,
             pitchInertia,
             masses.ToArray(),

@@ -98,53 +98,118 @@ public partial class RouteEstimator : Node
     /// <summary>The estimate to the stage's bottom station along one of its paths.</summary>
     public RouteEstimate EstimateAlong(Vector3 from, IRouteQuery route, int stage, int path)
     {
+        if (Body == null || Stamina == null || _clock == null || !float.IsFinite(SampleStep) || SampleStep <= 0.0f)
+        {
+            return default;
+        }
         int station = stage + 1;
         Vector3 target = route.Station(station);
+        if (target.Z > from.Z)
+        {
+            return default;
+        }
         float load = GameEvents.CurrentLoad.Mass;
+
+        float walk = 0.0f;
+        float drain = 0.0f;
+        float rest = 0.0f;
+        int rests = 0;
+        float available = Mathf.Min(Stamina.Current, Stamina.EffectiveMax);
+        float wait = Stamina.RecoveryWaitSeconds;
+        bool exhausted = Stamina.Exhausted;
+        float recovery = Stamina.EffectiveRecovery;
+        float threshold = Stamina.EffectiveRecoverLevel;
+
+        // Follow the stamina budget in route order: effortless sections recover it before climbs.
+        bool Travel(float length, float grade)
+        {
+            if (length <= 0.0f)
+            {
+                return true;
+            }
+            float speed = Body.WalkingSpeed(grade);
+            if (!float.IsFinite(speed) || speed <= 0.0f)
+            {
+                return false;
+            }
+            if (exhausted)
+            {
+                if (threshold <= 0.0f || recovery <= 0.0f)
+                {
+                    return false;
+                }
+                rest += wait + Mathf.Max(0.0f, threshold - available) / recovery;
+                rests++;
+                available = Mathf.Max(available, threshold);
+                wait = 0.0f;
+                exhausted = false;
+            }
+
+            float seconds = length / speed;
+            float cost = Stamina.WalkDrainPerSecond(load, grade, false, false) * seconds;
+            walk += seconds;
+            drain += cost;
+            if (cost <= 0.0f)
+            {
+                float recoveryTime = Mathf.Max(0.0f, seconds - wait);
+                wait = Mathf.Max(0.0f, wait - seconds);
+                available = Mathf.Min(Stamina.EffectiveMax, available + recoveryTime * recovery * Stamina.WalkingRecovery);
+                return true;
+            }
+
+            float deficit = cost - available;
+            if (deficit > 0.0f)
+            {
+                if (threshold <= 0.0f || recovery <= 0.0f)
+                {
+                    return false;
+                }
+                int stops = Mathf.CeilToInt(deficit / threshold);
+                rest += stops * (Stamina.RecoveryDelay + threshold / recovery);
+                rests += stops;
+                available += stops * threshold;
+            }
+            available = Mathf.Max(0.0f, available - cost);
+            exhausted = available <= 0.0f;
+            wait = Stamina.RecoveryDelay;
+            return true;
+        }
 
         // Off the path: walk across to it on the flat first.
         Vector3 previous = route.PathPoint(stage, path, from.Z);
         float across = Mathf.Abs(from.X - previous.X);
         float distance = across;
-        float walk = across / Body!.WalkingSpeed(0.0f);
-        float drain = Stamina!.WalkDrainPerSecond(load, 0.0f, false, false) * walk;
-
-        for (float z = from.Z - SampleStep; ; z -= SampleStep)
+        if (!Travel(across, 0.0f))
         {
-            float stepZ = Mathf.Max(z, target.Z);
+            return default;
+        }
+
+        for (float z = from.Z; z > target.Z;)
+        {
+            float stepZ = Mathf.Max(z - SampleStep, target.Z);
+            if (stepZ >= z)
+            {
+                // Float precision at great depth must not turn sampling into an infinite loop.
+                return default;
+            }
             Vector3 point = route.PathPoint(stage, path, stepZ);
             Vector3 step = point - previous;
             float length = step.Length();
-            float horizontal = new Vector2(step.X, step.Z).Length();
             if (length > Mathf.Epsilon)
             {
                 float grade = (previous.Y - point.Y) / length;
-                float seconds = horizontal / Body.WalkingSpeed(grade);
-                walk += seconds;
-                drain += Stamina.WalkDrainPerSecond(load, grade, false, false) * seconds;
+                // FloorConstantSpeed maintains metres per second along the slope.
+                if (!Travel(length, grade))
+                {
+                    return default;
+                }
                 distance += length;
             }
             previous = point;
-            if (stepZ <= target.Z)
-            {
-                break;
-            }
+            z = stepZ;
         }
 
-        // Rests: every time stamina runs out the carrier stands until it's back to the recover level.
-        float recovery = Mathf.Max(Stamina.EffectiveRecovery, 0.01f);
-        float available = Stamina.Current;
-        float rest = 0.0f;
-        if (Stamina.Exhausted)
-        {
-            rest += (Stamina.ExhaustedRecoverLevel - Stamina.Current) / recovery + Stamina.RecoveryDelay;
-            available = Stamina.ExhaustedRecoverLevel;
-        }
-        float deficit = Mathf.Max(0.0f, drain - available);
-        int rests = Mathf.CeilToInt(deficit / Stamina.ExhaustedRecoverLevel);
-        rest += deficit / recovery + rests * Stamina.RecoveryDelay;
-
-        float hours = (walk + rest) * _clock!.HoursPerSecond;
+        float hours = (walk + rest) * _clock.HoursPerSecond;
         float arrival = _clock.TimeOfDay + hours;
         int day = _clock.Day + Mathf.FloorToInt(arrival / WorldClock.HoursPerDay);
         float arrivalHour = Mathf.PosMod(arrival, WorldClock.HoursPerDay);

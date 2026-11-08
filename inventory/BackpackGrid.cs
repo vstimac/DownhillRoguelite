@@ -54,6 +54,10 @@ public sealed class BackpackGrid
     /// <summary>Whether a box of <paramref name="size"/> cells fits with its lowest corner at <paramref name="origin"/>.</summary>
     public bool CanPlace(Vector3I size, Vector3I origin)
     {
+        if (size.X <= 0 || size.Y <= 0 || size.Z <= 0)
+        {
+            return false;
+        }
         Vector3I far = origin + size - Vector3I.One;
         if (!InBounds(origin) || !InBounds(far))
         {

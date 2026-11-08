@@ -159,24 +159,7 @@ public partial class CarrierNeeds : Node
             Cold = Mathf.Clamp((Cold + Chill) * colder * (1.0f - resistance) * (1.0f - gear.Warmth), 0.0f, 1.0f);
         }
 
-        if (Stamina != null)
-        {
-            Stamina.RecoveryMultiplier = Mathf.Lerp(1.0f, ColdRecovery, Cold) * Mathf.Lerp(1.0f, HeatRecovery, heat);
-            if (Thirst < LowThreshold)
-            {
-                Stamina.RecoveryMultiplier *= ThirstyRecovery;
-            }
-            Stamina.MaxMultiplier = 1.0f;
-            if (Hunger < LowThreshold)
-            {
-                Stamina.MaxMultiplier = HungryMaxStamina;
-            }
-            if (_run != null)
-            {
-                Stamina.MaxMultiplier *= _run.Modifiers.StaminaMax;
-                Stamina.RecoveryMultiplier *= _run.Modifiers.StaminaRecovery;
-            }
-        }
+        ApplyStaminaModifiers(heat);
 
         if (Health != null)
         {
@@ -209,16 +192,40 @@ public partial class CarrierNeeds : Node
         return rate;
     }
 
+    private void ApplyStaminaModifiers(float heat)
+    {
+        if (Stamina == null)
+        {
+            return;
+        }
+        Stamina.RecoveryMultiplier = Mathf.Lerp(1.0f, ColdRecovery, Cold) * Mathf.Lerp(1.0f, HeatRecovery, heat);
+        if (Thirst < LowThreshold)
+        {
+            Stamina.RecoveryMultiplier *= ThirstyRecovery;
+        }
+        Stamina.MaxMultiplier = 1.0f;
+        if (Hunger < LowThreshold)
+        {
+            Stamina.MaxMultiplier = HungryMaxStamina;
+        }
+        if (_run != null)
+        {
+            Stamina.MaxMultiplier *= _run.Modifiers.StaminaMax;
+            Stamina.RecoveryMultiplier *= _run.Modifiers.StaminaRecovery;
+        }
+    }
+
     /// <summary>Asleep, the body still uses food and water, only more slowly; the rest restores stamina.</summary>
     private void OnSlept(float hours)
     {
         float rate = SleepDrainFactor;
         if (_run != null)
         {
-            rate *= _run.DifficultySettings.NeedsDrainMultiplier;
+            rate *= _run.DifficultySettings.NeedsDrainMultiplier * _run.DepthNeedsFactor * _run.Modifiers.NeedsDrain;
         }
         Hunger = Mathf.Max(0.0f, Hunger - HungerPerHour * rate * hours);
         Thirst = Mathf.Max(0.0f, Thirst - ThirstPerHour * rate * hours);
+        ApplyStaminaModifiers(Mathf.Clamp(GameEvents.CurrentWeather.Heat, 0.0f, 1.0f));
         Stamina?.Refill();
     }
 

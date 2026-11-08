@@ -47,13 +47,17 @@ public partial class CarrierStamina : Node
     [Export] public float ExhaustedRecoverLevel { get; set; } = 20.0f;
 
     public float Current { get; private set; }
-    /// <summary>Out of stamina: no walking, sprinting or jumping until it recovers.</summary>
+    /// <summary>Out of stamina: slower walking, no sprinting or jumping until it recovers.</summary>
     public bool Exhausted { get; private set; }
     /// <summary>Scales recovery; thirst lowers it (CarrierNeeds).</summary>
     public float RecoveryMultiplier { get; set; } = 1.0f;
     /// <summary>Scales the maximum; hunger lowers it (CarrierNeeds).</summary>
     public float MaxMultiplier { get; set; } = 1.0f;
-    public float EffectiveMax => Max * MaxMultiplier;
+    public float EffectiveMax => Mathf.Max(0.0f, Max * MaxMultiplier);
+    /// <summary>Recovery threshold, capped so a reduced maximum can always reach it.</summary>
+    public float EffectiveRecoverLevel => Mathf.Min(ExhaustedRecoverLevel, EffectiveMax);
+    /// <summary>Seconds of the recovery delay still left, for route estimates.</summary>
+    public float RecoveryWaitSeconds => Mathf.Max(0.0f, RecoveryDelay - _sinceUse);
     public bool CanSprint => !Exhausted && Current > 0.0f;
     /// <summary>Recovery per second right now, with needs applied.</summary>
     public float EffectiveRecovery => RecoveryPerSecond * RecoveryMultiplier;
@@ -65,27 +69,30 @@ public partial class CarrierStamina : Node
     public override void _Ready()
     {
         _run = GetNodeOrNull<RunState>("/root/RunState");
-        Current = Max;
+        Refill();
     }
 
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta;
+        float wait = RecoveryWaitSeconds;
+        bool moving = _movingFor > 0.0f;
+        _movingFor = Mathf.Max(0.0f, _movingFor - dt);
         _sinceUse += dt;
         Current = Mathf.Min(Current, EffectiveMax);
-        if (_sinceUse < RecoveryDelay)
+        float recoveryTime = Mathf.Max(0.0f, dt - wait);
+        if (recoveryTime <= 0.0f)
         {
             return;
         }
 
         float rate = EffectiveRecovery;
-        if (_movingFor > 0.0f)
+        if (moving)
         {
             rate *= WalkingRecovery;
         }
-        _movingFor -= dt;
-        Current = Mathf.Min(EffectiveMax, Current + rate * dt);
-        if (Exhausted && Current >= ExhaustedRecoverLevel)
+        Current = Mathf.Min(EffectiveMax, Current + rate * recoveryTime);
+        if (Exhausted && Current > 0.0f && Current >= EffectiveRecoverLevel)
         {
             Exhausted = false;
         }
@@ -130,7 +137,7 @@ public partial class CarrierStamina : Node
     /// <summary>Spends a fixed cost (a jump) if there is enough; returns whether it was spent.</summary>
     public bool TrySpend(float amount)
     {
-        if (Exhausted || Current < amount)
+        if (amount < 0.0f || Exhausted || Current < amount)
         {
             return false;
         }
@@ -152,8 +159,10 @@ public partial class CarrierStamina : Node
 
     public void Refill()
     {
-        Current = Max;
-        Exhausted = false;
+        Current = EffectiveMax;
+        Exhausted = Current <= 0.0f;
+        _sinceUse = RecoveryDelay;
+        _movingFor = 0.0f;
     }
 
     private void Drain(float amount)

@@ -101,7 +101,7 @@ public partial class CarrierHealth : Node
         if (Stamina != null)
         {
             stamina = Stamina.Current;
-            maxStamina = Stamina.Max;
+            maxStamina = Stamina.EffectiveMax;
             exhausted = Stamina.Exhausted;
         }
         bool sprinting = Body != null && Body.Sprinting;
