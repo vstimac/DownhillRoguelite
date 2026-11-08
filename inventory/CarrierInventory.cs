@@ -75,7 +75,7 @@ public partial class CarrierInventory : Node
             if (ResourceLoader.Load(path) is ItemDefinition item)
             {
                 _all.Add(item);
-                _loose.Add(new StoredItem(item));
+                _loose.Add(new StoredItem(item, InstanceId: System.Guid.NewGuid().ToString("N")));
             }
             else
             {
@@ -128,6 +128,7 @@ public partial class CarrierInventory : Node
         {
             placed.Durability = _loose[loose].Durability;
             placed.Appearance = _loose[loose].Appearance;
+            placed.InstanceId = _loose[loose].InstanceId;
             _loose.RemoveAt(loose);
             Publish();
         }
@@ -141,7 +142,7 @@ public partial class CarrierInventory : Node
         {
             return;
         }
-        _loose.Add(new StoredItem(item.Definition, item.Durability, item.Appearance));
+        _loose.Add(new StoredItem(item.Definition, item.Durability, item.Appearance, item.InstanceId));
         Publish();
     }
 
@@ -157,7 +158,7 @@ public partial class CarrierInventory : Node
         List<StoredItem> copies = new();
         foreach (PackedItem packed in Grid.Items)
         {
-            copies.Add(new StoredItem(packed.Definition, packed.Durability, packed.Appearance));
+            copies.Add(new StoredItem(packed.Definition, packed.Durability, packed.Appearance, packed.InstanceId));
         }
         copies.AddRange(_loose);
         Dictionary<ItemDefinition, int> remaining = new();
@@ -198,6 +199,7 @@ public partial class CarrierInventory : Node
             StoredItem copy = wear[packed.Definition].Dequeue();
             packed.Durability = copy.Durability;
             packed.Appearance = copy.Appearance;
+            packed.InstanceId = copy.InstanceId;
         }
         foreach (ItemDefinition definition in unplaced)
         {
@@ -212,12 +214,14 @@ public partial class CarrierInventory : Node
     /// false if there's no room. Worn gear keeps its hit points (<paramref name="durability"/>, -1: new);
     /// <paramref name="announce"/> tells the game it was picked up.
     /// </summary>
-    public bool TryAdd(ItemDefinition item, float durability = -1.0f, bool announce = true, ItemAppearance appearance = default)
+    public bool TryAdd(ItemDefinition item, float durability = -1.0f, bool announce = true, ItemAppearance appearance = default, string instanceId = "")
     {
         if (Grid == null)
         {
             return false;
         }
+        if (instanceId.Length == 0) { instanceId = System.Guid.NewGuid().ToString("N"); }
+        else if (OwnsInstance(instanceId)) { return false; }
         PackedItem? placed = null;
         if (AutoPacker.TryBestSpot(Grid, item, PickupPreferredX, out Vector3I origin, out int orientation))
         {
@@ -227,8 +231,9 @@ public partial class CarrierInventory : Node
         {
             placed.Durability = durability;
             placed.Appearance = appearance;
+            placed.InstanceId = instanceId;
         }
-        else if (Equipment == null || !Equipment.TryPocket(item, durability, appearance))
+        else if (Equipment == null || !Equipment.TryPocket(item, durability, appearance, instanceId))
         {
             return false;
         }
@@ -250,6 +255,14 @@ public partial class CarrierInventory : Node
 
     internal IReadOnlyList<StoredItem> LooseCopies => _loose;
 
+    public bool OwnsInstance(string id)
+    {
+        if (id.Length == 0) { return false; }
+        if (Grid != null) { foreach (PackedItem copy in Grid.Items) { if (copy.InstanceId == id) { return true; } } }
+        foreach (StoredItem copy in _loose) { if (copy.InstanceId == id) { return true; } }
+        return Equipment?.OwnsInstance(id) == true;
+    }
+
     /// <summary>Commits a completely validated storage plan without exposing intermediate transfers.</summary>
     internal void ApplyStorage(BackpackGrid plan, List<StoredItem> loose, List<StoredItem> pockets)
     {
@@ -260,6 +273,7 @@ public partial class CarrierInventory : Node
             PackedItem placed = Grid.Place(copy.Definition, copy.Origin, copy.Orientation)!;
             placed.Durability = copy.Durability;
             placed.Appearance = copy.Appearance;
+            placed.InstanceId = copy.InstanceId;
             _all.Add(copy.Definition);
         }
         _loose.Clear();
@@ -520,6 +534,7 @@ public partial class CarrierInventory : Node
         ItemDefinition? item = null;
         float durability = -1.0f;
         ItemAppearance appearance = default;
+        string instanceId = "";
         if (Grid != null)
         {
             foreach (PackedItem packed in Grid.Items)
@@ -529,6 +544,7 @@ public partial class CarrierInventory : Node
                     item = packed.Definition;
                     durability = packed.Durability;
                     appearance = packed.Appearance;
+                    instanceId = packed.InstanceId;
                     Consume(packed);
                     break;
                 }
@@ -543,6 +559,7 @@ public partial class CarrierInventory : Node
                     item = _loose[i].Definition;
                     durability = _loose[i].Durability;
                     appearance = _loose[i].Appearance;
+                    instanceId = _loose[i].InstanceId;
                     _all.Remove(item);
                     _loose.RemoveAt(i);
                     Publish();
@@ -550,11 +567,12 @@ public partial class CarrierInventory : Node
                 }
             }
         }
-        if (item == null && Equipment != null && Equipment.TakeFromPocket(itemId, out ItemDefinition? pocketed, out float pocketDurability, out ItemAppearance pocketAppearance) && pocketed != null)
+        if (item == null && Equipment != null && Equipment.TakeFromPocket(itemId, out ItemDefinition? pocketed, out float pocketDurability, out ItemAppearance pocketAppearance, out string pocketIdentity) && pocketed != null)
         {
             item = pocketed;
             durability = pocketDurability;
             appearance = pocketAppearance;
+            instanceId = pocketIdentity;
             ForgetOwned(pocketed);
         }
         if (item == null)
@@ -579,7 +597,7 @@ public partial class CarrierInventory : Node
             distance = ThrowDistance;
         }
         Vector3 at = from + forward * distance;
-        WorldItem dropped = new() { Definition = item, Durability = durability, Appearance = appearance, Name = $"Dropped_{item.ItemId}" };
+        WorldItem dropped = new() { Definition = item, Durability = durability, Appearance = appearance, InstanceId = instanceId, Name = $"Dropped_{item.ItemId}" };
         Node parent = GetTree().CurrentScene ?? GetTree().Root;
         parent.AddChild(dropped);
         if (carrier != null && carrier.IsInsideTree())

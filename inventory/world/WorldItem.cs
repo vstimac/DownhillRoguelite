@@ -17,6 +17,7 @@ public partial class WorldItem : Node3D, IInteractable, IDescribed
     /// <summary>Per-copy wear carried through a drop and pickup; -1 means newly found gear.</summary>
     [Export] public float Durability { get; set; } = -1.0f;
     public ItemAppearance Appearance { get; set; }
+    public string InstanceId { get; set; } = System.Guid.NewGuid().ToString("N");
     /// <summary>Visual scale of the box compared to the item's real size.</summary>
     [Export] public float VisualScale { get; set; } = 3.0f;
     [Export] public float LabelHeight { get; set; } = 0.45f;
@@ -160,7 +161,7 @@ public partial class WorldItem : Node3D, IInteractable, IDescribed
             return false;
         }
         CarrierInventory? inventory = interactor.GetNodeOrNull<CarrierInventory>("Inventory");
-        if (inventory == null || !inventory.TryAdd(Definition, Durability, true, Appearance))
+        if (inventory == null || !inventory.TryAdd(Definition, Durability, true, Appearance, InstanceId))
         {
             if (_label != null)
             {

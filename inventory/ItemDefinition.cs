@@ -82,4 +82,14 @@ public partial class ItemDefinition : Resource
     public bool IsContractCargo => CargoInstanceId.Length > 0;
 
     public int Volume => SizeCells.X * SizeCells.Y * SizeCells.Z;
+
+    public bool ValidEquipment()
+    {
+        if (!EquipmentSlots.Valid(Slot) || SizeCells.X <= 0 || SizeCells.Y <= 0 || SizeCells.Z <= 0 || Pockets < 0) { return false; }
+        if (!float.IsFinite(MassKg) || MassKg < 0 || !float.IsFinite(MaxDurability) || MaxDurability <= 0
+            || !float.IsFinite(SpeedMultiplier) || SpeedMultiplier <= 0 || !float.IsFinite(StaminaMultiplier) || StaminaMultiplier <= 0) { return false; }
+        foreach (float value in new[] { Warmth, RainProof, WindProof, FallProtection, PhysicalProtection })
+        { if (!float.IsFinite(value) || value < 0 || value > 1) { return false; } }
+        return float.IsFinite(GripBonus) && GripBonus >= 0 && float.IsFinite(WindCatch) && WindCatch >= 0;
+    }
 }

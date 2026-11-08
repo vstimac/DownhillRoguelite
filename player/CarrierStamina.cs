@@ -137,11 +137,12 @@ public partial class CarrierStamina : Node
     /// <summary>Spends a fixed cost (a jump) if there is enough; returns whether it was spent.</summary>
     public bool TrySpend(float amount)
     {
-        if (amount < 0.0f || Exhausted || Current < amount)
+        float cost = amount * GameEvents.CurrentGear.StaminaFactor;
+        if (!float.IsFinite(cost) || cost < 0.0f || Exhausted || Current < cost)
         {
             return false;
         }
-        Drain(amount);
+        Drain(cost);
         return true;
     }
 

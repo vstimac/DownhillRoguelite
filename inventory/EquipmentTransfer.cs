@@ -19,13 +19,14 @@ internal static class EquipmentTransfer
         {
             if (!found && copy.Definition == incoming)
             {
-                selected = new StoredItem(copy.Definition, copy.Durability, copy.Appearance);
+                selected = new StoredItem(copy.Definition, copy.Durability, copy.Appearance, copy.InstanceId);
                 found = true;
                 continue;
             }
             PackedItem placed = grid.Place(copy.Definition, copy.Origin, copy.Orientation)!;
             placed.Durability = copy.Durability;
             placed.Appearance = copy.Appearance;
+            placed.InstanceId = copy.InstanceId;
         }
         if (!found) { found = Extract(loose, incoming!, out selected); }
         if (!found) { found = Extract(pockets, incoming!, out selected); }
@@ -66,6 +67,7 @@ internal static class EquipmentTransfer
         PackedItem item = grid.Place(copy.Definition, at, orientation)!;
         item.Durability = copy.Durability;
         item.Appearance = copy.Appearance;
+        item.InstanceId = copy.InstanceId;
         return true;
     }
 }

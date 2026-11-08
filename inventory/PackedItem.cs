@@ -17,6 +17,7 @@ public sealed class PackedItem
     /// <summary>Hit points of worn gear while it sits in the pack (-1: new).</summary>
     public float Durability { get; set; } = -1.0f;
     public ItemAppearance Appearance { get; set; }
+    public string InstanceId { get; set; } = System.Guid.NewGuid().ToString("N");
     /// <summary>Cell of the item's lowest x, y and z corner.</summary>
     public Vector3I Origin { get; }
     /// <summary>Index into GridOrientations.All.</summary>
