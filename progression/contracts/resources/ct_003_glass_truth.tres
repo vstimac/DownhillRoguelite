@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ContractDefinition" format=3]
+
+[ext_resource type="Script" path="res://progression/contracts/ContractDefinition.cs" id="1_contract"]
+
+[resource]
+script = ExtResource("1_contract")
+Id = "CT_003"
+DisplayName = "The Glass Truth"
+Kind = 1
+Giver = "a monk with bandaged hands"
+OfferText = "The reliquary is glass. What is inside is truer than glass. Bring both whole, or bring neither."
+CargoItemPath = "res://inventory/items/glass_reliquary.tres"
+StationsAhead = 1
+MinStation = 2
+Score = 50
+Weight = 1.0
+Fragility = 2.0
+MinCondition = 70.0
+DeadlineDays = 0.0
+MinCircle = 0
+MaxCircle = -1

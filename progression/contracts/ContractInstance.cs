@@ -30,12 +30,17 @@ public sealed class ContractInstance
     public int ScoreAwarded { get; set; }
     /// <summary>Why it ended badly, in words.</summary>
     public string Reason { get; set; } = "";
+    /// <summary>The cargo's condition, 100 (intact) to 0 (broken). Only ContractResolver lowers it.</summary>
+    public float Condition { get; set; } = 100.0f;
+    /// <summary>World-clock hour (WorldClock.TotalHours) it must be delivered by; negative: no deadline.</summary>
+    public double DeadlineHours { get; set; } = -1.0;
 
     public bool IsOpen => Status == ContractStatus.Offered || Status == ContractStatus.Accepted;
 
     /// <summary>What the rest of the game may know about it.</summary>
     public ContractNote Note()
     {
-        return new ContractNote(InstanceId, Definition.DisplayName, CargoName, CargoMassKg, FromStation, ToStation, Status, ScoreAwarded, Reason);
+        return new ContractNote(InstanceId, Definition.DisplayName, CargoName, CargoMassKg, FromStation, ToStation, Status, ScoreAwarded, Reason,
+            Condition, Definition.MinCondition, DeadlineHours, Definition.Fragility > 0.0f);
     }
 }

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ContractDefinition" format=3]
+
+[ext_resource type="Script" path="res://progression/contracts/ContractDefinition.cs" id="1_contract"]
+
+[resource]
+script = ExtResource("1_contract")
+Id = "CT_001"
+DisplayName = "A Letter Downhill"
+Kind = 0
+Giver = "a woman at the fire"
+OfferText = "For whoever keeps the next fire. Don't read it. Don't crumple it either."
+CargoItemPath = "res://inventory/items/sealed_letter.tres"
+StationsAhead = 1
+MinStation = 1
+Score = 20
+Weight = 1.4
+Fragility = 0.6
+MinCondition = 35.0
+DeadlineDays = 0.0
+MinCircle = 0
+MaxCircle = -1

@@ -29,11 +29,25 @@ public partial class ContractDefinition : Resource
     [Export] public int Score { get; set; } = 30;
     /// <summary>How likely it is picked against other eligible contracts.</summary>
     [Export] public float Weight { get; set; } = 1.0f;
+    /// <summary>How easily the cargo is damaged: 0 never (a stone), 1 ordinary, 2 glass.</summary>
+    [Export] public float Fragility { get; set; } = 1.0f;
+    /// <summary>The condition (0–100) it must arrive in to count; below it the job fails on hand-over. 0: any.</summary>
+    [Export(PropertyHint.Range, "0,100")] public float MinCondition { get; set; }
+    /// <summary>Days (on the world clock) from taking it to its deadline; 0: no deadline.</summary>
+    [Export] public float DeadlineDays { get; set; }
+    /// <summary>First circle (0 = Limbo) whose stations may offer it.</summary>
+    [Export] public int MinCircle { get; set; }
+    /// <summary>Last circle whose stations may offer it; -1: no limit.</summary>
+    [Export] public int MaxCircle { get; set; } = -1;
 
-    /// <summary>Whether a board at this station may offer it.</summary>
-    public bool EligibleAt(int station)
+    /// <summary>Whether a board at this station, in this circle, may offer it.</summary>
+    public bool EligibleAt(int station, int circle = 0)
     {
-        return station >= MinStation && station >= 1;
+        if (station < MinStation || station < 1 || circle < MinCircle)
+        {
+            return false;
+        }
+        return MaxCircle < 0 || circle <= MaxCircle;
     }
 
     /// <summary>What is wrong with the definition, or an empty string if nothing is.</summary>
@@ -54,6 +68,14 @@ public partial class ContractDefinition : Resource
         if (Score < 0 || Weight < 0.0f)
         {
             return Id + " has a negative score or weight";
+        }
+        if (Fragility < 0.0f || MinCondition < 0.0f || MinCondition > 100.0f || DeadlineDays < 0.0f)
+        {
+            return Id + " has a negative fragility or deadline, or a condition outside 0-100";
+        }
+        if (MaxCircle >= 0 && MaxCircle < MinCircle)
+        {
+            return Id + " has no circle it can be offered in";
         }
         if (CargoItemPath.Length == 0 || !ResourceLoader.Exists(CargoItemPath))
         {

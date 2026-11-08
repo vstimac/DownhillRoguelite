@@ -370,8 +370,31 @@ public static class GameEvents
     /// <summary>Raised once per contract when it ends (delivered, failed, abandoned): the only moment rewards come from.</summary>
     public static event Action<ContractNote>? ContractResolved;
 
+    /// <summary>Raised when the open contract changes without ending (its cargo was knocked about).</summary>
+    public static event Action<ContractNote>? ContractUpdated;
+
     /// <summary>The contract the carrier is working on (null when none).</summary>
     public static ContractNote? ActiveContract { get; private set; }
+
+    /// <summary>
+    /// How exposed each carried contract cargo is to knocks, by cargo instance id: 0 deep inside the
+    /// pack, 1 against its outside (or in a pocket). Published by the inventory with CarriedCargo.
+    /// </summary>
+    public static IReadOnlyDictionary<string, float> CargoExposure { get; private set; } = new Dictionary<string, float>();
+
+    public static void PublishCargoExposure(IReadOnlyDictionary<string, float> exposure)
+    {
+        CargoExposure = exposure;
+    }
+
+    public static void PublishContractUpdated(ContractNote note)
+    {
+        if (ActiveContract != null && ActiveContract.Value.InstanceId == note.InstanceId)
+        {
+            ActiveContract = note;
+        }
+        ContractUpdated?.Invoke(note);
+    }
 
     public static void PublishContractOffered(ContractNote note) => ContractOffered?.Invoke(note);
 

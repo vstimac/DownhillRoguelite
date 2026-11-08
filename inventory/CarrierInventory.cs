@@ -34,6 +34,8 @@ public partial class CarrierInventory : Node
 
     /// <summary>Empty the pack when the carrier dies: a new run starts with nothing.</summary>
     [Export] public bool ClearOnDeath { get; set; } = true;
+    /// <summary>Contract cargo with this many cells of other things (or padding) on every side counts as fully protected from knocks.</summary>
+    [Export] public int ProtectedPaddingCells { get; set; } = 2;
 
     /// <summary>Side of the pack picked-up items are placed toward (0 left, 0.5 centre, 1 right).</summary>
     [Export] public float PickupPreferredX { get; set; } = 0.5f;
@@ -579,5 +581,57 @@ public partial class CarrierInventory : Node
         }
         GameEvents.PublishCarriedItems(ids);
         GameEvents.PublishCarriedCargo(cargo);
+        GameEvents.PublishCargoExposure(CargoExposure());
+    }
+
+    /// <summary>
+    /// How exposed each carried contract cargo is to knocks: 0 with at least ProtectedPaddingCells of
+    /// pack between it and every outside face, 1 touching a face. Cargo outside the pack (a pocket,
+    /// the hands) is fully exposed.
+    /// </summary>
+    public Dictionary<string, float> CargoExposure()
+    {
+        Dictionary<string, float> exposure = new();
+        foreach (ItemDefinition item in _all)
+        {
+            if (item.IsContractCargo)
+            {
+                exposure[item.CargoInstanceId] = 1.0f;
+            }
+        }
+        if (Grid == null)
+        {
+            return exposure;
+        }
+        foreach (PackedItem packed in Grid.Items)
+        {
+            if (!packed.Definition.IsContractCargo)
+            {
+                continue;
+            }
+            float protectedShare = 1.0f;
+            for (int axis = 0; axis < 3; axis++)
+            {
+                protectedShare = Mathf.Min(protectedShare, AxisShare(Grid.Size[axis], packed.Origin[axis], packed.Size[axis]));
+            }
+            exposure[packed.Definition.CargoInstanceId] = 1.0f - protectedShare;
+        }
+        return exposure;
+    }
+
+    /// <summary>
+    /// How well one axis protects an item: the padding on its thinner side against the most this axis
+    /// allows (ProtectedPaddingCells, or centred if the pack is narrower), 0 to 1. An item filling the
+    /// axis can't do better, so that axis counts as protecting it.
+    /// </summary>
+    private float AxisShare(int packCells, int origin, int itemCells)
+    {
+        int padding = System.Math.Min(origin, packCells - (origin + itemCells));
+        int best = System.Math.Min(System.Math.Max(ProtectedPaddingCells, 1), (packCells - itemCells) / 2);
+        if (best <= 0)
+        {
+            return 1.0f;
+        }
+        return Mathf.Clamp((float)padding / best, 0.0f, 1.0f);
     }
 }

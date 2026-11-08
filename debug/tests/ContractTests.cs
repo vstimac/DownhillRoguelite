@@ -250,7 +250,7 @@ public partial class ContractTests : Node3D
     {
         ContractResult again = director.Accept(offer);
         ContractResult wrong = director.Deliver(1);
-        bool boardRefuses = director.Boards.TryGetValue(1, out ContractBoard? board) && board.Prompt.Length == 0;
+        bool boardRefuses = director.Boards.TryGetValue(1, out ContractBoard? board) && !board.Prompt.Contains("Take");
         bool grantedTwice = inventory.GrantCargo(ParcelPath, offer.InstanceId);
         Check("taking the job twice does nothing; it can't be handed over at the wrong station",
             again == ContractResult.AlreadyAccepted && wrong == ContractResult.WrongStation && boardRefuses && !grantedTwice

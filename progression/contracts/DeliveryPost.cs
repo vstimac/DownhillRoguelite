@@ -54,7 +54,23 @@ public partial class DeliveryPost : Node3D, IInteractable, IDescribed
         }
     }
 
-    public string Details => "It must be in your pack. Once handed over, it's gone from the pack for good.";
+    public string Details
+    {
+        get
+        {
+            string text = "It must be in your pack. Once handed over, it's gone from the pack for good.";
+            if (Contract != null && Contract.Definition.Fragility > 0.0f)
+            {
+                text += "\nIts condition: " + ContractResolver.ConditionText(Contract.Condition);
+                if (Contract.Definition.MinCondition > 0.0f)
+                {
+                    text += " (the job needs " + ContractResolver.ConditionText(Contract.Definition.MinCondition) + ")";
+                }
+                text += ".";
+            }
+            return text;
+        }
+    }
 
     public string Prompt
     {
@@ -125,10 +141,18 @@ public partial class DeliveryPost : Node3D, IInteractable, IDescribed
         if (Armed)
         {
             _status.Text = "Hand over the " + Contract.CargoName.ToLowerInvariant() + "? E again";
+            if (Contract.Condition < Contract.Definition.MinCondition)
+            {
+                _status.Text = "Too damaged for the job: E again hands it over for nothing";
+            }
         }
         else
         {
             _status.Text = Contract.Definition.DisplayName + " · " + Contract.CargoName;
+            if (Contract.Definition.Fragility > 0.0f && Contract.Condition < 100.0f)
+            {
+                _status.Text += " · " + ContractResolver.ConditionText(Contract.Condition);
+            }
         }
     }
 

@@ -13,6 +13,10 @@ namespace DownhillRoguelite.Core;
 /// <param name="Status">Where it stands now.</param>
 /// <param name="Score">Score credited (only when delivered).</param>
 /// <param name="Reason">Why it ended, in words, when it ended badly.</param>
+/// <param name="Condition">The cargo's condition, 100 (intact) to 0 (broken).</param>
+/// <param name="MinCondition">The condition it must arrive in (0: any).</param>
+/// <param name="DeadlineHours">World-clock hour it must arrive by (WorldClock.TotalHours); negative: none.</param>
+/// <param name="Breakable">Whether knocks damage it at all.</param>
 public readonly record struct ContractNote(
     string InstanceId,
     string Title,
@@ -22,4 +26,8 @@ public readonly record struct ContractNote(
     int ToStation,
     ContractStatus Status,
     int Score,
-    string Reason);
+    string Reason,
+    float Condition = 100.0f,
+    float MinCondition = 0.0f,
+    double DeadlineHours = -1.0,
+    bool Breakable = false);

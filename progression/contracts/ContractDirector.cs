@@ -14,6 +14,10 @@ namespace DownhillRoguelite.Progression;
 /// inventory has really removed it is the contract delivered and its score credited.
 ///
 /// One contract at a time. Cargo lost from a torn pack fails the job; dying with it fails it too.
+/// Phase 2: hard landings and falls knock the carried cargo (less when it's packed deep inside the
+/// pack), so it may arrive damaged (paid in proportion), too damaged for its job (failed) or break
+/// on the way (failed at once). A job may have a deadline on the world clock, and any board takes
+/// back the open job if the carrier gives it up there (E, then E again).
 /// A new run clears every offer, board and post. The only owner of contract state: everything else
 /// reads ContractOffered / ContractAccepted / ContractResolved and changes nothing.
 /// </summary>
@@ -27,6 +31,22 @@ public partial class ContractDirector : Node3D
     /// <summary>Where the delivery post stands at the destination, from its fire, in m.</summary>
     [Export] public Vector3 DeliveryOffset { get; set; } = new(-4.0f, 0.0f, 2.4f);
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
+
+    [ExportGroup("Cargo condition (INITIAL TUNING)")]
+    /// <summary>Landings faster than this knock the cargo, in m/s (the same as clothing wear).</summary>
+    [Export] public float HardLanding { get; set; } = 6.0f;
+    /// <summary>Condition lost per m/s above HardLanding, before fragility and packing.</summary>
+    [Export] public float LandingDamagePerMs { get; set; } = 5.0f;
+    /// <summary>Condition lost when the carrier goes down as a ragdoll, before fragility and packing.</summary>
+    [Export] public float FallDamage { get; set; } = 12.0f;
+    /// <summary>Share of a knock that reaches cargo packed deep inside the pack.</summary>
+    [Export] public float ProtectedFactor { get; set; } = 0.4f;
+    /// <summary>Share of a knock that reaches cargo against the pack's outside (or in a pocket).</summary>
+    [Export] public float ExposedFactor { get; set; } = 1.4f;
+    /// <summary>At or above this condition a delivery pays in full; below it, in proportion.</summary>
+    [Export] public float IntactCondition { get; set; } = 90.0f;
+    /// <summary>How often the deadline is checked, in s.</summary>
+    [Export] public float DeadlineCheckInterval { get; set; } = 1.0f;
 
     /// <summary>Salt for the contract stream, so contracts never shift terrain, boons or supplies.</summary>
     private const ulong ContractSalt = 0xC0A7AC75ul;
@@ -46,6 +66,8 @@ public partial class ContractDirector : Node3D
     private ContractInstance? _active;
     private DeliveryPost? _post;
     private RunState? _run;
+    private WorldClock? _clock;
+    private float _deadlineTimer;
 
     // Answers from the inventory to a request made a moment ago (C# events are synchronous).
     private string _awaitedCargo = "";
@@ -54,6 +76,7 @@ public partial class ContractDirector : Node3D
     public override void _Ready()
     {
         _run = GetNodeOrNull<RunState>("/root/RunState");
+        _clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
         Reload();
         GameEvents.StationReached += OnStationReached;
         GameEvents.RespawnRequested += OnRespawnRequested;
@@ -61,6 +84,8 @@ public partial class ContractDirector : Node3D
         GameEvents.ItemLost += OnItemLost;
         GameEvents.CargoGranted += OnCargoAnswer;
         GameEvents.CargoHandedOver += OnCargoAnswer;
+        GameEvents.Landed += OnLanded;
+        GameEvents.DownedChanged += OnDowned;
     }
 
     public override void _ExitTree()
@@ -71,6 +96,8 @@ public partial class ContractDirector : Node3D
         GameEvents.ItemLost -= OnItemLost;
         GameEvents.CargoGranted -= OnCargoAnswer;
         GameEvents.CargoHandedOver -= OnCargoAnswer;
+        GameEvents.Landed -= OnLanded;
+        GameEvents.DownedChanged -= OnDowned;
         GameEvents.ClearActiveContract();
     }
 
@@ -115,10 +142,11 @@ public partial class ContractDirector : Node3D
         {
             return null;
         }
+        int circle = CircleOf(station);
         float total = 0.0f;
         foreach (ContractDefinition definition in _valid)
         {
-            if (definition.EligibleAt(station))
+            if (definition.EligibleAt(station, circle))
             {
                 total += definition.Weight;
             }
@@ -131,7 +159,7 @@ public partial class ContractDirector : Node3D
         ContractDefinition? last = null;
         foreach (ContractDefinition definition in _valid)
         {
-            if (!definition.EligibleAt(station))
+            if (!definition.EligibleAt(station, circle))
             {
                 continue;
             }
@@ -143,6 +171,31 @@ public partial class ContractDirector : Node3D
             }
         }
         return last;
+    }
+
+    /// <summary>The circle a station lies in (0 = Limbo), from its depth below the start.</summary>
+    public int CircleOf(int station)
+    {
+        IRouteQuery? route = _run?.Route;
+        if (route == null || _run == null || station < 1)
+        {
+            return 0;
+        }
+        float depth = route.RoutePoint(route.StartZ).Y - route.Station(station).Y;
+        return _run.Circles.CircleAt(depth);
+    }
+
+    /// <summary>The world clock's hour count now (0 without a clock).</summary>
+    public double Now
+    {
+        get
+        {
+            if (_clock == null)
+            {
+                return 0.0;
+            }
+            return _clock.TotalHours;
+        }
     }
 
     /// <summary>Pins a station's job on its board (once per station per run); the offer, or null if none.</summary>
@@ -188,11 +241,16 @@ public partial class ContractDirector : Node3D
         {
             return ContractResult.NoRoom;
         }
-        ContractResolver.Accept(contract);
+        ContractResolver.Accept(contract, Now);
         _active = contract;
         ContractNote note = contract.Note();
         GameEvents.PublishContractAccepted(note);
-        GameEvents.PublishHint("Took the job: carry the " + note.CargoName.ToLowerInvariant() + " to Station " + note.ToStation + ".");
+        string care = "";
+        if (contract.Definition.MinCondition > 0.0f)
+        {
+            care = " It's fragile: pack it deep inside the pack (I), away from the sides.";
+        }
+        GameEvents.PublishHint("Took the job: carry the " + note.CargoName.ToLowerInvariant() + " to Station " + note.ToStation + "." + care);
         PlaceDeliveryPost(contract);
         if (_boards.TryGetValue(contract.FromStation, out ContractBoard? board))
         {
@@ -224,9 +282,21 @@ public partial class ContractDirector : Node3D
         {
             return ContractResult.CargoMissing;
         }
-        ContractResolver.Deliver(contract);
+        ContractResolver.Deliver(contract, IntactCondition);
         Finish(contract);
-        GameEvents.PublishHint("Delivered the " + contract.CargoName.ToLowerInvariant() + ". The job is done (+" + contract.ScoreAwarded + ").");
+        if (contract.Status == ContractStatus.Delivered)
+        {
+            string state = "";
+            if (contract.Condition < IntactCondition)
+            {
+                state = " in " + ContractResolver.ConditionText(contract.Condition) + " condition";
+            }
+            GameEvents.PublishHint("Delivered the " + contract.CargoName.ToLowerInvariant() + state + ". The job is done (+" + contract.ScoreAwarded + ").");
+        }
+        else
+        {
+            GameEvents.PublishHint("Handed over the " + contract.CargoName.ToLowerInvariant() + ", but it " + contract.Reason + ". No pay.");
+        }
         return ContractResult.Ok;
     }
 
@@ -265,6 +335,117 @@ public partial class ContractDirector : Node3D
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// Gives up the open job at a board: its cargo, if carried, is left there (removed from the pack)
+    /// and nothing is credited. Invalid when there is no open job.
+    /// </summary>
+    public ContractResult Abandon()
+    {
+        if (_active == null || _active.Status != ContractStatus.Accepted)
+        {
+            return ContractResult.Invalid;
+        }
+        ContractInstance contract = _active;
+        bool left = false;
+        if (Carried(contract.InstanceId))
+        {
+            left = Ask(contract.InstanceId, false, "");
+        }
+        if (!ContractResolver.End(contract, ContractStatus.Abandoned, "given up"))
+        {
+            return ContractResult.AlreadyResolved;
+        }
+        Finish(contract);
+        string cargo = "";
+        if (left)
+        {
+            cargo = " The " + contract.CargoName.ToLowerInvariant() + " stays here.";
+        }
+        GameEvents.PublishHint("Gave up the job \"" + contract.Definition.DisplayName + "\"." + cargo);
+        return ContractResult.Ok;
+    }
+
+    /// <summary>
+    /// A knock to the carried cargo of <paramref name="amount"/> before fragility and packing: deep in
+    /// the pack it takes ProtectedFactor of it, against the outside ExposedFactor. Cargo that isn't
+    /// carried (dropped) is not touched. Breaking it fails the job. Returns the condition lost.
+    /// </summary>
+    public float Knock(float amount)
+    {
+        if (_active == null || _active.Status != ContractStatus.Accepted || !Carried(_active.InstanceId))
+        {
+            return 0.0f;
+        }
+        float exposure = 1.0f;
+        if (GameEvents.CargoExposure.TryGetValue(_active.InstanceId, out float packed))
+        {
+            exposure = Mathf.Clamp(packed, 0.0f, 1.0f);
+        }
+        float lost = ContractResolver.Damage(_active, amount * Mathf.Lerp(ProtectedFactor, ExposedFactor, exposure));
+        if (lost <= 0.0f)
+        {
+            return 0.0f;
+        }
+        ContractInstance contract = _active;
+        if (contract.Condition <= 0.0f)
+        {
+            Fail("broke on the way");
+            GameEvents.PublishHint("The " + contract.CargoName.ToLowerInvariant() + " broke. The job has failed.");
+            return lost;
+        }
+        GameEvents.PublishContractUpdated(contract.Note());
+        if (lost >= 1.0f)
+        {
+            string warning = "";
+            if (contract.Condition < contract.Definition.MinCondition)
+            {
+                warning = " Too damaged for the job now.";
+            }
+            GameEvents.PublishHint("The " + contract.CargoName.ToLowerInvariant() + " took a knock: " + ContractResolver.ConditionText(contract.Condition) + "." + warning);
+        }
+        return lost;
+    }
+
+    private void OnLanded(float speed)
+    {
+        if (speed > HardLanding)
+        {
+            Knock((speed - HardLanding) * LandingDamagePerMs);
+        }
+    }
+
+    private void OnDowned(bool downed)
+    {
+        if (downed)
+        {
+            Knock(FallDamage);
+        }
+    }
+
+    public override void _Process(double delta)
+    {
+        _deadlineTimer -= (float)delta;
+        if (_deadlineTimer > 0.0f)
+        {
+            return;
+        }
+        _deadlineTimer = DeadlineCheckInterval;
+        CheckDeadline();
+    }
+
+    /// <summary>Fails the open job if its deadline has passed; true if it did.</summary>
+    public bool CheckDeadline()
+    {
+        if (_active == null || !ContractResolver.IsLate(_active, Now))
+        {
+            return false;
+        }
+        ContractInstance contract = _active;
+        Fail("ran out of time");
+        GameEvents.PublishHint("Too late: the job \"" + contract.Definition.DisplayName + "\" has failed.");
+        return true;
     }
 
     /// <summary>Ends the open job badly (lost cargo, death); nothing is credited.</summary>

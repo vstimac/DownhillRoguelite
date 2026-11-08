@@ -118,7 +118,16 @@ public partial class JournalLog : Node
     {
         if (note.Status == ContractStatus.Delivered)
         {
-            Write("At Station " + note.ToStation + " I handed over the " + note.CargoName.ToLowerInvariant() + ". \"" + note.Title + "\" is done.");
+            string state = "";
+            if (note.Breakable && note.Condition < 90.0f)
+            {
+                state = ", knocked about (" + Mathf.RoundToInt(note.Condition) + "%)";
+            }
+            Write("At Station " + note.ToStation + " I handed over the " + note.CargoName.ToLowerInvariant() + state + ". \"" + note.Title + "\" is done.");
+        }
+        else if (note.Status == ContractStatus.Abandoned)
+        {
+            Write("I gave up the job \"" + note.Title + "\" and left the " + note.CargoName.ToLowerInvariant() + " behind.");
         }
         else
         {
