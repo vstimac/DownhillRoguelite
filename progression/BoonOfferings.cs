@@ -14,6 +14,8 @@ public partial class BoonOfferings : Node3D
 {
     [Export] public BoonDefinition[] Boons { get; set; } = System.Array.Empty<BoonDefinition>();
     [Export] public int OfferCount { get; set; } = 3;
+    /// <summary>Expedition rules: arrival gives shelter; completed work earns the station's boon.</summary>
+    [Export] public bool RequireCompletedWork { get; set; }
     /// <summary>Offerings stand on an arc this far downhill of the station's fire, in m.</summary>
     [Export] public float Distance { get; set; } = 3.5f;
     /// <summary>Angle between neighbouring offerings on the arc, in degrees.</summary>
@@ -24,6 +26,7 @@ public partial class BoonOfferings : Node3D
 
     private readonly List<BoonStone> _stones = new();
     private readonly HashSet<int> _offered = new();
+    private readonly HashSet<int> _earned = new();
     private RunState? _run;
 
     public override void _Ready()
@@ -31,12 +34,16 @@ public partial class BoonOfferings : Node3D
         _run = GetNodeOrNull<RunState>("/root/RunState");
         GameEvents.StationReached += Offer;
         GameEvents.RespawnRequested += Clear;
+        GameEvents.ContractResolved += OnContractResolved;
+        GameEvents.RelicDelivered += OnRelicDelivered;
     }
 
     public override void _ExitTree()
     {
         GameEvents.StationReached -= Offer;
         GameEvents.RespawnRequested -= Clear;
+        GameEvents.ContractResolved -= OnContractResolved;
+        GameEvents.RelicDelivered -= OnRelicDelivered;
     }
 
     /// <summary>The boons a station offers in this run: the same for the same mountain.</summary>
@@ -62,6 +69,7 @@ public partial class BoonOfferings : Node3D
     /// <summary>Lays out a station's offerings (once per station per run).</summary>
     public void Offer(int station)
     {
+        if (station < 1 || (RequireCompletedWork && !_earned.Contains(station))) { return; }
         IRouteQuery? route = _run?.Route;
         if (route == null || !_offered.Add(station))
         {
@@ -91,7 +99,7 @@ public partial class BoonOfferings : Node3D
     /// <summary>Applies the stone's boon and takes away the station's other offerings.</summary>
     public bool Choose(BoonStone chosen)
     {
-        if (_run == null || chosen.Boon == null)
+        if (_run == null || chosen.Boon == null || !_stones.Contains(chosen) || chosen.IsQueuedForDeletion())
         {
             return false;
         }
@@ -109,6 +117,23 @@ public partial class BoonOfferings : Node3D
         return true;
     }
 
+    private void OnContractResolved(ContractNote note)
+    {
+        if (note.Status == ContractStatus.Delivered) { Earn(note.ToStation); }
+    }
+
+    private void OnRelicDelivered(RelicNote note)
+    {
+        Earn(note.Station);
+    }
+
+    private void Earn(int station)
+    {
+        if (!RequireCompletedWork || station < 1) { return; }
+        _earned.Add(station);
+        Offer(station);
+    }
+
     private void Clear()
     {
         foreach (BoonStone stone in _stones)
@@ -117,5 +142,6 @@ public partial class BoonOfferings : Node3D
         }
         _stones.Clear();
         _offered.Clear();
+        _earned.Clear();
     }
 }

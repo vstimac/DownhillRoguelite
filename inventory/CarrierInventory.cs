@@ -64,6 +64,7 @@ public partial class CarrierInventory : Node
         GameEvents.ConsumeRequested += OnConsumeRequested;
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.ItemsGranted += OnItemsGranted;
+        GameEvents.ItemGrantRequested += OnItemGrantRequested;
         GameEvents.ItemUseRequested += OnItemUseRequested;
         GameEvents.DropRequested += OnDropRequested;
         GameEvents.ThrowRequested += OnThrowRequested;
@@ -102,6 +103,7 @@ public partial class CarrierInventory : Node
         GameEvents.ConsumeRequested -= OnConsumeRequested;
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.ItemsGranted -= OnItemsGranted;
+        GameEvents.ItemGrantRequested -= OnItemGrantRequested;
         GameEvents.ItemUseRequested -= OnItemUseRequested;
         GameEvents.DropRequested -= OnDropRequested;
         GameEvents.ThrowRequested -= OnThrowRequested;
@@ -413,6 +415,12 @@ public partial class CarrierInventory : Node
                 TryAdd(item);
             }
         }
+    }
+
+    private bool OnItemGrantRequested(string path)
+    {
+        if (!ResourceLoader.Exists(path) || ResourceLoader.Load(path) is not ItemDefinition item) { return false; }
+        return TryAdd(item);
     }
 
     /// <summary>

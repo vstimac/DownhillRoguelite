@@ -19,6 +19,7 @@ namespace DownhillRoguelite.Ui;
 public partial class Hud : CanvasLayer
 {
     public const string Group = "hud";
+    [Export] public bool EnableCompanionChat { get; set; }
     private static readonly StringName ActionInventory = "inventory_open";
     private static readonly StringName ActionJournal = "journal_open";
     private static readonly StringName ActionTalk = "talk_open";
@@ -218,6 +219,7 @@ public partial class Hud : CanvasLayer
     /// <summary>Someone was spoken to (a traveller with E, the companion with Enter): open the conversation.</summary>
     private void OnTalkRequested(SpeakerInfo speaker)
     {
+        if (speaker.IsCompanion && !EnableCompanionChat) { return; }
         if (Talk != null && !(Talk.IsOpen && Talk.Visible) && !GameEvents.IsPacking)
         {
             Toggle(Talk);
@@ -266,7 +268,7 @@ public partial class Hud : CanvasLayer
             Toggle(Journal);
             GetViewport().SetInputAsHandled();
         }
-        else if (@event.IsActionPressed(ActionTalk) && Talk != null && !(Talk.IsOpen && Talk.Visible))
+        else if (EnableCompanionChat && @event.IsActionPressed(ActionTalk) && Talk != null && !(Talk.IsOpen && Talk.Visible))
         {
             // Enter talks with the companion; once the page is open, Enter sends what's typed.
             GameEvents.RequestTalkTo(SpeakerInfo.Companion);

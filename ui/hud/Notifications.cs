@@ -52,7 +52,7 @@ public partial class Notifications : Control
         CallDeferred(MethodName.Hint);
     }
 
-    [Export] public string StartHint { get; set; } = "Esc: pause and controls · Enter: talk";
+    [Export] public string StartHint { get; set; } = "Esc: pause and controls";
 
     private void Hint() => Note(StartHint);
 

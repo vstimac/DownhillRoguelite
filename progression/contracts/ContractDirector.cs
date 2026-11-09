@@ -226,6 +226,22 @@ public partial class ContractDirector : Node3D
         return contract;
     }
 
+    /// <summary>Registers an authored recovery job. Its world site, rather than a station board, supplies the cargo.</summary>
+    public ContractInstance? OfferRecovery(ContractDefinition definition, int fromStation)
+    {
+        if (fromStation < 0 || definition.Problem().Length > 0 || definition.CargoItem is not ItemDefinition cargo) { return null; }
+        if (_offers.TryGetValue(fromStation, out ContractInstance? existing))
+        {
+            if (existing.Definition.Id == definition.Id) { return existing; }
+            return null;
+        }
+        ContractInstance contract = new(definition, fromStation, cargo.DisplayName, cargo.MassKg);
+        _offers.Add(fromStation, contract);
+        // The recovery site announces the location. Publishing a station-board offer here would
+        // incorrectly tell the existing guide to take a job at Station 0.
+        return contract;
+    }
+
     /// <summary>
     /// Takes a job: its cargo is packed (or nothing happens and the offer stays). Taking it twice,
     /// or a second job while one is open, does nothing.
