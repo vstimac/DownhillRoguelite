@@ -257,7 +257,7 @@ public partial class UiTests : Node3D
         {
             Ui!.LayoutFor(size);
             Rect2 screen = new(Vector2.Zero, size);
-            Control?[] parts = { Ui.HealthDial, Ui.StaminaDial, Ui.Descent, Ui.Compass, Ui.Equipment, Ui.Hotbar, Ui.Inventory, Ui.MapPage, Ui.Journal };
+            Control?[] parts = { Ui.HealthDial, Ui.StaminaDial, Ui.Descent, Ui.Compass, Ui.Objectives, Ui.Equipment, Ui.Hotbar, Ui.Inventory, Ui.MapPage, Ui.Journal };
             foreach (Control? control in parts)
             {
                 if (control != null && !screen.Encloses(new Rect2(control.Position, control.Size)))
@@ -266,7 +266,7 @@ public partial class UiTests : Node3D
                 }
             }
             // The play HUD's pieces must not cover each other.
-            Control?[] hud = { Ui.StaminaDial, Ui.Descent, Ui.Equipment, Ui.Hotbar };
+            Control?[] hud = { Ui.StaminaDial, Ui.Descent, Ui.Objectives, Ui.Equipment, Ui.Hotbar };
             for (int i = 0; i < hud.Length; i++)
             {
                 for (int j = i + 1; j < hud.Length; j++)

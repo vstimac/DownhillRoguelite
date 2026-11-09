@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WaysideDefinition" format=3]
+
+[ext_resource type="Script" path="res://environment/wayside/WaysideDefinition.cs" id="1_wayside"]
+
+[resource]
+script = ExtResource("1_wayside")
+Id = "WS_MENDER"
+Title = "A mender's bundle"
+Description = "A bundle tied to a stake: needle, thread and a leather patch. Worn gear can be mended by the fire."
+Prompt = "Take the bundle"
+TakenText = "A mender's bundle on a stake: a sewing kit and a patch, for mending by the fire."
+ItemPaths = PackedStringArray("res://inventory/items/sewing_kit.tres", "res://inventory/items/leather_patch.tres")
+MinCircle = 0
+Weight = 0.6
+PennantColor = Color(0.42, 0.55, 0.25, 1)
+Look = 0

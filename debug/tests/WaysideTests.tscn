@@ -1,0 +1,51 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/WaysideTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://terrain/TerrainStreamer.cs" id="2_streamer"]
+[ext_resource type="Resource" path="res://terrain/default_terrain.tres" id="3_terrain_settings"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="4_player"]
+[ext_resource type="Script" path="res://map/StationManager.cs" id="5_stations"]
+[ext_resource type="Script" path="res://environment/wayside/WaysidePlacer.cs" id="6_wayside"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/cold_spring.tres" id="7_spring"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/abandoned_pack.tres" id="7_pack"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/carriers_grave.tres" id="7_grave"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/foragers_cache.tres" id="7_cache"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/menders_bundle.tres" id="7_mender"]
+[ext_resource type="Script" path="res://progression/objectives/ObjectiveDirector.cs" id="8_objectives"]
+[ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="9_inventory"]
+[ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="10_backpack"]
+[ext_resource type="Script" path="res://debug/DebugSceneControls.cs" id="11_controls"]
+
+[node name="WaysideTests" type="Node3D" node_paths=PackedStringArray("PlayerBody", "Streamer", "Placer")]
+script = ExtResource("1_tests")
+PlayerBody = NodePath("Player")
+Streamer = NodePath("Terrain")
+Placer = NodePath("Wayside")
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_streamer")
+Settings = ExtResource("3_terrain_settings")
+
+[node name="Stations" type="Node3D" parent="."]
+script = ExtResource("5_stations")
+
+[node name="Wayside" type="Node3D" parent="."]
+script = ExtResource("6_wayside")
+Definitions = [ExtResource("7_spring"), ExtResource("7_pack"), ExtResource("7_grave"), ExtResource("7_cache"), ExtResource("7_mender")]
+
+[node name="Objectives" type="Node" parent="."]
+script = ExtResource("8_objectives")
+
+[node name="Player" parent="." instance=ExtResource("4_player")]
+
+[node name="Inventory" type="Node" parent="Player"]
+script = ExtResource("9_inventory")
+Backpack = ExtResource("10_backpack")
+StartingItemPaths = PackedStringArray()
+AutoPackOnStart = false
+
+[node name="Controls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "Streamer")]
+script = ExtResource("11_controls")
+KillHeight = -1e+09
+PlayerBody = NodePath("../Player")
+Streamer = NodePath("../Terrain")

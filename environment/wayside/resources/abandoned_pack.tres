@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WaysideDefinition" format=3]
+
+[ext_resource type="Script" path="res://environment/wayside/WaysideDefinition.cs" id="1_wayside"]
+
+[resource]
+script = ExtResource("1_wayside")
+Id = "WS_PACK"
+Title = "An abandoned pack"
+Description = "A carrier's pack, set down neatly on a rock, as if they meant to come back for it."
+Prompt = "Open the pack"
+TakenText = "I opened a pack someone left on a rock. A ration and dried fruit; no name."
+ItemPaths = PackedStringArray("res://inventory/items/ration.tres", "res://inventory/items/dried_fruit.tres")
+MinCircle = 0
+Weight = 1.0
+PennantColor = Color(0.75, 0.2, 0.15, 1)
+Look = 0

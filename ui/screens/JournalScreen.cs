@@ -1,11 +1,15 @@
 using System.Collections.Generic;
+using DownhillRoguelite.Core;
 using Godot;
 
 namespace DownhillRoguelite.Ui;
 
 /// <summary>
-/// The journal (J): a two-page spread. The left page carries an ink drawing of the endless
-/// mountain, the right page the entries the JournalLog wrote, a page at a time, newest last.
+/// The journal (J): a two-page spread. The left page, "Now", lists the carrier's goals (main goal,
+/// guide step, jobs, relics, the circle below) over a faint ink drawing of the endless mountain,
+/// with this run's finished goals struck through (GameEvents.CurrentObjectives and
+/// FinishedObjectives). The right page carries the entries the JournalLog wrote, a page at a time,
+/// newest last.
 /// The arrows (or A and D) turn pages: the right page folds over its spine and the next one
 /// unfolds, with a rustle of paper.
 /// </summary>
@@ -17,10 +21,15 @@ public partial class JournalScreen : ParchmentPanel
     public int Page { get; private set; }
     public int Pages => Mathf.Max(1, Mathf.CeilToInt((Log?.Entries.Count ?? 0) / (float)EntriesPerPage));
     public string PageText => _text?.Text ?? "";
+    /// <summary>The "Now" page's goals as plain text (tests read it).</summary>
+    public string NowText => _now?.GetParsedText() ?? "";
+    /// <summary>Finished goals listed at most on the "Now" page (the newest).</summary>
+    [Export] public int FinishedShown { get; set; } = 4;
 
     private Control? _right;
     private Label? _text;
     private Label? _pageNumber;
+    private RichTextLabel? _now;
     private bool _turning;
     private AudioStreamPlayer? _rustle;
 
@@ -31,8 +40,23 @@ public partial class JournalScreen : ParchmentPanel
         Seed = 67.0f;
         Size = new Vector2(820, 540);
         base._Ready();
-        Illustration art = new() { Position = new Vector2(24, 60), Size = new Vector2(360, 420) };
+        Illustration art = new() { Position = new Vector2(24, 60), Size = new Vector2(360, 420), Modulate = new Color(1, 1, 1, 0.22f) };
         AddChild(art);
+        _now = new RichTextLabel
+        {
+            Position = new Vector2(40, 66),
+            Size = new Vector2(330, 400),
+            BbcodeEnabled = true,
+            ScrollActive = false,
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+        _now.AddThemeFontOverride("normal_font", UiStyle.Hand);
+        _now.AddThemeFontOverride("bold_font", UiStyle.Heading);
+        _now.AddThemeFontSizeOverride("normal_font_size", UiStyle.SmallSize);
+        _now.AddThemeFontSizeOverride("bold_font_size", UiStyle.TextSize);
+        _now.AddThemeColorOverride("default_color", UiStyle.Ink);
+        AddChild(_now);
+        GameEvents.ObjectivesChanged += OnObjectives;
         _right = new Control { Position = new Vector2(404, 60), Size = new Vector2(392, 420), MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_right);
         _text = UiStyle.MakeLabel("", UiStyle.TextSize);
@@ -58,6 +82,7 @@ public partial class JournalScreen : ParchmentPanel
 
     public override void _ExitTree()
     {
+        GameEvents.ObjectivesChanged -= OnObjectives;
         if (_rustle != null)
         {
             _rustle.Stop();
@@ -65,10 +90,63 @@ public partial class JournalScreen : ParchmentPanel
         }
     }
 
+    private void OnObjectives(IReadOnlyList<ObjectiveNote> notes)
+    {
+        if (Visible)
+        {
+            FillNow();
+        }
+    }
+
+    /// <summary>Writes the "Now" page: the goals in order with why each matters, then the finished ones struck through.</summary>
+    public void FillNow()
+    {
+        if (_now == null)
+        {
+            return;
+        }
+        System.Text.StringBuilder text = new();
+        text.Append("[b]Now[/b]\n");
+        foreach (ObjectiveNote note in GameEvents.CurrentObjectives)
+        {
+            string title = Escape(note.Title);
+            if (note.Kind == ObjectiveKind.Guide)
+            {
+                title = "Next: " + title;
+            }
+            if (note.Done)
+            {
+                title = "[s]" + title + "[/s]";
+            }
+            text.Append("\n[b]").Append(title).Append("[/b]\n");
+            if (note.Why.Length > 0)
+            {
+                text.Append(Escape(note.Why)).Append('\n');
+            }
+            if (note.Progress.Length > 0)
+            {
+                text.Append("[color=#5a4630]").Append(Escape(note.Progress)).Append("[/color]\n");
+            }
+        }
+        IReadOnlyList<ObjectiveNote> finished = GameEvents.FinishedObjectives;
+        if (finished.Count > 0)
+        {
+            text.Append("\n[color=#7a6850]Behind me:[/color]\n");
+            for (int i = Mathf.Max(0, finished.Count - FinishedShown); i < finished.Count; i++)
+            {
+                text.Append("[color=#7a6850][s]").Append(Escape(finished[i].Title)).Append("[/s] ").Append(Escape(finished[i].Progress)).Append("[/color]\n");
+            }
+        }
+        _now.Text = text.ToString();
+    }
+
+    private static string Escape(string text) => text.Replace("[", "[lb]");
+
     /// <summary>Opens on the newest page.</summary>
     public void OpenJournal()
     {
         Page = Pages - 1;
+        FillNow();
         Fill();
         Open();
     }

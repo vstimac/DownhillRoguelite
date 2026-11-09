@@ -25,7 +25,21 @@ public partial class NpcFigure : Node3D, IInteractable, IDescribed
     public Vector3 InteractionPoint => GlobalPosition + Vector3.Up * 0.8f;
     public string Title => Persona?.DisplayName ?? "Traveller";
     public string Description => Persona?.Description ?? "";
-    public string Details => Persona?.Title ?? "";
+    public string Details
+    {
+        get
+        {
+            string who = Persona?.Title ?? "";
+            if (Errand.Length > 0)
+            {
+                return who + ". Has a job for you: \"" + Errand + "\", at the board";
+            }
+            return who;
+        }
+    }
+
+    /// <summary>The title of the job this traveller asks for (ErrandPosted for their station), or empty.</summary>
+    public string Errand { get; private set; } = "";
     public string Prompt => "E  Talk";
     public Resource? IconSource => null;
 
@@ -41,8 +55,22 @@ public partial class NpcFigure : Node3D, IInteractable, IDescribed
         Name = $"Traveller_{persona.Id}";
     }
 
+    public override void _ExitTree()
+    {
+        GameEvents.ErrandPosted -= OnErrandPosted;
+    }
+
+    private void OnErrandPosted(int station, string giver, string title)
+    {
+        if (station == Station && giver == Title)
+        {
+            Errand = title;
+        }
+    }
+
     public override void _Ready()
     {
+        GameEvents.ErrandPosted += OnErrandPosted;
         AddToGroup(IInteractable.Group);
         Color cloak = Persona?.CloakColor ?? new Color(0.3f, 0.25f, 0.2f);
         StandardMaterial3D cloth = new() { AlbedoColor = cloak, Roughness = 1.0f };
@@ -56,7 +84,7 @@ public partial class NpcFigure : Node3D, IInteractable, IDescribed
         staff.RotationDegrees = new Vector3(0, 0, -12.0f);
         _label = new Label3D
         {
-            Text = $"{Title}\n{Details}",
+            Text = $"{Title}\n{Persona?.Title ?? ""}",
             PixelSize = LabelPixelSize,
             FontSize = 40,
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,

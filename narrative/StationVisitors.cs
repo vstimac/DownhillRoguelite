@@ -121,6 +121,7 @@ public partial class StationVisitors : Node3D
         AddChild(figure);
         figure.GlobalPosition = fire + SeatOffset;
         _figures.Add(figure);
+        GameEvents.PublishVisitorSeated(station, persona.DisplayName, persona.Title);
     }
 
     private void OnNewRun()

@@ -229,3 +229,38 @@ Relics as real items placed on side paths:
 | 7 Narrative integration | NOT STARTED (new lines need voicing) |
 | 8 Circle content, beyond nine | NOT STARTED |
 | 9 Polish and beta | NOT STARTED |
+
+## Purpose patch: goals and direction — 2026-11-08
+
+- Status: DONE. Commits on `playtest-1`, not pushed. Design and player-facing summary: `docs/survival-loop.md`, "Goals and direction".
+- Why: playtesters didn't know what to do. Reading the loop found these gaps:
+  - no stated goal at the start;
+  - the station target buried as the fifth line of the descent note;
+  - no prompt to gather food and water;
+  - station features (boons, board, altar, travellers) with no framing, and job pay in a score nobody could see;
+  - nothing between stations worth a detour;
+  - a journal with no "now".
+- Added:
+  - `core/ObjectiveNote.cs`, `ObjectiveKind.cs`, `WaysideNote.cs`;
+  - `progression/objectives/` (`ObjectiveBook`, `ObjectiveDirector`, `GuideStep`);
+  - `environment/wayside/` (`WaysideDefinition`, `WaysidePlacer`, `WaysideSite`, five resources);
+  - `ui/hud/ObjectivePanel.cs`, `ObjectiveBanner.cs`;
+  - `debug/ObjectiveDebugOverlay.cs`, `debug/TestPurpose.tscn`;
+  - `debug/tests/ObjectiveTests` (12 checks) and `WaysideTests` (7 checks).
+- Edited, all additive:
+  - `GameEvents`: ObjectivesChanged and CurrentObjectives/FinishedObjectives, ObjectiveAnnounced, VisitorSeated, ErrandPosted, WaysideNear/NearestWayside, WaysideUsed.
+  - `StationVisitors` publishes VisitorSeated. `NpcFigure` says on its tooltip when it has a job.
+  - `StationManager` adds the summit goal line.
+  - `Hud`: goal note, card, layout. `Notifications`: goal notes and a new start hint.
+  - `JournalLog` gets errand, reward and wayside entries; `JournalScreen` gets the "Now" page.
+  - `debug/TestTerrain.tscn`: Wayside, Objectives, overlay. `UiTests` lays out the goal note.
+- Decisions:
+  - **The traveller "gives" the job by name.** The board stays the place to take it, so `progression/contracts/` is untouched.
+  - **Reward supplies are paid by the objective director** on a delivered `ContractResolved`, through `ItemsGranted`.
+  - **The guide runs on the records' run count.** It changes no save files.
+  - **Points of interest use their own seeded stream,** so terrain, supplies, lore, relics and set pieces don't shift.
+- Not done:
+  - no new narrator lines (they need voicing);
+  - the point-of-interest models are primitives (a pole, a pennant, a crate, stone or basin);
+  - points of interest may stand near a set piece (the two placers don't know about each other);
+  - tuning is unplayed.

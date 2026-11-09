@@ -48,8 +48,30 @@ public partial class JournalLog : Node
         GameEvents.LoreRead += OnLoreRead;
         GameEvents.RelicDiscovered += OnRelicDiscovered;
         GameEvents.RelicDelivered += OnRelicDelivered;
+        GameEvents.ObjectiveAnnounced += OnObjective;
+        GameEvents.WaysideUsed += OnWayside;
         CallDeferred(MethodName.Begin);
     }
+
+    /// <summary>A traveller asked for a job, or a job paid out: who asked and what it paid.</summary>
+    private void OnObjective(ObjectiveNote note)
+    {
+        if (note.Kind != ObjectiveKind.Errand)
+        {
+            return;
+        }
+        if (!note.Done && note.Title.Contains(" asks: ") && note.Giver.Length > 0)
+        {
+            Write("By the fire, " + note.Giver + " asked a favour. " + note.Why);
+        }
+        else if (note.Done && !note.Failed)
+        {
+            Write(note.Title + ". " + note.Progress + ".");
+        }
+    }
+
+    /// <summary>Something found beside the path, and what I took from it.</summary>
+    private void OnWayside(WaysideNote note) => Write(note.Title + ". " + note.Text);
 
     public override void _ExitTree()
     {
@@ -71,6 +93,8 @@ public partial class JournalLog : Node
         GameEvents.LoreRead -= OnLoreRead;
         GameEvents.RelicDiscovered -= OnRelicDiscovered;
         GameEvents.RelicDelivered -= OnRelicDelivered;
+        GameEvents.ObjectiveAnnounced -= OnObjective;
+        GameEvents.WaysideUsed -= OnWayside;
     }
 
     private void OnAsked(string question)
@@ -196,7 +220,7 @@ public partial class JournalLog : Node
         {
             seed = _run.Seed;
         }
-        Write($"I stand on the summit of mountain {seed % 100000}. The only way is down.");
+        Write($"I stand on the summit of mountain {seed % 100000}. The only way is down, and the first fire is somewhere below: I have to reach it before dark.");
     }
 
     private void OnNewRun()

@@ -74,6 +74,35 @@ Every item has a **category**:
 
 Values live in `DifficultySettings` resources and are tuned by play-testing.
 
+## Goals and direction (purpose patch, 2026-11-08)
+
+Playtesters didn't know what to do or why. Now there is always a goal on screen, a reason for it, and something worth stopping for.
+
+- **One main goal, always:** "Reach Station N before dark" (why: night kills outside a shelter), with the distance, time and arrival from the route estimate. At a station it becomes "Go down to Station N+1" (take a boon, look at the board, talk, repack), and from 16:00 "Sleep by the fire". After sleeping it points at the next station. After dark it says so.
+- **The long goal:** "Descend into Circle II · Lust, 1,240 m to go" (why: somewhere below, they say, a carrier becomes a god). After the ninth circle it reads "Go deeper than anyone".
+- **A guide on the first runs** (while fewer than `GuideRuns` = 2 runs have ended), one step at a time, each finished by what the player does:
+  - follow the cairns;
+  - pick up food or water;
+  - read a sign;
+  - eat or drink;
+  - at Station 1, take a boon, then talk to the traveller or take the job.
+- **Jobs become errands:** a job offered where a traveller sits is "Aldo asks: …", the traveller's tooltip says they have a job, and once taken it is "Aldo's errand: …" with the cargo's condition and time left. A delivered job also packs a ration and a water flask (`ObjectiveDirector.RewardItemPaths`). Jobs without a traveller are "A job at the board". Found relics become "Leave the … at an altar".
+- **Points of interest:** one or two per stage, 9–22 m beside the main path, each under a tall pennant with a small light. There are five kinds:
+  - a cold spring (water flask);
+  - an abandoned pack (ration, dried fruit);
+  - a carrier's grave (water skin, and the warning "went on after dark");
+  - a forager's cache (food bag, berries);
+  - a mender's bundle (sewing kit, leather patch).
+
+  E takes what's there once; with no room it all stays. Within 70 m the goals say "Off the path: a cold spring, 35 m to your left".
+- **Where it shows:**
+  - the goal note at the top of the screen (main goal, why, progress, guide step and side goals, the circle, the run's score);
+  - a big card when the main goal changes (also at the start of a run, after the title screen);
+  - notes ("New goal: …", "Done: …");
+  - the journal's left page, "Now", with finished goals struck through;
+  - the summit stone's last line.
+- Code: `progression/objectives/` (`ObjectiveBook` logic, `ObjectiveDirector`), `environment/wayside/`, `ui/hud/ObjectivePanel.cs`, `ui/hud/ObjectiveBanner.cs`. Debug: `debug/TestPurpose.tscn` and the F3 overlay (`ObjectiveDebugOverlay`). Tests: `ObjectiveTests`, `WaysideTests`.
+
 ## Revised roadmap
 
 ## Weather (built in M8)

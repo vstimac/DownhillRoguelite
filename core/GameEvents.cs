@@ -431,6 +431,54 @@ public static partial class GameEvents
 
     public static void PublishLoreRead(LoreNote note) => LoreRead?.Invoke(note);
 
+    /// <summary>The carrier's goals right now: the main goal first, then the circle, then side goals (objective director).</summary>
+    public static IReadOnlyList<ObjectiveNote> CurrentObjectives { get; private set; } = System.Array.Empty<ObjectiveNote>();
+
+    /// <summary>Goals finished or failed this run, oldest first (the journal's "Now" page strikes them through).</summary>
+    public static IReadOnlyList<ObjectiveNote> FinishedObjectives { get; private set; } = System.Array.Empty<ObjectiveNote>();
+
+    /// <summary>Raised whenever the goals change (a step done, a new station, a job taken).</summary>
+    public static event Action<IReadOnlyList<ObjectiveNote>>? ObjectivesChanged;
+
+    /// <summary>Raised when a goal is new (a new main goal, a job offered or taken) or just finished: notes, banner, journal.</summary>
+    public static event Action<ObjectiveNote>? ObjectiveAnnounced;
+
+    public static void PublishObjectives(IReadOnlyList<ObjectiveNote> current, IReadOnlyList<ObjectiveNote> finished)
+    {
+        CurrentObjectives = current;
+        FinishedObjectives = finished;
+        ObjectivesChanged?.Invoke(current);
+    }
+
+    public static void PublishObjectiveAnnounced(ObjectiveNote note) => ObjectiveAnnounced?.Invoke(note);
+
+    /// <summary>Raised when a traveller takes a seat by a station's fire: (station, name, who they are).</summary>
+    public static event Action<int, string, string>? VisitorSeated;
+
+    public static void PublishVisitorSeated(int station, string name, string title) => VisitorSeated?.Invoke(station, name, title);
+
+    /// <summary>Raised when a station's job becomes a traveller's errand: (station, the traveller's name, the job's title).</summary>
+    public static event Action<int, string, string>? ErrandPosted;
+
+    public static void PublishErrandPosted(int station, string giver, string title) => ErrandPosted?.Invoke(station, giver, title);
+
+    /// <summary>The closest unused point of interest beside the path, if one is near (null when none).</summary>
+    public static WaysideNote? NearestWayside { get; private set; }
+
+    /// <summary>Raised when the closest point of interest changes, or comes into or out of range.</summary>
+    public static event Action<WaysideNote?>? WaysideNear;
+
+    /// <summary>Raised when the carrier takes what a point of interest held (Text says what).</summary>
+    public static event Action<WaysideNote>? WaysideUsed;
+
+    public static void PublishWaysideNear(WaysideNote? note)
+    {
+        NearestWayside = note;
+        WaysideNear?.Invoke(note);
+    }
+
+    public static void PublishWaysideUsed(WaysideNote note) => WaysideUsed?.Invoke(note);
+
     /// <summary>Asks for the carrier to die at once (falling into the abyss), with a cause.</summary>
     public static event Action<string>? KillRequested;
 
