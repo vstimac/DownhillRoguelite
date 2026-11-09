@@ -17,7 +17,7 @@ public partial class StationVisitors : Node3D
     /// <summary>Chance a station has a traveller (0 to 1).</summary>
     [Export] public float VisitChance { get; set; } = 0.75f;
     /// <summary>Where they sit relative to the fire: x across the slope (the lean-to is +x), z downhill (-z), in m.</summary>
-    [Export] public Vector3 SeatOffset { get; set; } = new(-2.3f, 0.0f, 0.8f);
+    [Export] public Vector3 SeatOffset { get; set; } = new(-2.3f, 0.0f, 0.4f);
 
     public IReadOnlyList<NpcFigure> Figures => _figures;
 

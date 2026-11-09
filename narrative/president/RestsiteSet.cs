@@ -21,13 +21,13 @@ public partial class RestsiteSet : Node3D
     [Export] public PackedScene? BoardScene { get; set; }
     [Export] public PackedScene? StairsScene { get; set; }
     [Export] public PackedScene? BridgeScene { get; set; }
-    [Export] public Vector3 PodiumOffset { get; set; } = new(-10.0f, 0.0f, 0.0f);
-    [Export] public Vector3 PresidentOffset { get; set; } = new(-10.0f, 0.0f, -0.7f);
-    [Export] public Vector3 CoffeeOffset { get; set; } = new(-12.2f, 0.0f, 0.8f);
-    [Export] public Vector3 FlagsOffset { get; set; } = new(-10.0f, 0.0f, -2.4f);
-    [Export] public Vector3 BoardOffset { get; set; } = new(-13.2f, 0.0f, -1.2f);
-    [Export] public Vector3 StairsOffset { get; set; } = new(-15.0f, 0.0f, 1.6f);
-    [Export] public Vector3 BridgeOffset { get; set; } = new(-12.0f, 0.0f, 4.2f);
+    [Export] public Vector3 PodiumOffset { get; set; } = new(-13.0f, 0.0f, 0.0f);
+    [Export] public Vector3 PresidentOffset { get; set; } = new(-13.0f, 0.0f, -0.7f);
+    [Export] public Vector3 CoffeeOffset { get; set; } = new(-15.2f, 0.0f, 0.8f);
+    [Export] public Vector3 FlagsOffset { get; set; } = new(-13.0f, 0.0f, -2.4f);
+    [Export] public Vector3 BoardOffset { get; set; } = new(-16.2f, 0.0f, -1.2f);
+    [Export] public Vector3 StairsOffset { get; set; } = new(-18.0f, 0.0f, 1.6f);
+    [Export] public Vector3 BridgeOffset { get; set; } = new(-15.0f, 0.0f, 4.2f);
     [Export] public Color WoodColor { get; set; } = new(0.45f, 0.3f, 0.18f);
     [Export] public Color MetalColor { get; set; } = new(0.25f, 0.25f, 0.28f);
     [Export] public Color WallColor { get; set; } = new(0.55f, 0.52f, 0.48f);

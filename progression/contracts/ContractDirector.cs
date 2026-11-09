@@ -27,9 +27,9 @@ public partial class ContractDirector : Node3D
     /// <summary>Chance a station's board has a job at all (INITIAL TUNING: every station).</summary>
     [Export(PropertyHint.Range, "0,1")] public float OfferChance { get; set; } = 1.0f;
     /// <summary>Where the job board stands, from the station's fire (x across, z uphill), in m.</summary>
-    [Export] public Vector3 BoardOffset { get; set; } = new(-4.0f, 0.0f, -0.6f);
+    [Export] public Vector3 BoardOffset { get; set; } = new(-5.0f, 0.0f, -1.0f);
     /// <summary>Where the delivery post stands at the destination, from its fire, in m.</summary>
-    [Export] public Vector3 DeliveryOffset { get; set; } = new(-4.0f, 0.0f, 2.4f);
+    [Export] public Vector3 DeliveryOffset { get; set; } = new(-5.0f, 0.0f, 2.2f);
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
 
     [ExportGroup("Cargo condition (INITIAL TUNING)")]

@@ -4,8 +4,9 @@ using Godot;
 namespace DownhillRoguelite.Map;
 
 /// <summary>
-/// A station on its terrace, built from primitives until real models exist: a fire with flickering
-/// light, a lean-to with a bedroll (SleepSpot), a sign, and a tall faint beacon that can be seen
+/// A station on its terrace: a camp round a fire with flickering light (stone ring, log seats), a
+/// tent with a bedroll (SleepSpot), graves, a trader's corner, banners at the way in with the
+/// station's name, and a tall faint beacon that can be seen
 /// from far down the slope and through the dark. The fire crackles (audio/ambience/fire.wav), so
 /// you can hear a station before you see it.
 /// </summary>
@@ -23,8 +24,16 @@ public partial class StationSite : Node3D
     [Export] public float FlickerSpeed { get; set; } = 9.0f;
     [Export] public Color BeaconColor { get; set; } = new(1.0f, 0.75f, 0.4f, 0.35f);
     [Export] public float BeaconHeight { get; set; } = 40.0f;
-    /// <summary>Lean-to offset from the fire, sideways from the path, in m.</summary>
-    [Export] public float ShelterOffset { get; set; } = 4.5f;
+    /// <summary>The tent (with the bedroll) from the fire, in m, and its turn so it opens toward the fire (degrees).</summary>
+    [Export] public Vector3 TentAt { get; set; } = new(6.2f, 0.0f, 0.6f);
+    [Export] public float TentYaw { get; set; } = -90.0f;
+    /// <summary>The way in: the banners stand this far uphill of the fire, this far either side of the path (m).</summary>
+    [Export] public float GateZ { get; set; } = 6.0f;
+    [Export] public float GateHalfWidth { get; set; } = 2.4f;
+    /// <summary>The station's name between the banners, this high (m).</summary>
+    [Export] public float LabelHeight { get; set; } = 3.2f;
+    /// <summary>The beacon fades in from the first distance to the second (m), so it does not stand in the camp.</summary>
+    [Export] public Vector2 BeaconFade { get; set; } = new(14.0f, 40.0f);
     [Export] public Color WoodColor { get; set; } = new(0.4f, 0.28f, 0.18f);
     [Export] public Color CanvasColor { get; set; } = new(0.45f, 0.42f, 0.36f);
     [Export] public Color BedrollColor { get; set; } = new(0.35f, 0.3f, 0.45f);
@@ -39,6 +48,7 @@ public partial class StationSite : Node3D
 
     private OmniLight3D? _fire;
     private float _time;
+    private bool _tentPlaced;
 
     private void AddFireSound()
     {
@@ -74,31 +84,31 @@ public partial class StationSite : Node3D
         Name = $"Station{index}";
 
         StandardMaterial3D wood = new() { AlbedoColor = WoodColor, Roughness = 1.0f };
-        StandardMaterial3D canvas = new() { AlbedoColor = CanvasColor, Roughness = 1.0f };
 
-        // Fire: crossed logs, glowing embers, light.
-        AddMesh(new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.08f, Height = 1.0f, RadialSegments = 6 },
-            new Transform3D(new Basis(Vector3.Back, Mathf.Pi * 0.5f), new Vector3(0.0f, 0.1f, 0.0f)), wood);
-        AddMesh(new CylinderMesh { TopRadius = 0.08f, BottomRadius = 0.08f, Height = 1.0f, RadialSegments = 6 },
-            new Transform3D(new Basis(Vector3.Right, Mathf.Pi * 0.5f), new Vector3(0.0f, 0.12f, 0.0f)), wood);
-        AddMesh(new SphereMesh { Radius = 0.22f, Height = 0.3f, RadialSegments = 8, Rings = 4 },
-            new Transform3D(Basis.Identity, new Vector3(0.0f, 0.18f, 0.0f)),
+        // Fire: a stone ring and logs (models), glowing embers and a flickering light.
+        AddMesh(new SphereMesh { Radius = 0.18f, Height = 0.22f, RadialSegments = 8, Rings = 4 },
+            new Transform3D(Basis.Identity, new Vector3(0.0f, 0.12f, 0.0f)),
             new StandardMaterial3D { AlbedoColor = FireColor, EmissionEnabled = true, Emission = FireColor, EmissionEnergyMultiplier = 3.0f });
         _fire = new OmniLight3D { LightColor = FireColor, LightEnergy = FireEnergy, OmniRange = FireRange, Position = new Vector3(0.0f, 0.8f, 0.0f), ShadowEnabled = true };
         AddChild(_fire);
         AddFireSound();
         AddProps();
 
-        // Lean-to: two posts and a sloping roof, open toward the fire, with the bedroll under it.
-        Vector3 shelter = new(ShelterOffset, 0.0f, 0.0f);
-        AddMesh(new BoxMesh { Size = new Vector3(0.12f, 1.6f, 0.12f) }, new Transform3D(Basis.Identity, shelter + new Vector3(-0.8f, 0.8f, -1.1f)), wood);
-        AddMesh(new BoxMesh { Size = new Vector3(0.12f, 1.6f, 0.12f) }, new Transform3D(Basis.Identity, shelter + new Vector3(-0.8f, 0.8f, 1.1f)), wood);
-        AddMesh(new BoxMesh { Size = new Vector3(2.0f, 0.05f, 2.6f) },
-            new Transform3D(new Basis(Vector3.Back, Mathf.DegToRad(40.0f)), shelter + new Vector3(0.0f, 1.0f, 0.0f)), canvas);
-        SleepSpot bed = new() { Name = "Bedroll", Position = shelter + new Vector3(0.2f, 0.1f, 0.0f) };
-        bed.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.8f, 0.15f, 2.0f) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = BedrollColor } });
+        // The bedroll inside the tent.
+        SleepSpot bed = new() { Name = "Bedroll", Position = TentAt + new Vector3(-0.2f, 0.08f, 0.0f) };
+        bed.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(1.9f, 0.12f, 0.75f) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = BedrollColor } });
         AddChild(bed);
+        if (!_tentPlaced)
+        {
+            // No tent model: the old lean-to over the bedroll.
+            StandardMaterial3D canvas = new() { AlbedoColor = CanvasColor, Roughness = 1.0f };
+            AddMesh(new BoxMesh { Size = new Vector3(0.12f, 1.6f, 0.12f) }, new Transform3D(Basis.Identity, TentAt + new Vector3(-0.8f, 0.8f, -1.1f)), wood);
+            AddMesh(new BoxMesh { Size = new Vector3(0.12f, 1.6f, 0.12f) }, new Transform3D(Basis.Identity, TentAt + new Vector3(-0.8f, 0.8f, 1.1f)), wood);
+            AddMesh(new BoxMesh { Size = new Vector3(2.0f, 0.05f, 2.6f) },
+                new Transform3D(new Basis(Vector3.Back, Mathf.DegToRad(40.0f)), TentAt + new Vector3(0.0f, 1.0f, 0.0f)), canvas);
+        }
 
+        // The station's name hangs between the two banners at the way in.
         AddChild(WorldLabel.Readable(new Label3D
         {
             Text = $"Station {index}",
@@ -106,10 +116,10 @@ public partial class StationSite : Node3D
             PixelSize = LabelPixelSize,
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
             OutlineSize = 10,
-            Position = shelter + new Vector3(0.0f, 2.6f, 0.0f),
+            Position = new Vector3(0.0f, LabelHeight, GateZ),
         }, LabelRange));
 
-        // Beacon: a faint column of light seen from afar.
+        // Beacon: a faint column of light seen from afar, gone once you are in the camp.
         AddMesh(new CylinderMesh { TopRadius = 0.15f, BottomRadius = 0.4f, Height = BeaconHeight, RadialSegments = 8 },
             new Transform3D(Basis.Identity, new Vector3(0.0f, BeaconHeight * 0.5f, 0.0f)),
             new StandardMaterial3D
@@ -118,6 +128,9 @@ public partial class StationSite : Node3D
                 ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
                 Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
                 CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+                DistanceFadeMode = BaseMaterial3D.DistanceFadeModeEnum.PixelAlpha,
+                DistanceFadeMinDistance = BeaconFade.X,
+                DistanceFadeMaxDistance = BeaconFade.Y,
             });
     }
 
@@ -133,33 +146,51 @@ public partial class StationSite : Node3D
     }
 
     /// <summary>
-    /// Traces of carriers who came before: a few weathered gravestones behind the lean-to and a candle
-    /// lantern by the fire (Kenney graveyard kit). Heights follow the terrace's tilt down the slope.
+    /// The camp round the fire (x across the slope, -z downhill, metres from the fire): a stone ring
+    /// and logs, log seats, a tent facing the fire (the bedroll inside), the graves of carriers who
+    /// came before behind it and a fence, a trader's corner (stall, crates, a log pile, a cart) on the
+    /// far side, lanterns, and two banners at the way in. Kenney nature, graveyard, town and castle
+    /// kits and Quaternius' medieval village. Heights follow the terrace's tilt down the slope.
     /// </summary>
     private void AddProps()
     {
+        const string Nature = "res://art/props/kenney_nature_kit/GLB format/";
         const string Kit = "res://art/props/kenney_graveyard_kit/GLB format/";
         const string Town = "res://art/props/kenney_fantasy_town_kit/GLB format/";
         const string Castle = "res://art/props/kenney_castle_kit/GLB format/";
+        const string Village = "res://art/props/quaternius_medieval_village/";
         (string Model, Vector3 At, float Yaw, float Height)[] props =
         {
-            (Kit + "gravestone-round", new Vector3(7.6f, 0.0f, 2.6f), 15.0f, 1.0f),
-            (Kit + "gravestone-cross", new Vector3(8.8f, 0.0f, 0.6f), -10.0f, 1.2f),
-            (Kit + "gravestone-broken", new Vector3(7.2f, 0.0f, -1.6f), 30.0f, 0.7f),
-            (Kit + "lantern-candle", new Vector3(-1.3f, 0.0f, 1.1f), 0.0f, 0.5f),
-            // A trader's stall and a cart on the far side of the fire, a banner by the beacon,
-            // a fence behind the graves and a lamp by the job board (Kenney fantasy town and castle kits).
-            (Town + "stall-green", new Vector3(-8.0f, 0.0f, -2.8f), 90.0f, 2.4f),
-            (Town + "cart", new Vector3(-7.4f, 0.0f, 4.0f), 25.0f, 1.0f),
-            (Castle + "flag-banner-long", new Vector3(3.0f, 0.0f, -5.0f), 0.0f, 3.8f),
-            (Town + "fence", new Vector3(10.0f, 0.0f, 1.0f), 0.0f, 0.9f),
-            (Town + "fence-broken", new Vector3(10.1f, 0.0f, -1.4f), 6.0f, 0.9f),
-            (Town + "lantern", new Vector3(-3.4f, 0.0f, -3.6f), 0.0f, 2.2f),
+            (Nature + "campfire_stones.glb", Vector3.Zero, 0.0f, 0.3f),
+            (Nature + "campfire_logs.glb", Vector3.Zero, 20.0f, 0.45f),
+            // Seats: a log on each side and a stump, round the fire.
+            (Nature + "log.glb", new Vector3(-2.4f, 0.0f, 0.4f), 90.0f, 0.4f),
+            (Nature + "log.glb", new Vector3(2.0f, 0.0f, 1.6f), 50.0f, 0.4f),
+            (Nature + "stump_round.glb", new Vector3(0.4f, 0.0f, 2.5f), 0.0f, 0.45f),
+            (Kit + "lantern-candle.glb", new Vector3(-1.3f, 0.0f, 1.3f), 0.0f, 0.5f),
+            // The tent, open toward the fire.
+            (Nature + "tent_detailedOpen.glb", TentAt, TentYaw, 2.2f),
+            // Graves behind the tent, a fence behind them.
+            (Kit + "gravestone-round.glb", new Vector3(9.4f, 0.0f, 2.2f), -75.0f, 1.0f),
+            (Kit + "gravestone-cross.glb", new Vector3(9.8f, 0.0f, 0.4f), -95.0f, 1.2f),
+            (Kit + "gravestone-broken.glb", new Vector3(9.3f, 0.0f, -1.4f), -60.0f, 0.7f),
+            (Town + "fence.glb", new Vector3(11.6f, 0.0f, 1.4f), 90.0f, 0.9f),
+            (Town + "fence-broken.glb", new Vector3(11.7f, 0.0f, -1.0f), 96.0f, 0.9f),
+            // The trader's corner across the fire.
+            (Town + "stall-green.glb", new Vector3(-8.2f, 0.0f, 0.4f), 90.0f, 2.4f),
+            (Village + "Prop_Crate.gltf", new Vector3(-8.4f, 0.0f, 2.8f), 15.0f, 0.6f),
+            (Village + "Prop_Crate.gltf", new Vector3(-7.7f, 0.0f, 3.4f), -20.0f, 0.5f),
+            (Nature + "log_stack.glb", new Vector3(-7.8f, 0.0f, -2.4f), 90.0f, 0.7f),
+            (Town + "cart.glb", new Vector3(-6.4f, 0.0f, 5.2f), 25.0f, 1.0f),
+            (Town + "lantern.glb", new Vector3(-3.6f, 0.0f, -3.4f), 0.0f, 2.2f),
+            (Town + "lantern.glb", new Vector3(4.2f, 0.0f, 3.0f), 0.0f, 2.2f),
+            // The way in (uphill): two banners with the station's name between them.
+            (Castle + "flag-banner-long.glb", new Vector3(-GateHalfWidth, 0.0f, GateZ), 0.0f, 3.8f),
+            (Castle + "flag-banner-long.glb", new Vector3(GateHalfWidth, 0.0f, GateZ), 0.0f, 3.8f),
         };
         float tilt = Mathf.Tan(Mathf.DegToRad(TerraceSlope));
-        foreach ((string model, Vector3 at, float yaw, float height) in props)
+        foreach ((string path, Vector3 at, float yaw, float height) in props)
         {
-            string path = model + ".glb";
             if (!ResourceLoader.Exists(path) || ResourceLoader.Load(path) is not PackedScene scene)
             {
                 continue;
@@ -172,6 +203,10 @@ public partial class StationSite : Node3D
             Node3D place = new() { Position = new Vector3(at.X, at.Z * tilt, at.Z), RotationDegrees = new Vector3(0.0f, yaw, 0.0f) };
             place.AddChild(holder);
             AddChild(place);
+            if (at == TentAt && path.Contains("tent"))
+            {
+                _tentPlaced = true;
+            }
         }
     }
 
