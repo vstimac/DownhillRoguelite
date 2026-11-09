@@ -62,7 +62,12 @@ public partial class HandCartTests : Node3D
 		Check("it settles on the ground and stays parked", cart.Parked && cart.GlobalPosition.DistanceTo(parked) < 0.05f,
 			$"after {settled:0.0} s, frozen {cart.Freeze}, moved {cart.GlobalPosition.DistanceTo(parked):0.00} m");
 
-		// Take it and walk downhill.
+		// Turn it so the handles point downhill, stand in front of them facing away, take it and walk downhill.
+		Vector3 at = cart.GlobalPosition;
+		cart.GlobalTransform = new Transform3D(Basis.LookingAt(downhill, Vector3.Up), at);
+		Vector3 stand = at + downhill * (-cart.HandleTip.Z + cart.HitchDistance);
+		PlayerBody.Teleport(stand + Vector3.Up * 0.5f, Mathf.Atan2(-downhill.X, -downhill.Z));
+		await Wait(0.3f);
 		cart.Take(PlayerBody);
 		float factor = PlayerBody.TowFactor(0.0f);
 		Check("taking it slows the carrier by its weight", cart.Towing && Mathf.IsEqualApprox(GameEvents.TowMass, cart.Mass) && factor < 1.0f,

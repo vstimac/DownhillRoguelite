@@ -30,6 +30,8 @@ public partial class HandCart : RigidBody3D, IInteractable
     /// <summary>The leg under the front of the bed it rests on when let go (centre and radius).</summary>
     [Export] public Vector3 LegAt { get; set; } = new(0.0f, -0.25f, -0.75f);
     [Export] public float LegRadius { get; set; } = 0.1f;
+    /// <summary>Balance point from the axle: a little toward the handles, so the cart rests on its leg, not its tail.</summary>
+    [Export] public Vector3 BalancePoint { get; set; } = new(0.0f, 0.12f, -0.3f);
     [Export] public Color WoodColor { get; set; } = new(0.45f, 0.3f, 0.18f);
     [Export] public Color DarkWoodColor { get; set; } = new(0.3f, 0.2f, 0.12f);
     [Export] public Color IronColor { get; set; } = new(0.25f, 0.25f, 0.27f);
@@ -56,6 +58,12 @@ public partial class HandCart : RigidBody3D, IInteractable
     /// <summary>Let go: brakes this hard (per s) for this long (s), then parks still until taken again.</summary>
     [Export] public float ParkDrag { get; set; } = 6.0f;
     [Export] public float SettleSeconds { get; set; } = 1.2f;
+    /// <summary>Grip on the ground when let go (the wheels braked, the leg down); none while pulled (the wheels roll).</summary>
+    [Export] public float ParkFriction { get; set; } = 1.2f;
+    /// <summary>Settling longer than this (s), it parks wherever it is, if it touches ground.</summary>
+    [Export] public float MaxSettleSeconds { get; set; } = 4.0f;
+    /// <summary>Just taken, the handles may be this long (s) out of reach before they slip.</summary>
+    [Export] public float TakeGrace { get; set; } = 1.0f;
     /// <summary>Ground the cart rolls on and is set down on (terrain).</summary>
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
 
@@ -91,6 +99,14 @@ public partial class HandCart : RigidBody3D, IInteractable
     private float _settleTimer;
     private float _cargoTimer;
     private bool _onGround;
+    private float _settled;
+    private float _held;
+
+    /// <summary>The body's friction: none while pulled (rolling and grip are applied by hand), braked when let go.</summary>
+    private void SetGrip(float friction)
+    {
+        PhysicsMaterialOverride = new PhysicsMaterial { Friction = friction, Bounce = 0.0f };
+    }
 
     public override void _Ready()
     {
@@ -99,13 +115,13 @@ public partial class HandCart : RigidBody3D, IInteractable
         CollisionLayer = 1;
         CollisionMask = GroundMask;
         // The wheels slide freely; rolling and grip are applied by hand in _IntegrateForces.
-        PhysicsMaterialOverride = new PhysicsMaterial { Friction = 0.0f, Bounce = 0.0f };
+        SetGrip(ParkFriction);
         ContactMonitor = true;
         MaxContactsReported = 6;
         CanSleep = false;
         AngularDamp = 1.5f;
         CenterOfMassMode = CenterOfMassModeEnum.Custom;
-        CenterOfMass = new Vector3(0.0f, BedCentre.Y * 0.5f, BedCentre.Z);
+        CenterOfMass = BalancePoint;
         Build();
         _cargo = new Node3D { Name = "Cargo" };
         AddChild(_cargo);
@@ -169,6 +185,8 @@ public partial class HandCart : RigidBody3D, IInteractable
         Freeze = false;
         _onGround = true;
         _settleTimer = 0.0f;
+        _held = 0.0f;
+        SetGrip(0.0f);
         GameEvents.PublishTow(Mass);
         UpdatePrompt();
     }
@@ -182,6 +200,8 @@ public partial class HandCart : RigidBody3D, IInteractable
         Puller = null;
         Freeze = false;
         _settleTimer = SettleSeconds;
+        _settled = 0.0f;
+        SetGrip(ParkFriction);
         GameEvents.PublishTow(0.0f);
         UpdatePrompt();
     }
@@ -199,12 +219,14 @@ public partial class HandCart : RigidBody3D, IInteractable
                 _onGround = true;
                 Freeze = false;
                 _settleTimer = SettleSeconds;
+                _settled = 0.0f;
             }
         }
         if (Towing)
         {
-            if (Puller == null || !IsInstanceValid(Puller) || !Puller.IsInsideTree() || GameEvents.IsDowned
-                || HandlePoint.DistanceTo(Hitch()) > BreakDistance)
+            _held += dt;
+            bool slipped = _held > TakeGrace && HandlePoint.DistanceTo(Hitch()) > BreakDistance;
+            if (Puller == null || !IsInstanceValid(Puller) || !Puller.IsInsideTree() || GameEvents.IsDowned || slipped)
             {
                 LetGo();
             }
@@ -212,9 +234,13 @@ public partial class HandCart : RigidBody3D, IInteractable
         else if (_settleTimer > 0.0f)
         {
             _settleTimer -= dt;
-            if (_settleTimer <= 0.0f && LinearVelocity.Length() < 0.5f)
+            _settled += dt;
+            bool still = LinearVelocity.Length() < 0.5f && AngularVelocity.Length() < 1.0f;
+            bool touching = GetContactCount() > 0;
+            if (_settleTimer <= 0.0f && touching && (still || _settled >= MaxSettleSeconds))
             {
                 Freeze = true;
+                _settleTimer = 0.0f;
             }
             else if (_settleTimer <= 0.0f)
             {

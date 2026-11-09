@@ -8,9 +8,9 @@ using Godot;
 namespace DownhillRoguelite.Debug;
 
 /// <summary>
-/// Headless checks for the dive (Left Ctrl) and the landing roll (Space while falling): a dive carries
-/// the carrier well forward and lands him on his feet; diving off a high ledge hands him to falling
-/// and he ends up on the ground below; a 7 m fall with Space in the window rolls (no knockdown);
+/// Headless checks for the dive (Left Ctrl) and the landing roll (Space while falling): a dive throws
+/// the carrier forward as a ragdoll and he gets up again; diving off a high ledge throws him over and
+/// he ends up on the ground below; a 7 m fall with Space in the window rolls (no knockdown);
 /// the same fall without it knocks him down.
 /// Run: godot --headless --path . --fixed-fps 60 res://debug/tests/DiveTests.tscn
 /// </summary>
@@ -70,17 +70,24 @@ public partial class DiveTests : Node3D
 
     private async Task TestDive(PlayerController player, Dive dive)
     {
+        // Ctrl throws him as a ragdoll, forward and up, head first; he gets up like after any fall.
         Vector3 start = player.GlobalPosition;
         bool started = dive.TryDive();
-        for (int i = 0; i < 400 && dive.Diving; i++)
+        bool wentDown = false;
+        for (int i = 0; i < 60 && !wentDown; i++)
+        {
+            await Frame();
+            wentDown = GameEvents.IsDowned;
+        }
+        for (int i = 0; i < 900 && GameEvents.IsDowned; i++)
         {
             await Frame();
         }
         await WaitSeconds(0.5f);
         float travelled = new Vector2(player.GlobalPosition.X - start.X, player.GlobalPosition.Z - start.Z).Length();
         float height = Height(player);
-        Check(started && !dive.Diving && travelled > 4.0f && !GameEvents.IsDowned && height < 0.3f,
-            $"Left Ctrl dives {travelled:0.0} m forward and lands him on his feet", $"dive: started {started}, travelled {travelled:0.0} m, downed {GameEvents.IsDowned}, {height:0.00} m above ground");
+        Check(started && wentDown && travelled > 2.0f && !GameEvents.IsDowned && height < 0.3f,
+            $"Left Ctrl throws him {travelled:0.0} m forward as a ragdoll and he gets up", $"dive: started {started}, ragdoll {wentDown}, travelled {travelled:0.0} m, still down {GameEvents.IsDowned}, {height:0.00} m above ground");
     }
 
     private async Task TestLedge(PlayerController player, Dive dive)
@@ -95,23 +102,22 @@ public partial class DiveTests : Node3D
         await WaitSeconds(0.6f);
         float top = player.GlobalPosition.Y;
         bool started = dive.TryDive();
-        bool released = false;
-        for (int i = 0; i < 400; i++)
+        bool wentDown = false;
+        for (int i = 0; i < 60 && !wentDown; i++)
         {
             await Frame();
-            if (!dive.Diving)
-            {
-                // Handed to a fall: still well above the ground when the dive lets go.
-                released = Height(player) > 3.0f;
-                break;
-            }
+            wentDown = GameEvents.IsDowned;
         }
         await WaitSeconds(3.0f);
         float below = top - player.GlobalPosition.Y;
-        Check(started && released && below > 5.0f, $"diving off an 8 m ledge hands him to falling: he ends up {below:0.0} m lower",
-            $"ledge: started {started}, released into a fall {released}, {below:0.0} m lower");
+        Check(started && wentDown && below > 5.0f, $"diving off an 8 m ledge throws him over as a ragdoll: he ends up {below:0.0} m lower",
+            $"ledge: started {started}, ragdoll {wentDown}, {below:0.0} m lower");
         ledge.QueueFree();
-        await WaitSeconds(5.0f);
+        for (int i = 0; i < 900 && GameEvents.IsDowned; i++)
+        {
+            await Frame();
+        }
+        await WaitSeconds(2.0f);
     }
 
     private async Task TestRoll(PlayerController player, Dive dive, bool press)
