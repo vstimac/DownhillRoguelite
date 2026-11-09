@@ -76,7 +76,7 @@ Wet garments lose some warmth. Durability remains the existing hit-point system.
 
 ### Base characters and body-cut clothes
 
-"The Carrier (modular)" (Character menu) is a modular base character (Quaternius Universal Base Characters, Unreal bone
+The default carrier, "The Carrier (modular)", is a modular base character (Quaternius Universal Base Characters, Unreal bone
 names; art/characters/quaternius_ubc). It ships in underwear, so ClothingVisualController cuts a shirt,
 trousers and boots from the body mesh itself (player/BodyGarment.cs): the triangles that the torso, leg
 or foot bones drive, pushed a few millimetres out and skinned to the same skeleton. They fit any body of

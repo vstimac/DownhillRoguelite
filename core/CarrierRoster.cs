@@ -14,13 +14,43 @@ public partial class CarrierRoster : Resource
 
     [Export] public string[] CharacterPaths { get; set; } = System.Array.Empty<string>();
 
+    /// <summary>
+    /// Rosters and characters stay loaded once read. Loading them afresh each time let .NET finalize a
+    /// character on its own thread while the game was loading the same file again, which crashed the
+    /// game (Godot: "gchandle.is_released"); held here, they are never finalized mid-game.
+    /// </summary>
+    private static readonly Dictionary<string, CarrierRoster?> Rosters = new();
+    private static readonly Dictionary<string, CarrierCharacter?> Characters = new();
+
     public static CarrierRoster? Load(string path = DefaultPath)
     {
-        if (!ResourceLoader.Exists(path))
+        if (Rosters.TryGetValue(path, out CarrierRoster? cached))
         {
-            return null;
+            return cached;
         }
-        return ResourceLoader.Load(path) as CarrierRoster;
+        CarrierRoster? roster = null;
+        if (ResourceLoader.Exists(path))
+        {
+            roster = ResourceLoader.Load(path) as CarrierRoster;
+        }
+        Rosters[path] = roster;
+        return roster;
+    }
+
+    /// <summary>The character at <paramref name="path"/> (kept loaded; null if it isn't a character).</summary>
+    public static CarrierCharacter? LoadCharacter(string path)
+    {
+        if (Characters.TryGetValue(path, out CarrierCharacter? cached))
+        {
+            return cached;
+        }
+        CarrierCharacter? character = null;
+        if (ResourceLoader.Exists(path))
+        {
+            character = ResourceLoader.Load(path) as CarrierCharacter;
+        }
+        Characters[path] = character;
+        return character;
     }
 
     /// <summary>Every character whose model is present, in roster order.</summary>
@@ -29,7 +59,7 @@ public partial class CarrierRoster : Resource
         List<CarrierCharacter> list = new();
         foreach (string path in CharacterPaths)
         {
-            if (ResourceLoader.Exists(path) && ResourceLoader.Load(path) is CarrierCharacter character && character.Available)
+            if (LoadCharacter(path) is CarrierCharacter character && character.Available)
             {
                 list.Add(character);
             }

@@ -126,11 +126,23 @@ public static class ItemText
     /// <summary>The item definition for an id (items live at res://inventory/items/&lt;id&gt;.tres).</summary>
     public static ItemDefinition? Find(string itemId)
     {
-        string path = $"res://inventory/items/{itemId}.tres";
-        if (!ResourceLoader.Exists(path))
+        if (Definitions.TryGetValue(itemId, out ItemDefinition? cached))
         {
-            return null;
+            return cached;
         }
-        return ResourceLoader.Load(path) as ItemDefinition;
+        string path = $"res://inventory/items/{itemId}.tres";
+        ItemDefinition? item = null;
+        if (ResourceLoader.Exists(path))
+        {
+            item = ResourceLoader.Load(path) as ItemDefinition;
+        }
+        Definitions[itemId] = item;
+        return item;
     }
+
+    /// <summary>
+    /// Definitions stay loaded once read: loading them afresh each time let .NET finalize one on its own
+    /// thread while the game loaded the same file again, a crash (Godot: "gchandle.is_released").
+    /// </summary>
+    private static readonly System.Collections.Generic.Dictionary<string, ItemDefinition?> Definitions = new();
 }
