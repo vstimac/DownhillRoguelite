@@ -54,6 +54,7 @@
 [ext_resource type="Script" uid="uid://b2wjmgqn356je" path="res://narrative/StationVisitors.cs" id="48_visitors"]
 [ext_resource type="Script" uid="uid://i6f7icm2ie46" path="res://world_ui/StartScreen.cs" id="49_start_screen"]
 [ext_resource type="Script" path="res://world_ui/LoadingScreen.cs" id="90_loading_screen"]
+[ext_resource type="Script" path="res://world_ui/ClappingCatOverlay.cs" id="91_clapping_cat"]
 [ext_resource type="Script" uid="uid://fvuoqxhimvmk" path="res://environment/FootTrail.cs" id="49_trail"]
 [ext_resource type="Script" uid="uid://lnmaamvwxdaf" path="res://progression/contracts/ContractDirector.cs" id="50_contracts"]
 [ext_resource type="Resource" path="res://progression/contracts/resources/courier_sealed_parcel.tres" id="51_courier_parcel"]
@@ -400,3 +401,6 @@ script = ExtResource("49_start_screen")
 [node name="LoadingScreen" type="CanvasLayer" parent="." unique_id=1907733101 node_paths=PackedStringArray("Streamer")]
 script = ExtResource("90_loading_screen")
 Streamer = NodePath("../Terrain")
+
+[node name="ClappingCat" type="CanvasLayer" parent="." unique_id=1907733187]
+script = ExtResource("91_clapping_cat")
