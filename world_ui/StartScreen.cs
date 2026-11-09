@@ -567,6 +567,7 @@ public partial class StartScreen : CanvasLayer
             return;
         }
         Started = true;
+        GetNodeOrNull<RunState>("/root/RunState")?.BeginCharacterRun();
         Current = Page.Starting;
         _warmup = 0.0f;
         GetViewport().GuiReleaseFocus();

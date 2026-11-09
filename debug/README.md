@@ -10,3 +10,7 @@ editable nodes; its movement settings are local to the practice scene.
 **`TestClothing.tscn`** is the equipment workshop: garment toggles, Carrier/Vučić preview,
 condition/colour changes and explicit carried-load save/load. See [the clothing guide](../docs/modular-clothing.md).
 Debug game runs record the viewport every five rendered frames; **F9** pauses/resumes recording.
+
+**`TestCharacterAbilities.tscn`** compares origin stats, health/stamina capacities and abilities.
+Choose a character, spend stamina and press **H**; the parchment HUD shows active time/cooldown.
+See [the character stats and editing guide](../docs/character-abilities.md).

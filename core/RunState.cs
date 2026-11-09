@@ -31,6 +31,10 @@ public partial class RunState : Node
 
     /// <summary>What this run's boons changed (reset with every run).</summary>
     public RunModifiers Modifiers { get; } = new();
+    public CharacterRun Character { get; } = new();
+    public bool CharacterRunStarted { get; private set; }
+    public event System.Action? CharacterChanged;
+    public event System.Action<CharacterStats>? CharacterAbilityActivated;
     /// <summary>Names of the items this run started with (unlocked by the records).</summary>
     public System.Collections.Generic.List<string> StartingKit { get; } = new();
     /// <summary>Names of the boons chosen this run, in order.</summary>
@@ -146,6 +150,34 @@ public partial class RunState : Node
         GameEvents.ContractResolved += OnContractResolved;
         GameEvents.RelicDelivered += OnRelicDelivered;
         RunNumber = Records.Runs + 1;
+        ConfigureCharacter(null, false);
+    }
+
+    private void ConfigureCharacter(string? requested, bool started)
+    {
+        string id = "default";
+        if (DisplayServer.GetName() != "headless") { GameOptions.Load(); id = GameOptions.Character; }
+        if (requested != null) { id = requested; }
+        foreach (string arg in OS.GetCmdlineUserArgs())
+        { if (arg.StartsWith("--character=", System.StringComparison.Ordinal)) { id = arg["--character=".Length..]; } }
+        CarrierCharacter? selected = null;
+        // Core headless regressions have a deterministic neutral Carrier baseline, independent of player saves/model availability.
+        if (DisplayServer.GetName() == "headless" && id == "default")
+        { selected = GD.Load<CarrierCharacter>("res://art/characters/carrier.tres"); }
+        else { selected = CarrierRoster.Load()?.Pick(id); }
+        Character.Select(selected);
+        CharacterRunStarted = started;
+        CharacterChanged?.Invoke();
+    }
+
+    public void BeginCharacterRun(string? id = null) { ConfigureCharacter(id, true); }
+
+    public bool TryUseCharacterAbility()
+    {
+        if (RunOver || GetTree().Paused || GameEvents.IsDowned || GameEvents.IsPacking || GameEvents.IsConversing || !Character.Activate()) { return false; }
+        CharacterAbilityActivated?.Invoke(Character.Stats);
+        GameEvents.PublishHint(Character.Stats.AbilityName + " activated.");
+        return true;
     }
 
     /// <summary>A seed nobody chose: the clock's microseconds through SplitMix64.</summary>
@@ -191,6 +223,7 @@ public partial class RunState : Node
     {
         if (!RunOver)
         {
+            Character.Tick((float)delta);
             return;
         }
         _overTimer += (float)delta;
@@ -251,6 +284,7 @@ public partial class RunState : Node
         Stage = 0;
         Depth = 0;
         Modifiers.Reset();
+        ConfigureCharacter(null, true);
         Boons.Clear();
         Telemetry.Reset();
         Lore.BeginRun();

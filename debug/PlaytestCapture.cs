@@ -86,9 +86,12 @@ public partial class PlaytestCapture : Node
             }
             _previous = small;
             Vector3 position = GameEvents.CarrierPosition;
+            RunState? run = GetNodeOrNull<RunState>("/root/RunState");
             _index.Add(new { Sequence = _sequence++, RenderedFrame = _frame, File = file,
                 Seconds = Time.GetTicksMsec() / 1000.0, PixelChange = change, SignificantChange = change >= ChangeThreshold,
-                Character = GameOptions.Character, Paused = GetTree().Paused, Position = new[] { position.X, position.Y, position.Z } });
+                Character = run?.Character.Id ?? GameOptions.Character, SelectedCharacter = GameOptions.Character,
+                AbilityActive = run?.Character.Active, AbilitySeconds = run?.Character.ActiveLeft, CooldownSeconds = run?.Character.CooldownLeft,
+                Paused = GetTree().Paused, Position = new[] { position.X, position.Y, position.Z } });
             if (_index.Count > MaxImages) { _index.RemoveAt(0); }
             string manifest = JsonSerializer.Serialize(new { EveryFrames, MaxImages, Frames = _index }, new JsonSerializerOptions { WriteIndented = true });
             string temporary = Path.Combine(SessionDirectory, "index.tmp");

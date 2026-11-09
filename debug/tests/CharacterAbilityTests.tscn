@@ -1,0 +1,6 @@
+[gd_scene format=3]
+[ext_resource type="Script" path="res://debug/tests/CharacterAbilityTests.cs" id="1_tests"]
+[ext_resource type="PackedScene" path="res://debug/LearnGodot.tscn" id="2_world"]
+[node name="CharacterAbilityTests" type="Node3D"]
+script = ExtResource("1_tests")
+[node name="World" parent="." instance=ExtResource("2_world")]

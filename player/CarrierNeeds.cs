@@ -153,7 +153,7 @@ public partial class CarrierNeeds : Node
             if (_run != null)
             {
                 colder = _run.DepthColdFactor;
-                resistance = Mathf.Clamp(_run.Modifiers.ColdResistance, 0.0f, 0.9f);
+                resistance = Mathf.Clamp(_run.Modifiers.ColdResistance + _run.Character.ColdResistance, 0.0f, 0.9f);
             }
             // Boons and warm clothes both keep cold off.
             Cold = Mathf.Clamp((Cold + Chill) * colder * (1.0f - resistance) * (1.0f - gear.Warmth), 0.0f, 1.0f);
@@ -187,7 +187,7 @@ public partial class CarrierNeeds : Node
         }
         if (_run != null)
         {
-            rate *= _run.DifficultySettings.NeedsDrainMultiplier * _run.DepthNeedsFactor * _run.Modifiers.NeedsDrain;
+            rate *= _run.DifficultySettings.NeedsDrainMultiplier * _run.DepthNeedsFactor * _run.Modifiers.NeedsDrain * _run.Character.Stats.NeedsDrain;
         }
         return rate;
     }
@@ -221,7 +221,7 @@ public partial class CarrierNeeds : Node
         float rate = SleepDrainFactor;
         if (_run != null)
         {
-            rate *= _run.DifficultySettings.NeedsDrainMultiplier * _run.DepthNeedsFactor * _run.Modifiers.NeedsDrain;
+            rate *= _run.DifficultySettings.NeedsDrainMultiplier * _run.DepthNeedsFactor * _run.Modifiers.NeedsDrain * _run.Character.Stats.NeedsDrain;
         }
         Hunger = Mathf.Max(0.0f, Hunger - HungerPerHour * rate * hours);
         Thirst = Mathf.Max(0.0f, Thirst - ThirstPerHour * rate * hours);

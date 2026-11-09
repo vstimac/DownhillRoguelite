@@ -53,23 +53,41 @@ public partial class CarrierStamina : Node
     public float RecoveryMultiplier { get; set; } = 1.0f;
     /// <summary>Scales the maximum; hunger lowers it (CarrierNeeds).</summary>
     public float MaxMultiplier { get; set; } = 1.0f;
-    public float EffectiveMax => Mathf.Max(0.0f, Max * MaxMultiplier);
+    public float EffectiveMax => Mathf.Max(0.0f, Max * MaxMultiplier * (_run?.Character.Stats.Stamina ?? 1));
     /// <summary>Recovery threshold, capped so a reduced maximum can always reach it.</summary>
     public float EffectiveRecoverLevel => Mathf.Min(ExhaustedRecoverLevel, EffectiveMax);
     /// <summary>Seconds of the recovery delay still left, for route estimates.</summary>
     public float RecoveryWaitSeconds => Mathf.Max(0.0f, RecoveryDelay - _sinceUse);
     public bool CanSprint => !Exhausted && Current > 0.0f;
     /// <summary>Recovery per second right now, with needs applied.</summary>
-    public float EffectiveRecovery => RecoveryPerSecond * RecoveryMultiplier;
+    public float EffectiveRecovery => RecoveryPerSecond * RecoveryMultiplier * (_run?.Character.Stats.Recovery ?? 1);
 
     private float _sinceUse;
 
     private RunState? _run;
+    private float _characterCapacity = 1;
 
     public override void _Ready()
     {
         _run = GetNodeOrNull<RunState>("/root/RunState");
+        if (_run != null) { _characterCapacity = _run.Character.Stats.Stamina; _run.CharacterChanged += OnCharacterChanged; }
         Refill();
+    }
+
+    public override void _ExitTree() { if (_run != null) { _run.CharacterChanged -= OnCharacterChanged; } }
+
+    private void OnCharacterChanged()
+    {
+        float next = _run!.Character.Stats.Stamina;
+        Current = Mathf.Min(EffectiveMax, Current * next / _characterCapacity);
+        _characterCapacity = next;
+    }
+
+    public void Restore(float amount)
+    {
+        if (!float.IsFinite(amount) || amount <= 0) { return; }
+        Current = Mathf.Min(EffectiveMax, Current + amount);
+        if (Current > 0 && Current >= EffectiveRecoverLevel) { Exhausted = false; }
     }
 
     public override void _PhysicsProcess(double delta)
@@ -121,8 +139,9 @@ public partial class CarrierStamina : Node
         {
             walkModifier = _run.Modifiers.WalkDrain;
             loadModifier = _run.Modifiers.LoadDrain;
+            loadModifier *= _run.Character.Stats.LoadEffort;
         }
-        return drain * walkModifier * (1.0f + LoadDrainPerKg * loadModifier * loadMass) * GameEvents.CurrentGear.StaminaFactor;
+        return drain * walkModifier * (1.0f + LoadDrainPerKg * loadModifier * loadMass) * GameEvents.CurrentGear.StaminaFactor * (_run?.Character.StaminaCost ?? 1);
     }
 
     /// <summary>Drains one physics step of moving under one's own power.</summary>
@@ -137,7 +156,7 @@ public partial class CarrierStamina : Node
     /// <summary>Spends a fixed cost (a jump) if there is enough; returns whether it was spent.</summary>
     public bool TrySpend(float amount)
     {
-        float cost = amount * GameEvents.CurrentGear.StaminaFactor;
+        float cost = amount * GameEvents.CurrentGear.StaminaFactor * (_run?.Character.StaminaCost ?? 1);
         if (!float.IsFinite(cost) || cost < 0.0f || Exhausted || Current < cost)
         {
             return false;

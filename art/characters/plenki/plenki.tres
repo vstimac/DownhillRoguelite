@@ -1,6 +1,22 @@
 [gd_resource type="Resource" script_class="CarrierCharacter" format=3]
 
 [ext_resource type="Script" path="res://core/CarrierCharacter.cs" id="1_character"]
+[ext_resource type="Script" path="res://core/CharacterStats.cs" id="2_stats"]
+
+[sub_resource type="Resource" id="Stats"]
+script = ExtResource("2_stats")
+Health = 0.9
+Stamina = 1.2
+Speed = 0.95
+Recovery = 1.1
+NeedsDrain = 0.9
+AbilityName = "Measured Pace"
+AbilityDescription = "For 10s: half stamina costs and 35% cold resistance, at 90% speed."
+Cooldown = 70.0
+Duration = 10.0
+ActiveStaminaCost = 0.5
+ActiveColdResistance = 0.35
+ActiveSpeed = 0.9
 
 [resource]
 script = ExtResource("1_character")
@@ -8,3 +24,4 @@ Id = "plenki"
 DisplayName = "Plenki"
 Description = "On the way. Their model isn't in the game yet."
 ModelPath = "res://art/characters/plenki/plenki.glb"
+Stats = SubResource("Stats")

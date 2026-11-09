@@ -372,6 +372,7 @@ public partial class PlayerRagdoll : Node
         if (damage > 0.0f)
         {
             damage *= (1.0f - GameEvents.CurrentGear.FallProtection) * (1.0f - GameEvents.CurrentGear.PhysicalProtection);
+            damage *= GetNodeOrNull<RunState>("/root/RunState")?.Character.ImpactFactor ?? 1;
             FallDamage += damage;
             Health?.TakeDamage(damage, source);
         }

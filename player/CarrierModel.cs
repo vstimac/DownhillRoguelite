@@ -47,6 +47,8 @@ public partial class CarrierModel : Node3D
         GameOptions.Load();
         GameEvents.GearChanged += OnGear;
         GameOptions.Changed += OnOptions;
+        RunState? run = GetNodeOrNull<RunState>("/root/RunState");
+        if (run != null) { run.CharacterChanged += OnOptions; }
         Show(Chosen());
     }
 
@@ -54,6 +56,8 @@ public partial class CarrierModel : Node3D
     {
         GameEvents.GearChanged -= OnGear;
         GameOptions.Changed -= OnOptions;
+        RunState? run = GetNodeOrNull<RunState>("/root/RunState");
+        if (run != null) { run.CharacterChanged -= OnOptions; }
     }
 
     /// <summary>Shows a character by id without saving it as the choice (tests); false if it isn't available.</summary>
@@ -84,6 +88,8 @@ public partial class CarrierModel : Node3D
     private CarrierCharacter? Chosen()
     {
         string id = GameOptions.Character;
+        RunState? run = GetNodeOrNull<RunState>("/root/RunState");
+        if (run?.CharacterRunStarted == true) { id = run.Character.Id; }
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             if (arg.StartsWith(CharacterArg))

@@ -19,6 +19,9 @@ of BG3's complete editor or assets.
 - Turn left/right orbit the portrait in 45-degree steps so the back-mounted pack can be inspected.
 - A portrait-only fill light improves inspection without adding a permanent gameplay light.
 - Confirm appearance keeps the choice and returns to the main menu; New Run starts the game.
+- Each origin displays its own stats and ability. New Run locks that gameplay profile for the run;
+  **H** activates its ability. See [character stats and abilities](character-abilities.md) for tuning,
+  cooldowns and the dedicated test scene. Base outfit colour changes remain cosmetic.
 - Character and base colours persist in the existing options file. Resetting gameplay options
   preserves these identity/appearance choices.
 - Worn garment variants/tints remain per-copy equipment data, separate from the cosmetic base

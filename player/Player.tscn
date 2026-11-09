@@ -19,6 +19,7 @@
 [ext_resource type="Script" path="res://player/CarrierModel.cs" id="17_carrier_model"]
 [ext_resource type="Script" path="res://player/Dive.cs" id="18_vault"]
 [ext_resource type="Script" path="res://player/BodyDynamics.cs" id="19_body_dynamics"]
+[ext_resource type="Script" path="res://player/CharacterAbility.cs" id="20_character_ability"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.3
@@ -109,6 +110,9 @@ Body = NodePath("..")
 script = ExtResource("16_estimator")
 Body = NodePath("..")
 Stamina = NodePath("../Stamina")
+
+[node name="CharacterAbility" type="Node" parent="."]
+script = ExtResource("20_character_ability")
 
 [node name="Dive" type="Node3D" parent="." node_paths=PackedStringArray("Body", "Look")]
 script = ExtResource("18_vault")

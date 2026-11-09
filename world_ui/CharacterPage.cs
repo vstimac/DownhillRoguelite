@@ -32,6 +32,7 @@ public partial class CharacterPage : ParchmentPanel
     private float _pendingLeft;
     private ScrollContainer? _scroll;
     private Label? _presetName;
+    private Label? _stats;
 
     public CharacterPage()
     {
@@ -58,6 +59,7 @@ public partial class CharacterPage : ParchmentPanel
         _carousel.Shown += character =>
         {
             _pending = null;
+            if (_stats != null) { _stats.Text = character.Stats?.Summary() ?? ""; }
             if (_presetName != null)
             {
                 if (character.Id == "vucic") { _presetName.Text = "Aleksandar Vučić · origin preset"; }
@@ -74,6 +76,9 @@ public partial class CharacterPage : ParchmentPanel
         if (_carousel.Character?.Id == "vucic") { _presetName.Text = "Aleksandar Vučić · origin preset"; }
         else { _presetName.Text = (_carousel.Character?.DisplayName ?? "Carrier") + " · origin preset"; }
         content.AddChild(_presetName);
+        _stats = UiStyle.MakeLabel(_carousel.Character?.Stats?.Summary() ?? "", 16);
+        _stats.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        content.AddChild(_stats);
         content.AddChild(UiStyle.MakeLabel("Base outfit colours", 22, true));
         content.AddChild(Palette("Shirt", colour => GameOptions.SetBaseOutfitColours(colour, GameOptions.BasePackColour)));
         content.AddChild(Palette("Pack", colour => GameOptions.SetBaseOutfitColours(GameOptions.BaseShirtColour, colour)));
@@ -149,8 +154,8 @@ public partial class CharacterPage : ParchmentPanel
         float top = HeaderHeight + 14.0f;
         _scroll.Position = new Vector2(Margin, top);
         _scroll.Size = new Vector2(Size.X - Margin * 2.0f, Mathf.Max(Size.Y - top - 75.0f, 90.0f));
-        _carousel.Size = new Vector2(_scroll.Size.X - 14.0f, 220.0f);
-        _carousel.CustomMinimumSize = new Vector2(0, Mathf.Max(220, _carousel.NeededHeight() + 8));
+        _carousel.Size = new Vector2(_scroll.Size.X - 14.0f, 170.0f);
+        _carousel.CustomMinimumSize = new Vector2(0, Mathf.Max(170, _carousel.NeededHeight() + 8));
         _done.Position = new Vector2((Size.X - 240.0f) * 0.5f, Size.Y - 60.0f);
         _done.Size = new Vector2(240.0f, 42.0f);
     }

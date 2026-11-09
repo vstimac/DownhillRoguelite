@@ -19,6 +19,7 @@ public partial class CarrierCharacter : Resource
     [Export] public string HelmetMesh { get; set; } = "";
     [Export] public string HairMesh { get; set; } = "";
     [Export] public string VestMesh { get; set; } = "";
+    [Export] public CharacterStats? Stats { get; set; }
 
     /// <summary>Whether the model file is in the project (models kept out of git may be missing).</summary>
     public bool Available => ModelPath.Length > 0 && ResourceLoader.Exists(ModelPath);

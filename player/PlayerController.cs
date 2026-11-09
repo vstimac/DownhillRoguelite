@@ -342,7 +342,7 @@ public partial class PlayerController : CharacterBody3D
         Grip *= GameEvents.CurrentWeather.GripFactor;
         if (_run != null)
         {
-            Grip = Mathf.Min(1.0f, Grip * _run.Modifiers.Grip * (1.0f + GameEvents.CurrentGear.Grip));
+            Grip = Mathf.Min(1.0f, Grip * _run.Modifiers.Grip * _run.Character.Stats.Grip * (1.0f + GameEvents.CurrentGear.Grip));
         }
     }
 
@@ -415,11 +415,11 @@ public partial class PlayerController : CharacterBody3D
     /// <summary>Speed multiplier from injuries: 1 above InjuredHealthFraction, down to InjuredSpeedFactor at zero.</summary>
     private float InjuryFactor()
     {
-        if (Health == null || Health.Max <= 0.0f)
+        if (Health == null || Health.EffectiveMax <= 0.0f)
         {
             return 1.0f;
         }
-        float fraction = Health.Current / Health.Max;
+        float fraction = Health.Current / Health.EffectiveMax;
         if (fraction >= Settings.InjuredHealthFraction)
         {
             return 1.0f;
@@ -457,6 +457,7 @@ public partial class PlayerController : CharacterBody3D
         if (_run != null)
         {
             factor *= _run.Modifiers.WalkSpeed;
+            factor *= _run.Character.Speed;
         }
         return factor;
     }
