@@ -14,3 +14,7 @@ Debug game runs record the viewport every five rendered frames; **F9** pauses/re
 **`TestCharacterAbilities.tscn`** compares origin stats, health/stamina capacities and abilities.
 Choose a character, spend stamina and press **H**; the parchment HUD shows active time/cooldown.
 See [the character stats and editing guide](../docs/character-abilities.md).
+
+**`TestSmoothLocomotion.tscn`** previews walk, jog, fast run, turns, stopping and jump/landing
+with the actual player and character outfits. Click **Replay full demo** or use manual controls.
+See [animation assets and tuning](../docs/smooth-locomotion.md).

@@ -5,9 +5,9 @@ namespace DownhillRoguelite.Player;
 
 /// <summary>
 /// Drives the character model's animation from the controller's speed and state. Builds an
-/// AnimationTree in code: idle, walk, jog and sprint blended by ground speed, each clip's playback
-/// rate scaled so its feet move at the body's speed, plus a partial crouch-walk mixed in while
-/// braking or sliding for careful steps. Native clip speeds were measured from the planted toe.
+/// AnimationTree in code: idle, phase-synchronized walk/jog/sprint with a stride-matched common
+/// cadence, a partial crouch for braking, and short authored takeoff/landing transitions. The
+/// controller retains all movement authority. Native clip speeds were measured from the planted toe.
 /// </summary>
 public partial class CharacterAnimator : Node
 {
@@ -32,6 +32,13 @@ public partial class CharacterAnimator : Node
     /// <summary>Looping pose while airborne (jumps, drops). Falls themselves are ragdolls (PlayerRagdoll).</summary>
     [Export] public StringName AirClip { get; set; } = "Jump";
     [Export] public float AirBlendSharpness { get; set; } = 10.0f;
+    [Export] public StringName TakeoffClip { get; set; } = "Jump_Start";
+    [Export] public StringName LandingClip { get; set; } = "Jump_Land";
+    [Export] public float TakeoffTime { get; set; } = 0.28f;
+    [Export] public float LandingTime { get; set; } = 0.45f;
+    [Export] public float TransitionFadeTime { get; set; } = 0.09f;
+    /// <summary>Running landings retain their stride instead of replacing it with a full stationary crouch.</summary>
+    [Export] public float MovingLandingWeight { get; set; } = 0.25f;
 
     [ExportGroup("Native clip speeds (m/s)")]
     [Export] public float WalkClipSpeed { get; set; } = 1.05f;
@@ -46,8 +53,8 @@ public partial class CharacterAnimator : Node
     [Export] public Vector2 JogToSprint { get; set; } = new(5.6f, 6.4f);
 
     [ExportGroup("Playback")]
-    /// <summary>Clips never play slower or faster than this, so extreme speeds don't look absurd.</summary>
-    [Export] public float MinPlaybackRate { get; set; } = 0.55f;
+    /// <summary>Limits the blended gait's average playback rate; low-weight clips share its cadence.</summary>
+    [Export] public float MinPlaybackRate { get; set; } = 0.0f;
     [Export] public float MaxPlaybackRate { get; set; } = 1.6f;
     /// <summary>How much of the crouch-walk is mixed in at full brake (0 = none, 1 = full crouch).</summary>
     [Export] public float BrakeCrouchAmount { get; set; } = 0.35f;
@@ -68,20 +75,40 @@ public partial class CharacterAnimator : Node
     private const string AirNode = "air";
     private const string AirBlendNode = "air_blend";
     private const string RateSuffix = "_rate";
+    private const string TakeoffNode = "takeoff";
+    private const string LandingNode = "landing";
 
     private AnimationTree? _tree;
+    public AnimationTree? Tree => _tree;
+    public float SmoothedSpeed => _speed;
+    public float Cadence { get; private set; }
+    public float TakeoffWeight { get; private set; }
+    public float LandingWeight { get; private set; }
     private float _speed;
     private float _brakeWeight;
-    private float _brakeToWalkCycleRatio = 1.0f;
     private Vector3 _stepOffset;
+    private Vector3 _visualHome;
     private float _airWeight;
+    private bool _wasAirborne;
+    private bool _landingPending;
+    private float _takeoffLeft;
+    private float _landingLeft;
+    private float _walkLength;
+    private float _jogLength;
+    private float _sprintLength;
+    private float _brakeLength;
 
     public override void _Ready()
     {
+        // Supply this frame's blend parameters before the tree evaluates and CarrierModel copies its offset.
+        ProcessPriority = -20;
+        if (Visual != null) { _visualHome = Visual.Position; }
         if (Body != null)
         {
             Body.SteppedUp += OnSteppedUp;
+            Body.Teleported += ResetMotion;
         }
+        GameEvents.Landed += OnLanded;
 
         if (Animations == null)
         {
@@ -89,12 +116,11 @@ public partial class CharacterAnimator : Node
             return;
         }
 
-        if (Animations.HasAnimation(WalkClip) && Animations.HasAnimation(BrakeWalkClip))
-        {
-            _brakeToWalkCycleRatio = (float)(Animations.GetAnimation(BrakeWalkClip).Length / Animations.GetAnimation(WalkClip).Length);
-        }
-
-        _tree = new AnimationTree { Name = "AnimationTree", TreeRoot = BuildTree() };
+        _walkLength = Length(WalkClip);
+        _jogLength = Length(JogClip);
+        _sprintLength = Length(SprintClip);
+        _brakeLength = Length(BrakeWalkClip);
+        _tree = new AnimationTree { Name = "AnimationTree", TreeRoot = BuildTree(), ProcessPriority = -10 };
         Animations.GetParent().AddChild(_tree);
         _tree.AnimPlayer = _tree.GetPathTo(Animations);
         _tree.Active = true;
@@ -105,7 +131,26 @@ public partial class CharacterAnimator : Node
         if (Body != null)
         {
             Body.SteppedUp -= OnSteppedUp;
+            Body.Teleported -= ResetMotion;
         }
+        GameEvents.Landed -= OnLanded;
+    }
+
+    private void OnLanded(float speed) { _landingPending = true; }
+
+    private void ResetMotion()
+    {
+        _speed = 0;
+        _stepOffset = Vector3.Zero;
+        _brakeWeight = 0;
+        _airWeight = 0;
+        _wasAirborne = false;
+        _landingPending = false;
+        _takeoffLeft = 0;
+        _landingLeft = 0;
+        TakeoffWeight = 0;
+        LandingWeight = 0;
+        if (Visual != null) { Visual.Position = _visualHome; }
     }
 
     private void OnSteppedUp(Vector3 jump)
@@ -121,10 +166,11 @@ public partial class CharacterAnimator : Node
         }
 
         float dt = (float)delta;
+        if (!float.IsFinite(dt) || dt <= 0) { return; }
         _stepOffset = _stepOffset.Lerp(Vector3.Zero, 1.0f - Mathf.Exp(-StepSmoothSharpness * dt));
         if (Visual != null)
         {
-            Visual.Position = Body.GlobalBasis.Inverse() * _stepOffset;
+            Visual.Position = _visualHome + Body.GlobalBasis.Inverse() * _stepOffset;
             // The packing camera stands where the carrier is; hide the model so it doesn't block the view.
             Visual.Visible = !GameEvents.IsPacking;
         }
@@ -153,13 +199,70 @@ public partial class CharacterAnimator : Node
         SetBlend(BrakeMoveNode, Band(_speed, IdleToWalk));
         SetBlend(BrakeNode, _brakeWeight * BrakeCrouchAmount);
 
-        float walkRate = SetRate(WalkNode, WalkClipSpeed);
-        SetRate(JogNode, JogClipSpeed);
-        SetRate(SprintNode, SprintClipSpeed);
+        UpdateCadence(targetSpeed);
+        UpdateAirTransitions(dt);
+    }
 
-        // The crouch-walk is mixed on top of the walk, so it must put its feet down at the same
-        // moments: lock its cycle duration to the walk's instead of matching its own speed.
-        _tree.Set($"parameters/{BrakeWalkNode}{RateSuffix}/scale", walkRate * _brakeToWalkCycleRatio);
+    private float Length(StringName clip)
+    {
+        if (Animations?.HasAnimation(clip) == true) { return Mathf.Max((float)Animations.GetAnimation(clip).Length, 0.001f); }
+        return 1;
+    }
+
+    private void UpdateCadence(float groundSpeed)
+    {
+        float jog = Band(_speed, WalkToJog);
+        float sprint = Band(_speed, JogToSprint);
+        float brake = _brakeWeight * BrakeCrouchAmount;
+        float length = Mathf.Lerp(Mathf.Lerp(_walkLength, _jogLength, jog), _sprintLength, sprint);
+        length = Mathf.Lerp(length, _brakeLength, brake);
+        float stride = Mathf.Lerp(Mathf.Lerp(WalkClipSpeed * _walkLength, JogClipSpeed * _jogLength, jog), SprintClipSpeed * _sprintLength, sprint);
+        stride = Mathf.Lerp(stride, BrakeWalkClipSpeed * _brakeLength, brake);
+        Cadence = 0;
+        if (groundSpeed > IdleToWalk.X)
+        {
+            Cadence = Mathf.Clamp(groundSpeed / Mathf.Max(stride, 0.001f), MinPlaybackRate / length, MaxPlaybackRate / length);
+        }
+        SetCadence(WalkNode);
+        SetCadence(JogNode);
+        SetCadence(SprintNode);
+        SetCadence(BrakeWalkNode);
+    }
+
+    private void SetCadence(string node) { _tree!.Set($"parameters/{node}{RateSuffix}/scale", Cadence); }
+
+    private void UpdateAirTransitions(float dt)
+    {
+        bool airborne = Body!.State == LocomotionState.Airborne;
+        if (GameEvents.IsDowned || GameEvents.IsVaulting || Body.Health?.Dead == true)
+        {
+            _takeoffLeft = 0;
+            _landingLeft = 0;
+            _landingPending = false;
+        }
+        else
+        {
+            if (airborne && !_wasAirborne && Body.Velocity.Y > 0)
+            { _takeoffLeft = TakeoffTime; _landingLeft = 0; }
+            if (_landingPending && !airborne)
+            { _landingLeft = LandingTime; _takeoffLeft = 0; }
+        }
+        _landingPending = false;
+        _wasAirborne = airborne;
+        TakeoffWeight = SampleTransition(TakeoffNode, TakeoffClip, TakeoffTime, ref _takeoffLeft, dt);
+        LandingWeight = SampleTransition(LandingNode, LandingClip, LandingTime, ref _landingLeft, dt);
+        LandingWeight *= Mathf.Lerp(1, MovingLandingWeight, Band(_speed, WalkToJog));
+        SetBlend(TakeoffNode + "_blend", TakeoffWeight);
+        SetBlend(LandingNode + "_blend", LandingWeight);
+    }
+
+    private float SampleTransition(string node, StringName clip, float duration, ref float left, float dt)
+    {
+        if (left <= 0 || duration <= 0 || Animations?.HasAnimation(clip) != true) { return 0; }
+        left = Mathf.Max(0, left - dt);
+        float elapsed = duration - left;
+        _tree!.Set($"parameters/{node}_seek/seek_request", Mathf.Clamp(elapsed / duration * Length(clip), 0, Length(clip)));
+        return Mathf.SmoothStep(0, TransitionFadeTime, elapsed) * Mathf.SmoothStep(0, TransitionFadeTime, left);
     }
 
     private AnimationNodeBlendTree BuildTree()
@@ -182,20 +285,33 @@ public partial class CharacterAnimator : Node
         tree.AddNode(AirNode, new AnimationNodeAnimation { Animation = AirClip });
         AddBlend(tree, AirBlendNode, BrakeNode, AirNode);
 
-        tree.ConnectNode("output", 0, AirBlendNode);
+        AddTransition(tree, TakeoffNode, TakeoffClip, AirBlendNode);
+        AddTransition(tree, LandingNode, LandingClip, TakeoffNode + "_blend");
+        tree.ConnectNode("output", 0, LandingNode + "_blend");
         return tree;
+    }
+
+    private void AddTransition(AnimationNodeBlendTree tree, string name, StringName clip, string from)
+    {
+        if (Animations?.HasAnimation(clip) != true) { clip = IdleClip; }
+        tree.AddNode(name, new AnimationNodeAnimation { Animation = clip });
+        tree.AddNode(name + "_seek", new AnimationNodeTimeSeek());
+        tree.ConnectNode(name + "_seek", 0, name);
+        AddBlend(tree, name + "_blend", from, name + "_seek");
     }
 
     private static void AddScaledClip(AnimationNodeBlendTree tree, string name, StringName clip)
     {
-        tree.AddNode(name, new AnimationNodeAnimation { Animation = clip });
+        // Equal normalized timelines plus equal rates keep all gait clips on the same footfall cycle.
+        tree.AddNode(name, new AnimationNodeAnimation { Animation = clip, UseCustomTimeline = true,
+            TimelineLength = 1, StretchTimeScale = true, LoopMode = Animation.LoopModeEnum.Linear });
         tree.AddNode(name + RateSuffix, new AnimationNodeTimeScale());
         tree.ConnectNode(name + RateSuffix, 0, name);
     }
 
     private static void AddBlend(AnimationNodeBlendTree tree, string name, string from, string to)
     {
-        // Sync keeps both inputs advancing at zero weight, so blended cycles stay in phase.
+        // Advance even at zero weight; normalized gait timelines share the same cadence.
         tree.AddNode(name, new AnimationNodeBlend2 { Sync = true });
         tree.ConnectNode(name, 0, from);
         tree.ConnectNode(name, 1, to);
@@ -204,13 +320,6 @@ public partial class CharacterAnimator : Node
     private void SetBlend(string node, float amount)
     {
         _tree?.Set($"parameters/{node}/blend_amount", amount);
-    }
-
-    private float SetRate(string clipNode, float clipSpeed)
-    {
-        float rate = Mathf.Clamp(_speed / clipSpeed, MinPlaybackRate, MaxPlaybackRate);
-        _tree?.Set($"parameters/{clipNode}{RateSuffix}/scale", rate);
-        return rate;
     }
 
     /// <summary>0 below band.X, 1 above band.Y, smooth in between.</summary>
