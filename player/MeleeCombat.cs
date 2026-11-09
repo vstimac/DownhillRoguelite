@@ -59,6 +59,8 @@ public partial class MeleeCombat : Node
     [Export] public float ShieldRadius { get; set; } = 0.3f;
     /// <summary>The shield's centre stands this far off the back of the forearm, in m.</summary>
     [Export] public float ShieldStandOff { get; set; } = 0.07f;
+    /// <summary>Hand-tuned corrections (the sword fitting scene saves them); loaded from SwordFit.DefaultPath when empty.</summary>
+    [Export] public SwordFit? Fit { get; set; }
 
     [ExportGroup("Swings")]
     /// <summary>The blows of a chain, their playback speed, and when in each (share of the clip) the blow lands.</summary>
@@ -128,6 +130,7 @@ public partial class MeleeCombat : Node
     public SwordAnimator? Animator => _animator;
     public MixamoOverlay? Overlay => _overlay;
     public Node3D? Sword => _sword;
+    public Node3D? Shield => _shield;
     /// <summary>Blade base and tip in the world, as of this frame.</summary>
     public Vector3 BladeBase { get; private set; }
     public Vector3 BladeTip { get; private set; }
@@ -147,8 +150,10 @@ public partial class MeleeCombat : Node
     private readonly List<(Node3D Mount, int Bone)> _mounts = new();
     private System.Func<Vector3, string, bool>? _blocker;
     private Node3D? _shield;
+    /// <summary>Where the rig puts them, before the fit's corrections.</summary>
     private Transform3D _inHand = Transform3D.Identity;
     private Transform3D _atHip = Transform3D.Identity;
+    private Transform3D _onArm = Transform3D.Identity;
     private bool _chainQueued;
     private bool _blockHeld;
     private readonly HashSet<ulong> _struck = new();
@@ -215,6 +220,10 @@ public partial class MeleeCombat : Node
         {
             GD.PushWarning("MeleeCombat: no driver skeleton.");
             return;
+        }
+        if (Fit == null && ResourceLoader.Exists(SwordFit.DefaultPath))
+        {
+            Fit = ResourceLoader.Load<SwordFit>(SwordFit.DefaultPath);
         }
         _animator = new SwordAnimator { Name = "SwordAnimator" };
         AddChild(_animator);
@@ -374,7 +383,8 @@ public partial class MeleeCombat : Node
         Basis disc = new Basis(x, face, x.Cross(face)).Scaled(Vector3.One * unscale);
         Transform3D onArm = rest.AffineInverse() * new Transform3D(disc, mid + face * ShieldStandOff * unscale);
         _armMount = Mount("ShieldArm", forearm);
-        _shield = new Node3D { Name = "Shield", Transform = onArm, Visible = false };
+        _onArm = onArm;
+        _shield = new Node3D { Name = "Shield", Transform = ShieldPlace(), Visible = false };
         StandardMaterial3D wood = new() { AlbedoColor = ShieldWood, Roughness = 1.0f };
         StandardMaterial3D iron = new() { AlbedoColor = ShieldIron, Roughness = 0.5f, Metallic = 0.7f };
         _shield.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = ShieldRadius, BottomRadius = ShieldRadius, Height = 0.035f, RadialSegments = 20 }, MaterialOverride = wood });
@@ -392,6 +402,57 @@ public partial class MeleeCombat : Node
         _armMount.AddChild(_shield);
     }
 
+    /// <summary>Sword out (in the guard) or away at once, without the draw or sheathe motion (fitting, tests).</summary>
+    public void SetDrawnNow(bool drawn)
+    {
+        if (!_built)
+        {
+            Build();
+        }
+        _chainQueued = false;
+        _blockHeld = false;
+        if (drawn)
+        {
+            State = Stance.Ready;
+            PlaceSword(true);
+            _animator?.Play("idle", 0.0f, 1.0f);
+        }
+        else
+        {
+            State = Stance.Sheathed;
+            PlaceSword(false);
+        }
+        if (_overlay != null)
+        {
+            _overlay.UpperWeight = 0.0f;
+            if (drawn)
+            {
+                _overlay.UpperWeight = 1.0f;
+            }
+            _overlay.LegWeight = 0.0f;
+        }
+        GameEvents.PublishSwordDrawn(drawn);
+    }
+
+    /// <summary>Puts the sword and shield where the fit now says (the fitting scene calls it after each change).</summary>
+    public void ApplyFit()
+    {
+        PlaceSword(SwordInHand);
+        if (_shield != null)
+        {
+            _shield.Transform = ShieldPlace();
+        }
+    }
+
+    private Transform3D ShieldPlace()
+    {
+        if (Fit == null)
+        {
+            return _onArm;
+        }
+        return _onArm * Fit.Shield;
+    }
+
     /// <summary>Moves the sword to the hand or to the hip sheath; the shield shows while the sword is out.</summary>
     private void PlaceSword(bool inHand)
     {
@@ -402,10 +463,18 @@ public partial class MeleeCombat : Node
         }
         Node3D? mount = _hipMount;
         Transform3D place = _atHip;
+        if (Fit != null)
+        {
+            place = _atHip * Fit.Hip;
+        }
         if (inHand)
         {
             mount = _handMount;
             place = _inHand;
+            if (Fit != null)
+            {
+                place = _inHand * Fit.Hand;
+            }
         }
         if (mount == null)
         {
