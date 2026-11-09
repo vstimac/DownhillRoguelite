@@ -64,6 +64,7 @@ public partial class ObjectiveDirector : Node
         GameEvents.RelicDiscovered += OnRelicFound;
         GameEvents.RelicDelivered += OnRelicLeft;
         GameEvents.WaysideNear += OnNearby;
+        GameEvents.QuestNoteChanged += OnQuest;
         Begin();
     }
 
@@ -87,6 +88,7 @@ public partial class ObjectiveDirector : Node
         GameEvents.RelicDiscovered -= OnRelicFound;
         GameEvents.RelicDelivered -= OnRelicLeft;
         GameEvents.WaysideNear -= OnNearby;
+        GameEvents.QuestNoteChanged -= OnQuest;
         GameEvents.PublishObjectives(System.Array.Empty<ObjectiveNote>(), System.Array.Empty<ObjectiveNote>());
     }
 
@@ -352,6 +354,12 @@ public partial class ObjectiveDirector : Node
     private void OnNearby(WaysideNote? nearby)
     {
         Book.SetNearby(nearby);
+        Refresh();
+    }
+
+    private void OnQuest(ObjectiveNote note)
+    {
+        Book.Quest(note);
         Refresh();
     }
 }

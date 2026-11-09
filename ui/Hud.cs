@@ -42,6 +42,7 @@ public partial class Hud : CanvasLayer
     public MapScreen? MapPage { get; private set; }
     public JournalScreen? Journal { get; private set; }
     public TalkScreen? Talk { get; private set; }
+    public DialogueChoices? Choices { get; private set; }
     public ThrowZone? ThrowZone { get; private set; }
     public UiLayoutEditor? LayoutEditor { get; private set; }
     public JournalLog? Log { get; private set; }
@@ -93,6 +94,8 @@ public partial class Hud : CanvasLayer
         Captions = new Subtitles { Name = "Subtitles" };
         _play.AddChild(Captions);
         _play.AddChild(new VaultPrompt { Name = "VaultPrompt" });
+        Choices = new DialogueChoices { Name = "DialogueChoices" };
+        _play.AddChild(Choices);
 
         // Behind the pages, over the world: an item dragged off the inventory page and dropped here is thrown away.
         ThrowZone = new ThrowZone { Name = "ThrowZone" };

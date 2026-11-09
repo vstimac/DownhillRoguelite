@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/PresidentLab.cs" id="1_lab"]
+
+[sub_resource type="Environment" id="Environment_lab"]
+background_mode = 1
+background_color = Color(0.55, 0.65, 0.75, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.7, 0.72, 0.75, 1)
+ambient_light_energy = 0.6
+
+[node name="TestPresident" type="Node3D"]
+script = ExtResource("1_lab")
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_lab")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.25, 0.433, 0, 0.866, 0.5, -0.5, -0.433, 0.75, 0, 10, 0)
+shadow_enabled = true
+
+[node name="Camera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.966, 0.259, 0, -0.259, 0.966, -11.5, 2.6, 8.0)
+current = true

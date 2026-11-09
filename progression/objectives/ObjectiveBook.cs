@@ -335,6 +335,31 @@ public sealed class ObjectiveBook
         _announcements.Add(side.Note);
     }
 
+    /// <summary>
+    /// A side quest from someone outside the job boards (the restsite president): added, updated or
+    /// finished by its id. New and finished ones are announced; a finished one fades like the others.
+    /// </summary>
+    public void Quest(ObjectiveNote note)
+    {
+        Side? side = FindSide(note.Id);
+        if (side == null)
+        {
+            if (note.Done)
+            {
+                return;
+            }
+            _sides.Add(new Side { Note = note });
+            _announcements.Add(note);
+            return;
+        }
+        bool finished = note.Done && !side.Note.Done;
+        side.Note = note;
+        if (finished)
+        {
+            _announcements.Add(note);
+        }
+    }
+
     /// <summary>The closest point of interest worth a detour, or null.</summary>
     public void SetNearby(WaysideNote? nearby) => _nearby = nearby;
 

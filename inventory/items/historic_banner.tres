@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+[ext_resource type="PackedScene" path="res://art/props/kenney_castle_kit/GLB format/tree-log.glb" id="2_model"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "historic_banner"
+DisplayName = "Transparent istorijske pobede"
+MassKg = 12.0
+Category = 3
+SizeCells = Vector3i(2, 10, 2)
+Tags = 12
+Orientation = 0
+DebugColor = Color(0.75, 0.15, 0.2, 1)
+Description = "Dvanaest kilograma istorijske vrijednosti. Težak kraj vuče na jednu stranu."
+Model = ExtResource("2_model")
+CenterOfMassOffset = Vector3(0.03, 0.18, 0)

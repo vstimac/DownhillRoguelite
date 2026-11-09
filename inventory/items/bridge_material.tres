@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+[ext_resource type="PackedScene" path="res://art/props/kenney_castle_kit/GLB format/tree-log.glb" id="2_model"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "bridge_material"
+DisplayName = "Materijal za most"
+MassKg = 2.0
+Category = 2
+SizeCells = Vector3i(4, 2, 2)
+Tags = 4
+Orientation = 0
+DebugColor = Color(0.55, 0.45, 0.35, 1)
+Description = "Jedinica materijala za drugu fazu izgradnje mosta."
+Model = ExtResource("2_model")
+

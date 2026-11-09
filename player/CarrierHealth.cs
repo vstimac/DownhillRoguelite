@@ -92,6 +92,13 @@ public partial class CarrierHealth : Node
         GameEvents.PublishDamaged(amount);
         if (Current <= 0.0f)
         {
+            // A last chance (the temporary mandate) may bring the carrier back instead.
+            float spared = GameEvents.RequestLastChance(source);
+            if (spared > 0.0f)
+            {
+                Current = EffectiveMax * Mathf.Min(spared, 1.0f);
+                return;
+            }
             Dead = true;
             GameEvents.PublishCarrierDied(source);
         }
