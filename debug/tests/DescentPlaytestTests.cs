@@ -12,6 +12,11 @@ public partial class DescentPlaytestTests : Node3D
     [Export] public float WalkSeconds { get; set; } = 30.0f;
     [Export] public float MinDistance { get; set; } = 40.0f;
     [Export] public float StationWalkSeconds { get; set; } = 600.0f;
+    /// <summary>Headroom for sliding, collision recovery and ordinary environmental pushes.</summary>
+    [Export] public float UnforcedSpeedSafetyFactor { get; set; } = 2.0f;
+    /// <summary>Extra metres permitted for a step/ground correction, and once per recorded fall.</summary>
+    [Export] public float PositionCorrectionAllowance { get; set; } = 3.0f;
+    [Export] public int MaxAnomalyReports { get; set; } = 6;
 
     public override async void _Ready()
     {
@@ -44,6 +49,26 @@ public partial class DescentPlaytestTests : Node3D
         float elapsed = 0.0f;
         float nextReport = 60.0f;
         float dt = 1.0f / Engine.PhysicsTicksPerSecond;
+        float speedEnvelope = Mathf.Sqrt(player.Settings.MaxSpeed * player.Settings.MaxSpeed
+            + player.Settings.MaxFallSpeed * player.Settings.MaxFallSpeed) * UnforcedSpeedSafetyFactor;
+        Vector3 previous = start;
+        Vector3 previousVelocity = player.Velocity;
+        LocomotionState previousState = player.State;
+        bool previousDowned = GameEvents.IsDowned;
+        int previousTeleports = teleports;
+        int tick = 0;
+        int reports = 0;
+        bool boundedMotion = true;
+        float peakSpeed = 0.0f;
+        float largestStep = 0.0f;
+        float largestUnannouncedStep = 0.0f;
+        float unannouncedPath = 0.0f;
+        float teleportPath = 0.0f;
+        string largestStepDetail = "none";
+        string character = run.Character.Id;
+        CarrierModel? look = player.GetNodeOrNull<CarrierModel>("CarrierModel");
+        if (look != null && look.CharacterId.Length > 0) { character = look.CharacterId; }
+        GD.Print($"PLAYTEST START seed {run.Seed}, character {character}, position {start}, station {station}, physics {Engine.PhysicsTicksPerSecond}Hz, duration {duration:0.0}s, speed envelope {speedEnvelope:0.00}m/s");
         for (; elapsed < duration; elapsed += dt)
         {
             float targetZ = player.GlobalPosition.Z - 6.0f;
@@ -56,6 +81,44 @@ public partial class DescentPlaytestTests : Node3D
             direction.Y = 0.0f;
             player.DirectionOverride = direction.Normalized();
             await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+            tick++;
+            Vector3 position = player.GlobalPosition;
+            float step = previous.DistanceTo(position);
+            peakSpeed = Mathf.Max(peakSpeed, player.Velocity.Length());
+            bool declaredTeleport = teleports != previousTeleports;
+            float stepBudget = speedEnvelope * dt + PositionCorrectionAllowance;
+            float pathBudget = speedEnvelope * (elapsed + dt) + PositionCorrectionAllowance * (falls + 1);
+            bool plausible = declaredTeleport || (step <= stepBudget && unannouncedPath + step <= pathBudget);
+            if (step > largestStep || declaredTeleport || (!plausible && reports < MaxAnomalyReports))
+            {
+                string stepDetail = $"tick {tick}, t {elapsed + dt:0.000}s, from {previous} to {position}, velocity {previousVelocity} -> {player.Velocity}, state {previousState} -> {player.State}, downed {previousDowned} -> {GameEvents.IsDowned}, teleport {declaredTeleport}, falls {falls}";
+                if (step > largestStep)
+                {
+                    largestStep = step;
+                    largestStepDetail = stepDetail;
+                }
+                if (declaredTeleport) { GD.Print($"PLAYTEST TELEPORT {step:0.000}m: {stepDetail}"); }
+                if (!plausible && reports < MaxAnomalyReports)
+                {
+                    GD.Print($"PLAYTEST MOTION ANOMALY seed {run.Seed}, step {step:0.000}/{stepBudget:0.000}m, path {unannouncedPath + step:0.000}/{pathBudget:0.000}m: {stepDetail}");
+                    reports++;
+                }
+            }
+            if (declaredTeleport)
+            {
+                teleportPath += step;
+            }
+            else
+            {
+                unannouncedPath += step;
+                largestUnannouncedStep = Mathf.Max(largestUnannouncedStep, step);
+                boundedMotion &= plausible;
+            }
+            previous = position;
+            previousVelocity = player.Velocity;
+            previousState = player.State;
+            previousDowned = GameEvents.IsDowned;
+            previousTeleports = teleports;
             finite &= player.GlobalPosition.IsFinite() && player.Velocity.IsFinite()
                 && float.IsFinite(dynamics.Pitch) && float.IsFinite(dynamics.Roll) && float.IsFinite(dynamics.Twist)
                 && float.IsFinite(CarriedLoad.Mass) && CarriedLoad.Mass >= 0.0f
@@ -82,7 +145,9 @@ public partial class DescentPlaytestTests : Node3D
         player.DirectionOverride = Vector3.Zero;
         float descended = start.Z - player.GlobalPosition.Z;
         bool alive = player.Health != null && !player.Health.Dead;
-        bool passed = finite && alive && descended >= MinDistance;
+        bool passed = finite && alive && boundedMotion && descended >= MinDistance;
+        GD.Print($"PLAYTEST END seed {run.Seed}, character {character}, start {start}, end {player.GlobalPosition}, ticks {tick}, teleports {teleports}, falls {falls}, peak velocity {peakSpeed:0.000}m/s, observed path {unannouncedPath:0.000}m, declared teleport path {teleportPath:0.000}m, largest step {largestStep:0.000}m, largest unannounced step {largestUnannouncedStep:0.000}m, bounded motion {boundedMotion}");
+        GD.Print("PLAYTEST LARGEST STEP " + largestStepDetail);
         if (firstStation)
         {
             CarrierNeeds needs = player.GetNode<CarrierNeeds>("Needs");
@@ -96,7 +161,7 @@ public partial class DescentPlaytestTests : Node3D
         {
             status = "PASS";
         }
-        GD.Print($"{status}  main-scene descent: {descended:0.0} m downhill in {elapsed:0} s, alive {alive}, finite motion {finite}, health {player.Health?.Current:0.0}");
+        GD.Print($"{status}  main-scene descent: {descended:0.0} m downhill in {elapsed:0} s, alive {alive}, finite motion {finite}, bounded motion {boundedMotion}, health {player.Health?.Current:0.0}");
         await Seconds(0.5f);
         if (DisplayServer.GetName() != "headless")
         {

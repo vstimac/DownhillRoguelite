@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using DownhillRoguelite.Core;
 using Godot;
 
@@ -12,9 +14,13 @@ public partial class SetPieceNode : Node3D
     public SetPiece? Piece { get; private set; }
     public int SolidCount { get; private set; }
     public int PartCount { get; private set; }
+    // Direct callers also retain imported scene wrappers until this built piece is released.
+    private readonly List<PackedScene> _modelSources = new();
+    private readonly HashSet<string> _modelProblems = new(StringComparer.Ordinal);
 
     /// <summary>Builds the piece at <paramref name="centre"/> turned by <paramref name="yaw"/> (radians), on the route's ground.</summary>
-    public void Build(SetPiece piece, Vector3 centre, float yaw, IRouteQuery route, float sink)
+    public void Build(SetPiece piece, Vector3 centre, float yaw, IRouteQuery route, float sink,
+        Func<string, Node3D?>? createModel = null)
     {
         Piece = piece;
         Name = "SetPiece_" + piece.Id;
@@ -22,12 +28,16 @@ public partial class SetPieceNode : Node3D
         Basis turn = new(Vector3.Up, yaw);
         foreach (SetPiecePart part in piece.Parts)
         {
-            if (part == null || !ResourceLoader.Exists(part.Model) || ResourceLoader.Load(part.Model) is not PackedScene scene)
+            if (part == null)
             {
                 continue;
             }
+            Node3D? model;
+            if (createModel != null) { model = createModel(part.Model); }
+            else { model = CreateModel(part.Model); }
+            if (model == null) { continue; }
             Node3D holder = new() { Name = "Model" };
-            holder.AddChild(scene.Instantiate<Node3D>());
+            holder.AddChild(model);
             Aabb bounds = ModelFit.Bounds(holder);
             float scale = part.Height / Mathf.Max(bounds.Size.Y, 0.01f);
             Vector3 size = bounds.Size * scale;
@@ -56,5 +66,25 @@ public partial class SetPieceNode : Node3D
             }
             PartCount++;
         }
+    }
+
+    private Node3D? CreateModel(string path)
+    {
+        if (!ResourceLoader.Exists(path) || ResourceLoader.Load(path) is not PackedScene scene || !scene.CanInstantiate())
+        {
+            ReportModel(path, "missing or non-instantiable scene");
+            return null;
+        }
+        _modelSources.Add(scene);
+        Node instance = scene.Instantiate();
+        if (instance is Node3D model) { return model; }
+        instance.Free();
+        ReportModel(path, "scene root is not Node3D");
+        return null;
+    }
+
+    private void ReportModel(string path, string problem)
+    {
+        if (_modelProblems.Add(path)) { GD.PushWarning($"SetPieceNode {Piece?.Id}: {path}: {problem}."); }
     }
 }

@@ -43,6 +43,7 @@ public partial class SetPieceTests : Node3D
         TestResources(Placer);
         TestPlan(Placer, route);
         await TestBuilt(PlayerBody, Placer, route);
+        await TestModelLifetime(PlayerBody, Placer, route);
         await TestStation(PlayerBody, route);
 
         if (_failures.Count == 0)
@@ -162,6 +163,54 @@ public partial class SetPieceTests : Node3D
         }
         Check("built pieces have every part and something solid, off the walking band", built >= 3 && complete && solids > 0 && closestSolid >= WalkingBand,
             built + " pieces built, all parts " + complete + ", " + solids + " solid parts, nearest to a path " + closestSolid.ToString("0.0") + " m");
+    }
+
+    private async Task TestModelLifetime(PlayerController player, SetPiecePlacer placer, IRouteQuery route)
+    {
+        Dictionary<string, System.WeakReference<PackedScene>> sources = WatchModelSources(placer);
+        placer.SetPhysicsProcess(false);
+        placer.Forget();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        System.GC.Collect();
+        System.GC.WaitForPendingFinalizers();
+        System.GC.Collect();
+        bool retained = sources.Count > 0;
+        foreach (System.WeakReference<PackedScene> source in sources.Values)
+        {
+            retained &= source.TryGetTarget(out PackedScene? scene) && GodotObject.IsInstanceValid(scene);
+        }
+        Check("unloading pieces and managed collection retain their imported scene wrappers", retained,
+            sources.Count + " distinct model sources");
+        placer.SetPhysicsProcess(true);
+        for (int stage = 1; stage <= 3; stage++)
+        {
+            Vector3 mid = route.RoutePoint(Mathf.Lerp(route.Station(stage).Z, route.Station(stage + 1).Z, 0.5f));
+            await Place(player, mid, 0.3f);
+            bool complete = placer.Built.Count > 0;
+            foreach (SetPieceNode node in placer.Built.Values)
+            {
+                complete &= node.Piece != null && node.PartCount == node.Piece.Parts.Count;
+            }
+            Check("models instantiate completely after collection at stage " + stage, complete,
+                placer.Built.Count + " rebuilt pieces");
+        }
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static Dictionary<string, System.WeakReference<PackedScene>> WatchModelSources(SetPiecePlacer placer)
+    {
+        Dictionary<string, System.WeakReference<PackedScene>> sources = new();
+        foreach (SetPieceNode node in placer.Built.Values)
+        {
+            if (node.Piece == null) { continue; }
+            foreach (SetPiecePart part in node.Piece.Parts)
+            {
+                if (!sources.ContainsKey(part.Model) && ResourceLoader.Load(part.Model) is PackedScene scene)
+                { sources.Add(part.Model, new System.WeakReference<PackedScene>(scene)); }
+            }
+        }
+        return sources;
     }
 
     private async Task TestStation(PlayerController player, IRouteQuery route)
