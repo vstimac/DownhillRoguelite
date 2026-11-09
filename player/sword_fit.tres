@@ -6,3 +6,5 @@
 script = ExtResource("1_1kmdo")
 HandPosition = Vector3(-0.02, 0.059999995, 0)
 HandRotation = Vector3(80, -150, 0)
+HipPosition = Vector3(-0.04, -0.17, 0)
+HipRotation = Vector3(100, -15, 0)
