@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ClothingFit" format=3]
+
+[ext_resource type="Script" path="res://player/ClothingFitEntry.cs" id="1_gkm3n"]
+[ext_resource type="Script" path="res://player/ClothingFit.cs" id="2_daqgv"]
+
+[sub_resource type="Resource" id="Resource_08m1l"]
+script = ExtResource("1_gkm3n")
+CharacterId = "modular"
+Piece = "wool_hat-Head"
+Offset = Vector3(0, 0.049999993, 0)
+RotationDegrees = Vector3(4.9999995, 0, 0)
+Scale = Vector3(0.7800002, 1.1199999, 0.98)
+
+[resource]
+script = ExtResource("2_daqgv")
+Entries = Array[ExtResource("1_gkm3n")]([SubResource("Resource_08m1l")])

@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/ClothingFittingPlay.cs" id="1_play"]
+[ext_resource type="PackedScene" path="res://debug/ClothingFitting.tscn" id="2_fitting"]
+
+[node name="ClothingFittingPlay" type="Node3D"]
+script = ExtResource("1_play")
+FittingScene = ExtResource("2_fitting")
