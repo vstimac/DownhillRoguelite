@@ -7,7 +7,7 @@ namespace DownhillRoguelite.Core;
 /// Static C# event hub that systems use to talk without referencing each other.
 /// Subscribers must unsubscribe in _ExitTree, because these events outlive scenes.
 /// </summary>
-public static class GameEvents
+public static partial class GameEvents
 {
     /// <summary>Raised by the player controller once per physics frame.</summary>
     public static event Action<LocomotionSnapshot>? LocomotionUpdated;
@@ -330,6 +330,155 @@ public static class GameEvents
         ItemsGranted?.Invoke(itemPaths);
     }
 
+    /// <summary>
+    /// Asks the inventory to pack contract cargo: (item resource path, cargo instance id). The
+    /// inventory packs its own copy of the item tagged with the id, and answers with CargoGranted.
+    /// </summary>
+    public static event Action<string, string>? CargoGrantRequested;
+
+    /// <summary>The inventory's answer to CargoGrantRequested: (cargo instance id, whether it was packed).</summary>
+    public static event Action<string, bool>? CargoGranted;
+
+    /// <summary>Asks the inventory to give up the carried cargo with this instance id (delivery).</summary>
+    public static event Action<string>? CargoHandOverRequested;
+
+    /// <summary>The inventory's answer to CargoHandOverRequested: (cargo instance id, whether it was carried and removed).</summary>
+    public static event Action<string, bool>? CargoHandedOver;
+
+    /// <summary>Instance ids of the contract cargo the carrier owns right now (published by the inventory).</summary>
+    public static IReadOnlyList<string> CarriedCargo { get; private set; } = System.Array.Empty<string>();
+
+    public static void RequestCargoGrant(string itemPath, string cargoId) => CargoGrantRequested?.Invoke(itemPath, cargoId);
+
+    public static void PublishCargoGranted(string cargoId, bool packed) => CargoGranted?.Invoke(cargoId, packed);
+
+    public static void RequestCargoHandOver(string cargoId) => CargoHandOverRequested?.Invoke(cargoId);
+
+    public static void PublishCargoHandedOver(string cargoId, bool removed) => CargoHandedOver?.Invoke(cargoId, removed);
+
+    public static void PublishCarriedCargo(IReadOnlyList<string> cargoIds)
+    {
+        CarriedCargo = cargoIds;
+    }
+
+    /// <summary>Raised when a station's board offers a contract.</summary>
+    public static event Action<ContractNote>? ContractOffered;
+
+    /// <summary>Raised when the carrier takes a contract and its cargo is packed.</summary>
+    public static event Action<ContractNote>? ContractAccepted;
+
+    /// <summary>Raised once per contract when it ends (delivered, failed, abandoned): the only moment rewards come from.</summary>
+    public static event Action<ContractNote>? ContractResolved;
+
+    /// <summary>Raised when the open contract changes without ending (its cargo was knocked about).</summary>
+    public static event Action<ContractNote>? ContractUpdated;
+
+    /// <summary>The contract the carrier is working on (null when none).</summary>
+    public static ContractNote? ActiveContract { get; private set; }
+
+    /// <summary>
+    /// How exposed each carried contract cargo is to knocks, by cargo instance id: 0 deep inside the
+    /// pack, 1 against its outside (or in a pocket). Published by the inventory with CarriedCargo.
+    /// </summary>
+    public static IReadOnlyDictionary<string, float> CargoExposure { get; private set; } = new Dictionary<string, float>();
+
+    public static void PublishCargoExposure(IReadOnlyDictionary<string, float> exposure)
+    {
+        CargoExposure = exposure;
+    }
+
+    public static void PublishContractUpdated(ContractNote note)
+    {
+        if (ActiveContract != null && ActiveContract.Value.InstanceId == note.InstanceId)
+        {
+            ActiveContract = note;
+        }
+        ContractUpdated?.Invoke(note);
+    }
+
+    public static void PublishContractOffered(ContractNote note) => ContractOffered?.Invoke(note);
+
+    public static void PublishContractAccepted(ContractNote note)
+    {
+        ActiveContract = note;
+        ContractAccepted?.Invoke(note);
+    }
+
+    public static void PublishContractResolved(ContractNote note)
+    {
+        if (ActiveContract != null && ActiveContract.Value.InstanceId == note.InstanceId)
+        {
+            ActiveContract = null;
+        }
+        ContractResolved?.Invoke(note);
+    }
+
+    /// <summary>Forgets the active contract without an ending (a new run started).</summary>
+    public static void ClearActiveContract() => ActiveContract = null;
+
+    /// <summary>Raised the first time in a run the carrier finds a relic (comes close to it, or picks it up).</summary>
+    public static event Action<RelicNote>? RelicDiscovered;
+
+    /// <summary>Raised when a relic is left at a station's altar and studied.</summary>
+    public static event Action<RelicNote>? RelicDelivered;
+
+    public static void PublishRelicDiscovered(RelicNote note) => RelicDiscovered?.Invoke(note);
+
+    public static void PublishRelicDelivered(RelicNote note) => RelicDelivered?.Invoke(note);
+
+    /// <summary>Raised when the carrier reads a found text (a sign, note, ledger or inscription). FirstThisRun is false on a re-read.</summary>
+    public static event Action<LoreNote>? LoreRead;
+
+    public static void PublishLoreRead(LoreNote note) => LoreRead?.Invoke(note);
+
+    /// <summary>The carrier's goals right now: the main goal first, then the circle, then side goals (objective director).</summary>
+    public static IReadOnlyList<ObjectiveNote> CurrentObjectives { get; private set; } = System.Array.Empty<ObjectiveNote>();
+
+    /// <summary>Goals finished or failed this run, oldest first (the journal's "Now" page strikes them through).</summary>
+    public static IReadOnlyList<ObjectiveNote> FinishedObjectives { get; private set; } = System.Array.Empty<ObjectiveNote>();
+
+    /// <summary>Raised whenever the goals change (a step done, a new station, a job taken).</summary>
+    public static event Action<IReadOnlyList<ObjectiveNote>>? ObjectivesChanged;
+
+    /// <summary>Raised when a goal is new (a new main goal, a job offered or taken) or just finished: notes, banner, journal.</summary>
+    public static event Action<ObjectiveNote>? ObjectiveAnnounced;
+
+    public static void PublishObjectives(IReadOnlyList<ObjectiveNote> current, IReadOnlyList<ObjectiveNote> finished)
+    {
+        CurrentObjectives = current;
+        FinishedObjectives = finished;
+        ObjectivesChanged?.Invoke(current);
+    }
+
+    public static void PublishObjectiveAnnounced(ObjectiveNote note) => ObjectiveAnnounced?.Invoke(note);
+
+    /// <summary>Raised when a traveller takes a seat by a station's fire: (station, name, who they are).</summary>
+    public static event Action<int, string, string>? VisitorSeated;
+
+    public static void PublishVisitorSeated(int station, string name, string title) => VisitorSeated?.Invoke(station, name, title);
+
+    /// <summary>Raised when a station's job becomes a traveller's errand: (station, the traveller's name, the job's title).</summary>
+    public static event Action<int, string, string>? ErrandPosted;
+
+    public static void PublishErrandPosted(int station, string giver, string title) => ErrandPosted?.Invoke(station, giver, title);
+
+    /// <summary>The closest unused point of interest beside the path, if one is near (null when none).</summary>
+    public static WaysideNote? NearestWayside { get; private set; }
+
+    /// <summary>Raised when the closest point of interest changes, or comes into or out of range.</summary>
+    public static event Action<WaysideNote?>? WaysideNear;
+
+    /// <summary>Raised when the carrier takes what a point of interest held (Text says what).</summary>
+    public static event Action<WaysideNote>? WaysideUsed;
+
+    public static void PublishWaysideNear(WaysideNote? note)
+    {
+        NearestWayside = note;
+        WaysideNear?.Invoke(note);
+    }
+
+    public static void PublishWaysideUsed(WaysideNote note) => WaysideUsed?.Invoke(note);
+
     /// <summary>Asks for the carrier to die at once (falling into the abyss), with a cause.</summary>
     public static event Action<string>? KillRequested;
 
@@ -337,6 +486,23 @@ public static class GameEvents
     {
         KillRequested?.Invoke(cause);
     }
+
+    /// <summary>
+    /// Asks for the carrier to be thrown into the air (an animal's shove, a beast's charge):
+    /// (horizontal velocity in m/s, height to reach in m, who did it). The controller launches the
+    /// carrier; the landing is an ordinary one, so the timed roll (Space) can take it.
+    /// </summary>
+    public static event Action<Godot.Vector3, float, string>? LaunchRequested;
+
+    public static void RequestLaunch(Godot.Vector3 horizontal, float height, string cause)
+    {
+        LaunchRequested?.Invoke(horizontal, height, cause);
+    }
+
+    /// <summary>Raised when the carrier is thrown (cause), for notes and sounds.</summary>
+    public static event Action<string>? Launched;
+
+    public static void PublishLaunched(string cause) => Launched?.Invoke(cause);
 
     /// <summary>True while a narrator line is playing (music ducks under it).</summary>
     public static bool IsNarrating { get; private set; }

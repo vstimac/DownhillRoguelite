@@ -1,0 +1,25 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://debug/TestTerrain.tscn" id="1_world"]
+[ext_resource type="Script" path="res://progression/expeditions/RecoveryExpedition.cs" id="2_expedition"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/recover_pump.tres" id="3_job"]
+[ext_resource type="Script" path="res://ui/hud/ExpeditionCard.cs" id="4_card"]
+[ext_resource type="Script" path="res://debug/RecoveryPlaytest.cs" id="5_playtest"]
+
+[node name="RecoveryExpeditionPlaytest" instance=ExtResource("1_world")]
+script = ExtResource("5_playtest")
+
+[node name="Boons" parent="."]
+RequireCompletedWork = true
+
+[node name="StartScreen" parent="."]
+Subtitle = "Recover the pump. Restore the next station."
+VersionText = "Math audit · recovery expedition prototype"
+
+[node name="RecoveryExpedition" type="Node3D" parent="." node_paths=PackedStringArray("Director")]
+script = ExtResource("2_expedition")
+Director = NodePath("../Contracts")
+Job = ExtResource("3_job")
+
+[node name="ExpeditionBrief" type="CanvasLayer" parent="."]
+script = ExtResource("4_card")

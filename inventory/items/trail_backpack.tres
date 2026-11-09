@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+[ext_resource type="Script" path="res://inventory/ClothingVisual.cs" id="2_visual"]
+[sub_resource type="Resource" id="Visual"]
+script = ExtResource("2_visual")
+Kind = 4
+AttachmentBone = "Spine1"
+Offset = Vector3(0, 0.05, 0.24)
+Colour = Color(0.36, 0.29, 0.18, 1)
+[resource]
+script = ExtResource("1_item")
+ItemId = "trail_backpack"
+DisplayName = "Trail pack (prototype)"
+Description = "A removable external pack attached to the carrier frame. The existing inventory grid remains the storage container. Prototype geometry."
+MassKg = 1.2
+SizeCells = Vector3i(4, 5, 3)
+Category = 4
+Slot = 6
+MaxDurability = 120.0
+Pockets = 1
+MendType = "backpack"
+SpeedMultiplier = 0.98
+Clothing = SubResource("Visual")

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ContractDefinition" format=3]
+
+[ext_resource type="Script" path="res://progression/contracts/ContractDefinition.cs" id="1_contract"]
+
+[resource]
+script = ExtResource("1_contract")
+Id = "CT_002"
+DisplayName = "A Stone for the Scale"
+Kind = 2
+Giver = "the ledger keeper"
+OfferText = "A carved block for the scale below. It weighs what it weighs; nothing you do will hurt it."
+CargoItemPath = "res://inventory/items/carved_stone.tres"
+StationsAhead = 1
+MinStation = 2
+Score = 55
+Weight = 0.9
+Fragility = 0.0
+MinCondition = 0.0
+DeadlineDays = 0.0
+MinCircle = 0
+MaxCircle = -1

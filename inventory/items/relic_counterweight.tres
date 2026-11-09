@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+[ext_resource type="PackedScene" path="res://art/props/kenney_castle_kit/GLB format/tower-square-base.glb" id="2_model"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "relic_counterweight"
+DisplayName = "The Counterweight"
+MassKg = 8.0
+Category = 3
+SizeCells = Vector3i(3, 3, 2)
+Tags = 8
+Orientation = 0
+DebugColor = Color(0.36, 0.34, 0.32, 1)
+Model = ExtResource("2_model")

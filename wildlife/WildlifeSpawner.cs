@@ -27,6 +27,12 @@ public partial class WildlifeSpawner : Node3D
     public int Circle { get; private set; }
     /// <summary>Where the carrier was last seen (LocomotionUpdated).</summary>
     public Vector3 Carrier => _carrier;
+    /// <summary>Population RNG seed; set before the first tick to replay a wildlife scenario.</summary>
+    public ulong PopulationSeed
+    {
+        get => _random.Seed;
+        set => _random.Seed = value;
+    }
 
     private readonly List<WildlifeAnimal> _animals = new();
     private readonly RandomNumberGenerator _random = new();
@@ -34,6 +40,7 @@ public partial class WildlifeSpawner : Node3D
     private RunState? _run;
     private Vector3 _carrier;
     private Vector3 _carrierVelocity;
+    private Vector3 _carrierInput;
     private bool _hasCarrier;
     private bool _sprinting;
     private float _spawnTimer;
@@ -57,6 +64,8 @@ public partial class WildlifeSpawner : Node3D
         GameEvents.DownedChanged -= OnDownedChanged;
         GameEvents.RespawnRequested -= Clear;
     }
+
+    private int _tick;
 
     public override void _PhysicsProcess(double delta)
     {
@@ -88,8 +97,21 @@ public partial class WildlifeSpawner : Node3D
                 _animals.RemoveAt(i);
                 continue;
             }
-            animal.Tick(dt, _carrier, _sprinting, space);
+            // Far, calm animals step less often: nobody sees a grazing sheep 100 m off at 60 Hz.
+            bool calm = animal.State == WildlifeAnimal.Mode.Idle || animal.State == WildlifeAnimal.Mode.Walk;
+            int every = Mathf.Max(Table.FarTickEvery, 1);
+            if (calm && every > 1 && horizontal > Table.FarDistance)
+            {
+                if ((_tick + i) % every != 0)
+                {
+                    continue;
+                }
+                animal.Tick(dt * every, _carrier, _carrierInput, _sprinting, space);
+                continue;
+            }
+            animal.Tick(dt, _carrier, _carrierInput, _sprinting, space);
         }
+        _tick++;
 
         _spawnTimer -= dt;
         if (Spawning && _spawnTimer <= 0.0f && _animals.Count < Table.MaxAnimals)
@@ -253,6 +275,7 @@ public partial class WildlifeSpawner : Node3D
     {
         _carrier = snapshot.Position;
         _carrierVelocity = snapshot.Velocity;
+        _carrierInput = snapshot.InputDirection;
         _hasCarrier = true;
     }
 

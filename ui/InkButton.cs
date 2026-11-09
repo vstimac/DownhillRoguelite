@@ -20,6 +20,8 @@ public partial class InkButton : BaseButton
     public GlyphKind Glyph { get; set; }
     public int FontSize { get; set; } = UiStyle.TextSize;
     public bool Paper { get; set; }
+    /// <summary>Takes keyboard and controller focus (menus); focus looks like the mouse hovering it.</summary>
+    public bool Focusable { get; set; }
 
     private Tween? _tween;
     private bool _hover;
@@ -27,8 +29,18 @@ public partial class InkButton : BaseButton
     public override void _Ready()
     {
         FocusMode = FocusModeEnum.None;
-        MouseEntered += () => Hover(true);
-        MouseExited += () => Hover(false);
+        if (Focusable)
+        {
+            FocusMode = FocusModeEnum.All;
+            MouseEntered += () => GrabFocus();
+            FocusEntered += () => Hover(true);
+            FocusExited += () => Hover(false);
+        }
+        else
+        {
+            MouseEntered += () => Hover(true);
+            MouseExited += () => Hover(false);
+        }
         ButtonDown += () => Bounce(0.88f, 0.06);
         ButtonUp += () => Bounce(HoverScale(), 0.12);
         Resized += () => PivotOffset = Size * 0.5f;

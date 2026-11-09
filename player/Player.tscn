@@ -18,12 +18,15 @@
 [ext_resource type="Script" path="res://player/RouteEstimator.cs" id="16_estimator"]
 [ext_resource type="Script" path="res://player/CarrierModel.cs" id="17_carrier_model"]
 [ext_resource type="Script" path="res://player/Dive.cs" id="18_vault"]
+[ext_resource type="Script" path="res://player/BodyDynamics.cs" id="19_body_dynamics"]
+[ext_resource type="Script" path="res://player/CharacterAbility.cs" id="20_character_ability"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.3
 height = 1.8
 
 [node name="Player" type="CharacterBody3D" node_paths=PackedStringArray("Stamina", "Health")]
+collision_mask = 9
 script = ExtResource("1_controller")
 Settings = ExtResource("2_settings")
 Stamina = NodePath("Stamina")
@@ -38,6 +41,10 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
 [node name="SpineLean" type="SkeletonModifier3D" parent="Model/Rig/Skeleton3D"]
 script = ExtResource("9_spine_lean")
+
+[node name="BodyDynamics" type="SkeletonModifier3D" parent="Model/Rig/Skeleton3D" node_paths=PackedStringArray("Body")]
+script = ExtResource("19_body_dynamics")
+Body = NodePath("../../../..")
 
 [node name="CarrierModel" type="Node3D" parent="." node_paths=PackedStringArray("Driver", "DriverModel")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
@@ -104,6 +111,9 @@ Body = NodePath("..")
 script = ExtResource("16_estimator")
 Body = NodePath("..")
 Stamina = NodePath("../Stamina")
+
+[node name="CharacterAbility" type="Node" parent="."]
+script = ExtResource("20_character_ability")
 
 [node name="Dive" type="Node3D" parent="." node_paths=PackedStringArray("Body", "Look")]
 script = ExtResource("18_vault")

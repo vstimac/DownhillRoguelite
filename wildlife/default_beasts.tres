@@ -1,0 +1,80 @@
+[gd_resource type="Resource" script_class="BeastRoster" format=3]
+
+[ext_resource type="Script" path="res://wildlife/BeastSpecies.cs" id="1_species"]
+[ext_resource type="Script" path="res://wildlife/BeastRoster.cs" id="5_roster"]
+[ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-dog.glb" id="2_dog"]
+[ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-tiger.glb" id="3_tiger"]
+[ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-lion.glb" id="4_lion"]
+
+[sub_resource type="Resource" id="SheWolf"]
+script = ExtResource("1_species")
+DisplayName = "she-wolf"
+Model = ExtResource("2_dog")
+ModelScale = 0.95
+Shade = Color(0.03, 0.03, 0.05, 0.85)
+EyeColor = Color(1, 0.72, 0.15, 1)
+EyeOffset = Vector3(0, 0.82, -0.86)
+EyeSize = 0.06
+EyeSpacing = 0.45
+BodySize = Vector3(0.8, 1.3, 1.0)
+StalkRadius = Vector2(14, 22)
+StalkSpeed = 2.4
+CatchUpSpeed = 7.5
+AttackInterval = Vector2(12, 24)
+WindUp = 1.2
+ChargeSpeed = 10.0
+ThrowHeight = 3.0
+ThrowSpeed = 6.0
+StealsFood = true
+MinCircle = 0
+Weight = 3.0
+
+[sub_resource type="Resource" id="Leopard"]
+script = ExtResource("1_species")
+DisplayName = "leopard"
+Model = ExtResource("3_tiger")
+ModelScale = 0.9
+Shade = Color(0.04, 0.03, 0.02, 0.8)
+EyeColor = Color(0.6, 1, 0.3, 1)
+EyeOffset = Vector3(0, 0.88, -0.75)
+EyeSize = 0.055
+EyeSpacing = 0.36
+BodySize = Vector3(0.8, 1.3, 1.1)
+StalkRadius = Vector2(12, 20)
+StalkSpeed = 2.8
+CatchUpSpeed = 9.0
+AttackInterval = Vector2(10, 18)
+WindUp = 0.9
+ChargeSpeed = 12.0
+ChargeTurnSpeed = 45.0
+ThrowHeight = 3.5
+ThrowSpeed = 7.0
+MinCircle = 1
+Weight = 2.0
+
+[sub_resource type="Resource" id="Lion"]
+script = ExtResource("1_species")
+DisplayName = "lion"
+Model = ExtResource("4_lion")
+ModelScale = 1.1
+Shade = Color(0.04, 0.025, 0.0, 0.8)
+EyeColor = Color(1, 0.35, 0.1, 1)
+EyeOffset = Vector3(0, 1.05, -0.9)
+EyeSpacing = 0.48
+EyeSize = 0.07
+BodySize = Vector3(1.2, 1.7, 1.5)
+StalkRadius = Vector2(16, 26)
+StalkSpeed = 2.0
+CatchUpSpeed = 7.0
+AttackInterval = Vector2(16, 30)
+WindUp = 1.5
+ChargeSpeed = 9.0
+ChargeTurnSpeed = 25.0
+ThrowHeight = 5.0
+ThrowSpeed = 8.0
+MinCircle = 2
+Weight = 1.5
+
+[resource]
+script = ExtResource("5_roster")
+Beasts = Array[Object]([SubResource("SheWolf"), SubResource("Leopard"), SubResource("Lion")])

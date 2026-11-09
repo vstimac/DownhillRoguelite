@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using DownhillRoguelite.Balance;
 using DownhillRoguelite.Core;
@@ -36,7 +37,7 @@ public partial class PackingTests : Node3D
     [Export] public float MinComShift { get; set; } = 0.02f;
     /// <summary>Moving the ore alone from bottom-centre to the top must raise the centre of mass this much, in m.</summary>
     [Export] public float MinOreRise { get; set; } = 0.04f;
-    /// <summary>On the descent, the high-right packing's peak imbalance must exceed the low-centred one by this factor.</summary>
+    /// <summary>High-right packing's sustained RMS sway must exceed the low-centred one's by this factor.</summary>
     [Export] public float MinDescentRatio { get; set; } = 1.5f;
 
     private readonly List<string> _failures = new();
@@ -58,7 +59,8 @@ public partial class PackingTests : Node3D
         TestGridRules();
         TestPackAll(Inventory);
         TestCenterOfMass(Inventory);
-        await TestDescent(PlayerBody, Course, Inventory);
+        try { await TestDescent(PlayerBody, Course, Inventory); }
+        catch (System.Exception error) { Check("descent fixture remains valid", false, error.Message); }
 
         GameEvents.BalanceUpdated -= OnBalanceUpdated;
         if (_failures.Count == 0)
@@ -207,19 +209,101 @@ public partial class PackingTests : Node3D
     private async Task TestDescent(PlayerController player, TestCourseBuilder course, CarrierInventory inventory)
     {
         string lane = $"{course.LaneAngles[DescentLane]:0}°";
-        inventory.Repack(ByMass(inventory, true), 1.0f);
-        (float high, BalanceState highWorst) = await RunDescent(player, course);
+        HashSet<string> copies = new(inventory.Grid!.Items.Select(item => item.InstanceId));
+        ArrangeHighRight(inventory);
+        LoadSnapshot highLoad = GameEvents.CurrentLoad;
+        (float high, float highRms, BalanceState highWorst) = await RunDescent(player, course);
         inventory.Repack(ByMass(inventory, false), 0.5f);
-        (float low, BalanceState lowWorst) = await RunDescent(player, course);
+        ArrangeCentred(inventory);
+        LoadSnapshot lowLoad = GameEvents.CurrentLoad;
+        (float low, float lowRms, BalanceState lowWorst) = await RunDescent(player, course);
+        Check("descent fixtures really compare a high side load to a low centred load",
+            highLoad.CenterOfMass.Y >= lowLoad.CenterOfMass.Y + MinComRise
+            && highLoad.CenterOfMass.X >= Mathf.Abs(lowLoad.CenterOfMass.X) + MinComShift
+            && Mathf.Abs(highLoad.Mass - lowLoad.Mass) < 0.001f
+            && copies.SetEquals(inventory.Grid.Items.Select(item => item.InstanceId)),
+            $"high COM {highLoad.CenterOfMass}, low COM {lowLoad.CenterOfMass}, equal mass {lowLoad.Mass:0.00} kg");
 
-        Check($"A-vs-B by packing on {lane}: heavy-high-right sways much more", high >= low * MinDescentRatio,
-            $"peak imbalance {high:0.00} ({highWorst}) vs heavy-low-centred {low:0.00} ({lowWorst})");
+        // A single peak aliases the current lead foot during a gait transition. RMS compares the
+        // whole descent, while the separate peak/state check still rejects a safer high pack.
+        Check($"A-vs-B by packing on {lane}: heavy-high-right sways much more", highRms >= lowRms * MinDescentRatio,
+            $"RMS sway {highRms:0.000} vs {lowRms:0.000}, ratio {highRms / lowRms:0.00}");
+        Check($"A-vs-B by packing on {lane}: high packing also has the larger peak", high > low && highWorst >= lowWorst,
+            $"peak imbalance {high:0.00} ({highWorst}) vs {low:0.00} ({lowWorst})");
         Check($"A-vs-B by packing on {lane}: heavy-low-centred keeps its balance", lowWorst <= BalanceState.Wobbling,
             $"worst state {lowWorst}");
     }
 
-    /// <summary>Strides then brakes down the descent lane with no lean input; returns peak imbalance and worst state.</summary>
-    private async Task<(float Peak, BalanceState Worst)> RunDescent(PlayerController player, TestCourseBuilder course)
+    /// <summary>A concrete, valid grid fixture: the same ten owned items, with heavy ore actually high/right.</summary>
+    private static void ArrangeHighRight(CarrierInventory inventory)
+    {
+        BackpackGrid plan = new(inventory.Grid!.Size);
+        (string Id, Vector3I At, Vector3I Size)[] layout =
+        {
+            ("sleeping_bag", new(0, 0, 0), new(3, 6, 4)),
+            ("tent", new(2, 6, 0), new(2, 6, 4)),
+            ("rope", new(3, 2, 0), new(3, 4, 2)),
+            ("cookware", new(3, 0, 2), new(3, 4, 2)),
+            ("food_bag", new(4, 9, 2), new(2, 3, 2)),
+            ("stove", new(4, 4, 2), new(2, 3, 2)),
+            ("water_bottle", new(4, 6, 0), new(2, 4, 2)),
+            ("med_kit", new(4, 7, 2), new(2, 2, 2)),
+            ("fuel_canister", new(4, 0, 0), new(2, 2, 2)),
+            ("ore_sample", new(4, 10, 0), new(2, 2, 2)),
+        };
+        foreach ((string id, Vector3I at, Vector3I size) in layout)
+        {
+            ItemDefinition definition = inventory.AllItems.Single(item => item.ItemId == id);
+            int orientation = -1;
+            for (int i = 0; i < GridOrientations.All.Count; i++)
+            {
+                if (GridOrientations.Allows(definition.Orientation, i) && GridOrientations.RotatedSize(definition.SizeCells, i) == size)
+                { orientation = i; break; }
+            }
+            if (orientation < 0 || plan.Place(definition, at, orientation) == null)
+            { throw new System.InvalidOperationException("The high/right fixture no longer fits its item definitions."); }
+        }
+        foreach (PackedItem item in new List<PackedItem>(inventory.Grid.Items)) { inventory.Unpack(item); }
+        foreach (PackedItem item in plan.Items)
+        {
+            if (inventory.Pack(item.Definition, item.Origin, item.Orientation) == null)
+            { throw new System.InvalidOperationException("The descent fixture could not restore an owned item."); }
+        }
+    }
+
+    /// <summary>Auto-pack ranks boxes, not total COM. Finish the fixture with legal horizontal moves of the same copies.</summary>
+    private static void ArrangeCentred(CarrierInventory inventory)
+    {
+        BackpackGrid grid = inventory.Grid!;
+        for (int pass = 0; pass < 2; pass++)
+        {
+            List<PackedItem> items = new(grid.Items);
+            items.Sort((a, b) => b.Definition.MassKg.CompareTo(a.Definition.MassKg));
+            foreach (PackedItem item in items)
+            {
+                LoadSnapshot load = GameEvents.CurrentLoad;
+                Vector3I best = item.Origin;
+                float score = -Mathf.Abs(load.CenterOfMass.X);
+                inventory.Unpack(item);
+                for (int x = 0; x + item.Size.X <= grid.Size.X; x++)
+                {
+                    for (int z = 0; z <= item.Origin.Z; z++)
+                    {
+                        Vector3I candidate = new(x, item.Origin.Y, z);
+                        if (!grid.CanPlace(item.Size, candidate)) { continue; }
+                        float com = load.CenterOfMass.X + (x - item.Origin.X) * inventory.Backpack!.CellSize * item.Definition.MassKg / load.Mass;
+                        com = -Mathf.Abs(com);
+                        if (com > score + 0.00001f) { score = com; best = candidate; }
+                    }
+                }
+                if (inventory.Pack(item.Definition, best, item.Orientation) == null)
+                { throw new System.InvalidOperationException("Packing fixture lost a valid original placement."); }
+            }
+        }
+    }
+
+    /// <summary>Strides then brakes with no lean; compares sustained sway as well as worst-case safety.</summary>
+    private async Task<(float Peak, float Rms, BalanceState Worst)> RunDescent(PlayerController player, TestCourseBuilder course)
     {
         player.Teleport(course.LanePoint(DescentLane, 3.0f) + Vector3.Up * 0.05f, 0.0f);
         player.Health?.Refill();
@@ -235,16 +319,18 @@ public partial class PackingTests : Node3D
         Input.ActionRelease(ActionBrake);
 
         float peak = 0.0f;
+        float squared = 0;
         BalanceState worst = BalanceState.Stable;
         foreach (BalanceSnapshot sample in _samples)
         {
             peak = Mathf.Max(peak, sample.ImbalanceMagnitude);
+            squared += sample.ImbalanceMagnitude * sample.ImbalanceMagnitude;
             if (sample.State > worst)
             {
                 worst = sample.State;
             }
         }
-        return (peak, worst);
+        return (peak, Mathf.Sqrt(squared / Mathf.Max(1, _samples.Count)), worst);
     }
 
     private static List<ItemDefinition> ByMass(CarrierInventory inventory, bool lightestFirst)

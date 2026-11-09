@@ -46,7 +46,7 @@ public partial class LocomotionSettings : Resource
 
     [ExportGroup("Turning")]
     /// <summary>Turn rate when nearly stopped, in degrees per second.</summary>
-    [Export] public float TurnRateAtRest { get; set; } = 720.0f;
+    [Export] public float TurnRateAtRest { get; set; } = 360.0f;
 
     /// <summary>Turn rate at MaxSpeed, in degrees per second.</summary>
     [Export] public float TurnRateAtMaxSpeed { get; set; } = 140.0f;
@@ -58,7 +58,10 @@ public partial class LocomotionSettings : Resource
     [Export] public float TurnSlowdown { get; set; } = 0.6f;
 
     /// <summary>How quickly the body yaws toward its movement direction.</summary>
-    [Export] public float FacingSharpness { get; set; } = 12.0f;
+    [Export] public float FacingSharpness { get; set; } = 8.0f;
+
+    /// <summary>A heavy pack turns the body more slowly: facing sharpness is divided by (1 + this × kg).</summary>
+    [Export] public float FacingLoadSlowdownPerKg { get; set; } = 0.025f;
 
     /// <summary>Below this speed the body faces the input direction instead of the velocity, in m/s.</summary>
     [Export] public float FacingMinSpeed { get; set; } = 0.2f;
@@ -106,7 +109,7 @@ public partial class LocomotionSettings : Resource
     /// <summary>Downhill creep at zero grip on a vertical face; scaled by (1 - grip) and the slope's sine, in m/s.</summary>
     [Export] public float SurfaceCreepSpeed { get; set; } = 1.5f;
     /// <summary>With no input, the carrier stops at least this hard (feet planted), in m/s², before grip.</summary>
-    [Export] public float StopDeceleration { get; set; } = 14.0f;
+    [Export] public float StopDeceleration { get; set; } = 10.0f;
     /// <summary>How much poor grip lengthens that stop: traction never drops below this when stopping.</summary>
     [Export] public float MinStopTraction { get; set; } = 0.5f;
 

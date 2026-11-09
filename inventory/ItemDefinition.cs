@@ -36,6 +36,15 @@ public partial class ItemDefinition : Resource
     [Export] public EquipSlot Slot { get; set; } = EquipSlot.None;
     /// <summary>Hit points when new (worn gear only).</summary>
     [Export] public float MaxDurability { get; set; }
+    [Export(PropertyHint.MultilineText)] public string Description { get; set; } = "";
+    [Export] public ClothingVisual? Clothing { get; set; }
+    [Export] public float SpeedMultiplier { get; set; } = 1.0f;
+    [Export] public float StaminaMultiplier { get; set; } = 1.0f;
+    [Export] public float WindProof { get; set; }
+    [Export] public float FallProtection { get; set; }
+    [Export] public float PhysicalProtection { get; set; }
+    /// <summary>Content metadata only; rarity does not multiply stats.</summary>
+    [Export] public string Rarity { get; set; } = "Common";
     /// <summary>Fraction of cold and chill it keeps off (summed over everything worn, capped).</summary>
     [Export] public float Warmth { get; set; }
     /// <summary>Fraction of the rain's chill it keeps off.</summary>
@@ -61,5 +70,26 @@ public partial class ItemDefinition : Resource
     /// <summary>The piece lies on its back on the ground (clothes), instead of standing as modelled.</summary>
     [Export] public bool ModelLieFlat { get; set; }
 
+    /// <summary>
+    /// Contract cargo only: the contract this physical copy belongs to (empty for ordinary items).
+    /// Ordinary items of one kind share one cached resource; cargo is its own copy
+    /// (CarrierInventory.GrantCargo), and that copy is the item's identity through drops and repacks.
+    /// Not saved: it is set on the runtime copy.
+    /// </summary>
+    public string CargoInstanceId { get; set; } = "";
+    public string SourceItemPath { get; set; } = "";
+
+    public bool IsContractCargo => CargoInstanceId.Length > 0;
+
     public int Volume => SizeCells.X * SizeCells.Y * SizeCells.Z;
+
+    public bool ValidEquipment()
+    {
+        if (!EquipmentSlots.Valid(Slot) || SizeCells.X <= 0 || SizeCells.Y <= 0 || SizeCells.Z <= 0 || Pockets < 0) { return false; }
+        if (!float.IsFinite(MassKg) || MassKg < 0 || !float.IsFinite(MaxDurability) || MaxDurability <= 0
+            || !float.IsFinite(SpeedMultiplier) || SpeedMultiplier <= 0 || !float.IsFinite(StaminaMultiplier) || StaminaMultiplier <= 0) { return false; }
+        foreach (float value in new[] { Warmth, RainProof, WindProof, FallProtection, PhysicalProtection })
+        { if (!float.IsFinite(value) || value < 0 || value > 1) { return false; } }
+        return float.IsFinite(GripBonus) && GripBonus >= 0 && float.IsFinite(WindCatch) && WindCatch >= 0;
+    }
 }

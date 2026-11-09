@@ -18,6 +18,9 @@ public static class ItemModels
     public static readonly Color Oilskin = new(0.42f, 0.36f, 0.16f);
     public static readonly Color Fur = new(0.42f, 0.32f, 0.22f);
     public static readonly Color FurLight = new(0.66f, 0.56f, 0.44f);
+    public static readonly Color HardHatYellow = new(0.95f, 0.72f, 0.1f);
+    public static readonly Color HiVis = new(0.85f, 0.95f, 0.15f);
+    public static readonly Color Reflective = new(0.78f, 0.8f, 0.82f);
     private static readonly Dictionary<Color, StandardMaterial3D> Materials = new();
 
     /// <summary>The item's built model, or a tied bundle in its own colour for anything not listed.</summary>
@@ -94,6 +97,16 @@ public static class ItemModels
         Part(parent, new SphereMesh { Radius = radius, Height = radius, IsHemisphere = true, RadialSegments = 20, Rings = 8 }, WoolRed, at);
         Part(parent, new TorusMesh { InnerRadius = radius * 0.92f, OuterRadius = radius * 1.12f, Rings = 20, RingSegments = 8 }, WoolCream, at + Vector3.Up * radius * 0.08f);
         Part(parent, new SphereMesh { Radius = radius * 0.22f, Height = radius * 0.44f, RadialSegments = 10, Rings = 6 }, WoolCream, at + Vector3.Up * radius * 1.02f);
+    }
+
+    /// <summary>A builder's hard hat: a yellow dome with a ridge and a brim; <paramref name="radius"/> is the head's.</summary>
+    public static void AddHardHat(Node3D parent, Vector3 at, float radius)
+    {
+        Part(parent, new SphereMesh { Radius = radius * 1.08f, Height = radius * 1.0f, IsHemisphere = true, RadialSegments = 20, Rings = 8 }, HardHatYellow, at, default, 0.35f);
+        Part(parent, new CylinderMesh { TopRadius = radius * 1.3f, BottomRadius = radius * 1.3f, Height = radius * 0.08f, RadialSegments = 20 }, HardHatYellow,
+            at + Vector3.Up * radius * 0.04f, default, 0.35f);
+        Part(parent, new BoxMesh { Size = new Vector3(radius * 0.25f, radius * 0.18f, radius * 1.9f) }, HardHatYellow.Darkened(0.12f),
+            at + Vector3.Up * radius * 0.95f, default, 0.35f);
     }
 
     /// <summary>A leather glove lying palm down, fingers along -Z; <paramref name="side"/> 1 for left, -1 for right.</summary>

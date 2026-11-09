@@ -86,8 +86,26 @@ public partial class RunSummaryView : Node3D
         {
             record = "a new record";
         }
+        string cargo = "";
+        if (summary.ContractsDelivered == 1)
+        {
+            cargo = "1 delivery · ";
+        }
+        else if (summary.ContractsDelivered > 1)
+        {
+            cargo = summary.ContractsDelivered + " deliveries · ";
+        }
+        if (summary.RelicsDelivered == 1)
+        {
+            cargo += "1 relic studied · ";
+        }
+        else if (summary.RelicsDelivered > 1)
+        {
+            cargo += summary.RelicsDelivered + " relics studied · ";
+        }
         _details.Text = $"Run {summary.RunNumber} · {summary.Depth} m down · {stations} · day {summary.Day}\n" +
             $"{summary.CircleName} · taken by {summary.Cause} · {record}\n" +
+            cargo + "score " + summary.Score + "\n" +
             $"mountain {summary.Seed}\n\n" +
             "A new mountain rises...";
         _details.Modulate = new Color(TextColor, 0.0f);

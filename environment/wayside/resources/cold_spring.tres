@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WaysideDefinition" format=3]
+
+[ext_resource type="Script" path="res://environment/wayside/WaysideDefinition.cs" id="1_wayside"]
+
+[resource]
+script = ExtResource("1_wayside")
+Id = "WS_SPRING"
+Title = "A cold spring"
+Description = "Clear water runs out of the rock into a stone basin. Someone left a flask on the rim."
+Prompt = "Fill a flask"
+TakenText = "I filled a flask at a cold spring beside the path."
+ItemPaths = PackedStringArray("res://inventory/items/water_flask.tres")
+MinCircle = 0
+Weight = 1.3
+PennantColor = Color(0.2, 0.45, 0.7, 1)
+Look = 2

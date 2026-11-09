@@ -48,6 +48,7 @@ public static class ItemText
         {
             return "";
         }
+        if (item.Description.Length > 0) { return item.Description; }
         if (item.Category == ItemCategory.Food)
         {
             return "Something to eat on the way down.";
@@ -78,6 +79,11 @@ public static class ItemText
             return "";
         }
         string text = $"Weight {item.MassKg:0.0} kg  ·  {item.SizeCells.X}×{item.SizeCells.Y}×{item.SizeCells.Z} cells";
+        if (item.Slot != EquipSlot.None) { text += $"\nSlot: {item.Slot} · {item.Rarity}"; }
+        if (item.SpeedMultiplier != 1) { text += $"\nMovement ×{item.SpeedMultiplier:0.00}"; }
+        if (item.StaminaMultiplier != 1) { text += $"\nStamina cost ×{item.StaminaMultiplier:0.00}"; }
+        if (item.WindProof > 0) { text += $"\nWind resistance {item.WindProof:P0}"; }
+        if (item.FallProtection > 0) { text += $"\nFall protection {item.FallProtection:P0}"; }
         if (item.Nutrition > 0.0f)
         {
             text += $"\nFood +{item.Nutrition:0}";

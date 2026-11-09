@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="SetPiece" format=3]
+
+[ext_resource type="Script" path="res://environment/SetPiece.cs" id="1_piece"]
+[ext_resource type="Script" path="res://environment/SetPiecePart.cs" id="2_part"]
+
+[sub_resource type="Resource" id="part_0"]
+script = ExtResource("2_part")
+Model = "res://art/props/kenney_castle_kit/GLB format/tower-square-base.glb"
+Offset = Vector3(0, 0, 0)
+Yaw = 0
+Tilt = Vector2(0, 0)
+Height = 4.5
+Solid = true
+
+[sub_resource type="Resource" id="part_1"]
+script = ExtResource("2_part")
+Model = "res://art/props/kenney_castle_kit/GLB format/tower-square.glb"
+Offset = Vector3(0, 4.5, 0)
+Yaw = 0
+Tilt = Vector2(0, 0)
+Height = 5.8
+Solid = true
+
+[sub_resource type="Resource" id="part_2"]
+script = ExtResource("2_part")
+Model = "res://art/props/kenney_castle_kit/GLB format/flag-banner-long.glb"
+Offset = Vector3(0, 10.3, 0)
+Yaw = 0
+Tilt = Vector2(0, 0)
+Height = 4
+Solid = false
+
+[resource]
+script = ExtResource("1_piece")
+Id = "stone_tower"
+Kind = 1
+Parts = [SubResource("part_0"), SubResource("part_1"), SubResource("part_2")]
+FavouredCircles = PackedInt32Array(4, 6, 7)
+FirstCircle = 0
+Weight = 1
+Radius = 4

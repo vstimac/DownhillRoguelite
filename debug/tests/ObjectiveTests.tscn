@@ -1,0 +1,65 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/ObjectiveTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://terrain/TerrainStreamer.cs" id="2_streamer"]
+[ext_resource type="Resource" path="res://terrain/default_terrain.tres" id="3_terrain_settings"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="4_player"]
+[ext_resource type="Script" path="res://map/StationManager.cs" id="5_stations"]
+[ext_resource type="Script" path="res://progression/contracts/ContractDirector.cs" id="6_contracts"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/courier_sealed_parcel.tres" id="7_parcel"]
+[ext_resource type="Script" path="res://narrative/StationVisitors.cs" id="8_visitors"]
+[ext_resource type="Resource" path="res://narrative/npcs/pilgrim.tres" id="9_pilgrim"]
+[ext_resource type="Script" path="res://progression/objectives/ObjectiveDirector.cs" id="10_objectives"]
+[ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="11_inventory"]
+[ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="12_backpack"]
+[ext_resource type="Script" path="res://map/FieldMap.cs" id="13_map"]
+[ext_resource type="Script" path="res://ui/Hud.cs" id="14_hud"]
+[ext_resource type="Script" path="res://debug/DebugSceneControls.cs" id="15_controls"]
+
+[node name="ObjectiveTests" type="Node3D" node_paths=PackedStringArray("PlayerBody", "Streamer", "Director", "Contracts", "Visitors", "Ui")]
+script = ExtResource("1_tests")
+PlayerBody = NodePath("Player")
+Streamer = NodePath("Terrain")
+Director = NodePath("Objectives")
+Contracts = NodePath("Contracts")
+Visitors = NodePath("Visitors")
+Ui = NodePath("Hud")
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_streamer")
+Settings = ExtResource("3_terrain_settings")
+
+[node name="Stations" type="Node3D" parent="."]
+script = ExtResource("5_stations")
+
+[node name="Visitors" type="Node3D" parent="."]
+script = ExtResource("8_visitors")
+Personas = [ExtResource("9_pilgrim")]
+VisitChance = 1.0
+
+[node name="Contracts" type="Node3D" parent="."]
+script = ExtResource("6_contracts")
+Contracts = [ExtResource("7_parcel")]
+
+[node name="Objectives" type="Node" parent="."]
+script = ExtResource("10_objectives")
+
+[node name="Player" parent="." instance=ExtResource("4_player")]
+
+[node name="Inventory" type="Node" parent="Player"]
+script = ExtResource("11_inventory")
+Backpack = ExtResource("12_backpack")
+StartingItemPaths = PackedStringArray()
+AutoPackOnStart = false
+
+[node name="FieldMap" type="Node3D" parent="."]
+script = ExtResource("13_map")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("14_hud")
+
+[node name="Controls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "Streamer")]
+script = ExtResource("15_controls")
+KillHeight = -1e+09
+PlayerBody = NodePath("../Player")
+Streamer = NodePath("../Terrain")

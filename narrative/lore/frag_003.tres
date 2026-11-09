@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LoreEntry" format=3]
+
+[ext_resource type="Script" path="res://narrative/LoreEntry.cs" id="1_lore"]
+
+[resource]
+script = ExtResource("1_lore")
+Id = "FRAG_003"
+Heading = "A prayer on folded paper"
+Text = "If there is a god below, let it remember my name. If there is nothing, let the next traveller remember it instead."
+Form = 1
+EarliestStage = 1
+Circle = -1
+ExclusiveGroup = ""
+Weight = 1.0

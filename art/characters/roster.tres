@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="CarrierRoster" format=3]
+
+[ext_resource type="Script" path="res://core/CarrierRoster.cs" id="1_roster"]
+
+[resource]
+script = ExtResource("1_roster")
+CharacterPaths = PackedStringArray("res://art/characters/carrier.tres", "res://art/characters/quaternius_ubc/modular.tres", "res://art/characters/plenki/plenki.tres", "res://art/characters/vucic/vucic.tres")

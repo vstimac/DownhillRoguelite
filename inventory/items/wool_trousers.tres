@@ -1,6 +1,14 @@
 [gd_resource type="Resource" script_class="ItemDefinition" format=3]
 
 [ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+[ext_resource type="Script" path="res://inventory/ClothingVisual.cs" id="2_clothing"]
+
+[sub_resource type="Resource" id="Visual"]
+script = ExtResource("2_clothing")
+Kind = 2
+FitSlack = 0.02
+Colour = Color(0.32, 0.30, 0.27, 1)
+HideBodyMeshes = PackedStringArray("Ch17_Pants")
 
 [resource]
 script = ExtResource("1_item")
@@ -23,3 +31,4 @@ MendType = "cloth"
 ModelSource = "res://art/characters/mixamo/carrier.fbx"
 ModelMesh = "Ch17_Pants"
 ModelLieFlat = true
+Clothing = SubResource("Visual")

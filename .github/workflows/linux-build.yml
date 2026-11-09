@@ -94,7 +94,7 @@ jobs:
         run: |
           set -uo pipefail
           status=0
-          for t in BalanceTests UiTests GearTests PackingTests StationTests ProgressionTests MapTests TerrainTests LocomotionTests SurvivalTests NarratorTests DiveTests; do
+          for t in BalanceTests UiTests GearTests PackingTests StationTests ProgressionTests MapTests TerrainTests LocomotionTests SurvivalTests NarratorTests DiveTests CharacterTests BodyDynamicsTests; do
             [ -f "debug/tests/$t.tscn" ] || continue
             r="$(timeout 300 "$GODOT" --headless --path . --fixed-fps 60 "res://debug/tests/$t.tscn" 2>&1 | grep -E 'TESTS: (PASS|FAIL)' | tail -1)"
             echo "$t: ${r:-no result}"

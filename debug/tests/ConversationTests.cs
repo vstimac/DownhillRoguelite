@@ -37,6 +37,8 @@ public partial class ConversationTests : Node
             return;
         }
         GameEvents.CompanionReplied += OnReply;
+        // Companion chat is an optional developer feature; the core game's HUD leaves it off.
+        Ui.EnableCompanionChat = true;
         await Frames(3);
 
         TestSituation();

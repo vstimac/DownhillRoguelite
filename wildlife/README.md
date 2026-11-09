@@ -1,10 +1,16 @@
 # wildlife
 
-Animals on the slopes (M9). Scenery, not enemies: no collision, no combat.
+Animals on the slopes (M9), and the beasts of the night. The animals are scenery, not enemies: solid capsules the carrier bumps into, no combat. The night beasts hunt (see `docs/night-beasts.md`).
 
 - `WildlifeSpecies` (resource): model, scale and rotation (the packs differ), which clip is idle, walk and flee, speeds, shyness, group size, and habitat: circles, surfaces, steepest slope.
 - `default_wildlife.tres`: all species. Limbo has cows, horses, sheep, llamas, rats and frogs; Lust horses and zebras; Gluttony pigs, rats and frogs; Greed llamas and rats; Wrath frogs and snakes; Heresy spiders; Violence snakes and wasps; Fraud snakes and spiders; Treachery rats; beyond the ninth, Kenney's cube pets.
-- `WildlifeSpawner`: keeps up to 22 animals in a 25 to 70 m ring around the carrier, mostly ahead downhill, on ground found by a ray; removes animals far away or well behind; a fall (DownedChanged) scatters everything within 20 m; a new run clears them. Reads only GameEvents and RunState.
-- `WildlifeAnimal`: grazes, wanders, turns to watch the carrier, bolts when approached (farther when the carrier sprints), keeps to the ground.
+- `WildlifeSpawner`: keeps up to 36 animals in a 30 to 140 m ring around the carrier (removed beyond 180 m), mostly ahead downhill, on ground found by a ray; removes animals far away or well behind; a fall (DownedChanged) scatters everything within 20 m; a new run clears them. Reads only GameEvents and RunState.
+- `WildlifeAnimal`: grazes, wanders, turns to watch the carrier, keeps to the ground. It stands its ground when the carrier comes close (bolting on approach is `WildlifeTable.FleeFromCarrier`, off by default). The carrier collides with animals (the player's collision mask includes the animal layer) and can push them: a pushed animal gives way slowly (`PushYieldSpeed`). Pushed for `PushPatience` (3 s) it turns round, winds up for `ShoveWindUp` (0.6 s) and shoves the carrier about 4 m into the air (`ShoveHeight`, through `GameEvents.RequestLaunch`); the timed roll can take the landing. Animals shorter than `MinShoverHeight` (rats, frogs) never shove; after a shove an animal waits `ShoveCooldown`. Refreshes floor contact even while grazing, so removed terrain or displaced supporting bodies cannot leave it floating.
 
-Debug: `debug/TestWildlife.tscn` lines up every species beside a 1.8 m pole; `WildlifeDebugOverlay` (F3) shows count, cost and state. Tests: `debug/tests/WildlifeTests.tscn`.
+- Night beasts: `BeastSpecies` (resource: model, shade, glowing eyes, stalking, charge, throw, circles), `BeastRoster` (the list; `default_beasts.tres`: she-wolf, leopard, lion), `NightBeast` (stalk, wind-up, charge, retreat, leave) and `BeastDirector` (brings them after dark, one attacker at a time). In `debug/TestTerrain.tscn` as the `Beasts` node.
+
+Debug: `debug/TestWildlife.tscn` lines up every species beside a 1.8 m pole; `WildlifeDebugOverlay` (F3) shows count, cost and state. Tests: `debug/tests/WildlifeTests.tscn` (also standing ground and the shove) and `debug/tests/BeastTests.tscn`. Night beasts at once: `godot --path . -- --hour=23 --beasts-now`.
+
+`debug/tests/WildlifePhysicsTests.tscn` checks support removal, displacement, resting and capsule contact on a 45-degree slope. The population test measures the capsule's bottom sphere against its actual support plane; a vertical ray below its origin gives misleading gaps on slopes and obstacle edges.
+
+Population tests print their RNG seed. To replay the spawn selection, append `-- --wildlife-seed=8` when running `WildlifeTests.tscn`. `WildlifeSpawner.PopulationSeed` can also be set before its first tick. Normal gameplay still picks a random population seed.

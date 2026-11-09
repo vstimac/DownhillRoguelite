@@ -34,6 +34,8 @@ public partial class CarrierInventory : Node
 
     /// <summary>Empty the pack when the carrier dies: a new run starts with nothing.</summary>
     [Export] public bool ClearOnDeath { get; set; } = true;
+    /// <summary>Contract cargo with this many cells of other things (or padding) on every side counts as fully protected from knocks.</summary>
+    [Export] public int ProtectedPaddingCells { get; set; } = 2;
 
     /// <summary>Side of the pack picked-up items are placed toward (0 left, 0.5 centre, 1 right).</summary>
     [Export] public float PickupPreferredX { get; set; } = 0.5f;
@@ -41,10 +43,11 @@ public partial class CarrierInventory : Node
     public BackpackGrid? Grid { get; private set; }
     /// <summary>What the carrier wears (M14); created with the inventory.</summary>
     public CarrierEquipment? Equipment { get; private set; }
-    public IReadOnlyList<ItemDefinition> LooseItems => _loose;
+    public IReadOnlyList<ItemDefinition> LooseItems => _looseDefinitions ??= new ItemDefinitions(_loose);
     public IReadOnlyList<ItemDefinition> AllItems => _all;
 
-    private readonly List<ItemDefinition> _loose = new();
+    private readonly List<StoredItem> _loose = new();
+    private ItemDefinitions? _looseDefinitions;
     private readonly List<ItemDefinition> _all = new();
 
     public override void _Ready()
@@ -61,16 +64,19 @@ public partial class CarrierInventory : Node
         GameEvents.ConsumeRequested += OnConsumeRequested;
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.ItemsGranted += OnItemsGranted;
+        GameEvents.ItemGrantRequested += OnItemGrantRequested;
         GameEvents.ItemUseRequested += OnItemUseRequested;
         GameEvents.DropRequested += OnDropRequested;
         GameEvents.ThrowRequested += OnThrowRequested;
         GameEvents.UseItemRequested += OnUseItemRequested;
+        GameEvents.CargoGrantRequested += OnCargoGrantRequested;
+        GameEvents.CargoHandOverRequested += OnCargoHandOverRequested;
         foreach (string path in StartingItemPaths)
         {
             if (ResourceLoader.Load(path) is ItemDefinition item)
             {
                 _all.Add(item);
-                _loose.Add(item);
+                _loose.Add(new StoredItem(item, InstanceId: System.Guid.NewGuid().ToString("N")));
             }
             else
             {
@@ -82,7 +88,7 @@ public partial class CarrierInventory : Node
         bool startUnpacked = System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--start-unpacked") >= 0;
         if (AutoPackOnStart && !startUnpacked)
         {
-            List<ItemDefinition> heaviestFirst = new(_loose);
+            List<ItemDefinition> heaviestFirst = new(LooseItems);
             heaviestFirst.Sort((a, b) => b.MassKg.CompareTo(a.MassKg));
             Repack(heaviestFirst, 0.5f);
         }
@@ -97,10 +103,13 @@ public partial class CarrierInventory : Node
         GameEvents.ConsumeRequested -= OnConsumeRequested;
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.ItemsGranted -= OnItemsGranted;
+        GameEvents.ItemGrantRequested -= OnItemGrantRequested;
         GameEvents.ItemUseRequested -= OnItemUseRequested;
         GameEvents.DropRequested -= OnDropRequested;
         GameEvents.ThrowRequested -= OnThrowRequested;
         GameEvents.UseItemRequested -= OnUseItemRequested;
+        GameEvents.CargoGrantRequested -= OnCargoGrantRequested;
+        GameEvents.CargoHandOverRequested -= OnCargoHandOverRequested;
         // Managed references keep resources alive until the GC runs; drop them with the node.
         _loose.Clear();
         _all.Clear();
@@ -110,7 +119,8 @@ public partial class CarrierInventory : Node
     /// <summary>Packs a loose item; returns the placement, or null if it doesn't fit there.</summary>
     public PackedItem? Pack(ItemDefinition item, Vector3I origin, int orientation)
     {
-        if (Grid == null || !_loose.Contains(item))
+        int loose = _loose.FindIndex(copy => copy.Definition == item);
+        if (Grid == null || loose < 0)
         {
             return null;
         }
@@ -118,7 +128,10 @@ public partial class CarrierInventory : Node
         PackedItem? placed = Grid.Place(item, origin, orientation);
         if (placed != null)
         {
-            _loose.Remove(item);
+            placed.Durability = _loose[loose].Durability;
+            placed.Appearance = _loose[loose].Appearance;
+            placed.InstanceId = _loose[loose].InstanceId;
+            _loose.RemoveAt(loose);
             Publish();
         }
         return placed;
@@ -127,16 +140,15 @@ public partial class CarrierInventory : Node
     /// <summary>Takes an item out of the pack; it becomes loose.</summary>
     public void Unpack(PackedItem item)
     {
-        if (Grid == null)
+        if (Grid == null || !Grid.Remove(item))
         {
             return;
         }
-        Grid.Remove(item);
-        _loose.Add(item.Definition);
+        _loose.Add(new StoredItem(item.Definition, item.Durability, item.Appearance, item.InstanceId));
         Publish();
     }
 
-    /// <summary>Empties the pack and auto-packs every item in the given order. Returns items that didn't fit.</summary>
+    /// <summary>Reorders pack and loose copies without changing ownership or wear. Pockets stay in place.</summary>
     public List<ItemDefinition> Repack(IEnumerable<ItemDefinition> order, float preferredX)
     {
         List<ItemDefinition> unplaced = new();
@@ -145,10 +157,56 @@ public partial class CarrierInventory : Node
             return unplaced;
         }
 
+        List<StoredItem> copies = new();
+        foreach (PackedItem packed in Grid.Items)
+        {
+            copies.Add(new StoredItem(packed.Definition, packed.Durability, packed.Appearance, packed.InstanceId));
+        }
+        copies.AddRange(_loose);
+        Dictionary<ItemDefinition, int> remaining = new();
+        Dictionary<ItemDefinition, Queue<StoredItem>> wear = new();
+        foreach (StoredItem copy in copies)
+        {
+            remaining[copy.Definition] = remaining.GetValueOrDefault(copy.Definition) + 1;
+            if (!wear.TryGetValue(copy.Definition, out Queue<StoredItem>? values))
+            {
+                values = new Queue<StoredItem>();
+                wear[copy.Definition] = values;
+            }
+            values.Enqueue(copy);
+        }
+        List<ItemDefinition> ordered = new();
+        foreach (ItemDefinition definition in order)
+        {
+            if (remaining.GetValueOrDefault(definition) > 0)
+            {
+                ordered.Add(definition);
+                remaining[definition]--;
+            }
+        }
+        // Partial or stale order lists must neither discard an owned copy nor invent another one.
+        foreach (StoredItem copy in copies)
+        {
+            if (remaining[copy.Definition] > 0)
+            {
+                ordered.Add(copy.Definition);
+                remaining[copy.Definition]--;
+            }
+        }
         Grid.Clear();
         _loose.Clear();
-        unplaced = AutoPacker.Pack(Grid, order, preferredX);
-        _loose.AddRange(unplaced);
+        unplaced = AutoPacker.Pack(Grid, ordered, preferredX);
+        foreach (PackedItem packed in Grid.Items)
+        {
+            StoredItem copy = wear[packed.Definition].Dequeue();
+            packed.Durability = copy.Durability;
+            packed.Appearance = copy.Appearance;
+            packed.InstanceId = copy.InstanceId;
+        }
+        foreach (ItemDefinition definition in unplaced)
+        {
+            _loose.Add(wear[definition].Dequeue());
+        }
         Publish();
         return unplaced;
     }
@@ -158,12 +216,14 @@ public partial class CarrierInventory : Node
     /// false if there's no room. Worn gear keeps its hit points (<paramref name="durability"/>, -1: new);
     /// <paramref name="announce"/> tells the game it was picked up.
     /// </summary>
-    public bool TryAdd(ItemDefinition item, float durability = -1.0f, bool announce = true)
+    public bool TryAdd(ItemDefinition item, float durability = -1.0f, bool announce = true, ItemAppearance appearance = default, string instanceId = "")
     {
         if (Grid == null)
         {
             return false;
         }
+        if (instanceId.Length == 0) { instanceId = System.Guid.NewGuid().ToString("N"); }
+        else if (OwnsInstance(instanceId)) { return false; }
         PackedItem? placed = null;
         if (AutoPacker.TryBestSpot(Grid, item, PickupPreferredX, out Vector3I origin, out int orientation))
         {
@@ -172,8 +232,10 @@ public partial class CarrierInventory : Node
         if (placed != null)
         {
             placed.Durability = durability;
+            placed.Appearance = appearance;
+            placed.InstanceId = instanceId;
         }
-        else if (Equipment == null || !Equipment.TryPocket(item))
+        else if (Equipment == null || !Equipment.TryPocket(item, durability, appearance, instanceId))
         {
             return false;
         }
@@ -190,6 +252,37 @@ public partial class CarrierInventory : Node
     public void ForgetOwned(ItemDefinition item)
     {
         _all.Remove(item);
+        Publish();
+    }
+
+    internal IReadOnlyList<StoredItem> LooseCopies => _loose;
+
+    public bool OwnsInstance(string id)
+    {
+        if (id.Length == 0) { return false; }
+        if (Grid != null) { foreach (PackedItem copy in Grid.Items) { if (copy.InstanceId == id) { return true; } } }
+        foreach (StoredItem copy in _loose) { if (copy.InstanceId == id) { return true; } }
+        return Equipment?.OwnsInstance(id) == true;
+    }
+
+    /// <summary>Commits a completely validated storage plan without exposing intermediate transfers.</summary>
+    internal void ApplyStorage(BackpackGrid plan, List<StoredItem> loose, List<StoredItem> pockets)
+    {
+        Grid!.Clear();
+        _all.Clear();
+        foreach (PackedItem copy in plan.Items)
+        {
+            PackedItem placed = Grid.Place(copy.Definition, copy.Origin, copy.Orientation)!;
+            placed.Durability = copy.Durability;
+            placed.Appearance = copy.Appearance;
+            placed.InstanceId = copy.InstanceId;
+            _all.Add(copy.Definition);
+        }
+        _loose.Clear();
+        _loose.AddRange(loose);
+        foreach (StoredItem copy in loose) { _all.Add(copy.Definition); }
+        Equipment!.SetPocketCopies(pockets);
+        foreach (StoredItem copy in pockets) { _all.Add(copy.Definition); }
         Publish();
     }
 
@@ -227,21 +320,21 @@ public partial class CarrierInventory : Node
     /// <summary>Removes a packed item for good (eaten, drunk, used up).</summary>
     public void Consume(PackedItem item)
     {
-        if (Grid == null)
+        if (Grid == null || !Grid.Remove(item))
         {
             return;
         }
-        Grid.Remove(item);
         _all.Remove(item.Definition);
         Publish();
     }
 
-    /// <summary>Removes everything: pack, loose items and the record of owned items.</summary>
+    /// <summary>Removes owned supplies from pack, loose items and pockets; worn clothing stays on.</summary>
     public void Clear()
     {
         Grid?.Clear();
         _loose.Clear();
         _all.Clear();
+        Equipment?.ClearPockets();
         Publish();
     }
 
@@ -254,6 +347,29 @@ public partial class CarrierInventory : Node
         }
 
         PackedItem? item = BestConsumable(category, deficit);
+        ItemDefinition? best = item?.Definition;
+        ItemDefinition? pocketChoice = null;
+        if (Equipment != null)
+        {
+            foreach (ItemDefinition pocketed in Equipment.PocketItems)
+            {
+                if (pocketed.Category == category && BetterConsumable(pocketed, best, deficit))
+                {
+                    best = pocketed;
+                    pocketChoice = pocketed;
+                }
+            }
+        }
+        if (pocketChoice != null)
+        {
+            if (RemovePocketItem(pocketChoice))
+            {
+                GameEvents.PublishItemConsumed(need, pocketChoice.ItemId, RestoreOf(pocketChoice));
+                return;
+            }
+            GameEvents.PublishConsumeFailed(need);
+            return;
+        }
         if (item == null)
         {
             GameEvents.PublishConsumeFailed(need);
@@ -261,6 +377,32 @@ public partial class CarrierInventory : Node
         }
         Consume(item);
         GameEvents.PublishItemConsumed(need, item.Definition.ItemId, RestoreOf(item.Definition));
+    }
+
+    private static bool BetterConsumable(ItemDefinition candidate, ItemDefinition? best, float deficit)
+    {
+        if (best == null)
+        {
+            return true;
+        }
+        float restore = RestoreOf(candidate);
+        float previous = RestoreOf(best);
+        if (restore >= deficit)
+        {
+            return previous < deficit || restore < previous;
+        }
+        return previous < deficit && restore > previous;
+    }
+
+    private bool RemovePocketItem(ItemDefinition item)
+    {
+        if (Equipment == null || !Equipment.TakeFromPocket(item))
+        {
+            return false;
+        }
+        _all.Remove(item);
+        Publish();
+        return true;
     }
 
     /// <summary>Items given to the carrier (the starting kit): packed where they fit best.</summary>
@@ -273,6 +415,101 @@ public partial class CarrierInventory : Node
                 TryAdd(item);
             }
         }
+    }
+
+    private bool OnItemGrantRequested(string path)
+    {
+        if (!ResourceLoader.Exists(path) || ResourceLoader.Load(path) is not ItemDefinition item) { return false; }
+        return TryAdd(item);
+    }
+
+    /// <summary>
+    /// Packs contract cargo: a copy of the item at <paramref name="itemPath"/> of its own, tagged
+    /// with <paramref name="cargoId"/>, so two parcels of one kind are never the same parcel. False
+    /// (and nothing packed) if the path isn't an item, that cargo is already owned, or there's no room.
+    /// </summary>
+    public bool GrantCargo(string itemPath, string cargoId)
+    {
+        if (cargoId.Length == 0 || OwnsCargo(cargoId))
+        {
+            return false;
+        }
+        if (ResourceLoader.Load(itemPath) is not ItemDefinition kind)
+        {
+            GD.PushWarning("CarrierInventory: contract cargo " + itemPath + " is not an ItemDefinition.");
+            return false;
+        }
+        if (kind.Duplicate() is not ItemDefinition cargo)
+        {
+            return false;
+        }
+        cargo.CargoInstanceId = cargoId;
+        cargo.SourceItemPath = itemPath;
+        return TryAdd(cargo, -1.0f, false);
+    }
+
+    /// <summary>Whether the carrier owns the cargo with this id (packed, loose or in a pocket).</summary>
+    public bool OwnsCargo(string cargoId)
+    {
+        foreach (ItemDefinition item in _all)
+        {
+            if (item.CargoInstanceId == cargoId)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Removes the carried cargo with this id for good (handed over); false if it isn't carried.</summary>
+    public bool HandOverCargo(string cargoId)
+    {
+        if (cargoId.Length == 0)
+        {
+            return false;
+        }
+        if (Grid != null)
+        {
+            foreach (PackedItem packed in Grid.Items)
+            {
+                if (packed.Definition.CargoInstanceId == cargoId)
+                {
+                    Consume(packed);
+                    return true;
+                }
+            }
+        }
+        if (Equipment != null)
+        {
+            foreach (ItemDefinition pocketed in Equipment.PocketItems)
+            {
+                if (pocketed.CargoInstanceId == cargoId)
+                {
+                    return RemovePocketItem(pocketed);
+                }
+            }
+        }
+        for (int i = 0; i < _loose.Count; i++)
+        {
+            if (_loose[i].Definition.CargoInstanceId == cargoId)
+            {
+                _all.Remove(_loose[i].Definition);
+                _loose.RemoveAt(i);
+                Publish();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void OnCargoGrantRequested(string itemPath, string cargoId)
+    {
+        GameEvents.PublishCargoGranted(cargoId, GrantCargo(itemPath, cargoId));
+    }
+
+    private void OnCargoHandOverRequested(string cargoId)
+    {
+        GameEvents.PublishCargoHandedOver(cargoId, HandOverCargo(cargoId));
     }
 
     /// <summary>How far in front of the carrier a dropped item lands, in m.</summary>
@@ -303,6 +540,9 @@ public partial class CarrierInventory : Node
     private void PutDown(string itemId, bool thrown)
     {
         ItemDefinition? item = null;
+        float durability = -1.0f;
+        ItemAppearance appearance = default;
+        string instanceId = "";
         if (Grid != null)
         {
             foreach (PackedItem packed in Grid.Items)
@@ -310,6 +550,9 @@ public partial class CarrierInventory : Node
                 if (packed.Definition.ItemId == itemId)
                 {
                     item = packed.Definition;
+                    durability = packed.Durability;
+                    appearance = packed.Appearance;
+                    instanceId = packed.InstanceId;
                     Consume(packed);
                     break;
                 }
@@ -319,9 +562,12 @@ public partial class CarrierInventory : Node
         {
             for (int i = 0; i < _loose.Count; i++)
             {
-                if (_loose[i].ItemId == itemId)
+                if (_loose[i].Definition.ItemId == itemId)
                 {
-                    item = _loose[i];
+                    item = _loose[i].Definition;
+                    durability = _loose[i].Durability;
+                    appearance = _loose[i].Appearance;
+                    instanceId = _loose[i].InstanceId;
                     _all.Remove(item);
                     _loose.RemoveAt(i);
                     Publish();
@@ -329,9 +575,12 @@ public partial class CarrierInventory : Node
                 }
             }
         }
-        if (item == null && Equipment != null && Equipment.TakeFromPocket(itemId, out ItemDefinition? pocketed) && pocketed != null)
+        if (item == null && Equipment != null && Equipment.TakeFromPocket(itemId, out ItemDefinition? pocketed, out float pocketDurability, out ItemAppearance pocketAppearance, out string pocketIdentity) && pocketed != null)
         {
             item = pocketed;
+            durability = pocketDurability;
+            appearance = pocketAppearance;
+            instanceId = pocketIdentity;
             ForgetOwned(pocketed);
         }
         if (item == null)
@@ -356,7 +605,7 @@ public partial class CarrierInventory : Node
             distance = ThrowDistance;
         }
         Vector3 at = from + forward * distance;
-        WorldItem dropped = new() { Definition = item, Name = $"Dropped_{item.ItemId}" };
+        WorldItem dropped = new() { Definition = item, Durability = durability, Appearance = appearance, InstanceId = instanceId, Name = $"Dropped_{item.ItemId}" };
         Node parent = GetTree().CurrentScene ?? GetTree().Root;
         parent.AddChild(dropped);
         if (carrier != null && carrier.IsInsideTree())
@@ -403,11 +652,22 @@ public partial class CarrierInventory : Node
                 }
             }
         }
+        if (Equipment != null)
+        {
+            foreach (ItemDefinition pocketed in Equipment.PocketItems)
+            {
+                if (pocketed.ItemId == itemId)
+                {
+                    RemovePocketItem(pocketed);
+                    return;
+                }
+            }
+        }
         for (int i = 0; i < _loose.Count; i++)
         {
-            if (_loose[i].ItemId == itemId)
+            if (_loose[i].Definition.ItemId == itemId)
             {
-                _all.Remove(_loose[i]);
+                _all.Remove(_loose[i].Definition);
                 _loose.RemoveAt(i);
                 Publish();
                 return;
@@ -428,19 +688,29 @@ public partial class CarrierInventory : Node
             Equipment?.Wear(itemId);
             return;
         }
-        if (Equipment != null && Equipment.TakeFromPocket(itemId, out ItemDefinition? pocketed) && pocketed != null)
+        if (Equipment != null)
         {
-            _all.Remove(pocketed);
-            Publish();
-            if (pocketed.Category == ItemCategory.Food)
+            foreach (ItemDefinition pocketed in Equipment.PocketItems)
             {
-                GameEvents.PublishItemConsumed(SupplyNeed.Hunger, itemId, RestoreOf(pocketed));
+                if (pocketed.ItemId != itemId)
+                {
+                    continue;
+                }
+                if (pocketed.Category != ItemCategory.Food && pocketed.Category != ItemCategory.Water)
+                {
+                    return;
+                }
+                if (RemovePocketItem(pocketed))
+                {
+                    SupplyNeed need = SupplyNeed.Hunger;
+                    if (pocketed.Category == ItemCategory.Water)
+                    {
+                        need = SupplyNeed.Thirst;
+                    }
+                    GameEvents.PublishItemConsumed(need, itemId, RestoreOf(pocketed));
+                }
+                return;
             }
-            else if (pocketed.Category == ItemCategory.Water)
-            {
-                GameEvents.PublishItemConsumed(SupplyNeed.Thirst, itemId, RestoreOf(pocketed));
-            }
-            return;
         }
         foreach (PackedItem item in Grid.Items)
         {
@@ -486,10 +756,68 @@ public partial class CarrierInventory : Node
             GameEvents.PublishLoad(LoadCalculator.Calculate(Backpack, Grid));
         }
         List<string> ids = new();
+        List<string> cargo = new();
         foreach (ItemDefinition item in _all)
         {
             ids.Add(item.ItemId);
+            if (item.IsContractCargo)
+            {
+                cargo.Add(item.CargoInstanceId);
+            }
         }
         GameEvents.PublishCarriedItems(ids);
+        GameEvents.PublishCarriedCargo(cargo);
+        GameEvents.PublishCargoExposure(CargoExposure());
+    }
+
+    /// <summary>
+    /// How exposed each carried contract cargo is to knocks: 0 with at least ProtectedPaddingCells of
+    /// pack between it and every outside face, 1 touching a face. Cargo outside the pack (a pocket,
+    /// the hands) is fully exposed.
+    /// </summary>
+    public Dictionary<string, float> CargoExposure()
+    {
+        Dictionary<string, float> exposure = new();
+        foreach (ItemDefinition item in _all)
+        {
+            if (item.IsContractCargo)
+            {
+                exposure[item.CargoInstanceId] = 1.0f;
+            }
+        }
+        if (Grid == null)
+        {
+            return exposure;
+        }
+        foreach (PackedItem packed in Grid.Items)
+        {
+            if (!packed.Definition.IsContractCargo)
+            {
+                continue;
+            }
+            float protectedShare = 1.0f;
+            for (int axis = 0; axis < 3; axis++)
+            {
+                protectedShare = Mathf.Min(protectedShare, AxisShare(Grid.Size[axis], packed.Origin[axis], packed.Size[axis]));
+            }
+            exposure[packed.Definition.CargoInstanceId] = 1.0f - protectedShare;
+        }
+        return exposure;
+    }
+
+    /// <summary>
+    /// How well one axis protects an item: the padding on its thinner side against the most this axis
+    /// allows (ProtectedPaddingCells, or centred if the pack is narrower), 0 to 1. An item filling the
+    /// axis can't do better, so that axis counts as protecting it.
+    /// </summary>
+    private float AxisShare(int packCells, int origin, int itemCells)
+    {
+        int padding = System.Math.Min(origin, packCells - (origin + itemCells));
+        int best = System.Math.Min(System.Math.Max(ProtectedPaddingCells, 1), (packCells - itemCells) / 2);
+        if (best <= 0)
+        {
+            return 1.0f;
+        }
+        return Mathf.Clamp((float)padding / best, 0.0f, 1.0f);
     }
 }

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "megaphone"
+DisplayName = "Megafon"
+MassKg = 0.8
+Category = 2
+SizeCells = Vector3i(3, 3, 4)
+Tags = 0
+Orientation = 0
+DebugColor = Color(0.9, 0.85, 0.3, 1)
+Description = "Upotrijebi (hotbar): sve u blizini je kratko zbunjeno, a zatim te bolje čuje."
+
+

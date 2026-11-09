@@ -4,4 +4,15 @@ The backpack: a 3D grid of 5 cm cells, items as Resources (`items/`), the auto-p
 
 `interaction/` holds packing mode: setting the pack down, picking items up, the ghost preview and the in-world readout.
 
+`LoadSnapshot` describes the packed backpack for balance and its readout. `GearSnapshot` carries worn and pocket mass separately; `core/CarriedLoad.Mass` sums them for physical effort, jumping, needs and route estimates. Moving gear onto the body does not make its weight disappear.
+
+Pocket supplies support eating/drinking, explicit tool consumption, mending and cargo hand-over. Food selection considers both containers; hand-over removes the exact cargo copy. Hotbar use leaves nonconsumables alone, and repair messages report actual restored hit points.
+
+`StoredItem` retains per-copy durability in loose supplies and pockets. Packing, auto-arranging, dressing, dropping, throwing and picking up preserve it, including broken gear at zero durability. Repack orders can select only owned backpack/loose copies; stale or repeated entries cannot duplicate items or remove pocket contents.
+
 Read `docs/inventory-design.md` first.
+
+Modular clothing extends the same equipment manager with ten unique slots, atomic storage
+preflight, stable physical copy identities and explicit carried-load persistence. Per-copy
+appearance travels with durability through every container. See [the implementation and asset
+pipeline](../docs/modular-clothing.md); open `debug/TestClothing.tscn` for a working workshop.

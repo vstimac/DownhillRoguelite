@@ -29,6 +29,8 @@ public partial class ItemSlot : Control
         return slot switch
         {
             Core.EquipSlot.Head => InkIcon.Hat,
+            Core.EquipSlot.Face => InkIcon.Hat,
+            Core.EquipSlot.InnerTorso => InkIcon.Shirt,
             Core.EquipSlot.Torso => InkIcon.Shirt,
             Core.EquipSlot.Legs => InkIcon.Trousers,
             Core.EquipSlot.Hands => InkIcon.Glove,

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WaysideDefinition" format=3]
+
+[ext_resource type="Script" path="res://environment/wayside/WaysideDefinition.cs" id="1_wayside"]
+
+[resource]
+script = ExtResource("1_wayside")
+Id = "WS_GRAVE"
+Title = "A carrier's grave"
+Description = "A heap of stones, a cord tied round the top one. Scratched into it: WENT ON AFTER DARK. Their water skin hangs from the cord."
+Prompt = "Take the water skin"
+TakenText = "A carrier's grave: WENT ON AFTER DARK. I took the water skin they left. I will not walk at night."
+ItemPaths = PackedStringArray("res://inventory/items/water_skin.tres")
+MinCircle = 0
+Weight = 0.8
+PennantColor = Color(0.3, 0.28, 0.26, 1)
+Look = 1

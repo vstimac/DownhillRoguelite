@@ -80,13 +80,46 @@ public partial class DescentPanel : ParchmentPanel
             }
             next = $"\nStation {estimate.Station}: {estimate.DistanceMeters / 1000.0f:0.0} km, ~{TimeText.Real(estimate.TotalSeconds)}, {dark}";
         }
-        _body.Text = $"Elevation {elevation:0} m  ·  {depth} m down\nCircle {circle}\nWeather: {sky}\n{time}{next}";
+        string job = "";
+        ContractNote? active = GameEvents.ActiveContract;
+        if (active != null)
+        {
+            double now = 0.0;
+            float hoursPerSecond = 0.0f;
+            if (_clock != null)
+            {
+                now = _clock.TotalHours;
+                hoursPerSecond = _clock.HoursPerSecond;
+            }
+            job = "\n" + JobLine(active.Value, now, hoursPerSecond);
+        }
+        _body.Text = $"Elevation {elevation:0} m  ·  {depth} m down\nCircle {circle}\nWeather: {sky}\n{time}{next}" + job;
         if (circle != _lastPlace)
         {
             _lastPlace = circle;
             _body.Modulate = new Color(0.6f, 0.4f, 0.3f);
             CreateTween().TweenProperty(_body, "modulate", Colors.White, 0.8);
         }
+    }
+
+    /// <summary>"Job: The Glass Truth → Station 3 · 82% (needs 70%) · 1 h 20 min left" for the open job.</summary>
+    public static string JobLine(ContractNote job, double nowHours, float hoursPerSecond)
+    {
+        string line = "Job: " + job.Title + " → Station " + job.ToStation;
+        if (job.Breakable)
+        {
+            line += " · " + Mathf.RoundToInt(job.Condition) + "%";
+            if (job.MinCondition > 0.0f)
+            {
+                line += " (needs " + Mathf.RoundToInt(job.MinCondition) + "%)";
+            }
+        }
+        if (job.DeadlineHours >= 0.0)
+        {
+            float left = (float)System.Math.Max(job.DeadlineHours - nowHours, 0.0);
+            line += " · " + TimeText.FromHours(left, hoursPerSecond) + " left";
+        }
+        return line;
     }
 
     /// <summary>The weather, and for a real wind its speed and how it pushes the carrier as he faces now.</summary>

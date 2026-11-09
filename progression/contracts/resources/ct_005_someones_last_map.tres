@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ContractDefinition" format=3]
+
+[ext_resource type="Script" path="res://progression/contracts/ContractDefinition.cs" id="1_contract"]
+
+[resource]
+script = ExtResource("1_contract")
+Id = "CT_005"
+DisplayName = "Someone's Last Map"
+Kind = 3
+Giver = "nobody (it was left on the board)"
+OfferText = "Whoever drew this did not come back for it. Take it two fires down, before the ink forgets."
+CargoItemPath = "res://inventory/items/map_tube.tres"
+StationsAhead = 2
+MinStation = 2
+Score = 45
+Weight = 0.9
+Fragility = 0.7
+MinCondition = 0.0
+DeadlineDays = 3.0
+MinCircle = 0
+MaxCircle = -1

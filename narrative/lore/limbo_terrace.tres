@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LoreEntry" format=3]
+
+[ext_resource type="Script" path="res://narrative/LoreEntry.cs" id="1_lore"]
+
+[resource]
+script = ExtResource("1_lore")
+Id = "LIMBO_TERRACE"
+Heading = "Words on a terrace step"
+Text = "Here the good waited for a door that was never drawn on the plans."
+Form = 3
+EarliestStage = 1
+Circle = 0
+ExclusiveGroup = ""
+Weight = 1.0

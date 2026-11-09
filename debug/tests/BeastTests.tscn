@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/BeastTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://terrain/TerrainStreamer.cs" id="2_streamer"]
+[ext_resource type="Resource" path="res://terrain/default_terrain.tres" id="3_terrain_settings"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="4_player"]
+[ext_resource type="Script" path="res://wildlife/BeastDirector.cs" id="5_director"]
+[ext_resource type="Resource" path="res://wildlife/default_beasts.tres" id="6_roster"]
+
+[node name="BeastTests" type="Node3D" node_paths=PackedStringArray("PlayerBody", "Streamer", "Director")]
+script = ExtResource("1_tests")
+PlayerBody = NodePath("Player")
+Streamer = NodePath("Terrain")
+Director = NodePath("Beasts")
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_streamer")
+Settings = ExtResource("3_terrain_settings")
+
+[node name="Beasts" type="Node3D" parent="."]
+script = ExtResource("5_director")
+Roster = ExtResource("6_roster")
+
+[node name="Player" parent="." instance=ExtResource("4_player")]

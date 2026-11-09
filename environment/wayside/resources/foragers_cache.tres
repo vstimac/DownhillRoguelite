@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WaysideDefinition" format=3]
+
+[ext_resource type="Script" path="res://environment/wayside/WaysideDefinition.cs" id="1_wayside"]
+
+[resource]
+script = ExtResource("1_wayside")
+Id = "WS_CACHE"
+Title = "A forager's cache"
+Description = "A crate wedged under an overhang, out of the rain. Food, packed by someone who meant to share it."
+Prompt = "Open the crate"
+TakenText = "A forager's cache under an overhang: a food bag and berries."
+ItemPaths = PackedStringArray("res://inventory/items/food_bag.tres", "res://inventory/items/wild_berries.tres")
+MinCircle = 0
+Weight = 1.0
+PennantColor = Color(0.85, 0.55, 0.18, 1)
+Look = 0

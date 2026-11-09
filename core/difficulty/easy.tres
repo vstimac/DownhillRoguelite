@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_difficulty")
 DisplayName = "Easy"
-DayLengthMinutes = 48.0
+DayLengthMinutes = 30.0
 NeedsDrainMultiplier = 0.7
 SupplyMultiplier = 1.4
 NightHarshness = 0.5

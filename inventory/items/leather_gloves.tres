@@ -1,6 +1,13 @@
 [gd_resource type="Resource" script_class="ItemDefinition" format=3]
 
 [ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+[ext_resource type="Script" path="res://inventory/ClothingVisual.cs" id="2_clothing"]
+
+[sub_resource type="Resource" id="Visual"]
+script = ExtResource("2_clothing")
+Kind = 3
+FitSlack = 0.008
+Colour = Color(0.36, 0.22, 0.12, 1)
 
 [resource]
 script = ExtResource("1_item")
@@ -20,3 +27,4 @@ GripBonus = 0.0
 WindCatch = 0.0
 Pockets = 0
 MendType = "leather"
+Clothing = SubResource("Visual")

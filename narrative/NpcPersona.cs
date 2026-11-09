@@ -21,6 +21,13 @@ public partial class NpcPersona : Resource
     [Export] public int MinCircle { get; set; }
     [Export] public Color CloakColor { get; set; } = new(0.3f, 0.25f, 0.2f);
     [Export] public float VoicePitch { get; set; } = 1.0f;
+    /// <summary>
+    /// A rigged model (Mixamo bone names, any prefix) shown instead of the cloaked figure. It follows
+    /// the mannequin rig sitting by the fire (see docs/npc-models.md). Empty: the cloaked figure.
+    /// </summary>
+    [Export(PropertyHint.File, "*.glb,*.gltf,*.tscn")] public string ModelPath { get; set; } = "";
+    /// <summary>Uniform scale for the model (generated models often come in about 1 m tall).</summary>
+    [Export] public float ModelScale { get; set; } = 1.0f;
 
     /// <summary>The speaker record for a conversation with them, at this spot.</summary>
     public SpeakerInfo Speaker(Vector3 at)

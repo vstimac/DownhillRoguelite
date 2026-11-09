@@ -6,4 +6,5 @@ public enum PlantKind
     Tree,
     Grass,
     Flower,
+    Pebble,
 }

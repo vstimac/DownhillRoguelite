@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LoreEntry" format=3]
+
+[ext_resource type="Script" path="res://narrative/LoreEntry.cs" id="1_lore"]
+
+[resource]
+script = ExtResource("1_lore")
+Id = "FRAG_010"
+Heading = "A warning cut into stone"
+Text = "The next sign will tell you the next station is the final one. It is a convincing sign."
+Form = 3
+EarliestStage = 4
+Circle = -1
+ExclusiveGroup = ""
+Weight = 1.0

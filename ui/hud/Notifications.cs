@@ -49,10 +49,11 @@ public partial class Notifications : Control
         GameEvents.VisitorMet += OnVisitor;
         GameEvents.ItemDropped += OnDropped;
         GameEvents.HintShown += OnHint;
+        GameEvents.ObjectiveAnnounced += OnObjective;
         CallDeferred(MethodName.Hint);
     }
 
-    [Export] public string StartHint { get; set; } = "Esc: pause and controls · Enter: talk";
+    [Export] public string StartHint { get; set; } = "Follow the cairns down · J: journal · Esc: controls";
 
     private void Hint() => Note(StartHint);
 
@@ -75,6 +76,43 @@ public partial class Notifications : Control
         GameEvents.VisitorMet -= OnVisitor;
         GameEvents.ItemDropped -= OnDropped;
         GameEvents.HintShown -= OnHint;
+        GameEvents.ObjectiveAnnounced -= OnObjective;
+    }
+
+    /// <summary>A goal is new or finished: a short note (the main goal also gets the big card).</summary>
+    private void OnObjective(ObjectiveNote note)
+    {
+        string? text = ObjectiveText(note);
+        if (text != null)
+        {
+            Note(text);
+        }
+    }
+
+    /// <summary>The note for an announced goal, or null when another note already says it.</summary>
+    public static string? ObjectiveText(ObjectiveNote note)
+    {
+        if (note.Kind == ObjectiveKind.Main)
+        {
+            return "New goal: " + note.Title;
+        }
+        if (note.Kind == ObjectiveKind.Guide && note.Done)
+        {
+            return "Done: " + note.Title;
+        }
+        if (note.Kind == ObjectiveKind.Errand && !note.Done && note.Title.Contains(" asks: "))
+        {
+            return note.Giver + " has a job for you: see the board";
+        }
+        if (note.Kind == ObjectiveKind.Errand && note.Done && !note.Failed)
+        {
+            return note.Title + " · " + note.Progress;
+        }
+        if (note.Kind == ObjectiveKind.Relic && !note.Done)
+        {
+            return "New goal: " + note.Title;
+        }
+        return null;
     }
 
     private void OnHint(string text) => Note(text, true);

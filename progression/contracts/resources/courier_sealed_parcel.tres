@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ContractDefinition" format=3]
+
+[ext_resource type="Script" path="res://progression/contracts/ContractDefinition.cs" id="1_contract"]
+
+[resource]
+script = ExtResource("1_contract")
+Id = "CT_courier_parcel"
+DisplayName = "A Parcel for the Next Fire"
+Kind = 0
+Giver = "the ledger keeper"
+OfferText = "Sealed, paid for, not to be opened. Whoever keeps the next fire will know what it is for."
+CargoItemPath = "res://inventory/items/sealed_parcel.tres"
+StationsAhead = 1
+MinStation = 1
+Score = 30
+Weight = 1.0

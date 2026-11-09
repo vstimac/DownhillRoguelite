@@ -42,16 +42,30 @@ public partial class StationManager : Node3D
     /// <summary>...and within this distance of that path's centre, in m.</summary>
     [Export] public float CommitWidth { get; set; } = 10.0f;
 
+    /// <summary>A path this far to the side at mid-stage is signed "far left" / "far right", in m.</summary>
+    [Export] public float FarPathOffset { get; set; } = 105.0f;
+    /// <summary>Each path's marker stands this far below the split (along Z), in m.</summary>
+    [Export] public float MarkerDistance { get; set; } = 30.0f;
+    /// <summary>...this far to the side of the path's centre (negative: left, facing downhill), in m.</summary>
+    [Export] public float MarkerSideOffset { get; set; } = -2.8f;
+    /// <summary>Step for measuring a path's length, in m along Z.</summary>
+    [Export] public float MeasureStep { get; set; } = 6.0f;
+
+    /// <summary>The last line on the summit stone: what to do first.</summary>
+    [Export] public string SummitGoal { get; set; } = "Go down. Reach Station 1 before dark.";
+
     public int ShelterStation { get; private set; }
     public IReadOnlyDictionary<int, StationSite> Stations => _stations;
     public IReadOnlyDictionary<int, WaypointCairn> Cairns => _cairns;
     public WaypointCairn? LabelledCairn { get; private set; }
     public IReadOnlyDictionary<int, RouteSign> Signs => _signs;
+    public IReadOnlyDictionary<int, PathMarker> Markers => _markers;
 
     private readonly Dictionary<int, StationSite> _stations = new();
     private readonly Dictionary<int, WaypointCairn> _cairns = new();
     private readonly HashSet<int> _reached = new();
     private readonly Dictionary<int, RouteSign> _signs = new();
+    private readonly Dictionary<int, PathMarker> _markers = new();
     private int _chosenStage = -1;
     private Node3D? _summit;
     private Label3D? _summitLabel;
@@ -107,14 +121,22 @@ public partial class StationManager : Node3D
         {
             float offset = route.PathPoint(stage, path, middle).X - main;
             directions[path] = "ahead";
-            // Facing downhill (-Z), +X is on the right.
+            // Facing downhill (-Z), +X is on the right; a second path on the same side is the far one.
             if (offset > 5.0f)
             {
                 directions[path] = "right";
+                if (offset > FarPathOffset)
+                {
+                    directions[path] = "far right";
+                }
             }
             else if (offset < -5.0f)
             {
                 directions[path] = "left";
+                if (offset < -FarPathOffset)
+                {
+                    directions[path] = "far left";
+                }
             }
         }
         sign.ShowOptions(options, directions, _clock);
@@ -132,6 +154,7 @@ public partial class StationManager : Node3D
         StreamStations(route);
         StreamCairns(route);
         StreamSigns(route);
+        StreamMarkers(route);
         UpdateShelter();
         UpdateCairnLabel();
         UpdateChoice(route);
@@ -182,8 +205,8 @@ public partial class StationManager : Node3D
             }
             for (int path = 0; path < paths; path++)
             {
-                // Keys: path in the low bits, so main-path cairns keep their old keys (k * 4).
-                int key = k * 4 + path;
+                // Keys: path in the low bits (up to eight paths a stage).
+                int key = k * 8 + path;
                 wanted.Add(key);
                 if (_cairns.ContainsKey(key))
                 {
@@ -238,7 +261,7 @@ public partial class StationManager : Node3D
             {
                 kit = string.Join(", ", _run.StartingKit);
             }
-            _summitLabel.Text = $"Summit\nrun {_run.RunNumber} · mountain {_run.Seed}\nyou carry {kit}";
+            _summitLabel.Text = $"Summit\nrun {_run.RunNumber} · mountain {_run.Seed}\nyou carry {kit}\n{SummitGoal}";
         }
     }
 
@@ -276,6 +299,62 @@ public partial class StationManager : Node3D
             _signs[stage] = sign;
         }
         RemoveExcept(_signs, wanted);
+    }
+
+    /// <summary>A marker a little way down every path of each stage with a choice of paths, near the carrier.</summary>
+    private void StreamMarkers(IRouteQuery route)
+    {
+        List<int> wanted = new();
+        int first = Mathf.Max(0, route.StageAt(_focus.Z + StationLoadDistance));
+        int last = route.StageAt(_focus.Z - StationLoadDistance);
+        for (int stage = first; stage <= last; stage++)
+        {
+            int paths = route.PathCount(stage);
+            if (paths < 2)
+            {
+                continue;
+            }
+            Vector2 zone = route.BranchZone(stage);
+            float z = zone.X - MarkerDistance;
+            if (Mathf.Abs(z - _focus.Z) > CairnLoadDistance)
+            {
+                continue;
+            }
+            for (int path = 0; path < paths; path++)
+            {
+                int key = stage * 8 + path;
+                wanted.Add(key);
+                if (_markers.ContainsKey(key))
+                {
+                    continue;
+                }
+                Vector3 point = route.PathPoint(stage, path, z);
+                PathMarker marker = new() { Name = "PathMarker" + stage + "_" + path };
+                AddChild(marker);
+                float x = point.X + MarkerSideOffset;
+                marker.GlobalPosition = new Vector3(x, route.GroundHeight(x, z) - GroundSink, z);
+                float drop = route.PathPoint(stage, path, zone.X).Y - route.PathPoint(stage, path, zone.Y).Y;
+                marker.Show(route.PathKind(stage, path), PathLength(route, stage, path, zone.X, zone.Y), drop, true);
+                _markers[key] = marker;
+            }
+        }
+        RemoveExcept(_markers, wanted);
+    }
+
+    /// <summary>A path's length on the ground between two z, in m (sampled every MeasureStep).</summary>
+    public float PathLength(IRouteQuery route, int stage, int path, float fromZ, float toZ)
+    {
+        float step = Mathf.Max(MeasureStep, 0.5f);
+        int count = Mathf.Max(1, Mathf.CeilToInt(Mathf.Abs(fromZ - toZ) / step));
+        float length = 0.0f;
+        Vector3 previous = route.PathPoint(stage, path, fromZ);
+        for (int i = 1; i <= count; i++)
+        {
+            Vector3 point = route.PathPoint(stage, path, Mathf.Lerp(fromZ, toZ, (float)i / count));
+            length += point.DistanceTo(previous);
+            previous = point;
+        }
+        return length;
     }
 
     /// <summary>Once the carrier is well past a stage's split, the path it is on is its choice.</summary>

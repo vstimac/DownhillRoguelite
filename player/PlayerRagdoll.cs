@@ -8,8 +8,8 @@ namespace DownhillRoguelite.Player;
 /// Every fall is physical. At startup this adds a physical skeleton (PhysicalBoneSimulator3D with
 /// one capsule body per major bone) to the model. The carrier goes down as a ragdoll when balance
 /// is lost, on a hard landing, or on death, keeping its momentum; the pack's mass rides on the
-/// chest. While down, sudden stops of each bone are impacts: the surface hit is found by a ray
-/// along the bone's previous motion, and damage = (impact speed − safe speed) × damage per m/s ×
+/// chest. While down, lost incoming speed into a surface is an impact: the surface hit is found by a ray
+/// along the bone's previous motion, and damage = (normal impact speed − safe speed) × damage per m/s ×
 /// surface hardness × body-part multiplier × the bone's share of body mass. Once settled (and
 /// alive) the ragdoll pose blends back into the animation and the carrier is up.
 /// </summary>
@@ -316,7 +316,7 @@ public partial class PlayerRagdoll : Node
         }
     }
 
-    /// <summary>Sudden velocity drops are impacts; damage scales with speed, hardness, body part and mass share.</summary>
+    /// <summary>Lost normal approach speed causes damage, scaled by hardness, body part and mass share.</summary>
     private void ApplyImpacts(float dt)
     {
         PhysicsDirectSpaceState3D space = Body!.GetWorld3D().DirectSpaceState;
@@ -345,6 +345,12 @@ public partial class PlayerRagdoll : Node
                 continue;
             }
 
+            impact = ImpactMath.SpeedLost(travel, velocity, hit["normal"].AsVector3());
+            if (impact <= SafeImpactSpeed)
+            {
+                continue;
+            }
+
             float hardness = DefaultHardness;
             string surface = "obstacle";
             SurfaceType? type = SurfaceLookup.Find(hit["collider"].AsGodotObject(), hit["position"].AsVector3());
@@ -365,6 +371,8 @@ public partial class PlayerRagdoll : Node
 
         if (damage > 0.0f)
         {
+            damage *= (1.0f - GameEvents.CurrentGear.FallProtection) * (1.0f - GameEvents.CurrentGear.PhysicalProtection);
+            damage *= GetNodeOrNull<RunState>("/root/RunState")?.Character.ImpactFactor ?? 1;
             FallDamage += damage;
             Health?.TakeDamage(damage, source);
         }

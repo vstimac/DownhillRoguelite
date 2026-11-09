@@ -81,11 +81,25 @@ public partial class PlayerController : CharacterBody3D
         FloorConstantSpeed = true;
         FloorBlockOnWall = true;
         GameEvents.BalanceUpdated += OnBalanceUpdated;
+        GameEvents.LaunchRequested += OnLaunchRequested;
     }
 
     public override void _ExitTree()
     {
         GameEvents.BalanceUpdated -= OnBalanceUpdated;
+        GameEvents.LaunchRequested -= OnLaunchRequested;
+    }
+
+    private Vector3? _launch;
+    private string _launchCause = "";
+
+    /// <summary>Queues a throw for the next physics step: up fast enough to reach the height, plus the push.</summary>
+    private void OnLaunchRequested(Vector3 horizontal, float height, string cause)
+    {
+        float gravity = _gravity * Settings.GravityScale;
+        float up = Mathf.Sqrt(2.0f * gravity * Mathf.Max(height, 0.0f));
+        _launch = new Vector3(horizontal.X, up, horizontal.Z);
+        _launchCause = cause;
     }
 
     private void OnBalanceUpdated(BalanceSnapshot snapshot)
@@ -165,11 +179,19 @@ public partial class PlayerController : CharacterBody3D
             _externalVelocity = Vector3.Zero;
             Velocity = ComputeAirVelocity(input, dt);
         }
+        if (_launch is Vector3 launch)
+        {
+            // Thrown: leaves the ground this step (floor snap doesn't hold a body moving up).
+            _launch = null;
+            Velocity = launch;
+            grounded = false;
+            GameEvents.PublishLaunched(_launchCause);
+        }
 
         // Walking under your own power costs stamina; standing still lets it recover.
         if (grounded && Stamina != null && input.Length() > SprintInputThreshold && IntendedVelocity().Length() >= Settings.IdleSpeed)
         {
-            Stamina.DrainMovement(dt, GameEvents.CurrentLoad.Mass, _moveGrade, braking, Sprinting);
+            Stamina.DrainMovement(dt, CarriedLoad.Mass, _moveGrade, braking, Sprinting);
         }
 
         // Only a real flight counts as a landing: sliding off a steep face onto flat ground doesn't.
@@ -342,7 +364,7 @@ public partial class PlayerController : CharacterBody3D
         Grip *= GameEvents.CurrentWeather.GripFactor;
         if (_run != null)
         {
-            Grip = Mathf.Min(1.0f, Grip * _run.Modifiers.Grip * (1.0f + GameEvents.CurrentGear.Grip));
+            Grip = Mathf.Min(1.0f, Grip * _run.Modifiers.Grip * _run.Character.Stats.Grip * (1.0f + GameEvents.CurrentGear.Grip));
         }
     }
 
@@ -407,7 +429,7 @@ public partial class PlayerController : CharacterBody3D
             return;
         }
 
-        float loadFraction = Mathf.Clamp(GameEvents.CurrentLoad.Mass / Settings.JumpLoadForMinimum, 0.0f, 1.0f);
+        float loadFraction = Mathf.Clamp(CarriedLoad.Mass / Settings.JumpLoadForMinimum, 0.0f, 1.0f);
         float speed = Settings.JumpSpeed * Mathf.Lerp(1.0f, Settings.MinJumpFactor, loadFraction);
         Velocity = new Vector3(Velocity.X, speed, Velocity.Z);
     }
@@ -415,11 +437,11 @@ public partial class PlayerController : CharacterBody3D
     /// <summary>Speed multiplier from injuries: 1 above InjuredHealthFraction, down to InjuredSpeedFactor at zero.</summary>
     private float InjuryFactor()
     {
-        if (Health == null || Health.Max <= 0.0f)
+        if (Health == null || Health.EffectiveMax <= 0.0f)
         {
             return 1.0f;
         }
-        float fraction = Health.Current / Health.Max;
+        float fraction = Health.Current / Health.EffectiveMax;
         if (fraction >= Settings.InjuredHealthFraction)
         {
             return 1.0f;
@@ -442,11 +464,13 @@ public partial class PlayerController : CharacterBody3D
         {
             speed *= Mathf.Max(Settings.MinUphillSpeedFactor, 1.0f + Settings.UphillSpeedPenalty * grade);
         }
-        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor(), Settings.MaxSpeed);
+        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor() * GameEvents.CurrentGear.SpeedFactor, Settings.MaxSpeed);
     }
 
     /// <summary>How the ground underfoot slows a stride: 1 on firm ground, less in deep snow or mud.</summary>
     public float SurfaceSpeed { get; private set; } = 1.0f;
+    /// <summary>Grade of the ground along this frame's walk (+ downhill, - uphill), for posture and stamina.</summary>
+    public float MoveGrade => _moveGrade;
 
     /// <summary>Falling snow and sinking ground (deep snow, mud) slow every stride; a boon can lengthen it.</summary>
     public float WeatherSpeedFactor()
@@ -455,6 +479,7 @@ public partial class PlayerController : CharacterBody3D
         if (_run != null)
         {
             factor *= _run.Modifiers.WalkSpeed;
+            factor *= _run.Character.Speed;
         }
         return factor;
     }
@@ -489,7 +514,7 @@ public partial class PlayerController : CharacterBody3D
         {
             map = Settings.MapSpeedFactor;
         }
-        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor() * map, Settings.MaxSpeed);
+        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor() * map * GameEvents.CurrentGear.SpeedFactor, Settings.MaxSpeed);
     }
 
     private float DecelerationRate(bool braking, float grade)
@@ -611,7 +636,8 @@ public partial class PlayerController : CharacterBody3D
         }
 
         float targetYaw = Mathf.Atan2(-look.X, -look.Z);
-        float weight = 1.0f - Mathf.Exp(-Settings.FacingSharpness * dt);
+        float sharpness = Settings.FacingSharpness / (1.0f + Settings.FacingLoadSlowdownPerKg * CarriedLoad.Mass);
+        float weight = 1.0f - Mathf.Exp(-sharpness * dt);
         Rotation = new Vector3(0.0f, Mathf.LerpAngle(Rotation.Y, targetYaw, weight), 0.0f);
     }
 

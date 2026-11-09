@@ -96,17 +96,21 @@ public partial class BalanceController : Node
     /// <summary>Landing pitches the load forward, harder for a heavier, higher load.</summary>
     private void OnLanded(float downwardSpeed)
     {
-        if (_load.Mass <= 0.0f || State == BalanceState.Fallen)
+        if (downwardSpeed <= 0.0f || _load.Mass <= 0.0f || State == BalanceState.Fallen)
         {
             return;
         }
         float impulse = Settings.LandingJolt * downwardSpeed * _load.Mass * _load.CenterOfMass.Y;
-        _pendingImpulse += new Vector2(0.0f, impulse / Inertia().Y);
+        ApplyImpulse(new Vector2(0.0f, impulse / Inertia().Y));
     }
 
     /// <summary>Adds an instant change of tilt velocity, in rad/s (roll, pitch). Used for knocks and tests.</summary>
     public void ApplyImpulse(Vector2 tiltVelocityChange)
     {
+        if (tiltVelocityChange.IsZeroApprox())
+        {
+            return;
+        }
         _sincePush = 0.0f;
         _pendingImpulse += tiltVelocityChange;
     }
@@ -118,6 +122,7 @@ public partial class BalanceController : Node
         _tiltVelocity = Vector2.Zero;
         _pendingImpulse = Vector2.Zero;
         _lean = 0.0f;
+        _sincePush = float.PositiveInfinity;
         EnterState(BalanceState.Stable);
     }
 
@@ -279,6 +284,11 @@ public partial class BalanceController : Node
                 normal.Dot(forward) * Settings.SlopePitchFactor);
 
             windTorque = WindTorque(forward, right, loadMass, loadHeight);
+            if (!windTorque.IsZeroApprox())
+            {
+                // Wind is an external disturbance: standing still must not grant immunity to it.
+                _sincePush = 0.0f;
+            }
 
             float effectiveStiffness = Mathf.Max(stiffness - loadWeight * loadHeight, Settings.MinEffectiveStiffness);
             Vector2 damping = new(
@@ -348,7 +358,7 @@ public partial class BalanceController : Node
     /// <summary>A push within this many seconds still lets a standing stumble become a fall.</summary>
     [Export] public float PushMemory { get; set; } = 1.5f;
 
-    private float _sincePush = 99.0f;
+    private float _sincePush = float.PositiveInfinity;
 
     private void UpdateState(Vector2 imbalance, float dt)
     {

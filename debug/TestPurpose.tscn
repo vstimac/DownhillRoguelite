@@ -1,0 +1,92 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://terrain/TerrainStreamer.cs" id="1_streamer"]
+[ext_resource type="Resource" path="res://terrain/default_terrain.tres" id="2_terrain_settings"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="3_player"]
+[ext_resource type="Script" path="res://map/StationManager.cs" id="4_stations"]
+[ext_resource type="Script" path="res://narrative/StationVisitors.cs" id="5_visitors"]
+[ext_resource type="Resource" path="res://narrative/npcs/pilgrim.tres" id="6_pilgrim"]
+[ext_resource type="Resource" path="res://narrative/npcs/cartographer.tres" id="6_cartographer"]
+[ext_resource type="Resource" path="res://narrative/npcs/old_carrier.tres" id="6_old_carrier"]
+[ext_resource type="Script" path="res://progression/contracts/ContractDirector.cs" id="7_contracts"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/courier_sealed_parcel.tres" id="8_parcel"]
+[ext_resource type="Script" path="res://narrative/LorePlacer.cs" id="9_lore"]
+[ext_resource type="Script" path="res://environment/wayside/WaysidePlacer.cs" id="10_wayside"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/cold_spring.tres" id="11_spring"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/abandoned_pack.tres" id="11_pack"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/carriers_grave.tres" id="11_grave"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/foragers_cache.tres" id="11_cache"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/menders_bundle.tres" id="11_mender"]
+[ext_resource type="Script" path="res://progression/objectives/ObjectiveDirector.cs" id="12_objectives"]
+[ext_resource type="Script" path="res://debug/ObjectiveDebugOverlay.cs" id="13_overlay"]
+[ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="14_inventory"]
+[ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="15_backpack"]
+[ext_resource type="Script" path="res://map/FieldMap.cs" id="16_map"]
+[ext_resource type="Script" path="res://ui/Hud.cs" id="17_hud"]
+[ext_resource type="Script" path="res://debug/DebugSceneControls.cs" id="18_controls"]
+
+[sub_resource type="Environment" id="Environment_purpose"]
+background_mode = 1
+background_color = Color(0.55, 0.58, 0.62, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.7, 0.7, 0.72, 1)
+ambient_light_energy = 0.6
+
+[node name="TestPurpose" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_purpose")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 10, 0)
+shadow_enabled = true
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("1_streamer")
+Settings = ExtResource("2_terrain_settings")
+
+[node name="Stations" type="Node3D" parent="."]
+script = ExtResource("4_stations")
+
+[node name="Visitors" type="Node3D" parent="."]
+script = ExtResource("5_visitors")
+Personas = [ExtResource("6_pilgrim"), ExtResource("6_cartographer"), ExtResource("6_old_carrier")]
+VisitChance = 1.0
+
+[node name="Contracts" type="Node3D" parent="."]
+script = ExtResource("7_contracts")
+Contracts = [ExtResource("8_parcel")]
+
+[node name="Lore" type="Node3D" parent="."]
+script = ExtResource("9_lore")
+
+[node name="Wayside" type="Node3D" parent="."]
+script = ExtResource("10_wayside")
+Definitions = [ExtResource("11_spring"), ExtResource("11_pack"), ExtResource("11_grave"), ExtResource("11_cache"), ExtResource("11_mender")]
+
+[node name="Objectives" type="Node" parent="."]
+script = ExtResource("12_objectives")
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
+
+[node name="Inventory" type="Node" parent="Player"]
+script = ExtResource("14_inventory")
+Backpack = ExtResource("15_backpack")
+StartingItemPaths = PackedStringArray()
+AutoPackOnStart = false
+
+[node name="FieldMap" type="Node3D" parent="."]
+script = ExtResource("16_map")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("17_hud")
+
+[node name="ObjectiveOverlay" type="CanvasLayer" parent="." node_paths=PackedStringArray("Director", "Wayside")]
+script = ExtResource("13_overlay")
+Director = NodePath("../Objectives")
+Wayside = NodePath("../Wayside")
+
+[node name="Controls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "Streamer")]
+script = ExtResource("18_controls")
+PlayerBody = NodePath("../Player")
+Streamer = NodePath("../Terrain")

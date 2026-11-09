@@ -67,12 +67,41 @@ Every item has a **category**:
 
 | | Easy | Normal | Hard |
 | --- | --- | --- | --- |
-| Real minutes per in-game day | 48 | 36 | 24 |
+| Real minutes per in-game day | 30 | 20 | 14 |
 | Hunger / thirst drain | ×0.7 | ×1 | ×1.4 |
 | Supplies in the world | ×1.4 | ×1 | ×0.7 |
 | Night harshness (cold damage, darkness) | mild | full | full, plus no starting light |
 
 Values live in `DifficultySettings` resources and are tuned by play-testing.
+
+## Goals and direction (purpose patch, 2026-11-08)
+
+Playtesters didn't know what to do or why. Now there is always a goal on screen, a reason for it, and something worth stopping for.
+
+- **One main goal, always:** "Reach Station N before dark" (why: night kills outside a shelter), with the distance, time and arrival from the route estimate. At a station it becomes "Go down to Station N+1" (take a boon, look at the board, talk, repack), and from 16:00 "Sleep by the fire". After sleeping it points at the next station. After dark it says so.
+- **The long goal:** "Descend into Circle II · Lust, 1,240 m to go" (why: somewhere below, they say, a carrier becomes a god). After the ninth circle it reads "Go deeper than anyone".
+- **A guide on the first runs** (while fewer than `GuideRuns` = 2 runs have ended), one step at a time, each finished by what the player does:
+  - follow the cairns;
+  - pick up food or water;
+  - read a sign;
+  - eat or drink;
+  - at Station 1, take a boon, then talk to the traveller or take the job.
+- **Jobs become errands:** a job offered where a traveller sits is "Aldo asks: …", the traveller's tooltip says they have a job, and once taken it is "Aldo's errand: …" with the cargo's condition and time left. A delivered job also packs a ration and a water flask (`ObjectiveDirector.RewardItemPaths`). Jobs without a traveller are "A job at the board". Found relics become "Leave the … at an altar".
+- **Points of interest:** one or two per stage, 9–22 m beside the main path, each under a tall pennant with a small light. There are five kinds:
+  - a cold spring (water flask);
+  - an abandoned pack (ration, dried fruit);
+  - a carrier's grave (water skin, and the warning "went on after dark");
+  - a forager's cache (food bag, berries);
+  - a mender's bundle (sewing kit, leather patch).
+
+  E takes what's there once; with no room it all stays. Within 70 m the goals say "Off the path: a cold spring, 35 m to your left".
+- **Where it shows:**
+  - the goal note at the top of the screen (main goal, why, progress, guide step and side goals, the circle, the run's score);
+  - a big card when the main goal changes (also at the start of a run, after the title screen);
+  - notes ("New goal: …", "Done: …");
+  - the journal's left page, "Now", with finished goals struck through;
+  - the summit stone's last line.
+- Code: `progression/objectives/` (`ObjectiveBook` logic, `ObjectiveDirector`), `environment/wayside/`, `ui/hud/ObjectivePanel.cs`, `ui/hud/ObjectiveBanner.cs`. Debug: `debug/TestPurpose.tscn` and the F3 overlay (`ObjectiveDebugOverlay`). Tests: `ObjectiveTests`, `WaysideTests`.
 
 ## Revised roadmap
 
@@ -92,7 +121,7 @@ Values live in `DifficultySettings` resources and are tuned by play-testing.
 
 - Each stage (station to station) offers a choice. Paths split about 110 m below a station and rejoin about 110 m above the next.
   - **Safe** (the main path) is always there. It winds gently through the branch zone like a real trail, stays on firm ground (grass and snow) and is marked by cairns. Supplies are ordinary.
-  - Every stage adds one or two branches that swing 45–70 m to either side:
+  - Every stage adds one or two branches that swing 45–70 m to either side (both, more often than not), and each side may fork once more into an **outer** supply-rich path 130–155 m out, the long way round: up to five paths a stage. The lookout sign lists them all ("far left", "left", "ahead", "right", "far right"):
     - **Hazardous:** a straight line, about 4 % shorter, but narrow and rough, on scree and snow (lower grip). Boulders crowd it. It holds 1.5× the supplies, plus caches of three items together.
     - **Supply-rich:** winds more and is about 10 % longer, with patches of boggy mud. It holds 4× the supplies.
 - A **lookout sign** stands just below each station (and at the start) with one line per path: which way it goes, distance, time with rests, stamina and arrival before or after dark. The estimator follows whichever path you're on, so cairns on every path show that path's figures.
@@ -120,7 +149,7 @@ Values live in `DifficultySettings` resources and are tuned by play-testing.
 - **Deeper is harder:** every circle down drains hunger and thirst 8 % faster and makes night cold and weather chill 10 % harsher (per difficulty, `core/difficulty/*.tres`). Supplies were already leaner with depth.
 - **What death can't take: the starting kit.** Your best depth ever unlocks gear every new run starts with: a water flask at 300 m, a ration at 600 m, dried fruit at 1,200 m, a water skin at 1,800 m and a med kit at 3,000 m. The summit stone lists what you carry.
 - Debug: `-- --at-station=N` starts at station N. Tests: `RunTests`, `ProgressionTests`.
-- Contracts (cargo to deliver) wait for M14's gear.
+- **Contracts** (roguelite Phase 1, Courier): the first time you reach a station, a job board by its fire may offer one job, picked by the mountain's seed: carry a real item (a 3.5 kg sealed parcel so far) down to the next station. E takes it if it fits in the pack; it is packed like anything else, so its weight and where you pack it change your balance. One job at a time. At the destination a delivery table takes it: E, then E again to hand it over. A delivery adds to the run's score (a point per 10 m, 20 per station, plus the job's pay), shown in the run summary. Cargo lost from a torn pack, or still carried when you die, fails the job. A new run has no jobs. Code: `progression/contracts/`; tests: `ContractTests`. Status of the wider roguelite plan: `docs/roguelite-implementation-status.md`.
 
 M1–M5 are built (movement, balance, packing, vitals and ragdoll falls, terrain). From here:
 

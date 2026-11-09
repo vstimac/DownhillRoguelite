@@ -1,0 +1,14 @@
+[gd_scene format=3]
+[ext_resource type="PackedScene" path="res://debug/TestRecoveryExpedition.tscn" id="1_world"]
+[ext_resource type="Script" path="res://debug/ForestDescentLab.cs" id="2_lab"]
+[ext_resource type="Environment" path="res://terrain/forest_environment.tres" id="3_environment"]
+[node name="ForestDescentPlaytest" instance=ExtResource("1_world")]
+script = ExtResource("2_lab")
+[node name="Terrain" parent="."]
+RandomSeedOnStart = false
+[node name="WorldEnvironment" parent="."]
+environment = ExtResource("3_environment")
+[node name="StartScreen" parent="."]
+Subtitle = "A forest at human scale. A load worth protecting."
+VersionText = "Math audit · forest terrain prototype"
+WarmupSeconds = 1.5

@@ -20,6 +20,10 @@ public partial class Biome : Resource
     [Export] public string[] TreeModels { get; set; } = System.Array.Empty<string>();
     /// <summary>Trees per 1000 m² on open ground.</summary>
     [Export] public float TreeDensity { get; set; }
+    [Export] public bool ClusterTrees { get; set; }
+    [Export(PropertyHint.Range, "0,1")] public float SaplingShare { get; set; }
+    [Export] public Vector2 SaplingHeight { get; set; } = new(2.5f, 5.0f);
+    [Export] public float TrunkRadiusPerMetre { get; set; } = 0.035f;
     /// <summary>Tree height range, in m.</summary>
     [Export] public Vector2 TreeHeight { get; set; } = new(4.0f, 8.0f);
     /// <summary>How far trees lean, at most, in degrees (windswept circles bend them).</summary>
@@ -28,6 +32,8 @@ public partial class Biome : Resource
     /// <summary>Grass tufts per m² on grassy ground.</summary>
     [Export] public float GrassDensity { get; set; }
     [Export] public Vector2 GrassScale { get; set; } = new(3.0f, 5.5f);
+    /// <summary>GrassScale is height in metres, fitted against mesh bounds; false retains legacy asset scaling.</summary>
+    [Export] public bool GroundPlantsInMetres { get; set; }
     [Export] public string[] FlowerModels { get; set; } = System.Array.Empty<string>();
     /// <summary>Flowers per m² on grassy ground.</summary>
     [Export] public float FlowerDensity { get; set; }

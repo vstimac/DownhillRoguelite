@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="RelicDefinition" format=3]
+
+[ext_resource type="Script" path="res://progression/relics/RelicDefinition.cs" id="1_relic"]
+
+[resource]
+script = ExtResource("1_relic")
+Id = "RL_004"
+DisplayName = "The Counterweight"
+SeenText = "A block of dark stone with an iron ring, worn smooth on one face. It once balanced something much heavier. It is very hard to lift."
+Interpretations = PackedStringArray("It came from a great scale at the gates, where every arrival was weighed against it. Those lighter than the stone were sent back up.", "Pilgrims carried it down in turns, so that no one walked the mountain without a burden. The last of them left it here.", "There never was a scale. The stone was carved to be carried, and the worn face is where shoulders rested.")
+ItemPath = "res://inventory/items/relic_counterweight.tres"
+CircleAffinity = 3
+StageRange = Vector2i(2, 4)
+BaseScore = 90
+Fragility = 0.0
+SpawnChance = 1.0
+CanDeliver = true

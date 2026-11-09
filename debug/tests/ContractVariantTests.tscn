@@ -1,0 +1,48 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/ContractVariantTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://terrain/TerrainStreamer.cs" id="2_streamer"]
+[ext_resource type="Resource" path="res://terrain/default_terrain.tres" id="3_terrain_settings"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="4_player"]
+[ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="5_inventory"]
+[ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="6_backpack"]
+[ext_resource type="Script" path="res://map/StationManager.cs" id="7_stations"]
+[ext_resource type="Script" path="res://progression/contracts/ContractDirector.cs" id="8_contracts"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/courier_sealed_parcel.tres" id="9_courier_parcel"]
+[ext_resource type="Script" path="res://debug/DebugSceneControls.cs" id="10_controls"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_001_letter_downhill.tres" id="11_ct1"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_002_stone_for_the_scale.tres" id="12_ct2"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_003_glass_truth.tres" id="13_ct3"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_004_empty_hands.tres" id="14_ct4"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_005_someones_last_map.tres" id="15_ct5"]
+
+[node name="ContractVariantTests" type="Node3D" node_paths=PackedStringArray("PlayerBody", "Streamer", "Director")]
+script = ExtResource("1_tests")
+PlayerBody = NodePath("Player")
+Streamer = NodePath("Terrain")
+Director = NodePath("Contracts")
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_streamer")
+Settings = ExtResource("3_terrain_settings")
+
+[node name="Stations" type="Node3D" parent="."]
+script = ExtResource("7_stations")
+
+[node name="Contracts" type="Node3D" parent="."]
+script = ExtResource("8_contracts")
+Contracts = [ExtResource("9_courier_parcel"), ExtResource("11_ct1"), ExtResource("12_ct2"), ExtResource("13_ct3"), ExtResource("14_ct4"), ExtResource("15_ct5")]
+
+[node name="Player" parent="." instance=ExtResource("4_player")]
+
+[node name="Inventory" type="Node" parent="Player"]
+script = ExtResource("5_inventory")
+Backpack = ExtResource("6_backpack")
+StartingItemPaths = PackedStringArray()
+AutoPackOnStart = false
+
+[node name="Controls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "Streamer")]
+script = ExtResource("10_controls")
+KillHeight = -1e+09
+PlayerBody = NodePath("../Player")
+Streamer = NodePath("../Terrain")

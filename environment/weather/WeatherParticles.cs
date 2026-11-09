@@ -96,16 +96,45 @@ public partial class WeatherParticles : Node3D
         {
             emitter.Emitting = on;
         }
-        emitter.AmountRatio = Mathf.Clamp(intensity, 0.0f, 1.0f);
+        if (!on)
+        {
+            // Nothing falls: leave the materials alone (every write re-uploads them to the GPU).
+            return;
+        }
+        // Only write what changed: a material or emitter written every frame is re-uploaded every frame.
+        float ratio = Mathf.Clamp(intensity, 0.0f, 1.0f);
+        if (Mathf.Abs(emitter.AmountRatio - ratio) > ChangeEpsilon)
+        {
+            emitter.AmountRatio = ratio;
+        }
         // Particles fall at their own speed and drift with the wind from birth.
         Vector3 velocity = new Vector3(wind.X, 0.0f, wind.Z) + Vector3.Down * fallSpeed;
-        process.Direction = velocity.Normalized();
-        process.InitialVelocityMin = velocity.Length() * 0.9f;
-        process.InitialVelocityMax = velocity.Length() * 1.1f;
-        emitter.Position = -new Vector3(wind.X, 0.0f, wind.Z) * (float)emitter.Lifetime * 0.5f;
+        Vector3 direction = velocity.Normalized();
+        if (process.Direction.DistanceTo(direction) > ChangeEpsilon)
+        {
+            process.Direction = direction;
+        }
+        float speed = velocity.Length();
+        if (Mathf.Abs(process.InitialVelocityMin - speed * 0.9f) > ChangeEpsilon * speed)
+        {
+            process.InitialVelocityMin = speed * 0.9f;
+            process.InitialVelocityMax = speed * 1.1f;
+        }
+        Vector3 offset = -new Vector3(wind.X, 0.0f, wind.Z) * (float)emitter.Lifetime * 0.5f;
+        if (emitter.Position.DistanceTo(offset) > ChangeEpsilon * 10.0f)
+        {
+            emitter.Position = offset;
+        }
         Color lit = new(color.R * brightness, color.G * brightness, color.B * brightness, color.A);
-        material.AlbedoColor = lit;
+        Color now = material.AlbedoColor;
+        if (Mathf.Abs(now.R - lit.R) + Mathf.Abs(now.G - lit.G) + Mathf.Abs(now.B - lit.B) > ChangeEpsilon)
+        {
+            material.AlbedoColor = lit;
+        }
     }
+
+    /// <summary>Changes smaller than this aren't written (a write re-uploads the material).</summary>
+    private const float ChangeEpsilon = 0.01f;
 
     private ParticleProcessMaterial Process(float speed, float spread)
     {

@@ -31,10 +31,21 @@ public partial class RunState : Node
 
     /// <summary>What this run's boons changed (reset with every run).</summary>
     public RunModifiers Modifiers { get; } = new();
+    public CharacterRun Character { get; } = new();
+    public bool CharacterRunStarted { get; private set; }
+    public event System.Action? CharacterChanged;
+    public event System.Action<CharacterStats>? CharacterAbilityActivated;
     /// <summary>Names of the items this run started with (unlocked by the records).</summary>
     public System.Collections.Generic.List<string> StartingKit { get; } = new();
     /// <summary>Names of the boons chosen this run, in order.</summary>
     public System.Collections.Generic.List<string> Boons { get; } = new();
+    /// <summary>This run's contracts and cargo score (reset with every run).</summary>
+    public RunTelemetry Telemetry { get; } = new();
+
+    /// <summary>Score per metre descended (INITIAL TUNING: a tenth of a point).</summary>
+    [Export] public float ScorePerMetre { get; set; } = 0.1f;
+    /// <summary>Score per station reached (INITIAL TUNING).</summary>
+    [Export] public int ScorePerStation { get; set; } = 20;
 
     /// <summary>The circle the carrier has descended into (0 = Limbo).</summary>
     public int Circle => Circles.CircleAt(Depth);
@@ -53,6 +64,36 @@ public partial class RunState : Node
             // Headless runs are tests and tools: keep their runs out of the player's records.
             _records ??= new RunRecords(DisplayServer.GetName() != "headless");
             return _records;
+        }
+    }
+
+    /// <summary>Relics found, ever and this run (user://relics_seen.cfg).</summary>
+    public LoreBook RelicsSeen
+    {
+        get
+        {
+            _relicsSeen ??= new LoreBook(DisplayServer.GetName() != "headless", "user://relics_seen.cfg");
+            return _relicsSeen;
+        }
+    }
+
+    /// <summary>Relics studied at an altar, ever and this run (user://relics_studied.cfg).</summary>
+    public LoreBook RelicsStudied
+    {
+        get
+        {
+            _relicsStudied ??= new LoreBook(DisplayServer.GetName() != "headless", "user://relics_studied.cfg");
+            return _relicsStudied;
+        }
+    }
+
+    /// <summary>Found texts read, ever and this run (user://lore.cfg).</summary>
+    public LoreBook Lore
+    {
+        get
+        {
+            _lore ??= new LoreBook(DisplayServer.GetName() != "headless");
+            return _lore;
         }
     }
 
@@ -94,6 +135,9 @@ public partial class RunState : Node
     private DifficultySettings? _difficultySettings;
     private CircleTable? _circles;
     private RunRecords? _records;
+    private LoreBook? _lore;
+    private LoreBook? _relicsSeen;
+    private LoreBook? _relicsStudied;
     private float _overTimer;
 
     public override void _Ready()
@@ -102,7 +146,38 @@ public partial class RunState : Node
         GameEvents.StationReached += OnStationReached;
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.CarrierDied += OnCarrierDied;
+        GameEvents.ContractAccepted += OnContractAccepted;
+        GameEvents.ContractResolved += OnContractResolved;
+        GameEvents.RelicDelivered += OnRelicDelivered;
         RunNumber = Records.Runs + 1;
+        ConfigureCharacter(null, false);
+    }
+
+    private void ConfigureCharacter(string? requested, bool started)
+    {
+        string id = "default";
+        if (DisplayServer.GetName() != "headless") { GameOptions.Load(); id = GameOptions.Character; }
+        if (requested != null) { id = requested; }
+        foreach (string arg in OS.GetCmdlineUserArgs())
+        { if (arg.StartsWith("--character=", System.StringComparison.Ordinal)) { id = arg["--character=".Length..]; } }
+        CarrierCharacter? selected = null;
+        // Core headless regressions have a deterministic neutral Carrier baseline, independent of player saves/model availability.
+        if (DisplayServer.GetName() == "headless" && id == "default")
+        { selected = GD.Load<CarrierCharacter>("res://art/characters/carrier.tres"); }
+        else { selected = CarrierRoster.Load()?.Pick(id); }
+        Character.Select(selected);
+        CharacterRunStarted = started;
+        CharacterChanged?.Invoke();
+    }
+
+    public void BeginCharacterRun(string? id = null) { ConfigureCharacter(id, true); }
+
+    public bool TryUseCharacterAbility()
+    {
+        if (RunOver || GetTree().Paused || GameEvents.IsDowned || GameEvents.IsPacking || GameEvents.IsConversing || !Character.Activate()) { return false; }
+        CharacterAbilityActivated?.Invoke(Character.Stats);
+        GameEvents.PublishHint(Character.Stats.AbilityName + " activated.");
+        return true;
     }
 
     /// <summary>A seed nobody chose: the clock's microseconds through SplitMix64.</summary>
@@ -139,7 +214,8 @@ public partial class RunState : Node
             day = clock.Day;
         }
         bool record = Records.Add(Depth, Stage);
-        LastSummary = new RunSummary(RunNumber, Seed, Depth, Stage, day, Circles.NameOf(Circles.CircleAt(Depth)), cause, Records.BestDepth, record);
+        LastSummary = new RunSummary(RunNumber, Seed, Depth, Stage, day, Circles.NameOf(Circles.CircleAt(Depth)), cause, Records.BestDepth, record,
+            Telemetry.ContractsDelivered, Telemetry.ContractsFailed, Telemetry.CargoScore, ScoreOf(Depth, Stage, Telemetry.CargoScore), Telemetry.RelicsDelivered);
         GameEvents.PublishRunEnded(LastSummary);
     }
 
@@ -147,6 +223,7 @@ public partial class RunState : Node
     {
         if (!RunOver)
         {
+            Character.Tick((float)delta);
             return;
         }
         _overTimer += (float)delta;
@@ -166,6 +243,37 @@ public partial class RunState : Node
         }
     }
 
+    /// <summary>
+    /// A run's score: a point per ten metres, a little for every station, plus what delivered cargo
+    /// earned. Never negative. Depth stays the headline; the score is the second line.
+    /// </summary>
+    public int ScoreOf(int depth, int stations, int cargoScore)
+    {
+        double depthScore = 0.0;
+        if (depth > 0 && ScorePerMetre > 0.0f)
+        {
+            depthScore = System.Math.Floor(depth * (double)ScorePerMetre);
+        }
+        long stationScore = (long)System.Math.Max(stations, 0) * System.Math.Max(ScorePerStation, 0);
+        double score = depthScore + stationScore + System.Math.Max(cargoScore, 0);
+        return (int)System.Math.Min(score, int.MaxValue);
+    }
+
+    private void OnContractAccepted(ContractNote note)
+    {
+        Telemetry.RecordAccepted(note);
+    }
+
+    private void OnContractResolved(ContractNote note)
+    {
+        Telemetry.RecordResolved(note);
+    }
+
+    private void OnRelicDelivered(RelicNote note)
+    {
+        Telemetry.RecordRelic(note);
+    }
+
     private void OnStationReached(int station)
     {
         Stage = Mathf.Max(Stage, station);
@@ -176,7 +284,12 @@ public partial class RunState : Node
         Stage = 0;
         Depth = 0;
         Modifiers.Reset();
+        ConfigureCharacter(null, true);
         Boons.Clear();
+        Telemetry.Reset();
+        Lore.BeginRun();
+        RelicsSeen.BeginRun();
+        RelicsStudied.BeginRun();
     }
 
     private void OnDepthChanged(float depth)
@@ -190,6 +303,9 @@ public partial class RunState : Node
         GameEvents.StationReached -= OnStationReached;
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.CarrierDied -= OnCarrierDied;
+        GameEvents.ContractAccepted -= OnContractAccepted;
+        GameEvents.ContractResolved -= OnContractResolved;
+        GameEvents.RelicDelivered -= OnRelicDelivered;
         _difficultySettings = null;
         _circles = null;
         Route = null;

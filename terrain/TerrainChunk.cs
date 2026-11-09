@@ -4,9 +4,9 @@ using Godot;
 namespace DownhillRoguelite.Terrain;
 
 /// <summary>
-/// One streamed piece of the mountain: a flat-shaded mesh, a HeightMapShape3D collider, its
-/// obstacles and its plants (trees with solid trunks; grass and flowers drawn in batches, one
-/// MultiMesh per model, only near the camera). Placed at the chunk's corner. Answers surface queries from the generator, so grip
+/// One streamed piece of the mountain: ground mesh, unchanged HeightMapShape3D, physical obstacles,
+/// batched trees with separate solid trunks, and spatial batches of grass, flowers and pebbles.
+/// Placed at the chunk's corner. Answers surface queries from the generator, so grip
 /// and fall damage vary across the chunk.
 /// </summary>
 public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
@@ -18,15 +18,20 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
 
     private TerrainGenerator? _generator;
     private SurfaceType?[] _surfaces = System.Array.Empty<SurfaceType?>();
+    private Material? _grassMaterial;
+    private Material? _rockMaterial;
+    private StaticBody3D? _treeBody;
 
     /// <summary>Creates the chunk's nodes from generated data. Main thread only.</summary>
     public void Build(TerrainChunkData data, TerrainGenerator generator, SurfaceType?[] surfaces,
         Material groundMaterial, Material boulderMaterial, Material trunkMaterial,
-        SurfaceType? boulderSurface, SurfaceType? trunkSurface)
+        SurfaceType? boulderSurface, SurfaceType? trunkSurface, Material? grassMaterial = null)
     {
         Coord = data.Coord;
         _generator = generator;
         _surfaces = surfaces;
+        _grassMaterial = grassMaterial;
+        _rockMaterial = boulderMaterial;
         Name = $"Chunk_{data.Coord.X}_{data.Coord.Y}";
         Position = generator.ChunkCorner(data.Coord);
 
@@ -63,6 +68,11 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
 
     private TerrainChunkData? _pendingPlants;
     private SurfaceType? _pendingTrunkSurface;
+    private System.Collections.Generic.IEnumerator<bool>? _plantBuild;
+    private static ulong _plantFrame;
+    private static double _plantFrameSpent;
+    private string _plantPhase = "";
+    public static double MaxPlantFrameMilliseconds { get; private set; }
 
     public override void _Ready()
     {
@@ -76,70 +86,131 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
     {
         if (_pendingPlants != null)
         {
-            TerrainChunkData data = _pendingPlants;
-            _pendingPlants = null;
+            ulong frame = Engine.GetProcessFrames();
+            if (frame != _plantFrame) { _plantFrame = frame; _plantFrameSpent = 0; }
+            double budget = _generator!.Settings.PlantBuildBudgetMilliseconds;
+            if (TerrainStreamer.Loading)
+            {
+                budget = _generator.Settings.LoadingPlantBudgetMilliseconds;
+            }
+            budget = Mathf.Max(budget, 0.5);
+            if (_plantFrameSpent >= budget) { return; }
             ulong start = Time.GetTicksUsec();
-            AddPlants(data, _pendingTrunkSurface);
-            MaxPlantMilliseconds = Mathf.Max(MaxPlantMilliseconds, (Time.GetTicksUsec() - start) / 1000.0);
+            int collections = System.GC.CollectionCount(2);
+            int minorCollections = System.GC.CollectionCount(0);
+            _plantBuild ??= AddPlants(_pendingPlants, _pendingTrunkSurface).GetEnumerator();
+            bool more = true;
+            while (more)
+            {
+                more = _plantBuild.MoveNext();
+                if (_plantFrameSpent + (Time.GetTicksUsec() - start) / 1000.0 >= budget) { break; }
+            }
+            if (!more)
+            {
+                _plantBuild.Dispose();
+                _plantBuild = null;
+                _pendingPlants = null;
+            }
+            double spent = (Time.GetTicksUsec() - start) / 1000.0;
+            if (spent > budget * 2 && System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--profile-plants") >= 0)
+            {
+                GD.Print("Plant streaming step " + Coord + " " + _plantPhase + ": " + spent.ToString("0.00")
+                    + " ms; GC " + (System.GC.CollectionCount(0) - minorCollections) + "/" + (System.GC.CollectionCount(2) - collections));
+            }
+            MaxPlantMilliseconds = Mathf.Max(MaxPlantMilliseconds, spent);
+            _plantFrameSpent += spent;
+            MaxPlantFrameMilliseconds = Mathf.Max(MaxPlantFrameMilliseconds, _plantFrameSpent);
         }
-        SetProcess(false);
+        SetProcess(_pendingPlants != null);
+    }
+
+    public override void _ExitTree()
+    {
+        _plantBuild?.Dispose();
+        if (_treeBody != null && IsInstanceValid(_treeBody) && _treeBody.GetParent() == null) { _treeBody.Free(); }
     }
 
     /// <summary>The slowest frame spent adding one chunk's plants, in ms (for the streaming test).</summary>
     public static double MaxPlantMilliseconds { get; set; }
 
-    /// <summary>True until the chunk's plants have been added (the frame after its ground).</summary>
+    /// <summary>True until the chunk's plants finish incremental construction after the ground.</summary>
     public bool PlantsPending => _pendingPlants != null;
 
     /// <summary>Trees as bodies the carrier bumps into; grass and flowers batched per model.</summary>
-    private void AddPlants(TerrainChunkData data, SurfaceType? trunkSurface)
+    private System.Collections.Generic.IEnumerable<bool> AddPlants(TerrainChunkData data, SurfaceType? trunkSurface)
     {
         if (data.Plants.Count == 0)
         {
-            return;
+            yield break;
         }
-        System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<PlantData>> small = new();
+        System.Collections.Generic.Dictionary<(string, PlantKind, int, int), System.Collections.Generic.List<PlantData>> batches = new();
+        Vector3 chunkOrigin = Position;
+        int grouped = 0;
         foreach (PlantData plant in data.Plants)
         {
             if (plant.Kind == PlantKind.Tree)
             {
-                AddTree(plant, trunkSurface);
-                continue;
+                if (ModelFit.FirstMesh(plant.Model, out _) == null) { continue; }
+                _plantPhase = "trunk collision";
+                AddTreeCollision(plant, trunkSurface);
+                yield return true;
             }
-            if (!small.TryGetValue(plant.Model, out System.Collections.Generic.List<PlantData>? list))
+            float batchSize = Mathf.Max(_generator!.Settings.PlantBatchSize, 4);
+            if (plant.Kind == PlantKind.Tree) { batchSize = _generator.Settings.ChunkSize; }
+            _plantPhase = "grouping detail";
+            Vector3 at = plant.Position - chunkOrigin;
+            var key = (plant.Model, plant.Kind, Mathf.FloorToInt(at.X / batchSize), Mathf.FloorToInt(at.Z / batchSize));
+            if (!batches.TryGetValue(key, out System.Collections.Generic.List<PlantData>? list))
             {
                 list = new System.Collections.Generic.List<PlantData>();
-                small[plant.Model] = list;
+                batches[key] = list;
             }
             list.Add(plant);
+            grouped++;
+            if (grouped % 128 == 0) { yield return true; }
         }
-        float view = _generator!.Settings.GrassViewDistance;
-        // Grass takes the biome's tint so it sits in the ground's colours (flowers keep their own).
-        Vector3 middle = Position + new Vector3(_generator.Settings.ChunkSize * 0.5f, 0.0f, _generator.Settings.ChunkSize * 0.5f);
-        Color tint = _generator.BiomeTint(_generator.DepthAt(_generator.Height(middle.X, middle.Z)));
-        Color blade = _generator.Settings.GrassColor;
-        StandardMaterial3D grassMaterial = new()
+        if (_treeBody != null)
         {
-            AlbedoColor = new Color(blade.R * tint.R, blade.G * tint.G, blade.B * tint.B),
-            Roughness = 1.0f,
-            CullMode = BaseMaterial3D.CullModeEnum.Disabled,
-        };
-        foreach ((string model, System.Collections.Generic.List<PlantData> plants) in small)
+            _plantPhase = "compound trunk upload";
+            AddChild(_treeBody, true);
+            yield return true;
+        }
+        _plantPhase = "grass material setup";
+        Material? grassMaterial = _grassMaterial;
+        if (grassMaterial == null)
         {
+            Vector3 middle = chunkOrigin + new Vector3(_generator!.Settings.ChunkSize * 0.5f, 0, _generator.Settings.ChunkSize * 0.5f);
+            Color tint = _generator.BiomeTint(_generator.DepthAt(_generator.Height(middle.X, middle.Z)));
+            Color blade = _generator.Settings.GrassColor;
+            grassMaterial = new StandardMaterial3D
+            {
+                AlbedoColor = new Color(blade.R * tint.R, blade.G * tint.G, blade.B * tint.B),
+                Roughness = 1,
+                CullMode = BaseMaterial3D.CullModeEnum.Disabled,
+                VertexColorUseAsAlbedo = true,
+            };
+        }
+        yield return true;
+        foreach (var entry in batches)
+        {
+            string model = entry.Key.Item1;
+            PlantKind kind = entry.Key.Item2;
+            System.Collections.Generic.List<PlantData> plants = entry.Value;
             Mesh? mesh = ModelFit.FirstMesh(model, out Transform3D local);
             if (mesh == null)
             {
                 continue;
             }
             MultiMesh batch = new() { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = plants.Count };
+            _plantPhase = kind + " buffer: " + model.GetFile();
+            Aabb meshBounds = mesh.GetAabb();
             // One buffer for all instances (12 floats each: the basis by rows, then the origin) instead
             // of a call per tuft, which made adding a chunk hitch.
             float[] buffer = new float[plants.Count * 12];
             for (int i = 0; i < plants.Count; i++)
             {
                 PlantData plant = plants[i];
-                Basis basis = new Basis(Vector3.Up, plant.Yaw).Scaled(Vector3.One * plant.Scale);
-                Transform3D t = new Transform3D(basis, plant.Position - Position) * local;
+                Transform3D t = FitPlant(plant, meshBounds, local, chunkOrigin);
                 int o = i * 12;
                 buffer[o] = t.Basis.X.X;
                 buffer[o + 1] = t.Basis.Y.X;
@@ -156,51 +227,60 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             }
             batch.Buffer = buffer;
             Material? material = null;
-            if (plants[0].Kind == PlantKind.Grass)
+            if (kind == PlantKind.Grass)
             {
                 material = grassMaterial;
             }
+            else if (kind == PlantKind.Pebble) { material = _rockMaterial; }
+            float view = _generator!.Settings.GrassViewDistance;
+            GeometryInstance3D.ShadowCastingSetting shadows = GeometryInstance3D.ShadowCastingSetting.Off;
+            if (kind == PlantKind.Tree) { view = _generator.Settings.TreeViewDistance; shadows = GeometryInstance3D.ShadowCastingSetting.On; }
+            else if (kind == PlantKind.Pebble) { view = _generator.Settings.PebbleViewDistance; }
             AddChild(new MultiMeshInstance3D
             {
-                Name = "Plants",
+                Name = kind + "Batch",
                 MaterialOverride = material,
                 Multimesh = batch,
-                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-                VisibilityRangeEnd = view,
-                VisibilityRangeEndMargin = 12.0f,
-                VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self,
-            });
+                CastShadow = shadows,
+                VisibilityRangeEnd = view + _generator.Settings.PlantBatchSize,
+                VisibilityRangeEndMargin = 2.0f,
+                VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Disabled,
+            }, true);
+            yield return true;
         }
     }
 
-    /// <summary>A tree: its model scaled to its height, standing on the ground (leaning a little), with a solid trunk.</summary>
-    private void AddTree(PlantData plant, SurfaceType? trunkSurface)
+    /// <summary>Fits authored plants in metres; legacy ground plants retain their original scale.</summary>
+    public static Transform3D FitPlant(PlantData plant, Aabb meshBounds, Transform3D local, Vector3 chunkOrigin)
     {
-        Mesh? mesh = ModelFit.FirstMesh(plant.Model, out Transform3D local);
-        if (mesh == null)
+        float scale = plant.Scale;
+        Vector3 foot = Vector3.Zero;
+        if (plant.HeightInMetres || plant.Kind == PlantKind.Tree)
         {
-            return;
+            Aabb bounds = local * meshBounds;
+            scale = plant.Scale / Mathf.Max(bounds.Size.Y, 0.01f);
+            foot = new Vector3(bounds.GetCenter().X, bounds.Position.Y, bounds.GetCenter().Z);
         }
-        Aabb bounds = local * mesh.GetAabb();
-        float scale = plant.Scale / Mathf.Max(bounds.Size.Y, 0.01f);
         Basis lean = Basis.FromEuler(new Vector3(plant.Lean.X, 0.0f, plant.Lean.Y));
-        StaticBody3D body = new()
-        {
-            Name = "Tree",
-            Transform = new Transform3D(lean * new Basis(Vector3.Up, plant.Yaw), plant.Position - Position),
-        };
-        // The model's foot on the ground: its lowest point at y = 0, centred over the trunk.
-        Vector3 foot = new(bounds.GetCenter().X, bounds.Position.Y, bounds.GetCenter().Z);
+        Transform3D placement = new(lean * new Basis(Vector3.Up, plant.Yaw), plant.Position - chunkOrigin);
         Transform3D fit = new(Basis.Identity.Scaled(Vector3.One * scale), -foot * scale);
-        body.AddChild(new MeshInstance3D { Mesh = mesh, Transform = fit * local });
-        float radius = Mathf.Clamp(plant.Scale * 0.035f, 0.12f, 0.4f);
-        float trunk = Mathf.Min(plant.Scale, 3.0f);
-        body.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = radius, Height = trunk }, Position = new Vector3(0.0f, trunk * 0.5f, 0.0f) });
-        if (trunkSurface != null)
+        return placement * fit * local;
+    }
+
+    private void AddTreeCollision(PlantData plant, SurfaceType? trunkSurface)
+    {
+        Basis lean = Basis.FromEuler(new Vector3(plant.Lean.X, 0, plant.Lean.Y));
+        if (_treeBody == null)
         {
-            body.SetMeta(SurfaceType.MetaKey, trunkSurface);
+            _treeBody = new StaticBody3D { Name = "TreeTrunks" };
+            if (trunkSurface != null) { _treeBody.SetMeta(SurfaceType.MetaKey, trunkSurface); }
         }
-        AddChild(body);
+        float radius = Mathf.Clamp(plant.Scale * 0.035f, 0.12f, 0.4f);
+        if (plant.TrunkRadius > 0) { radius = plant.TrunkRadius; }
+        float trunk = Mathf.Min(plant.Scale, 3.0f);
+        Transform3D placement = new(lean * new Basis(Vector3.Up, plant.Yaw), plant.Position - Position);
+        _treeBody.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = radius, Height = trunk },
+            Transform = placement * new Transform3D(Basis.Identity, Vector3.Up * trunk * 0.5f) });
     }
 
     public SurfaceType? SurfaceAt(Vector3 worldPoint)
@@ -230,7 +310,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
         body.AddToGroup(VaultableGroup);
         if (obstacle.Kind == ObstacleKind.Boulder)
         {
-            if (!AddModel(body, _generator!.Settings.BoulderModels, obstacle, obstacle.Size, false))
+            if (!AddModel(body, _generator!.Settings.BoulderModels, obstacle, obstacle.Size, false, boulderMaterial))
             {
                 body.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = obstacle.Size }, MaterialOverride = boulderMaterial });
             }
@@ -265,7 +345,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
     /// stretched to its collision shape; a log's long side is turned to the trunk's axis (Y).
     /// Returns false when no model is available.
     /// </summary>
-    private static bool AddModel(StaticBody3D body, string[] paths, ObstacleData obstacle, Vector3 size, bool alongY)
+    private static bool AddModel(StaticBody3D body, string[] paths, ObstacleData obstacle, Vector3 size, bool alongY, Material? material = null)
     {
         if (paths.Length == 0)
         {
@@ -293,7 +373,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             }
             bounds = turn * bounds;
         }
-        body.AddChild(new MeshInstance3D { Mesh = mesh, Transform = ModelFit.FitCentred(bounds, size) * turn * local });
+        body.AddChild(new MeshInstance3D { Mesh = mesh, Transform = ModelFit.FitCentred(bounds, size) * turn * local, MaterialOverride = material });
         return true;
     }
 }

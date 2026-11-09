@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LoreEntry" format=3]
+
+[ext_resource type="Script" path="res://narrative/LoreEntry.cs" id="1_lore"]
+
+[resource]
+script = ExtResource("1_lore")
+Id = "FRAG_002"
+Heading = "A courier's ledger"
+Text = "Seventeen crates descended. Fourteen were paid for. We buried the fifteenth and stopped counting the rest."
+Form = 2
+EarliestStage = 1
+Circle = -1
+ExclusiveGroup = ""
+Weight = 1.0

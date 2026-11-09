@@ -4,12 +4,13 @@ using Godot;
 namespace DownhillRoguelite.Core;
 
 /// <summary>
-/// The player's options (pause menu → Options), kept in user://options.cfg across runs and builds.
-/// Systems read the values and listen to Changed; nothing here touches a system directly.
+/// The player's options (main menu or pause menu → Options), kept in user://options.cfg across runs
+/// and builds. Systems read the values and listen to Changed; nothing here touches a system directly
+/// (ui/OptionsApplier applies the window, audio and interface ones).
 /// </summary>
 public static class GameOptions
 {
-    private const string FilePath = "user://options.cfg";
+    public const string DefaultPath = "user://options.cfg";
     private const string Section = "options";
 
     /// <summary>Raised after any option changes (and once after loading).</summary>
@@ -30,7 +31,71 @@ public static class GameOptions
     /// <summary>Size of the whole interface and its text, for 2K/4K screens (0.75–1.5).</summary>
     public static float UiScale { get; private set; } = 1.0f;
 
+    /// <summary>Volume of each audio bus, 0–1 (linear; 0 mutes it).</summary>
+    public static float MasterVolume { get; private set; } = 1.0f;
+    public static float MusicVolume { get; private set; } = 0.8f;
+    public static float VoiceVolume { get; private set; } = 1.0f;
+    /// <summary>Weather, wind and fire (the "Ambience" bus).</summary>
+    public static float AmbienceVolume { get; private set; } = 1.0f;
+
+    public static DisplayMode Display { get; private set; } = DisplayMode.Windowed;
+    /// <summary>Window size when windowed; (0, 0) keeps the project's default size.</summary>
+    public static Vector2I WindowSize { get; private set; } = Vector2I.Zero;
+    public static bool VSync { get; private set; } = true;
+    /// <summary>Frame-rate cap; 0 = none.</summary>
+    public static int MaxFps { get; private set; }
+
+    /// <summary>Multiplier on the camera's mouse and stick look speed (0.25–3).</summary>
+    public static float LookSensitivity { get; private set; } = 1.0f;
+    /// <summary>Moving the mouse up looks down.</summary>
+    public static bool InvertLook { get; private set; }
+    /// <summary>Spoken lines are captioned on screen.</summary>
+    public static bool Subtitles { get; private set; } = true;
+
+    /// <summary>The chosen character's id (CarrierRoster); an unknown or missing one falls back to the first.</summary>
+    public static string Character { get; private set; } = "default";
+    public static Color BaseShirtColour { get; private set; } = new(0.28f, 0.35f, 0.43f);
+    public static Color BasePackColour { get; private set; } = new(0.36f, 0.29f, 0.18f);
+
     private static bool _loaded;
+    private static string _path = DefaultPath;
+
+    /// <summary>Tests: read and save another file from now on (so the player's own options stay untouched), starting from defaults.</summary>
+    public static void UseFile(string path)
+    {
+        _path = path;
+        _loaded = false;
+        ResetToDefaults();
+        Load();
+        Changed?.Invoke();
+    }
+
+    /// <summary>Every option back to its default (not saved until the next change).</summary>
+    public static void ResetToDefaults()
+    {
+        PauseWhileOpen = true;
+        LowStatAlerts = true;
+        Stats = StatStyle.Dials;
+        WheelSelectsHotbar = true;
+        FieldOfView = 75.0f;
+        PathLines = OS.IsDebugBuild();
+        Filter = ColourFilter.None;
+        UiScale = 1.0f;
+        MasterVolume = 1.0f;
+        MusicVolume = 0.8f;
+        VoiceVolume = 1.0f;
+        AmbienceVolume = 1.0f;
+        Display = DisplayMode.Windowed;
+        WindowSize = Vector2I.Zero;
+        VSync = true;
+        MaxFps = 0;
+        LookSensitivity = 1.0f;
+        InvertLook = false;
+        Subtitles = true;
+        Character = "default";
+        BaseShirtColour = new Color(0.28f, 0.35f, 0.43f);
+        BasePackColour = new Color(0.36f, 0.29f, 0.18f);
+    }
 
     /// <summary>Reads the saved options (once; later calls do nothing).</summary>
     public static void Load()
@@ -41,7 +106,7 @@ public static class GameOptions
         }
         _loaded = true;
         ConfigFile file = new();
-        if (file.Load(FilePath) != Error.Ok)
+        if (file.Load(_path) != Error.Ok)
         {
             return;
         }
@@ -53,6 +118,20 @@ public static class GameOptions
         PathLines = (bool)file.GetValue(Section, "path_lines", PathLines);
         Filter = (ColourFilter)(int)file.GetValue(Section, "colour_filter", (int)Filter);
         UiScale = Mathf.Clamp((float)file.GetValue(Section, "ui_scale", UiScale), 0.75f, 1.5f);
+        Character = (string)file.GetValue(Section, "character", Character);
+        BaseShirtColour = (Color)file.GetValue(Section, "base_shirt_colour", BaseShirtColour);
+        BasePackColour = (Color)file.GetValue(Section, "base_pack_colour", BasePackColour);
+        MasterVolume = Volume(file, "volume_master", MasterVolume);
+        MusicVolume = Volume(file, "volume_music", MusicVolume);
+        VoiceVolume = Volume(file, "volume_voice", VoiceVolume);
+        AmbienceVolume = Volume(file, "volume_ambience", AmbienceVolume);
+        Display = (DisplayMode)Mathf.Clamp((int)file.GetValue(Section, "display", (int)Display), 0, 2);
+        WindowSize = new Vector2I(Mathf.Max(0, (int)file.GetValue(Section, "window_width", 0)), Mathf.Max(0, (int)file.GetValue(Section, "window_height", 0)));
+        VSync = (bool)file.GetValue(Section, "vsync", VSync);
+        MaxFps = Mathf.Max(0, (int)file.GetValue(Section, "max_fps", MaxFps));
+        LookSensitivity = Mathf.Clamp((float)file.GetValue(Section, "look_sensitivity", LookSensitivity), 0.25f, 3.0f);
+        InvertLook = (bool)file.GetValue(Section, "invert_look", InvertLook);
+        Subtitles = (bool)file.GetValue(Section, "subtitles", Subtitles);
         Changed?.Invoke();
     }
 
@@ -64,6 +143,37 @@ public static class GameOptions
     public static void SetPathLines(bool on) => Set(() => PathLines = on);
     public static void SetFilter(ColourFilter filter) => Set(() => Filter = filter);
     public static void SetUiScale(float scale) => Set(() => UiScale = Mathf.Clamp(scale, 0.75f, 1.5f));
+    public static void SetCharacter(string id) => Set(() => Character = id);
+    public static void SetBaseOutfitColours(Color shirt, Color pack) => Set(() => { BaseShirtColour = shirt; BasePackColour = pack; });
+    public static void SetMasterVolume(float volume) => Set(() => MasterVolume = Mathf.Clamp(volume, 0.0f, 1.0f));
+    public static void SetMusicVolume(float volume) => Set(() => MusicVolume = Mathf.Clamp(volume, 0.0f, 1.0f));
+    public static void SetVoiceVolume(float volume) => Set(() => VoiceVolume = Mathf.Clamp(volume, 0.0f, 1.0f));
+    public static void SetAmbienceVolume(float volume) => Set(() => AmbienceVolume = Mathf.Clamp(volume, 0.0f, 1.0f));
+    public static void SetDisplay(DisplayMode mode) => Set(() => Display = mode);
+    public static void SetWindowSize(Vector2I size) => Set(() => WindowSize = new Vector2I(Mathf.Max(0, size.X), Mathf.Max(0, size.Y)));
+    public static void SetVSync(bool on) => Set(() => VSync = on);
+    public static void SetMaxFps(int fps) => Set(() => MaxFps = Mathf.Max(0, fps));
+    public static void SetLookSensitivity(float multiplier) => Set(() => LookSensitivity = Mathf.Clamp(multiplier, 0.25f, 3.0f));
+    public static void SetInvertLook(bool on) => Set(() => InvertLook = on);
+    public static void SetSubtitles(bool on) => Set(() => Subtitles = on);
+
+    /// <summary>Every option back to its default and saved, keeping the chosen character (Options → Reset all).</summary>
+    public static void RestoreDefaults()
+    {
+        string character = Character;
+        Color shirt = BaseShirtColour, pack = BasePackColour;
+        Set(() =>
+        {
+            ResetToDefaults();
+            Character = character;
+            BaseShirtColour = shirt; BasePackColour = pack;
+        });
+    }
+
+    private static float Volume(ConfigFile file, string key, float fallback)
+    {
+        return Mathf.Clamp((float)file.GetValue(Section, key, fallback), 0.0f, 1.0f);
+    }
 
     private static void Set(Action change)
     {
@@ -84,6 +194,21 @@ public static class GameOptions
         file.SetValue(Section, "path_lines", PathLines);
         file.SetValue(Section, "colour_filter", (int)Filter);
         file.SetValue(Section, "ui_scale", UiScale);
-        file.Save(FilePath);
+        file.SetValue(Section, "character", Character);
+        file.SetValue(Section, "base_shirt_colour", BaseShirtColour);
+        file.SetValue(Section, "base_pack_colour", BasePackColour);
+        file.SetValue(Section, "volume_master", MasterVolume);
+        file.SetValue(Section, "volume_music", MusicVolume);
+        file.SetValue(Section, "volume_voice", VoiceVolume);
+        file.SetValue(Section, "volume_ambience", AmbienceVolume);
+        file.SetValue(Section, "display", (int)Display);
+        file.SetValue(Section, "window_width", WindowSize.X);
+        file.SetValue(Section, "window_height", WindowSize.Y);
+        file.SetValue(Section, "vsync", VSync);
+        file.SetValue(Section, "max_fps", MaxFps);
+        file.SetValue(Section, "look_sensitivity", LookSensitivity);
+        file.SetValue(Section, "invert_look", InvertLook);
+        file.SetValue(Section, "subtitles", Subtitles);
+        file.Save(_path);
     }
 }

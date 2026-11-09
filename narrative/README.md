@@ -18,3 +18,7 @@ Story data for the narrator companion. See docs/narrative.md for the setting.
 - **A new run** gives a new carrier, so the conversation starts over.
 - The exchange is written in the journal.
 - Tests: `debug/tests/ConversationTests` (headless, silent). `-- --llm-live` also asks the real model.
+
+## The restsite president (parody NPC)
+
+`president/`: "Predsednik odmorišta (parodija)" at the Odmorište Konačnih Rezultata beside every second station. He speaks only manifest lines (`president/data/npc_restsite_president.csv`), voiced from the recorded pack (`president/data/npc_restsite_president_voice.json`, forest/outdoor takes in `audio/voice/npc_restsite_president/`) or shown as subtitles. He has three quests, a favour-paid shop, a podium speech and a secret scene, and his state is saved in `user://restsite_president.cfg`. See docs/restsite-president.md. Preview lines in `debug/TestPresident.tscn`; tests in `debug/tests/PresidentTests`.

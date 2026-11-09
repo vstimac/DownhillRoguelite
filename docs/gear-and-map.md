@@ -24,12 +24,19 @@ As built (`map/FieldMap.cs`, `MapCanvas.cs`, `MapChart.cs`, `WaypointMarker.cs`)
 
 ## M14 Gear and durability (built, branch `m14-gear`)
 
+**2026-11-09 implementation update:** [Modular clothing](modular-clothing.md) now extends this
+baseline with ten unique slots, layered torso clothing, skinned garment prototypes, rigid pack
+attachments, visual condition and explicit persistence. Equip/unequip preflights the complete
+transfer; if pocket spill cannot fit, the action fails safely instead of losing contents. The
+list below records the original M14 baseline; the linked implementation guide describes current behaviour.
+
 As built (inventory/CarrierEquipment.cs, core/GearSnapshot.cs, debug/tests/GearTests):
 
 - **Slots:** backpack plus six clothing slots: head, torso, legs, hands, feet, cape. One piece per slot.
 - **Wearing:** Wear on the inventory page (I) takes a piece out of the pack onto the body; clicking a worn slot on the equipment sheet takes it off into the pack. Wear is kept both ways. A piece can't come off if the pack has no room.
 - **What clothing does** (only while not worn through): warmth cuts night cold (capped at 0.8 for all gear together), rain protection cuts weather chill, hobnail boots add grip, the fur cape catches wind (extra area on the balance), the oilskin coat has two pockets.
 - **Pockets:** when the pack is full, small items (up to 8 cells) go into a free pocket. Pockets are slots, not grids (a simplification of the brief below). Taking off a coat spills its pockets into the pack, or loses what doesn't fit.
+- **Carried mass:** the backpack shell and packed contents, worn clothing and pocket contents all contribute to stamina effort, jumping, load-dependent turning, needs and route estimates. Broken clothing retains its mass. Backpack balance still uses only the packed load's measured centre of mass; worn and pocket mass are published separately in `GearSnapshot` and summed by `CarriedLoad`.
 - **Wear:** walking wears worn gear and the pack each in-game hour; boots wear 3× faster on scree and rock, torso, legs and cape 2× in rain or snow. Hard landings wear everything, and so does every fall. A torn pack (0 hit points) loses a random item at every fall.
 - **Mending:** materials mend only at a station (in shelter). Each mends some kinds of gear and picks the most worn piece it can: sewing kit (cloth and the pack, +50), leather patch (leather and the pack, +40), cord (the pack, +25). The material is used up.
 - **Items:** wool hat, oilskin coat, wool trousers, leather gloves, hobnail boots, fur cape; sewing kit, leather patch, cord. All spawn as supplies (rare). Clothes have no models yet and show as inked garments in the UI.
@@ -51,6 +58,6 @@ Inspired by survival games' equipment slots (for example Project Zomboid), but t
 ## Open questions
 
 - Whether two pieces can share a slot (shirt under jacket); today one per slot.
-- Pockets as real 3D grids that count for balance (today they're slots, and their mass isn't on the pack).
+- Pockets as real 3D grids that count for balance (today they're slots; their mass counts toward carried effort, but has no separate balance position).
 - Starting-kit unlocks as worn gear.
 - Whether the map is held with one hand while walking (slower, can't brace) or only while standing.

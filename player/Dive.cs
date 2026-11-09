@@ -167,6 +167,13 @@ public partial class Dive : Node3D
     /// <summary>Loads the dive animation onto the character (once); false without the model or the file.</summary>
     private bool Prepare()
     {
+        // The character can be changed (start screen, Options): forget what was set up on the old one.
+        if (_player != null && (Look?.Model == null || !IsInstanceValid(_player) || !Look.Model.IsAncestorOf(_player)))
+        {
+            _player = null;
+            _animation = null;
+            _pin = null;
+        }
         if (_player != null && _animation != null && _pin != null)
         {
             return true;

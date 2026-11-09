@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ContractDefinition" format=3]
+
+[ext_resource type="Script" path="res://progression/contracts/ContractDefinition.cs" id="1_contract"]
+
+[resource]
+script = ExtResource("1_contract")
+Id = "recover_pump"
+DisplayName = "Water for the next descent"
+Giver = "Station 1's keeper"
+OfferText = "Recover the pump from the orange-flagged workshop. Bring it to Station 1 in at least 60% condition: restore three water flasks and earn a boon."
+CargoItemPath = "res://inventory/items/pump_module.tres"
+StationsAhead = 1
+Score = 150
+Fragility = 1.2
+MinCondition = 60.0

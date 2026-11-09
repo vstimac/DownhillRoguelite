@@ -15,6 +15,8 @@ namespace DownhillRoguelite.Debug;
 /// waypoint stands in the world on the ground, shows its distance, the oldest gives way when the
 /// map is full and right-click removes one; drawing needs paper and a pencil, and wears both out;
 /// the compass needle points north whichever way the carrier faces; a new mountain clears the map.
+/// The seen ground is painted into a few tile textures; held up, the sheet stays put (the arrow moves
+/// across it), doesn't redraw while nothing changes, and re-centres once when the arrow nears its edge.
 /// Run: godot --headless --path . --fixed-fps 60 res://debug/tests/MapTests.tscn
 /// </summary>
 public partial class MapTests : Node3D
@@ -40,7 +42,9 @@ public partial class MapTests : Node3D
 
         TestReveal(Map, Streamer.Generator);
         TestNorthUp(Map);
+        TestTiles(Map);
         await TestHolding(PlayerBody, Map);
+        await TestStillSheet(PlayerBody, Map);
         await TestWaypoints(Map, Streamer.Generator);
         await TestDrawing(Map);
         await TestCompass(PlayerBody, Map);
@@ -183,13 +187,48 @@ public partial class MapTests : Node3D
             $"needle {Mathf.RadToDeg(facingNorth):0}° facing north, {Mathf.RadToDeg(facingEast):0}° facing east");
     }
 
+    /// <summary>The seen ground is painted into a few tile textures, not redrawn cell by cell.</summary>
+    private void TestTiles(FieldMap map)
+    {
+        int tiles = map.Tiles.TileCount;
+        int seen = map.Chart.Seen.Count;
+        float cellsPerTile = map.Tiles.CellsPerTile * map.Tiles.CellsPerTile;
+        bool few = tiles > 0 && tiles <= Mathf.CeilToInt(seen / cellsPerTile) + 8;
+        Check("the seen ground is painted once into a few tiles", few && map.Chart.TakeFresh().Count == 0,
+            seen + " cells seen, painted into " + tiles + " tiles of " + map.Tiles.CellsPerTile + "×" + map.Tiles.CellsPerTile + " cells");
+    }
+
+    /// <summary>Held up, the sheet doesn't scroll or redraw while nothing changes; it re-centres once near its edge.</summary>
+    private async Task TestStillSheet(PlayerController player, FieldMap map)
+    {
+        Vector3 spot = _run!.Route!.RoutePoint(Streamer!.SpawnPoint.Z - 40.0f);
+        await Place(player, spot, 0.6f);
+        map.SetOpen(true);
+        await WaitSeconds(0.5f);
+        int before = map.RedrawCount;
+        await WaitSeconds(1.0f);
+        int idle = map.RedrawCount - before;
+        Vector2 anchored = map.Centre;
+        await Place(player, spot + new Vector3(0.0f, 0.0f, -25.0f), 0.5f);
+        bool stayed = map.Centre.IsEqualApprox(anchored);
+        bool redrew = map.RedrawCount > before + idle;
+        float metres = map.MetresAcross;
+        await Place(player, spot + new Vector3(0.0f, 0.0f, -metres * 0.45f), 0.5f);
+        bool recentred = map.Centre.DistanceTo(map.CarrierPoint) < 1.0f;
+        // Left raised, as the earlier test left it: the compass check reads the held sheet.
+        Check("held up, the sheet stays put and only redraws when something changes; near its edge it re-centres",
+            idle <= 1 && stayed && redrew && recentred,
+            idle + " redraws in a second standing still, a 25 m walk keeps the sheet put " + stayed + " (arrow redrawn " + redrew
+            + "), near the edge it re-centres " + recentred);
+    }
+
     private async Task TestNewMountain(FieldMap map)
     {
         bool hadSome = map.Chart.Waypoints.Count > 0 && map.Chart.Drawings.Count > 0;
         _run!.StartNewRun();
         await WaitSeconds(0.6f);
         bool cleared = map.Chart.Waypoints.Count == 0 && map.Chart.Drawings.Count == 0 && map.Markers.Count == 0 && !map.IsOpen && !GameEvents.IsMapOpen;
-        bool fresh = map.Chart.Seen.Count < 400;
+        bool fresh = map.Chart.Seen.Count < 400 && map.Tiles.TileCount <= 4;
         Check("a new mountain clears the map", hadSome && cleared && fresh,
             $"waypoints and drawings before {hadSome}, cleared {cleared}, {map.Chart.Seen.Count} cells seen on the new mountain");
     }

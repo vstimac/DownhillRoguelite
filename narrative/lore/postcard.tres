@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LoreEntry" format=3]
+
+[ext_resource type="Script" path="res://narrative/LoreEntry.cs" id="1_lore"]
+
+[resource]
+script = ExtResource("1_lore")
+Id = "POSTCARD"
+Heading = "A postcard with no picture"
+Text = "Dear mother, the view gets better every day, because there is less of it above me."
+Form = 4
+EarliestStage = 1
+Circle = -1
+ExclusiveGroup = ""
+Weight = 1.0

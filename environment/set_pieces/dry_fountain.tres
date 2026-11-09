@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="SetPiece" format=3]
+
+[ext_resource type="Script" path="res://environment/SetPiece.cs" id="1_piece"]
+[ext_resource type="Script" path="res://environment/SetPiecePart.cs" id="2_part"]
+
+[sub_resource type="Resource" id="part_0"]
+script = ExtResource("2_part")
+Model = "res://art/props/kenney_fantasy_town_kit/GLB format/fountain-round.glb"
+Offset = Vector3(0, 0, 0)
+Yaw = 0
+Tilt = Vector2(0, 0)
+Height = 0.6
+Solid = true
+
+[sub_resource type="Resource" id="part_1"]
+script = ExtResource("2_part")
+Model = "res://art/props/kenney_castle_kit/GLB format/rocks-small.glb"
+Offset = Vector3(2.6, 0, 1.5)
+Yaw = 0
+Tilt = Vector2(0, 0)
+Height = 0.5
+Solid = false
+
+[resource]
+script = ExtResource("1_piece")
+Id = "dry_fountain"
+Kind = 0
+Parts = [SubResource("part_0"), SubResource("part_1")]
+FavouredCircles = PackedInt32Array(2, 3)
+FirstCircle = 1
+Weight = 0.8
+Radius = 3.2

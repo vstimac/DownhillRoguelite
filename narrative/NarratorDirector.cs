@@ -132,6 +132,9 @@ public partial class NarratorDirector : Node
         GameEvents.RouteChosen += OnRouteChosen;
         GameEvents.MapOpened += OnMapOpened;
         GameEvents.ItemLost += OnItemLost;
+        GameEvents.ContractAccepted += OnContractAccepted;
+        GameEvents.ContractResolved += OnContractResolved;
+        GameEvents.RelicDiscovered += OnRelicDiscovered;
     }
 
     public override void _ExitTree()
@@ -154,6 +157,9 @@ public partial class NarratorDirector : Node
         GameEvents.RouteChosen -= OnRouteChosen;
         GameEvents.MapOpened -= OnMapOpened;
         GameEvents.ItemLost -= OnItemLost;
+        GameEvents.ContractAccepted -= OnContractAccepted;
+        GameEvents.ContractResolved -= OnContractResolved;
+        GameEvents.RelicDiscovered -= OnRelicDiscovered;
         Silence();
     }
 
@@ -632,6 +638,27 @@ public partial class NarratorDirector : Node
     private void OnItemLost(string itemId)
     {
         Say("cargo_lost");
+    }
+
+    /// <summary>Taking a job: the voiced lines about picking something up to carry.</summary>
+    private void OnContractAccepted(ContractNote note)
+    {
+        Say("cargo_picked_up");
+    }
+
+    /// <summary>A relic found: the voiced lines about something that looks almost holy.</summary>
+    private void OnRelicDiscovered(RelicNote note)
+    {
+        Say("relic_found");
+    }
+
+    /// <summary>A delivery: the voiced lines about giving up something carried a long way.</summary>
+    private void OnContractResolved(ContractNote note)
+    {
+        if (note.Status == ContractStatus.Delivered)
+        {
+            Say("trade_completed");
+        }
     }
 
     private void OnMapOpened(bool open)

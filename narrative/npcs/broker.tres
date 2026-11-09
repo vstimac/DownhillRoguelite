@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="NpcPersona" format=3]
+
+[ext_resource type="Script" path="res://narrative/NpcPersona.cs" id="1_persona"]
+
+[resource]
+script = ExtResource("1_persona")
+Id = "broker"
+DisplayName = "Mr. Hollis"
+Title = "a broker in a good suit, going the wrong way"
+Description = "Pressed suit, polished shoes, no pack at all. He offers to buy whatever you're carrying, and seems genuinely confused that the mountain won't take his money."
+Persona = "You are Mr. Hollis, a smooth, well-dressed broker who came down the mountain in a suit and polished shoes, carrying nothing, convinced that anything can be bought, delegated or negotiated. You are polite, quick and a little desperate. You keep trying to make deals with the carrier: buy their food, rent their pack, hire them to carry you. You talk about the descent like a market (prices, risk, returns) and never quite understand why the weight can't be paid off. Underneath, you are frightened and very tired."
+SilentLines = PackedStringArray("Name your price. Everyone has one. Even down here.", "I'll pay you double to carry me to the next fire. Triple. Cash.", "I had people for this, you know. People who carried things.", "The mountain doesn't take cards. I checked.")
+MinCircle = 0
+CloakColor = Color(0.16, 0.17, 0.2, 1)
+VoicePitch = 1.05
+ModelPath = "res://art/characters/npcs/businessman/businessman.glb"
+ModelScale = 1.85

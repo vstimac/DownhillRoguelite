@@ -19,6 +19,8 @@ namespace DownhillRoguelite.Narrative;
 /// </summary>
 public partial class CompanionChat : Node
 {
+    /// <summary>Optional development feature. Core builds never search for or load a language model.</summary>
+    [Export] public bool EnableLanguageModel { get; set; }
     /// <summary>The model file: absolute, or relative to the project folder (or the exported game's folder).</summary>
     [Export] public string ModelPath { get; set; } = "../Models/qwen2.5-3b-instruct-q4_k_m.gguf";
     [Export(PropertyHint.File, "*.txt")] public string PromptPath { get; set; } = "res://narrative/data/companion_prompt.txt";
@@ -135,6 +137,10 @@ public partial class CompanionChat : Node
             {
                 path = arg.Substring("--llm-model=".Length);
             }
+        }
+        if (!EnableLanguageModel && !live)
+        {
+            return "";
         }
         if (DisplayServer.GetName() == "headless" && !live)
         {
@@ -497,8 +503,42 @@ public partial class CompanionChat : Node
         {
             carried.Add(ItemText.Find(id)?.DisplayName ?? id);
         }
-        return Situation(circle, circleName, depth, hour, GameEvents.CurrentWeather.Kind, GameEvents.InShelter, _vitals,
+        string situation = Situation(circle, circleName, depth, hour, GameEvents.CurrentWeather.Kind, GameEvents.InShelter, _vitals,
             GameEvents.CurrentGear, GameEvents.CurrentLoad, carried);
+        double now = 0.0;
+        if (_clock != null)
+        {
+            now = _clock.TotalHours;
+        }
+        return WithJob(situation, GameEvents.ActiveContract, now);
+    }
+
+    /// <summary>Adds the open job to a situation note: what is carried for whom, its condition, its time left.</summary>
+    public static string WithJob(string situation, ContractNote? job, double nowHours)
+    {
+        if (job == null)
+        {
+            return situation;
+        }
+        ContractNote j = job.Value;
+        string words = "on a job, \"" + j.Title + "\": carrying a " + j.CargoName.ToLowerInvariant() + " to station " + j.ToStation;
+        if (j.Breakable)
+        {
+            words += ", now in " + Mathf.RoundToInt(j.Condition) + "% condition";
+            if (j.MinCondition > 0.0f)
+            {
+                words += " (it must arrive above " + Mathf.RoundToInt(j.MinCondition) + "%)";
+            }
+        }
+        if (j.DeadlineHours >= 0.0)
+        {
+            words += ", " + Mathf.RoundToInt((float)System.Math.Max(j.DeadlineHours - nowHours, 0.0)) + " hours left before it's late";
+        }
+        if (situation.EndsWith("]"))
+        {
+            return situation.Substring(0, situation.Length - 1) + "; " + words + "]";
+        }
+        return situation + " [" + words + "]";
     }
 
     /// <summary>Writes the situation note in words (the model reads it; the player never sees it).</summary>

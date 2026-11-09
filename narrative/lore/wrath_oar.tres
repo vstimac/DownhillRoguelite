@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="LoreEntry" format=3]
+
+[ext_resource type="Script" path="res://narrative/LoreEntry.cs" id="1_lore"]
+
+[resource]
+script = ExtResource("1_lore")
+Id = "WRATH_OAR"
+Heading = "Words scratched on a snapped oar"
+Text = "Row slower. The far bank is not angry with you."
+Form = 0
+EarliestStage = 2
+Circle = 4
+ExclusiveGroup = ""
+Weight = 1.0

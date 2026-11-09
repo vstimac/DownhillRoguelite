@@ -42,13 +42,64 @@ public partial class TerrainStreamer : Node3D
     public double MaxApplyMilliseconds { get; private set; }
     public float Depth { get; private set; }
     public IEnumerable<Vector2I> LoadedChunks => _chunks.Keys;
+    /// <summary>Set by the loading screen: chunks then build their plants with a much larger budget per frame.</summary>
+    public static bool Loading { get; set; }
+    /// <summary>A new mountain was built around a new spawn point (its plants still follow, frame by frame).</summary>
+    public event System.Action? Reseeded;
+
+    /// <summary>Loaded chunks whose trees, grass and stones are still being added.</summary>
+    public int PlantsPendingCount
+    {
+        get
+        {
+            int count = 0;
+            foreach (TerrainChunk chunk in _chunks.Values)
+            {
+                if (chunk.PlantsPending)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+    }
+
+    [ExportGroup("Ground look")]
+    /// <summary>The ground shader (patches, grain, bumps, rocky slopes); empty: plain vertex colours.</summary>
+    [Export(PropertyHint.File, "*.gdshader")] public string GroundShader { get; set; } = "res://terrain/terrain_ground.gdshader";
+    /// <summary>Patches of lighter and darker ground: 1 / their size in m, and how strong.</summary>
+    [Export] public float PatchScale { get; set; } = 0.03f;
+    [Export] public float PatchStrength { get; set; } = 0.34f;
+    /// <summary>Fine grain in the ground colour.</summary>
+    [Export] public float GrainScale { get; set; } = 0.22f;
+    [Export] public float GrainStrength { get; set; } = 0.16f;
+    /// <summary>Small bumps that catch the light.</summary>
+    [Export] public float BumpScale { get; set; } = 0.35f;
+    [Export] public float BumpStrength { get; set; } = 0.9f;
+    /// <summary>Steep ground turns rocky (from slope RockStart to RockEnd, as 1 - normal.y) and darker.</summary>
+    [Export] public Color RockColor { get; set; } = new(0.34f, 0.32f, 0.3f);
+    [Export] public float RockStart { get; set; } = 0.3f;
+    [Export] public float RockEnd { get; set; } = 0.62f;
+    [Export] public float RockAmount { get; set; } = 0.65f;
+    [Export] public float SlopeDarkening { get; set; } = 0.28f;
+    [Export] public int NoiseSize { get; set; } = 256;
+    [Export(PropertyHint.File, "*.gdshader")] public string GrassShader { get; set; } = "res://terrain/forest_grass.gdshader";
+    [Export] public float GroundTextureStrength { get; set; } = 0.9f;
+    [Export] public float ForestTextureMetres { get; set; } = 3.2f;
+    [Export] public float RockTextureMetres { get; set; } = 1.5f;
+    [Export(PropertyHint.File, "*.jpg,*.png")] public string ForestColourPath { get; set; } = "res://art/environment/ground/forest_ground_04_diff_1k.jpg";
+    [Export(PropertyHint.File, "*.jpg,*.png")] public string ForestNormalPath { get; set; } = "res://art/environment/ground/forest_ground_04_nor_gl_1k.jpg";
+    [Export(PropertyHint.File, "*.jpg,*.png")] public string RockColourPath { get; set; } = "res://art/environment/ground/rock_ground_diff_1k.jpg";
+    [Export(PropertyHint.File, "*.jpg,*.png")] public string RockNormalPath { get; set; } = "res://art/environment/ground/rock_ground_nor_gl_1k.jpg";
+    public Material? RockMaterial => _boulderMaterial;
 
     private readonly Dictionary<Vector2I, TerrainChunk> _chunks = new();
     private readonly SurfaceType?[] _surfaces = new SurfaceType?[System.Enum.GetValues<TerrainSurface>().Length];
     private Color[] _surfaceColors = System.Array.Empty<Color>();
     private SurfaceType? _boulderSurface;
     private SurfaceType? _trunkSurface;
-    private StandardMaterial3D? _groundMaterial;
+    private Material? _groundMaterial;
+    private Material? _grassMaterial;
     private StandardMaterial3D? _boulderMaterial;
     private StandardMaterial3D? _trunkMaterial;
     private Task<TerrainChunkData>? _pending;
@@ -56,12 +107,60 @@ public partial class TerrainStreamer : Node3D
     private Vector3 _focus;
     private float _publishedDepth;
 
+    /// <summary>The ground's material: the ground shader with a seamless height noise, or plain vertex colours.</summary>
+    private Material MakeGroundMaterial()
+    {
+        if (GroundShader.Length == 0 || ResourceLoader.Load(GroundShader) is not Shader shader)
+        {
+            return new StandardMaterial3D { VertexColorUseAsAlbedo = true, Roughness = 1.0f };
+        }
+        NoiseTexture2D noise = new()
+        {
+            Width = NoiseSize,
+            Height = NoiseSize,
+            Seamless = true,
+            Noise = new FastNoiseLite { NoiseType = FastNoiseLite.NoiseTypeEnum.SimplexSmooth, Frequency = 0.012f, FractalOctaves = 4 },
+        };
+        ShaderMaterial material = new() { Shader = shader };
+        material.SetShaderParameter("height_noise", noise);
+        material.SetShaderParameter("macro_scale", PatchScale);
+        material.SetShaderParameter("macro_strength", PatchStrength);
+        material.SetShaderParameter("micro_scale", GrainScale);
+        material.SetShaderParameter("micro_strength", GrainStrength);
+        material.SetShaderParameter("bump_scale", BumpScale);
+        material.SetShaderParameter("bump_strength", BumpStrength);
+        material.SetShaderParameter("rock_color", RockColor);
+        material.SetShaderParameter("rock_start", RockStart);
+        material.SetShaderParameter("rock_end", RockEnd);
+        material.SetShaderParameter("rock_amount", RockAmount);
+        material.SetShaderParameter("slope_darkening", SlopeDarkening);
+        bool textures = BindTexture(material, "forest_colour", ForestColourPath)
+            && BindTexture(material, "forest_normal", ForestNormalPath)
+            && BindTexture(material, "stone_colour", RockColourPath)
+            && BindTexture(material, "stone_normal", RockNormalPath);
+        material.SetShaderParameter("texture_strength", 0.0f);
+        if (textures) { material.SetShaderParameter("texture_strength", GroundTextureStrength); }
+        material.SetShaderParameter("forest_metres", Mathf.Max(ForestTextureMetres, 0.1f));
+        material.SetShaderParameter("stone_metres", Mathf.Max(RockTextureMetres, 0.1f));
+        return material;
+    }
+
+    private static bool BindTexture(ShaderMaterial material, string uniform, string path)
+    {
+        if (!ResourceLoader.Exists(path) || ResourceLoader.Load(path) is not Texture2D texture) { return false; }
+        material.SetShaderParameter(uniform, texture);
+        return true;
+    }
+
     /// <summary>
     /// Loads every biome's tree, grass and flower model once at start, so a chunk that first uses one
     /// doesn't stall the game while the file loads.
     /// </summary>
     private void WarmPlantModels()
     {
+        foreach (string model in Settings.PebbleModels) { ModelFit.FirstMesh(model, out _); }
+        foreach (string model in Settings.BoulderModels) { ModelFit.FirstMesh(model, out _); }
+        foreach (string model in Settings.TrunkModels) { ModelFit.FirstMesh(model, out _); }
         foreach (Biome biome in Settings.Biomes)
         {
             foreach (string[] models in new[] { biome.TreeModels, biome.GrassModels, biome.FlowerModels })
@@ -77,8 +176,29 @@ public partial class TerrainStreamer : Node3D
     public override void _Ready()
     {
         LoadSurfaces();
-        _groundMaterial = new StandardMaterial3D { VertexColorUseAsAlbedo = true, Roughness = 1.0f };
+        _groundMaterial = MakeGroundMaterial();
+        if (ResourceLoader.Exists(GrassShader) && ResourceLoader.Load(GrassShader) is Shader grassShader)
+        {
+            ShaderMaterial material = new() { Shader = grassShader };
+            material.SetShaderParameter("grass_colour", Settings.GrassColor);
+            material.SetShaderParameter("draw_distance", Settings.GrassViewDistance);
+            _grassMaterial = material;
+        }
         _boulderMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_boulderSurface, new Color(0.5f, 0.5f, 0.52f)), Roughness = 1.0f };
+        if (ResourceLoader.Exists(RockColourPath) && ResourceLoader.Load(RockColourPath) is Texture2D rockColour)
+        {
+            _boulderMaterial.AlbedoColor = Colors.White;
+            _boulderMaterial.AlbedoTexture = rockColour;
+            _boulderMaterial.Uv1Triplanar = true;
+            _boulderMaterial.Uv1WorldTriplanar = true;
+            _boulderMaterial.Uv1Scale = Vector3.One / Mathf.Max(RockTextureMetres, 0.1f);
+            if (ResourceLoader.Exists(RockNormalPath) && ResourceLoader.Load(RockNormalPath) is Texture2D rockNormal)
+            {
+                _boulderMaterial.NormalEnabled = true;
+                _boulderMaterial.NormalTexture = rockNormal;
+                _boulderMaterial.NormalScale = 0.5f;
+            }
+        }
         _trunkMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_trunkSurface, new Color(0.42f, 0.3f, 0.2f)), Roughness = 1.0f };
         WarmPlantModels();
 
@@ -163,6 +283,7 @@ public partial class TerrainStreamer : Node3D
         // The synchronous start-up builds shouldn't count as streaming hitches.
         MaxApplyMilliseconds = 0.0;
         GameEvents.PublishDepth(0.0f);
+        Reseeded?.Invoke();
     }
 
     public override void _Process(double delta)
@@ -236,7 +357,7 @@ public partial class TerrainStreamer : Node3D
 
         Stopwatch timer = Stopwatch.StartNew();
         TerrainChunk chunk = new();
-        chunk.Build(data, Generator, _surfaces, _groundMaterial, _boulderMaterial, _trunkMaterial, _boulderSurface, _trunkSurface);
+        chunk.Build(data, Generator, _surfaces, _groundMaterial, _boulderMaterial, _trunkMaterial, _boulderSurface, _trunkSurface, _grassMaterial);
         AddChild(chunk);
         _chunks[data.Coord] = chunk;
 

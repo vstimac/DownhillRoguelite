@@ -17,11 +17,15 @@ public partial class EquipmentPanel : ParchmentPanel
     private readonly (EquipSlot Slot, Vector2 At)[] _layout =
     {
         (EquipSlot.Head, new Vector2(118, 64)),
+        (EquipSlot.Face, new Vector2(66, 64)),
+        (EquipSlot.InnerTorso, new Vector2(14, 128)),
         (EquipSlot.Torso, new Vector2(118, 128)),
         (EquipSlot.Legs, new Vector2(118, 192)),
         (EquipSlot.Feet, new Vector2(118, 256)),
-        (EquipSlot.Hands, new Vector2(14, 160)),
-        (EquipSlot.Cape, new Vector2(14, 224)),
+        (EquipSlot.Hands, new Vector2(14, 192)),
+        (EquipSlot.Back, new Vector2(14, 256)),
+        (EquipSlot.Waist, new Vector2(66, 192)),
+        (EquipSlot.Accessory, new Vector2(66, 256)),
     };
     private readonly System.Collections.Generic.Dictionary<EquipSlot, ItemSlot> _slots = new();
 

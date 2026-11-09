@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+[ext_resource type="Script" path="res://inventory/ClothingVisual.cs" id="2_visual"]
+[sub_resource type="Resource" id="Visual"]
+script = ExtResource("2_visual")
+Kind = 0
+Colour = Color(0.24, 0.34, 0.43, 1)
+MaterialColours = PackedColorArray(0.24, 0.34, 0.43, 1, 0.25, 0.34, 0.22, 1, 0.68, 0.61, 0.47, 1)
+HideBodyMeshes = PackedStringArray("Ch17_Shirt")
+[resource]
+script = ExtResource("1_item")
+ItemId = "trail_shirt"
+DisplayName = "Trail shirt (prototype)"
+Description = "A fitted, skinned test garment. Prototype geometry; no cloth simulation."
+MassKg = 0.35
+SizeCells = Vector3i(2, 2, 1)
+Category = 4
+Slot = 8
+MaxDurability = 100.0
+Warmth = 0.08
+MendType = "cloth"
+Clothing = SubResource("Visual")

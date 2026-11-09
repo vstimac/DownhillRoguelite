@@ -11,8 +11,9 @@ namespace DownhillRoguelite.Debug;
 /// <summary>
 /// Headless checks for M9: the population fills up and stays within its cap over a 300 m descent;
 /// animals stand on the ground; only species of the current circle appear, mostly on their own
-/// surfaces, and beyond the ninth circle only the cube pets; an animal bolts when the carrier comes
-/// close and a fall scatters the animals nearby; all wildlife costs under 1 ms per frame.
+/// surfaces, and beyond the ninth circle only the cube pets; an animal stands its ground when the
+/// carrier comes close, and pushed for long it throws the carrier into the air (small ones never do);
+/// a fall scatters the animals nearby; all wildlife costs under 1 ms per frame.
 /// Run: godot --headless --path . --fixed-fps 60 res://debug/tests/WildlifeTests.tscn
 /// </summary>
 public partial class WildlifeTests : Node3D
@@ -22,7 +23,7 @@ public partial class WildlifeTests : Node3D
     [Export] public WildlifeSpawner? Spawner { get; set; }
     [Export] public float WalkDistance { get; set; } = 300.0f;
     [Export] public float StepDistance { get; set; } = 20.0f;
-    /// <summary>A capsule's round foot rests a little above a slope (radius × (1/cos slope - 1)), so a few cm are allowed.</summary>
+    /// <summary>Allowed gap from the capsule's round foot to its supporting plane, in m.</summary>
     [Export] public float MaxGroundError { get; set; } = 0.08f;
     [Export] public float BudgetMilliseconds { get; set; } = 1.0f;
 
@@ -41,13 +42,24 @@ public partial class WildlifeTests : Node3D
             GetTree().Quit(1);
             return;
         }
+        foreach (string argument in OS.GetCmdlineUserArgs())
+        {
+            const string prefix = "--wildlife-seed=";
+            if (argument.StartsWith(prefix, System.StringComparison.Ordinal)
+                && ulong.TryParse(argument[prefix.Length..], out ulong seed))
+            {
+                Spawner.PopulationSeed = seed;
+            }
+        }
+        GD.Print($"Wildlife population seed: {Spawner.PopulationSeed}");
         await Place(PlayerBody, Streamer.SpawnPoint, 1.0f);
 
         await TestPopulation(PlayerBody, Spawner);
         TestGround(Spawner);
         TestHabitat(Spawner, 0);
         TestBudget(Spawner);
-        await TestFlee(PlayerBody, Spawner);
+        await TestStandGround(PlayerBody, Spawner);
+        await TestShove(PlayerBody, Spawner);
         await TestScatter(PlayerBody, Spawner);
         await TestBeyond(Spawner);
 
@@ -93,20 +105,38 @@ public partial class WildlifeTests : Node3D
         PhysicsDirectSpaceState3D space = GetWorld3D().DirectSpaceState;
         float worst = 0.0f;
         int checkedCount = 0;
+        int unsupported = 0;
         foreach (WildlifeAnimal animal in spawner.Animals)
         {
             if (animal.Species == null || animal.Species.HoverHeight > 0.0f || !animal.HasGround)
             {
                 continue;
             }
-            if (spawner.Ground(space, animal.GlobalPosition, out Vector3 ground, out string _, out float _))
+            KinematicCollision3D support = new();
+            bool supported = animal.TestMove(animal.GlobalTransform, Vector3.Down * 0.1f, support);
+            if (!supported || support.GetNormal().Y <= 0.0f
+                || animal.GetChild(0) is not CollisionShape3D shape || shape.Shape is not CapsuleShape3D capsule)
             {
-                worst = Mathf.Max(worst, Mathf.Abs(animal.GlobalPosition.Y - ground.Y));
-                checkedCount++;
+                unsupported++;
+                GD.Print($"      missing live support: {animal.Name} at {animal.GlobalPosition}, cached grounded {animal.HasGround}");
+                continue;
             }
+            // On slopes and edges the capsule touches away from its vertical centre ray.
+            // Measure the bottom sphere against the actual contact plane instead.
+            Vector3 centre = shape.GlobalTransform * new Vector3(0.0f, capsule.Radius - capsule.Height * 0.5f, 0.0f);
+            float radius = capsule.Radius * shape.GlobalBasis.X.Length();
+            Vector3 normal = support.GetNormal();
+            float error = Mathf.Abs((centre - support.GetPosition()).Dot(normal) - radius);
+            worst = Mathf.Max(worst, error);
+            if (error > MaxGroundError)
+            {
+                spawner.Ground(space, animal.GlobalPosition, out Vector3 ground, out string _, out float _);
+                GD.Print($"      ground mismatch: {animal.Name} at {animal.GlobalPosition}, ground {ground}, collider {support.GetCollider()}, normal {normal}, plane gap {error}");
+            }
+            checkedCount++;
         }
-        Check("animals stand on the ground", checkedCount > 0 && worst <= MaxGroundError,
-            $"{checkedCount} animals, worst {worst * 100.0f:0.0} cm off the ground (max {MaxGroundError * 100.0f:0} cm)");
+        Check("animals stand on the ground", checkedCount > 0 && unsupported == 0 && worst <= MaxGroundError,
+            $"{checkedCount} animals, {unsupported} without support, worst contact error {worst * 100.0f:0.0} cm (max {MaxGroundError * 100.0f:0} cm)");
     }
 
     private void TestHabitat(WildlifeSpawner spawner, int circle)
@@ -140,7 +170,7 @@ public partial class WildlifeTests : Node3D
             $"{spawner.AverageMilliseconds:0.000} ms per frame with {spawner.Animals.Count} animals (budget {BudgetMilliseconds} ms)");
     }
 
-    private async Task TestFlee(PlayerController player, WildlifeSpawner spawner)
+    private async Task TestStandGround(PlayerController player, WildlifeSpawner spawner)
     {
         spawner.Spawning = false;
         spawner.Clear();
@@ -150,14 +180,109 @@ public partial class WildlifeTests : Node3D
         spawner.Ground(space, at, out Vector3 ground, out string _, out float _);
         WildlifeAnimal animal = spawner.Spawn(cow, ground);
         await WaitSeconds(1.0f);
-        bool calm = animal.State != WildlifeAnimal.Mode.Flee;
 
-        await Place(player, ground + new Vector3(0.0f, 0.0f, 5.0f), 0.2f);
+        await Place(player, ground + new Vector3(0.0f, 0.0f, 3.0f), 0.2f);
+        Vector3 animalBefore = animal.GlobalPosition;
         float near = animal.GlobalPosition.DistanceTo(player.GlobalPosition);
         await WaitSeconds(1.5f);
         float later = animal.GlobalPosition.DistanceTo(player.GlobalPosition);
-        Check("an animal bolts when the carrier comes close", calm && animal.State == WildlifeAnimal.Mode.Flee && later > near + 2.0f,
-            $"calm at 30 m {calm}, state {animal.State}, distance {near:0.0} → {later:0.0} m");
+        float moved = animal.GlobalPosition.DistanceTo(animalBefore);
+        Check("an animal stands its ground when the carrier comes close", animal.State != WildlifeAnimal.Mode.Flee && moved < 1.5f,
+            $"state {animal.State}, animal moved {moved:0.0} m, distance {near:0.0} → {later:0.0} m");
+    }
+
+    /// <summary>
+    /// The carrier leans into a cow (input toward it, touching): it gives way a little, puts up with
+    /// it for PushPatience, turns round and throws the carrier about ShoveHeight up. A rat never shoves.
+    /// </summary>
+    private async Task TestShove(PlayerController player, WildlifeSpawner spawner)
+    {
+        spawner.Clear();
+        WildlifeTable table = spawner.Table!;
+        PhysicsDirectSpaceState3D space = GetWorld3D().DirectSpaceState;
+        Vector3 at = player.GlobalPosition + new Vector3(0.0f, 0.0f, -20.0f);
+        spawner.Ground(space, at, out Vector3 ground, out string _, out float _);
+
+        int launches = 0;
+        float launchedAfter = -1.0f;
+        float elapsed = 0.0f;
+        void OnLaunch(Vector3 horizontal, float height, string cause)
+        {
+            launches++;
+            if (launchedAfter < 0.0f)
+            {
+                launchedAfter = elapsed;
+            }
+        }
+        GameEvents.LaunchRequested += OnLaunch;
+
+        WildlifeAnimal cow = Standalone(Find(spawner, "Cow"), table, ground);
+        await Place(player, ground + new Vector3(0.0f, 0.0f, cow.Radius + table.CarrierRadius + 0.1f), 0.3f);
+        float startY = player.GlobalPosition.Y;
+        float peak = startY;
+        float dt = 1.0f / Engine.PhysicsTicksPerSecond;
+        float limit = table.PushPatience + table.ShoveWindUp + 3.0f;
+        bool pushedBefore = false;
+        for (; elapsed < limit; elapsed += dt)
+        {
+            if (launches == 0)
+            {
+                // The carrier keeps walking into the cow as it gives way (the test has no real input).
+                Vector3 behind = player.GlobalPosition - cow.GlobalPosition;
+                behind.Y = 0.0f;
+                float touching = cow.Radius + table.CarrierRadius + 0.1f;
+                if (behind.Length() > touching)
+                {
+                    player.Teleport(new Vector3(cow.GlobalPosition.X, player.GlobalPosition.Y, cow.GlobalPosition.Z) + behind.Normalized() * touching, 0.0f);
+                }
+                Vector3 toward = cow.GlobalPosition - player.GlobalPosition;
+                toward.Y = 0.0f;
+                cow.Tick(dt, player.GlobalPosition, toward.Normalized(), false, space);
+                pushedBefore = pushedBefore || cow.PushTime > 0.5f;
+            }
+            peak = Mathf.Max(peak, player.GlobalPosition.Y);
+            await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+        }
+        float rise = peak - startY;
+        float expected = table.PushPatience + table.ShoveWindUp;
+        Check("a cow pushed for long turns round and throws the carrier into the air",
+            pushedBefore && launches == 1 && launchedAfter >= expected - 0.1f && launchedAfter <= expected + 0.6f && rise >= table.ShoveHeight * 0.8f,
+            $"pushing counted {pushedBefore}, shoves {launches} after {launchedAfter:0.0} s (expected {expected:0.0} s), carrier rose {rise:0.0} m (aim {table.ShoveHeight:0.0} m)");
+        cow.QueueFree();
+        await WaitSeconds(2.0f);
+
+        launches = 0;
+        WildlifeAnimal rat = Standalone(Find(spawner, "Rat"), table, ground);
+        await Place(player, ground + new Vector3(0.0f, 0.0f, rat.Radius + table.CarrierRadius + 0.1f), 0.3f);
+        for (elapsed = 0.0f; elapsed < limit; elapsed += dt)
+        {
+            Vector3 behindRat = player.GlobalPosition - rat.GlobalPosition;
+            behindRat.Y = 0.0f;
+            float touchingRat = rat.Radius + table.CarrierRadius + 0.1f;
+            if (behindRat.Length() > touchingRat)
+            {
+                player.Teleport(new Vector3(rat.GlobalPosition.X, player.GlobalPosition.Y, rat.GlobalPosition.Z) + behindRat.Normalized() * touchingRat, 0.0f);
+            }
+            Vector3 toward = rat.GlobalPosition - player.GlobalPosition;
+            toward.Y = 0.0f;
+            rat.Tick(dt, player.GlobalPosition, toward.Normalized(), false, space);
+            await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+        }
+        Check("a rat is too small to shove: it just gets pushed", launches == 0 && rat.Shoves == 0 && rat.PushTime > 1.0f,
+            $"shoves {launches}, pushed for {rat.PushTime:0.0} s");
+        rat.QueueFree();
+        GameEvents.LaunchRequested -= OnLaunch;
+        await WaitSeconds(2.0f);
+    }
+
+    /// <summary>An animal outside the spawner, ticked by the test.</summary>
+    private WildlifeAnimal Standalone(WildlifeSpecies species, WildlifeTable table, Vector3 ground)
+    {
+        WildlifeAnimal animal = new();
+        animal.Setup(species, table, 7);
+        AddChild(animal);
+        animal.GlobalPosition = ground;
+        return animal;
     }
 
     private async Task TestScatter(PlayerController player, WildlifeSpawner spawner)

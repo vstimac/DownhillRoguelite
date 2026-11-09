@@ -19,6 +19,7 @@ namespace DownhillRoguelite.Ui;
 public partial class Hud : CanvasLayer
 {
     public const string Group = "hud";
+    [Export] public bool EnableCompanionChat { get; set; }
     private static readonly StringName ActionInventory = "inventory_open";
     private static readonly StringName ActionJournal = "journal_open";
     private static readonly StringName ActionTalk = "talk_open";
@@ -29,6 +30,8 @@ public partial class Hud : CanvasLayer
     public StatDial? StaminaDial { get; private set; }
     public LowStatAlerts? Alerts { get; private set; }
     public DescentPanel? Descent { get; private set; }
+    public ObjectivePanel? Objectives { get; private set; }
+    public ObjectiveBanner? Banner { get; private set; }
     public CompassDial? Compass { get; private set; }
     public EquipmentPanel? Equipment { get; private set; }
     public Hotbar? Hotbar { get; private set; }
@@ -39,6 +42,7 @@ public partial class Hud : CanvasLayer
     public MapScreen? MapPage { get; private set; }
     public JournalScreen? Journal { get; private set; }
     public TalkScreen? Talk { get; private set; }
+    public DialogueChoices? Choices { get; private set; }
     public ThrowZone? ThrowZone { get; private set; }
     public UiLayoutEditor? LayoutEditor { get; private set; }
     public JournalLog? Log { get; private set; }
@@ -75,6 +79,10 @@ public partial class Hud : CanvasLayer
         _play.AddChild(Descent);
         Compass = new CompassDial { Size = new Vector2(132, 132) };
         _play.AddChild(Compass);
+        Objectives = new ObjectivePanel { Name = "Objectives" };
+        _play.AddChild(Objectives);
+        Banner = new ObjectiveBanner { Name = "ObjectiveBanner" };
+        _play.AddChild(Banner);
         Equipment = new EquipmentPanel { Size = new Vector2(184, 320) };
         _play.AddChild(Equipment);
         Hotbar = new Hotbar();
@@ -86,6 +94,8 @@ public partial class Hud : CanvasLayer
         Captions = new Subtitles { Name = "Subtitles" };
         _play.AddChild(Captions);
         _play.AddChild(new VaultPrompt { Name = "VaultPrompt" });
+        Choices = new DialogueChoices { Name = "DialogueChoices" };
+        _play.AddChild(Choices);
 
         // Behind the pages, over the world: an item dragged off the inventory page and dropped here is thrown away.
         ThrowZone = new ThrowZone { Name = "ThrowZone" };
@@ -124,6 +134,7 @@ public partial class Hud : CanvasLayer
         LayoutEditor.AddPiece("stamina", StaminaDial);
         LayoutEditor.AddPiece("descent", Descent);
         LayoutEditor.AddPiece("compass", Compass);
+        LayoutEditor.AddPiece("objectives", Objectives);
         LayoutEditor.AddPiece("equipment", Equipment);
         LayoutEditor.AddPiece("hotbar", Hotbar);
         LayoutEditor.AddPiece("tooltip", Tooltip);
@@ -166,6 +177,9 @@ public partial class Hud : CanvasLayer
         StaminaDial?.SetValue(vitals.Stamina, Mathf.Max(vitals.MaxStamina, 1.0f));
     }
 
+    /// <summary>Right edge of the four survival dials (they start at x 18, 104 px apart, 96 px wide).</summary>
+    public const float DialsRight = 18 + 3 * 104 + 96;
+
     /// <summary>Places everything for the current window size.</summary>
     public void Layout()
     {
@@ -191,14 +205,50 @@ public partial class Hud : CanvasLayer
         {
             Descent.Position = new Vector2(screen.X - 150 - 360, 16);
         }
-        if (Notes != null)
-        {
-            Notes.Position = new Vector2(screen.X - 18 - Notes.Size.X, 200);
-        }
         if (Equipment != null)
         {
             Equipment.Position = new Vector2(14, Mathf.Max(150, screen.Y * 0.5f - 160));
         }
+        ObjectivesStacked = false;
+        if (Objectives != null)
+        {
+            // Top centre, between the dials and the descent note, when there's room; else under the descent note
+            // (the default 1152 px window), with the notes following under it.
+            float left = DialsRight + 10.0f;
+            float right = screen.X - 150 - 360 - 10.0f - ObjectivePanel.PanelWidth;
+            if (right >= left)
+            {
+                Objectives.Position = new Vector2(Mathf.Clamp((screen.X - ObjectivePanel.PanelWidth) * 0.5f, left, right), 14);
+                if (Banner != null)
+                {
+                    Banner.MinTop = Objectives.Position.Y + Objectives.MaxHeight + 12.0f;
+                    Banner.FreeSpan = new Vector2(0.0f, screen.X);
+                }
+            }
+            else
+            {
+                ObjectivesStacked = true;
+                Objectives.Position = new Vector2(screen.X - 150 - 360, 16 + 172 + 8);
+                if (Banner != null)
+                {
+                    // The card goes between the equipment sheet and the goal note, under the dials.
+                    float free = 12.0f;
+                    if (Equipment != null)
+                    {
+                        free = Equipment.Position.X + Equipment.Size.X + 12.0f;
+                    }
+                    Banner.MinTop = 150.0f;
+                    Banner.FreeSpan = new Vector2(free, Objectives.Position.X - 12.0f);
+                    if (Banner.FreeSpan.Y - Banner.FreeSpan.X < Banner.MinWidth)
+                    {
+                        // Too narrow beside it: the card goes below the goal note instead.
+                        Banner.MinTop = Objectives.Position.Y + Objectives.MaxHeight + 12.0f;
+                        Banner.FreeSpan = new Vector2(free, screen.X - 12.0f);
+                    }
+                }
+            }
+        }
+        PlaceNotes(screen);
         if (Hotbar != null)
         {
             Hotbar.Position = new Vector2((screen.X - Hotbar.Size.X) * 0.5f, screen.Y - Hotbar.Size.Y - 10);
@@ -215,9 +265,32 @@ public partial class Hud : CanvasLayer
         LayoutEditor?.Apply(screen);
     }
 
+    /// <summary>True when the goal note sits under the descent note (narrow windows) and the notes follow under it.</summary>
+    public bool ObjectivesStacked { get; private set; }
+
+    /// <summary>The notes under the descent note, or under the goal note's current height when it is stacked there.</summary>
+    private void PlaceNotes(Vector2 screen)
+    {
+        if (Notes == null)
+        {
+            return;
+        }
+        if (LayoutEditor != null && LayoutEditor.Moved.ContainsKey("notes"))
+        {
+            return;
+        }
+        float top = 200.0f;
+        if (ObjectivesStacked && Objectives != null && Objectives.Visible)
+        {
+            top = Objectives.Position.Y + Objectives.Size.Y + 8.0f;
+        }
+        Notes.Position = new Vector2(screen.X - 18 - Notes.Size.X, top);
+    }
+
     /// <summary>Someone was spoken to (a traveller with E, the companion with Enter): open the conversation.</summary>
     private void OnTalkRequested(SpeakerInfo speaker)
     {
+        if (speaker.IsCompanion && !EnableCompanionChat) { return; }
         if (Talk != null && !(Talk.IsOpen && Talk.Visible) && !GameEvents.IsPacking)
         {
             Toggle(Talk);
@@ -266,7 +339,7 @@ public partial class Hud : CanvasLayer
             Toggle(Journal);
             GetViewport().SetInputAsHandled();
         }
-        else if (@event.IsActionPressed(ActionTalk) && Talk != null && !(Talk.IsOpen && Talk.Visible))
+        else if (EnableCompanionChat && @event.IsActionPressed(ActionTalk) && Talk != null && !(Talk.IsOpen && Talk.Visible))
         {
             // Enter talks with the companion; once the page is open, Enter sends what's typed.
             GameEvents.RequestTalkTo(SpeakerInfo.Companion);
@@ -344,6 +417,10 @@ public partial class Hud : CanvasLayer
             return;
         }
         _play.Visible = !GameEvents.IsPacking && !Debug.DebugDraw3D.HideHud;
+        if (ObjectivesStacked)
+        {
+            PlaceNotes(GetViewport().GetVisibleRect().Size);
+        }
         if (Compass != null)
         {
             Compass.WaypointAngle = NearestWaypointAngle();

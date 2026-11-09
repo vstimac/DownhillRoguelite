@@ -20,6 +20,9 @@ public partial class CarrierHealth : Node
     [Export] public float SleepHealFraction { get; set; } = 0.4f;
 
     public float Current { get; private set; }
+    public float EffectiveMax => Max * (_run?.Character.Stats.Health ?? 1);
+    private RunState? _run;
+    private float _characterCapacity = 1;
     public bool Dead { get; private set; }
 
     private float _lastDamage;
@@ -27,7 +30,9 @@ public partial class CarrierHealth : Node
 
     public override void _Ready()
     {
-        Current = Max;
+        _run = GetNodeOrNull<RunState>("/root/RunState");
+        if (_run != null) { _characterCapacity = _run.Character.Stats.Health; _run.CharacterChanged += OnCharacterChanged; }
+        Current = EffectiveMax;
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.Slept += OnSlept;
         GameEvents.KillRequested += OnKillRequested;
@@ -38,11 +43,19 @@ public partial class CarrierHealth : Node
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.Slept -= OnSlept;
         GameEvents.KillRequested -= OnKillRequested;
+        if (_run != null) { _run.CharacterChanged -= OnCharacterChanged; }
+    }
+
+    private void OnCharacterChanged()
+    {
+        float next = _run!.Character.Stats.Health;
+        Current = Mathf.Clamp(Current * next / _characterCapacity, 0, EffectiveMax);
+        _characterCapacity = next;
     }
 
     private void OnKillRequested(string cause)
     {
-        TakeDamage(Max * 10.0f, cause);
+        TakeDamage(EffectiveMax * 10.0f, cause);
     }
 
     /// <summary>Health doesn't regenerate on its own; only sleep (and later medicine) heals.</summary>
@@ -52,7 +65,7 @@ public partial class CarrierHealth : Node
         {
             return;
         }
-        Current = Mathf.Min(Max, Current + amount);
+        Current = Mathf.Min(EffectiveMax, Current + amount);
     }
 
     private void OnSlept(float hours)
@@ -63,7 +76,7 @@ public partial class CarrierHealth : Node
         {
             modifier = run.Modifiers.SleepHeal;
         }
-        Heal(Max * SleepHealFraction * modifier);
+        Heal(EffectiveMax * SleepHealFraction * modifier);
     }
 
     public void TakeDamage(float amount, string source)
@@ -79,6 +92,13 @@ public partial class CarrierHealth : Node
         GameEvents.PublishDamaged(amount);
         if (Current <= 0.0f)
         {
+            // A last chance (the temporary mandate) may bring the carrier back instead.
+            float spared = GameEvents.RequestLastChance(source);
+            if (spared > 0.0f)
+            {
+                Current = EffectiveMax * Mathf.Min(spared, 1.0f);
+                return;
+            }
             Dead = true;
             GameEvents.PublishCarrierDied(source);
         }
@@ -86,7 +106,7 @@ public partial class CarrierHealth : Node
 
     public void Refill()
     {
-        Current = Max;
+        Current = EffectiveMax;
         Dead = false;
         _lastDamage = 0.0f;
         _lastSource = "";
@@ -101,7 +121,7 @@ public partial class CarrierHealth : Node
         if (Stamina != null)
         {
             stamina = Stamina.Current;
-            maxStamina = Stamina.Max;
+            maxStamina = Stamina.EffectiveMax;
             exhausted = Stamina.Exhausted;
         }
         bool sprinting = Body != null && Body.Sprinting;
@@ -112,7 +132,7 @@ public partial class CarrierHealth : Node
             hunger = Needs.Hunger;
             thirst = Needs.Thirst;
         }
-        GameEvents.PublishVitals(new VitalsSnapshot(Current, Max, stamina, maxStamina, exhausted, sprinting, Dead, _lastDamage, _lastSource, hunger, thirst));
+        GameEvents.PublishVitals(new VitalsSnapshot(Current, EffectiveMax, stamina, maxStamina, exhausted, sprinting, Dead, _lastDamage, _lastSource, hunger, thirst));
     }
 
     private void OnRespawnRequested()

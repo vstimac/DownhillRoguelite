@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "president_record_damaged"
+DisplayName = "Oštećeni zapisnik"
+MassKg = 0.2
+Category = 2
+SizeCells = Vector3i(4, 1, 6)
+Tags = 0
+Orientation = 0
+DebugColor = Color(0.7, 0.62, 0.5, 1)
+Description = "Zapisnik koji je odnio vjetar. Rezultat se još čita, otprilike."
+
+

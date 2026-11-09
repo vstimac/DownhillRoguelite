@@ -43,8 +43,35 @@ public partial class JournalLog : Node
         GameEvents.ItemLost += OnLost;
         GameEvents.AskRequested += OnAsked;
         GameEvents.CompanionReplied += OnReplied;
+        GameEvents.ContractAccepted += OnContractAccepted;
+        GameEvents.ContractResolved += OnContractResolved;
+        GameEvents.LoreRead += OnLoreRead;
+        GameEvents.RelicDiscovered += OnRelicDiscovered;
+        GameEvents.RelicDelivered += OnRelicDelivered;
+        GameEvents.ObjectiveAnnounced += OnObjective;
+        GameEvents.WaysideUsed += OnWayside;
         CallDeferred(MethodName.Begin);
     }
+
+    /// <summary>A traveller asked for a job, or a job paid out: who asked and what it paid.</summary>
+    private void OnObjective(ObjectiveNote note)
+    {
+        if (note.Kind != ObjectiveKind.Errand)
+        {
+            return;
+        }
+        if (!note.Done && note.Title.Contains(" asks: ") && note.Giver.Length > 0)
+        {
+            Write("By the fire, " + note.Giver + " asked a favour. " + note.Why);
+        }
+        else if (note.Done && !note.Failed)
+        {
+            Write(note.Title + ". " + note.Progress + ".");
+        }
+    }
+
+    /// <summary>Something found beside the path, and what I took from it.</summary>
+    private void OnWayside(WaysideNote note) => Write(note.Title + ". " + note.Text);
 
     public override void _ExitTree()
     {
@@ -61,6 +88,13 @@ public partial class JournalLog : Node
         GameEvents.ItemLost -= OnLost;
         GameEvents.AskRequested -= OnAsked;
         GameEvents.CompanionReplied -= OnReplied;
+        GameEvents.ContractAccepted -= OnContractAccepted;
+        GameEvents.ContractResolved -= OnContractResolved;
+        GameEvents.LoreRead -= OnLoreRead;
+        GameEvents.RelicDiscovered -= OnRelicDiscovered;
+        GameEvents.RelicDelivered -= OnRelicDelivered;
+        GameEvents.ObjectiveAnnounced -= OnObjective;
+        GameEvents.WaysideUsed -= OnWayside;
     }
 
     private void OnAsked(string question)
@@ -102,6 +136,59 @@ public partial class JournalLog : Node
 
     private void OnLost(string itemId) => Write($"The torn pack let go of my {(ItemText.Find(itemId)?.DisplayName ?? itemId).ToLowerInvariant()}.");
 
+    private void OnContractAccepted(ContractNote note)
+    {
+        Write("At Station " + note.FromStation + " I took a job, \"" + note.Title + "\": a " + note.CargoName.ToLowerInvariant()
+            + " of " + note.CargoMassKg.ToString("0.0") + " kg to carry down to Station " + note.ToStation + ".");
+    }
+
+    private void OnContractResolved(ContractNote note)
+    {
+        if (note.Status == ContractStatus.Delivered)
+        {
+            string state = "";
+            if (note.Breakable && note.Condition < 90.0f)
+            {
+                state = ", knocked about (" + Mathf.RoundToInt(note.Condition) + "%)";
+            }
+            Write("At Station " + note.ToStation + " I handed over the " + note.CargoName.ToLowerInvariant() + state + ". \"" + note.Title + "\" is done.");
+        }
+        else if (note.Status == ContractStatus.Abandoned)
+        {
+            Write("I gave up the job \"" + note.Title + "\" and left the " + note.CargoName.ToLowerInvariant() + " behind.");
+        }
+        else
+        {
+            Write("The job \"" + note.Title + "\" failed: the " + note.CargoName.ToLowerInvariant() + " " + note.Reason + ".");
+        }
+    }
+
+    private void OnLoreRead(LoreNote note)
+    {
+        if (!note.FirstThisRun)
+        {
+            return;
+        }
+        Write(note.Heading + ": \"" + note.Text + "\"");
+    }
+
+    /// <summary>A relic found this run: what was seen (a "seen" entry; later runs remember it).</summary>
+    private void OnRelicDiscovered(RelicNote note)
+    {
+        string text = "Found " + note.Name + ". " + note.Text;
+        if (!note.FirstEver)
+        {
+            text += " (Seen on an earlier descent.)";
+        }
+        Write(text);
+    }
+
+    /// <summary>A relic left at an altar: one of its readings (a "studied" entry).</summary>
+    private void OnRelicDelivered(RelicNote note)
+    {
+        Write("Left " + note.Name + " at Station " + note.Station + "'s altar (+" + note.Score + "). " + note.Text, true);
+    }
+
     public override void _Process(double delta)
     {
         _time += (float)delta;
@@ -133,7 +220,7 @@ public partial class JournalLog : Node
         {
             seed = _run.Seed;
         }
-        Write($"I stand on the summit of mountain {seed % 100000}. The only way is down.");
+        Write($"I stand on the summit of mountain {seed % 100000}. The only way is down, and the first fire is somewhere below: I have to reach it before dark.");
     }
 
     private void OnNewRun()

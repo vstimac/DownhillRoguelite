@@ -53,6 +53,13 @@ public partial class DebugSceneControls : Node
         {
             Input.ActionPress("player_brake");
         }
+        // `--perf` prints where the frame time goes (debug/PerfLog).
+        if (System.Array.IndexOf(args, "--perf") >= 0)
+        {
+            AddChild(new PerfLog { Name = "PerfLog", Breakdown = System.Array.IndexOf(args, "--perf-breakdown") >= 0 || System.Array.IndexOf(args, "--perf-cpu") >= 0,
+                CpuBreakdown = System.Array.IndexOf(args, "--perf-cpu") >= 0,
+                Counting = System.Array.IndexOf(args, "--perf-nodes") >= 0 });
+        }
         // `--promo` hides every overlay and the bars, for clean screenshots.
         if (System.Array.IndexOf(args, "--promo") >= 0)
         {
@@ -85,6 +92,12 @@ public partial class DebugSceneControls : Node
                 string items = arg.Substring("--wear=".Length);
                 GetTree().CreateTimer(0.8).Timeout += () => GiveItems(items, true);
             }
+            if (arg.StartsWith("--portrait="))
+            {
+                // `--portrait=180` brings the camera close and turns it that many degrees (180: from the front).
+                float turn = float.Parse(arg.Substring("--portrait=".Length), System.Globalization.CultureInfo.InvariantCulture);
+                GetTree().CreateTimer(1.0).Timeout += () => Portrait(GetTree().Root, turn);
+            }
             if (arg.StartsWith("--herd="))
             {
                 string spec = arg.Substring("--herd=".Length);
@@ -116,6 +129,11 @@ public partial class DebugSceneControls : Node
             if (arg.StartsWith("--at-station=") && int.TryParse(arg.Substring("--at-station=".Length), out int station) && station > 0)
             {
                 CallDeferred(MethodName.GoToStation, station);
+            }
+            // `--at-president` stands the carrier a few metres uphill of the restsite president (render checks).
+            if (arg == "--at-president")
+            {
+                GetTree().CreateTimer(1.2).Timeout += GoToPresident;
             }
         }
         // `--weather=rain` (or fog, snow, wind, heat, clear) forces a front; `--hour=22` sets the clock.
@@ -337,6 +355,36 @@ public partial class DebugSceneControls : Node
         }
     }
 
+    private void GoToPresident()
+    {
+        Narrative.PresidentNpc? npc = FindPresident(GetTree().Root);
+        IRouteQuery? route = GetNodeOrNull<RunState>("/root/RunState")?.Route;
+        if (npc == null || route == null || PlayerBody == null)
+        {
+            GD.Print("--at-president: no president seated");
+            return;
+        }
+        Vector3 at = npc.GlobalPosition + new Vector3(0.0f, 0.0f, 5.0f);
+        PlayerBody.Teleport(new Vector3(at.X, route.GroundHeight(at.X, at.Z) + 0.3f, at.Z), 0.0f);
+    }
+
+    private static Narrative.PresidentNpc? FindPresident(Node node)
+    {
+        if (node is Narrative.PresidentNpc npc)
+        {
+            return npc;
+        }
+        foreach (Node child in node.GetChildren())
+        {
+            Narrative.PresidentNpc? found = FindPresident(child);
+            if (found != null)
+            {
+                return found;
+            }
+        }
+        return null;
+    }
+
         private void Respawn()
     {
         if (Streamer != null)
@@ -367,6 +415,18 @@ public partial class DebugSceneControls : Node
             FlyCamera.MakeCurrent();
             PlayerBody.InputEnabled = false;
             Input.MouseMode = Input.MouseModeEnum.Visible;
+        }
+    }
+
+    private static void Portrait(Node node, float turn)
+    {
+        if (node is Player.ChaseCamera camera)
+        {
+            camera.Portrait(2.6f, turn);
+        }
+        foreach (Node child in node.GetChildren())
+        {
+            Portrait(child, turn);
         }
     }
 }
