@@ -499,6 +499,17 @@ public static partial class GameEvents
         LaunchRequested?.Invoke(horizontal, height, cause);
     }
 
+    /// <summary>
+    /// Asks for the carrier to go down as a ragdoll from a blow (a bat, a club): (the velocity the
+    /// blow gives the body in m/s, who did it). The animation lets go and physics takes over.
+    /// </summary>
+    public static event Action<Godot.Vector3, string>? KnockdownRequested;
+
+    public static void RequestKnockdown(Godot.Vector3 velocity, string cause)
+    {
+        KnockdownRequested?.Invoke(velocity, cause);
+    }
+
     /// <summary>Raised when the carrier is thrown (cause), for notes and sounds.</summary>
     public static event Action<string>? Launched;
 

@@ -53,6 +53,8 @@ public partial class PlayerRagdoll : Node
     [Export] public float HardLandingSpeed { get; set; } = 7.5f;
     /// <summary>Extra speed given to the chest toward the fall when balance is lost, in m/s.</summary>
     [Export] public float BalanceFallPush { get; set; } = 1.5f;
+    /// <summary>Share of a blow's velocity (KnockdownRequested) the whole body takes; the upper body takes all of it.</summary>
+    [Export] public float KnockdownBodyShare { get; set; } = 0.45f;
 
     [ExportGroup("Getting up")]
     [Export] public float MinDownTime { get; set; } = 1.5f;
@@ -127,6 +129,7 @@ public partial class PlayerRagdoll : Node
         GameEvents.Landed += OnLanded;
         GameEvents.LoadChanged += OnLoadChanged;
         GameEvents.RespawnRequested += OnRespawnRequested;
+        GameEvents.KnockdownRequested += OnKnockdownRequested;
         OnLoadChanged(GameEvents.CurrentLoad);
     }
 
@@ -140,6 +143,7 @@ public partial class PlayerRagdoll : Node
         GameEvents.Landed -= OnLanded;
         GameEvents.LoadChanged -= OnLoadChanged;
         GameEvents.RespawnRequested -= OnRespawnRequested;
+        GameEvents.KnockdownRequested -= OnKnockdownRequested;
         if (Downed)
         {
             GameEvents.PublishDowned(false);
@@ -418,6 +422,17 @@ public partial class PlayerRagdoll : Node
             GoDown(Body.Velocity, push);
         }
         _lastBalanceState = snapshot.State;
+    }
+
+    /// <summary>A blow: the body takes part of its velocity, the upper body all of it.</summary>
+    private void OnKnockdownRequested(Vector3 velocity, string cause)
+    {
+        if (Body == null)
+        {
+            return;
+        }
+        Vector3 body = velocity * KnockdownBodyShare;
+        GoDown(Body.Velocity + body, velocity - body);
     }
 
     private void OnLanded(float downwardSpeed)
