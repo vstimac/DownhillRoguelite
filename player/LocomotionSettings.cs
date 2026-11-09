@@ -94,6 +94,14 @@ public partial class LocomotionSettings : Resource
     [ExportGroup("Map")]
     /// <summary>Walking speed while holding the map up, as a fraction (no sprinting).</summary>
     [Export] public float MapSpeedFactor { get; set; } = 0.45f;
+    /// <summary>Pulling a cart: each kg of cart and cargo takes this share off the speed on the flat.</summary>
+    [Export] public float TowSpeedPerKg { get; set; } = 0.0035f;
+    /// <summary>Uphill the cart drags this much harder per unit of grade (1 = twice as hard on a 45° climb).</summary>
+    [Export] public float TowUphillWeight { get; set; } = 2.5f;
+    /// <summary>Downhill the cart's weight drags this much less per unit of grade (it rolls on its own).</summary>
+    [Export] public float TowDownhillRelief { get; set; } = 1.5f;
+    /// <summary>However heavy the cart, the carrier keeps at least this share of their speed.</summary>
+    [Export] public float MinTowFactor { get; set; } = 0.3f;
 
     [ExportGroup("Weather")]
     /// <summary>Walking speed lost in full snow (0.3 = 30 % slower); route estimates include it.</summary>

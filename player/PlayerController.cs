@@ -514,7 +514,30 @@ public partial class PlayerController : CharacterBody3D
         {
             map = Settings.MapSpeedFactor;
         }
-        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor() * map * GameEvents.CurrentGear.SpeedFactor, Settings.MaxSpeed);
+        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor() * map * TowFactor(grade) * GameEvents.CurrentGear.SpeedFactor, Settings.MaxSpeed);
+    }
+
+    /// <summary>
+    /// Pulling a cart slows the stride by its weight: harder uphill, easier downhill where it rolls by
+    /// itself. 1 when no cart is held.
+    /// </summary>
+    public float TowFactor(float grade)
+    {
+        float mass = GameEvents.TowMass;
+        if (mass <= 0.0f)
+        {
+            return 1.0f;
+        }
+        float weight = 1.0f;
+        if (grade < 0.0f)
+        {
+            weight += Settings.TowUphillWeight * -grade;
+        }
+        else
+        {
+            weight = Mathf.Max(0.0f, weight - Settings.TowDownhillRelief * grade);
+        }
+        return Mathf.Clamp(1.0f - mass * Settings.TowSpeedPerKg * weight, Settings.MinTowFactor, 1.0f);
     }
 
     private float DecelerationRate(bool braking, float grade)

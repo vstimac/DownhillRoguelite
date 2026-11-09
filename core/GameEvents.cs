@@ -191,6 +191,18 @@ public static partial class GameEvents
         UseItemRequested?.Invoke(itemId);
     }
 
+    /// <summary>Weight of the cart the carrier is pulling, in kg (0 when not pulling one).</summary>
+    public static float TowMass { get; private set; }
+
+    /// <summary>Raised when the carrier takes hold of a cart, lets go, or its load changes.</summary>
+    public static event Action<float>? TowChanged;
+
+    public static void PublishTow(float massKg)
+    {
+        TowMass = massKg;
+        TowChanged?.Invoke(massKg);
+    }
+
     /// <summary>What the carrier wears and what it does (M14).</summary>
     public static GearSnapshot CurrentGear { get; private set; } = GearSnapshot.None;
 

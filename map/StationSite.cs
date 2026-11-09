@@ -1,3 +1,4 @@
+using DownhillRoguelite.Inventory;
 using DownhillRoguelite.WorldUi;
 using Godot;
 
@@ -34,6 +35,10 @@ public partial class StationSite : Node3D
     [Export] public float LabelHeight { get; set; } = 3.2f;
     /// <summary>The beacon fades in from the first distance to the second (m), so it does not stand in the camp.</summary>
     [Export] public Vector2 BeaconFade { get; set; } = new(14.0f, 40.0f);
+    /// <summary>The station's hand cart: where it stands (from the fire, m), its turn (degrees), and how high above the ground it is set before settling (m).</summary>
+    [Export] public Vector3 CartAt { get; set; } = new(-6.4f, 0.0f, 5.2f);
+    [Export] public float CartYaw { get; set; } = 25.0f;
+    [Export] public float CartDrop { get; set; } = 0.3f;
     [Export] public Color WoodColor { get; set; } = new(0.4f, 0.28f, 0.18f);
     [Export] public Color CanvasColor { get; set; } = new(0.45f, 0.42f, 0.36f);
     [Export] public Color BedrollColor { get; set; } = new(0.35f, 0.3f, 0.45f);
@@ -181,7 +186,6 @@ public partial class StationSite : Node3D
             (Village + "Prop_Crate.gltf", new Vector3(-8.4f, 0.0f, 2.8f), 15.0f, 0.6f),
             (Village + "Prop_Crate.gltf", new Vector3(-7.7f, 0.0f, 3.4f), -20.0f, 0.5f),
             (Nature + "log_stack.glb", new Vector3(-7.8f, 0.0f, -2.4f), 90.0f, 0.7f),
-            (Town + "cart.glb", new Vector3(-6.4f, 0.0f, 5.2f), 25.0f, 1.0f),
             (Town + "lantern.glb", new Vector3(-3.6f, 0.0f, -3.4f), 0.0f, 2.2f),
             (Town + "lantern.glb", new Vector3(4.2f, 0.0f, 3.0f), 0.0f, 2.2f),
             // The way in (uphill): two banners with the station's name between them.
@@ -189,6 +193,11 @@ public partial class StationSite : Node3D
             (Castle + "flag-banner-long.glb", new Vector3(GateHalfWidth, 0.0f, GateZ), 0.0f, 3.8f),
         };
         float tilt = Mathf.Tan(Mathf.DegToRad(TerraceSlope));
+        // A hand cart by the trader's corner the carrier can take along (E at the handles).
+        HandCart cart = new() { Name = "HandCart" };
+        AddChild(cart);
+        cart.Position = new Vector3(CartAt.X, CartAt.Z * tilt + cart.WheelRadius + CartDrop, CartAt.Z);
+        cart.RotationDegrees = new Vector3(0.0f, CartYaw, 0.0f);
         foreach ((string path, Vector3 at, float yaw, float height) in props)
         {
             if (!ResourceLoader.Exists(path) || ResourceLoader.Load(path) is not PackedScene scene)
