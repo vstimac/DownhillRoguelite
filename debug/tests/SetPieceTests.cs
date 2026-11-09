@@ -169,7 +169,8 @@ public partial class SetPieceTests : Node3D
         await Place(player, route.Station(1) + new Vector3(0.0f, 0.0f, 3.0f), 0.5f);
         Stations!.Stations.TryGetValue(1, out StationSite? site);
         bool stall = site?.FindChild("stall-green", true, false) != null;
-        bool cart = site?.FindChild("cart", true, false) != null;
+        // The hand cart the carrier can pull (it stood here as a prop before).
+        bool cart = site?.FindChild("HandCart", true, false) is DownhillRoguelite.Inventory.HandCart;
         bool banner = site?.FindChild("flag-banner-long", true, false) != null;
         Check("stations carry the stall, cart and banner", stall && cart && banner, "stall " + stall + ", cart " + cart + ", banner " + banner);
     }

@@ -165,9 +165,14 @@ public partial class ForestTerrainTests : Node3D
             }
             if (child is MultiMeshInstance3D batch)
             {
+                // Trees fade out at the edge of their range (so they don't pop out of the fog); small detail doesn't.
                 if (batch.Name.ToString().StartsWith("Tree", StringComparison.Ordinal)) { treeBatches++; }
-                else { detailBatches++; opaque &= batch.CastShadow == GeometryInstance3D.ShadowCastingSetting.Off; }
-                opaque &= batch.VisibilityRangeFadeMode == GeometryInstance3D.VisibilityRangeFadeModeEnum.Disabled;
+                else
+                {
+                    detailBatches++;
+                    opaque &= batch.CastShadow == GeometryInstance3D.ShadowCastingSetting.Off;
+                    opaque &= batch.VisibilityRangeFadeMode == GeometryInstance3D.VisibilityRangeFadeModeEnum.Disabled;
+                }
             }
         }
         Check("batched trees keep individual trunk shapes in one static compound body", !chunk.PlantsPending && trees > treeBatches && trunkBodies == 1 && treeBatches > 0 && smallColliders == 0,
