@@ -12,9 +12,9 @@ namespace DownhillRoguelite.Wildlife;
 /// shoves him (RequestLaunch). He has no skeleton: the run and the swing lean the whole log.
 /// While the carrier is down he hops in place; then he chases again, until his time is up.
 /// </summary>
-public partial class TuntunSahur : CharacterBody3D
+public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
 {
-    private enum Phase { Chase, WindUp, Strike, Recover, Gloat }
+    private enum Phase { Chase, WindUp, Strike, Recover, Gloat, Down }
 
     [Export(PropertyHint.File, "*.glb")] public string ModelPath { get; set; } = "res://art/creatures/tuntun/tuntun.glb";
     [Export] public string Cause { get; set; } = "Tuntun Sahur";
@@ -70,6 +70,17 @@ public partial class TuntunSahur : CharacterBody3D
     [Export] public float BodyHeight { get; set; } = 1.9f;
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
 
+    [ExportGroup("Sword")]
+    /// <summary>Health against the carrier's sword; at 0 he topples over and is gone.</summary>
+    [Export] public float Health { get; set; } = 90.0f;
+    /// <summary>How quickly a shove from a blow dies away (per s), and how far he is thrown back by the shield (m/s).</summary>
+    [Export] public float ShoveDrag { get; set; } = 5.0f;
+    [Export] public float BlockedRecoil { get; set; } = 3.5f;
+    /// <summary>Beaten: he topples over this many degrees over this long (s), then lies there this long (s).</summary>
+    [Export] public float ToppleDegrees { get; set; } = 90.0f;
+    [Export] public float ToppleSeconds { get; set; } = 0.7f;
+    [Export] public float LieSeconds { get; set; } = 2.5f;
+
     [ExportGroup("Voice")]
     [Export] public string[] KnockSounds { get; set; } =
     {
@@ -97,6 +108,10 @@ public partial class TuntunSahur : CharacterBody3D
     private float _stepDistance;
     private float _age;
     private float _gravity;
+    private Vector3 _shove;
+    /// <summary>Blows he has taken, and swings the carrier's shield stopped.</summary>
+    public int Wounds { get; private set; }
+    public int Blocked { get; private set; }
 
     public override void _Ready()
     {
@@ -122,6 +137,7 @@ public partial class TuntunSahur : CharacterBody3D
             AddChild(_voice);
         }
         _previousTip = TipWorld();
+        AddToGroup(IMeleeTarget.Group);
         GameEvents.LocomotionUpdated += OnLocomotion;
         Say(CallSounds);
     }
@@ -164,7 +180,10 @@ public partial class TuntunSahur : CharacterBody3D
         {
             velocity.Y -= _gravity * dt;
         }
-        if (_carrierKnown && distance > 0.01f && _phase != Phase.Strike)
+        velocity.X = _shove.X;
+        velocity.Z = _shove.Z;
+        _shove = _shove.MoveToward(Vector3.Zero, _shove.Length() * ShoveDrag * dt + 0.5f * dt);
+        if (_carrierKnown && distance > 0.01f && _phase != Phase.Strike && _phase != Phase.Down)
         {
             Face(toCarrier / distance, dt);
         }
@@ -184,8 +203,8 @@ public partial class TuntunSahur : CharacterBody3D
                 else if (_carrierKnown)
                 {
                     Vector3 run = -GlobalBasis.Z * RunSpeed;
-                    velocity.X = run.X;
-                    velocity.Z = run.Z;
+                    velocity.X += run.X;
+                    velocity.Z += run.Z;
                     Step(RunSpeed * dt);
                 }
                 break;
@@ -209,6 +228,13 @@ public partial class TuntunSahur : CharacterBody3D
                 if (_phaseTime >= RecoverSeconds)
                 {
                     Enter(Phase.Chase);
+                }
+                break;
+            case Phase.Down:
+                lean = -ToppleDegrees * Ease(_phaseTime / Mathf.Max(ToppleSeconds, 0.01f));
+                if (_phaseTime >= ToppleSeconds + LieSeconds)
+                {
+                    QueueFree();
                 }
                 break;
             case Phase.Gloat:
@@ -317,12 +343,39 @@ public partial class TuntunSahur : CharacterBody3D
         return closest[0].DistanceTo(closest[1]) <= BatRadius + CarrierRadius;
     }
 
-    /// <summary>The blow: the bat tip's speed decides between a ragdoll knockdown and a shove.</summary>
+    // --- IMeleeTarget: the carrier's sword ---
+
+    public Vector3 HitBase => GlobalPosition;
+    public float HitHeight => BodyHeight;
+    public float HitRadius => BodyRadius;
+    public bool CanBeHit => _phase != Phase.Down && Health > 0.0f;
+
+    /// <summary>A sword blow or a kick: he loses health, is shoved back and his swing breaks off; at 0 he topples.</summary>
+    public void TakeHit(float damage, Vector3 push, string source)
+    {
+        if (!CanBeHit)
+        {
+            return;
+        }
+        Wounds++;
+        Health = Mathf.Max(0.0f, Health - damage);
+        _shove = new Vector3(push.X, 0.0f, push.Z);
+        Say(KnockSounds);
+        if (Health <= 0.0f)
+        {
+            Enter(Phase.Down);
+            return;
+        }
+        if (_phase == Phase.WindUp || _phase == Phase.Strike)
+        {
+            Enter(Phase.Recover);
+        }
+    }
+
+    /// <summary>The blow: the bat tip's speed decides between a ragdoll knockdown and a shove (unless the shield takes it).</summary>
     private void Hit(Vector3 tipVelocity)
     {
         _hitThisSwing = true;
-        Hits++;
-        float speed = tipVelocity.Length() * HitTransfer;
         Vector3 away = _carrier - GlobalPosition;
         away.Y = 0.0f;
         if (away.LengthSquared() < 0.0001f)
@@ -330,6 +383,16 @@ public partial class TuntunSahur : CharacterBody3D
             away = -GlobalBasis.Z;
         }
         away = away.Normalized();
+        if (GameEvents.TryBlock(away, Cause))
+        {
+            Blocked++;
+            Say(BonkSounds);
+            _shove = -away * BlockedRecoil;
+            Enter(Phase.Recover);
+            return;
+        }
+        Hits++;
+        float speed = tipVelocity.Length() * HitTransfer;
         LastHitSpeed = speed;
         LastHitKnockedDown = speed >= RagdollSpeed;
         Say(BonkSounds);

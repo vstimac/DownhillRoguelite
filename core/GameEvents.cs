@@ -191,6 +191,34 @@ public static partial class GameEvents
         UseItemRequested?.Invoke(itemId);
     }
 
+    /// <summary>Whether the carrier has the sword out (the mouse buttons then swing and block instead of leaning).</summary>
+    public static bool SwordDrawn { get; private set; }
+
+    public static event Action<bool>? SwordDrawnChanged;
+
+    public static void PublishSwordDrawn(bool drawn)
+    {
+        SwordDrawn = drawn;
+        SwordDrawnChanged?.Invoke(drawn);
+    }
+
+    /// <summary>
+    /// Asked by anything about to hit the carrier (a charging beast, Tuntun's bat), with the way the
+    /// blow travels: true if the carrier's shield takes it (the blow then does nothing to them). Set by
+    /// the carrier's combat while they can block; null otherwise.
+    /// </summary>
+    public static Func<Godot.Vector3, string, bool>? Blocker { get; set; }
+
+    public static bool TryBlock(Godot.Vector3 blowDirection, string source)
+    {
+        return Blocker != null && Blocker(blowDirection, source);
+    }
+
+    /// <summary>Asks the camera to shake (strength roughly in metres of jolt).</summary>
+    public static event Action<float>? CameraShakeRequested;
+
+    public static void RequestCameraShake(float strength) => CameraShakeRequested?.Invoke(strength);
+
     /// <summary>Weight of the cart the carrier is pulling, in kg (0 when not pulling one).</summary>
     public static float TowMass { get; private set; }
 

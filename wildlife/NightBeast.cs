@@ -11,7 +11,7 @@ namespace DownhillRoguelite.Wildlife;
 /// she-wolf, tears food out of the pack. Afterwards it backs off and stalks again. Near fire, in a
 /// shelter or at dawn it leaves.
 /// </summary>
-public partial class NightBeast : CharacterBody3D
+public partial class NightBeast : CharacterBody3D, IMeleeTarget
 {
     public enum Mode
     {
@@ -34,6 +34,11 @@ public partial class NightBeast : CharacterBody3D
     /// <summary>What its last hit did ("threw", or the stolen item's id), cleared by the director.</summary>
     public string LastHit { get; set; } = "";
     public int Hits { get; private set; }
+    /// <summary>Health left against the carrier's sword; at 0 it runs off for the night.</summary>
+    public float Health { get; private set; } = 1.0f;
+    /// <summary>Blows it has taken, and charges the carrier's shield stopped.</summary>
+    public int Wounds { get; private set; }
+    public int Blocked { get; private set; }
     /// <summary>Seconds since it started to leave (the director lets it vanish after a while, even if stuck).</summary>
     public float LeavingFor { get; private set; }
     public float CarrierRadius { get; set; } = 0.35f;
@@ -63,6 +68,8 @@ public partial class NightBeast : CharacterBody3D
     private float _held;
     private float _detour;
     private float _detourSide = 1.0f;
+    private Vector3 _shove;
+    private float _height = 1.0f;
 
     public void Setup(BeastSpecies species, ulong seed, uint layer, uint mask)
     {
@@ -77,6 +84,9 @@ public partial class NightBeast : CharacterBody3D
         Vector3 body = species.BodySize;
         Radius = Mathf.Max(0.05f, Mathf.Min(body.X, body.Z) * 0.5f);
         float height = Mathf.Max(body.Y, Radius * 2.0f);
+        _height = height;
+        Health = species.Health;
+        AddToGroup(IMeleeTarget.Group);
         AddChild(new CollisionShape3D
         {
             Shape = new CapsuleShape3D { Radius = Radius, Height = height },
@@ -375,9 +385,62 @@ public partial class NightBeast : CharacterBody3D
         return _chargeDirection * species.ChargeSpeed;
     }
 
+    // --- IMeleeTarget: the carrier's sword ---
+
+    public Vector3 HitBase => GlobalPosition;
+    public float HitHeight => _height;
+    public float HitRadius => Radius;
+    public bool CanBeHit => Species != null && State != Mode.Leave && Health > 0.0f;
+
+    /// <summary>
+    /// A sword blow or a kick: it loses health, is shoved back, and flinches (backs off, no attack for
+    /// a while; a crouch or charge breaks off). At no health left it runs off for the night.
+    /// </summary>
+    public void TakeHit(float damage, Vector3 push, string source)
+    {
+        if (!CanBeHit)
+        {
+            return;
+        }
+        BeastSpecies species = Species!;
+        Wounds++;
+        Health = Mathf.Max(0.0f, Health - damage);
+        _shove = new Vector3(push.X, 0.0f, push.Z);
+        Say(species.SnarlSounds);
+        if (_eyes != null)
+        {
+            _eyes.Scale = _eyesBase;
+        }
+        if (Health <= 0.0f)
+        {
+            State = Mode.Leave;
+            LeavingFor = 0.0f;
+            Play(species.RunClip, 1.6f);
+            return;
+        }
+        ConfusedFor = Mathf.Max(ConfusedFor, species.FlinchSeconds);
+        if (State == Mode.WindUp || State == Mode.Charge)
+        {
+            State = Mode.Retreat;
+            Play(species.RunClip, 1.0f);
+        }
+    }
+
     private void Hit()
     {
         BeastSpecies species = Species!;
+        if (GameEvents.TryBlock(_chargeDirection, species.DisplayName))
+        {
+            // The shield takes it: thrown back, it backs off and thinks again.
+            Blocked++;
+            LastHit = "blocked";
+            _shove = -_chargeDirection * species.BlockedRecoil;
+            ConfusedFor = Mathf.Max(ConfusedFor, species.FlinchSeconds);
+            Say(species.SnarlSounds);
+            State = Mode.Retreat;
+            Play(species.RunClip, 1.0f);
+            return;
+        }
         Hits++;
         if (species.StealsFood && FoodInPack.Length > 0)
         {
@@ -442,7 +505,8 @@ public partial class NightBeast : CharacterBody3D
         {
             vertical -= _gravity * dt;
         }
-        Velocity = new Vector3(walk.X, vertical, walk.Z);
+        Velocity = new Vector3(walk.X + _shove.X, vertical, walk.Z + _shove.Z);
+        _shove = _shove.MoveToward(Vector3.Zero, _shove.Length() * Species!.ShoveDrag * dt + 0.5f * dt);
         MoveAndSlide();
     }
 

@@ -18,6 +18,7 @@
 [ext_resource type="Script" path="res://player/RouteEstimator.cs" id="16_estimator"]
 [ext_resource type="Script" path="res://player/CarrierModel.cs" id="17_carrier_model"]
 [ext_resource type="Script" path="res://player/Dive.cs" id="18_vault"]
+[ext_resource type="Script" path="res://player/MeleeCombat.cs" id="21_melee"]
 [ext_resource type="Script" path="res://player/BodyDynamics.cs" id="19_body_dynamics"]
 [ext_resource type="Script" path="res://player/CharacterAbility.cs" id="20_character_ability"]
 
@@ -119,3 +120,9 @@ script = ExtResource("20_character_ability")
 script = ExtResource("18_vault")
 Body = NodePath("..")
 Look = NodePath("../CarrierModel")
+
+[node name="MeleeCombat" type="Node" parent="." node_paths=PackedStringArray("Body", "Stamina", "Driver")]
+script = ExtResource("21_melee")
+Body = NodePath("..")
+Stamina = NodePath("../Stamina")
+Driver = NodePath("../Model/Rig/Skeleton3D")

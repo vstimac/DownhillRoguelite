@@ -77,4 +77,14 @@ public partial class BeastSpecies : Resource
     [Export] public int MinCircle { get; set; }
     /// <summary>Relative chance among the beasts that hunt in a circle.</summary>
     [Export] public float Weight { get; set; } = 1.0f;
+
+    [ExportGroup("Sword")]
+    /// <summary>How many sword blows (health) it takes before it runs off for the night.</summary>
+    [Export] public float Health { get; set; } = 70.0f;
+    /// <summary>A blow makes it back off and not attack for this long, in s.</summary>
+    [Export] public float FlinchSeconds { get; set; } = 1.5f;
+    /// <summary>How quickly a shove from a blow dies away (per s).</summary>
+    [Export] public float ShoveDrag { get; set; } = 5.0f;
+    /// <summary>Thrown back this fast (m/s) when its charge hits the carrier's shield.</summary>
+    [Export] public float BlockedRecoil { get; set; } = 5.0f;
 }

@@ -199,7 +199,7 @@ public partial class BalanceController : Node
 
         float leanTarget = 0.0f;
         bool bracing = false;
-        if (InputEnabled && State != BalanceState.Fallen && !GameEvents.IsPacking && !GameEvents.IsMapOpen && !GameEvents.IsScreenOpen)
+        if (InputEnabled && State != BalanceState.Fallen && !GameEvents.IsPacking && !GameEvents.IsMapOpen && !GameEvents.IsScreenOpen && !GameEvents.SwordDrawn)
         {
             bool left = Input.IsActionPressed(ActionLeanLeft);
             bool rightPressed = Input.IsActionPressed(ActionLeanRight);

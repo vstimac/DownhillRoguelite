@@ -58,6 +58,13 @@ public partial class ChaseCamera : Node3D
     private float _pitchDegrees;
     private float _timeSinceLook;
     private readonly MouseLookFilter _mouse = new();
+    /// <summary>A shake (GameEvents.RequestCameraShake) dies away at this rate (per s) and jitters this fast (Hz).</summary>
+    [Export] public float ShakeDecay { get; set; } = 6.0f;
+    [Export] public float ShakeFrequency { get; set; } = 28.0f;
+    /// <summary>The strongest jolt allowed, in m.</summary>
+    [Export] public float MaxShake { get; set; } = 0.25f;
+    private float _shake;
+    private float _shakeTime;
     private bool _desktopRead;
 
     public override void _Ready()
@@ -98,10 +105,41 @@ public partial class ChaseCamera : Node3D
         }
 
         ApplyRotation();
+        GameEvents.CameraShakeRequested += OnShake;
+    }
+
+    private void OnShake(float strength)
+    {
+        _shake = Mathf.Min(MaxShake, Mathf.Max(_shake, strength));
+    }
+
+    /// <summary>Jolts the lens sideways and up (the camera's offsets), so aim and collision are untouched.</summary>
+    private void UpdateShake(float dt)
+    {
+        if (Camera == null)
+        {
+            return;
+        }
+        if (_shake <= 0.0005f)
+        {
+            if (_shake > 0.0f)
+            {
+                _shake = 0.0f;
+                Camera.HOffset = 0.0f;
+                Camera.VOffset = 0.0f;
+            }
+            return;
+        }
+        _shakeTime += dt;
+        float phase = _shakeTime * ShakeFrequency * Mathf.Tau;
+        Camera.HOffset = Mathf.Sin(phase) * _shake;
+        Camera.VOffset = Mathf.Sin(phase * 1.37f + 1.1f) * _shake * 0.7f;
+        _shake = Mathf.MoveToward(_shake, 0.0f, _shake * ShakeDecay * dt + 0.001f);
     }
 
     public override void _ExitTree()
     {
+        GameEvents.CameraShakeRequested -= OnShake;
         GameOptions.Changed -= ApplyFieldOfView;
         GameOptions.Changed -= ReadDesktopPointer;
         if (Target is PlayerController controller)
@@ -191,6 +229,7 @@ public partial class ChaseCamera : Node3D
 
         float dt = (float)delta;
         _timeSinceLook += dt;
+        UpdateShake(dt);
 
         if (Camera != null && Camera.Current)
         {
