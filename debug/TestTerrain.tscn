@@ -49,6 +49,7 @@
 [ext_resource type="Resource" path="res://narrative/npcs/fire_keeper.tres" id="48_fire_keeper"]
 [ext_resource type="Resource" path="res://narrative/npcs/old_carrier.tres" id="48_old_carrier"]
 [ext_resource type="Resource" path="res://narrative/npcs/penitent.tres" id="48_penitent"]
+[ext_resource type="Resource" path="res://narrative/npcs/broker.tres" id="48_broker"]
 [ext_resource type="Resource" path="res://narrative/npcs/pilgrim.tres" id="48_pilgrim"]
 [ext_resource type="Script" uid="uid://b2wjmgqn356je" path="res://narrative/StationVisitors.cs" id="48_visitors"]
 [ext_resource type="Script" uid="uid://i6f7icm2ie46" path="res://world_ui/StartScreen.cs" id="49_start_screen"]
@@ -327,7 +328,7 @@ script = ExtResource("49_trail")
 
 [node name="Visitors" type="Node3D" parent="." unique_id=579738286]
 script = ExtResource("48_visitors")
-Personas = [ExtResource("48_pilgrim"), ExtResource("48_cartographer"), ExtResource("48_old_carrier"), ExtResource("48_fire_keeper"), ExtResource("48_penitent")]
+Personas = [ExtResource("48_pilgrim"), ExtResource("48_cartographer"), ExtResource("48_old_carrier"), ExtResource("48_fire_keeper"), ExtResource("48_penitent"), ExtResource("48_broker")]
 
 [node name="PauseMenu" type="CanvasLayer" parent="." unique_id=379047615]
 script = ExtResource("30_pause")
