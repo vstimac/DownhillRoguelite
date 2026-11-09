@@ -123,6 +123,11 @@ public partial class DebugSceneControls : Node
             {
                 CallDeferred(MethodName.GoToStation, station);
             }
+            // `--at-president` stands the carrier a few metres uphill of the restsite president (render checks).
+            if (arg == "--at-president")
+            {
+                GetTree().CreateTimer(1.2).Timeout += GoToPresident;
+            }
         }
         // `--weather=rain` (or fog, snow, wind, heat, clear) forces a front; `--hour=22` sets the clock.
         foreach (string arg in args)
@@ -341,6 +346,36 @@ public partial class DebugSceneControls : Node
         {
             PlayerBody.Teleport(route.Station(station) + new Vector3(0.0f, 0.3f, 6.0f), 0.0f);
         }
+    }
+
+    private void GoToPresident()
+    {
+        Narrative.PresidentNpc? npc = FindPresident(GetTree().Root);
+        IRouteQuery? route = GetNodeOrNull<RunState>("/root/RunState")?.Route;
+        if (npc == null || route == null || PlayerBody == null)
+        {
+            GD.Print("--at-president: no president seated");
+            return;
+        }
+        Vector3 at = npc.GlobalPosition + new Vector3(0.0f, 0.0f, 5.0f);
+        PlayerBody.Teleport(new Vector3(at.X, route.GroundHeight(at.X, at.Z) + 0.3f, at.Z), 0.0f);
+    }
+
+    private static Narrative.PresidentNpc? FindPresident(Node node)
+    {
+        if (node is Narrative.PresidentNpc npc)
+        {
+            return npc;
+        }
+        foreach (Node child in node.GetChildren())
+        {
+            Narrative.PresidentNpc? found = FindPresident(child);
+            if (found != null)
+            {
+                return found;
+            }
+        }
+        return null;
     }
 
         private void Respawn()
