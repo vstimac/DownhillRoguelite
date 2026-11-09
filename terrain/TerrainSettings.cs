@@ -181,6 +181,8 @@ public partial class TerrainSettings : Resource
     /// <summary>The same budget behind the loading screen, where a long frame doesn't matter.</summary>
     [Export] public double LoadingPlantBudgetMilliseconds { get; set; } = 40.0;
     [Export] public float TreeViewDistance { get; set; } = 220.0f;
+    /// <summary>Trees fade out over this last stretch of their view distance instead of popping away, in m.</summary>
+    [Export] public float TreeFadeMargin { get; set; } = 30.0f;
     [Export] public float ForestClusterWavelength { get; set; } = 45.0f;
     [Export] public float PebbleDensity { get; set; } = 0.12f;
     [Export] public Vector2 PebbleHeight { get; set; } = new(0.025f, 0.09f);

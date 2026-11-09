@@ -234,7 +234,16 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             else if (kind == PlantKind.Pebble) { material = _rockMaterial; }
             float view = _generator!.Settings.GrassViewDistance;
             GeometryInstance3D.ShadowCastingSetting shadows = GeometryInstance3D.ShadowCastingSetting.Off;
-            if (kind == PlantKind.Tree) { view = _generator.Settings.TreeViewDistance; shadows = GeometryInstance3D.ShadowCastingSetting.On; }
+            // Far trees fade out (into the fog) over a margin; small plants just stop.
+            float margin = 2.0f;
+            GeometryInstance3D.VisibilityRangeFadeModeEnum fade = GeometryInstance3D.VisibilityRangeFadeModeEnum.Disabled;
+            if (kind == PlantKind.Tree)
+            {
+                view = _generator.Settings.TreeViewDistance;
+                shadows = GeometryInstance3D.ShadowCastingSetting.On;
+                margin = _generator.Settings.TreeFadeMargin;
+                fade = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self;
+            }
             else if (kind == PlantKind.Pebble) { view = _generator.Settings.PebbleViewDistance; }
             AddChild(new MultiMeshInstance3D
             {
@@ -243,8 +252,8 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
                 Multimesh = batch,
                 CastShadow = shadows,
                 VisibilityRangeEnd = view + _generator.Settings.PlantBatchSize,
-                VisibilityRangeEndMargin = 2.0f,
-                VisibilityRangeFadeMode = GeometryInstance3D.VisibilityRangeFadeModeEnum.Disabled,
+                VisibilityRangeEndMargin = margin,
+                VisibilityRangeFadeMode = fade,
             }, true);
             yield return true;
         }

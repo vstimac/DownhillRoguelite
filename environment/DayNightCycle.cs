@@ -44,6 +44,13 @@ public partial class DayNightCycle : Node
     [Export] public float WeatherFogDensity { get; set; } = 0.05f;
     /// <summary>Fog density added by full rain or snow.</summary>
     [Export] public float PrecipitationFogDensity { get; set; } = 0.012f;
+    /// <summary>
+    /// How much fog covers the sky: the first in thin fog, the second once the fog is as thick as
+    /// ThickFogDensity. In thick fog the sky must be as fogged as the far trees, or they stand out as
+    /// pale shapes against a clearer sky.
+    /// </summary>
+    [Export] public Vector2 SkyFogAffect { get; set; } = new(0.6f, 1.0f);
+    [Export] public float ThickFogDensity { get; set; } = 0.035f;
     /// <summary>How much a full overcast dims the sun.</summary>
     [Export] public float OvercastDimming { get; set; } = 0.6f;
     /// <summary>How much a full overcast dims ambient light.</summary>
@@ -175,6 +182,7 @@ public partial class DayNightCycle : Node
             float dayFog = _dayFogDensity + weatherFog;
             float nightFog = Mathf.Lerp(NightFogDensity.X, NightFogDensity.Y, mild) + weatherFog * 0.5f;
             environment.FogDensity = Mathf.Lerp(dayFog, nightFog, Darkness);
+            environment.FogSkyAffect = Mathf.Lerp(SkyFogAffect.X, SkyFogAffect.Y, Mathf.Clamp(environment.FogDensity / Mathf.Max(ThickFogDensity, 0.0001f), 0.0f, 1.0f));
             Color dayFogColor = _dayFogColor.Lerp(OvercastColor, Overcast * 0.6f).Lerp(HeatHazeColor, heat * 0.5f);
             environment.FogLightColor = dayFogColor.Lerp(NightFogColor, Darkness);
         }
