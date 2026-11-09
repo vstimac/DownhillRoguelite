@@ -510,6 +510,17 @@ public static partial class GameEvents
         KnockdownRequested?.Invoke(velocity, cause);
     }
 
+    /// <summary>
+    /// Asks for the carrier to be thrown as a ragdoll on purpose (the dive): (the whole body's new
+    /// velocity in m/s, extra velocity for the upper body so it tips the way it should, who did it).
+    /// </summary>
+    public static event Action<Godot.Vector3, Godot.Vector3, string>? RagdollLaunchRequested;
+
+    public static void RequestRagdollLaunch(Godot.Vector3 velocity, Godot.Vector3 upperPush, string cause)
+    {
+        RagdollLaunchRequested?.Invoke(velocity, upperPush, cause);
+    }
+
     /// <summary>Raised when the carrier is thrown (cause), for notes and sounds.</summary>
     public static event Action<string>? Launched;
 

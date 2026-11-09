@@ -130,6 +130,7 @@ public partial class PlayerRagdoll : Node
         GameEvents.LoadChanged += OnLoadChanged;
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.KnockdownRequested += OnKnockdownRequested;
+        GameEvents.RagdollLaunchRequested += OnRagdollLaunchRequested;
         OnLoadChanged(GameEvents.CurrentLoad);
     }
 
@@ -144,6 +145,7 @@ public partial class PlayerRagdoll : Node
         GameEvents.LoadChanged -= OnLoadChanged;
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.KnockdownRequested -= OnKnockdownRequested;
+        GameEvents.RagdollLaunchRequested -= OnRagdollLaunchRequested;
         if (Downed)
         {
             GameEvents.PublishDowned(false);
@@ -433,6 +435,12 @@ public partial class PlayerRagdoll : Node
         }
         Vector3 body = velocity * KnockdownBodyShare;
         GoDown(Body.Velocity + body, velocity - body);
+    }
+
+    /// <summary>A throw on purpose (the dive): the body flies with the given velocity.</summary>
+    private void OnRagdollLaunchRequested(Vector3 velocity, Vector3 upperPush, string cause)
+    {
+        GoDown(velocity, upperPush);
     }
 
     private void OnLanded(float downwardSpeed)

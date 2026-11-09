@@ -6,7 +6,9 @@ namespace DownhillRoguelite.Player;
 /// <summary>
 /// The dive, an ability (Left Ctrl), and the landing roll (Space while falling).
 ///
-/// Ctrl launches the Mixamo "Jump Over" dive from wherever the carrier stands: a short push-off, a
+/// Ctrl throws the carrier as a ragdoll (RagdollDive, the default): forward and up along the dive's
+/// arc, head first; he gets up like after any fall. With RagdollDive off, Ctrl plays the Mixamo
+/// "Jump Over" dive instead from wherever the carrier stands: a short push-off, a
 /// long arc forward (the animation's own travel moves the body; HipsPin keeps the hips over it), and
 /// a roll out. If the ground is still under him at the end he rolls on; if he went off an edge (the
 /// point: yeeting off a cliff) the dive hands him to normal falling with his momentum.
@@ -45,6 +47,13 @@ public partial class Dive : Node3D
     /// <summary>A rolled landing counts as this share of its real impact speed.</summary>
     [Export] public float RollSoftening { get; set; } = 0.15f;
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
+    /// <summary>Ctrl throws the carrier as a ragdoll along the dive's arc instead of playing the animation.</summary>
+    [Export] public bool RagdollDive { get; set; } = true;
+    /// <summary>The ragdoll dive's push forward and up (added to how he was moving), in m/s.</summary>
+    [Export] public float RagdollForwardSpeed { get; set; } = 5.0f;
+    [Export] public float RagdollUpSpeed { get; set; } = 3.2f;
+    /// <summary>Extra forward speed for the upper body, so he goes head first, in m/s.</summary>
+    [Export] public float RagdollLeanPush { get; set; } = 1.5f;
 
     public bool Diving { get; private set; }
     public int Dives { get; private set; }
@@ -123,6 +132,14 @@ public partial class Dive : Node3D
             return false;
         }
         Dives++;
+        if (RagdollDive)
+        {
+            // Physics takes him: a flat throw forward and up from how he was already moving.
+            Vector3 moving = new(Body.Velocity.X, 0.0f, Body.Velocity.Z);
+            Vector3 launch = moving + _forward * RagdollForwardSpeed + Vector3.Up * RagdollUpSpeed;
+            GameEvents.RequestRagdollLaunch(launch, _forward * RagdollLeanPush, "dive");
+            return true;
+        }
         _direction = _forward;
         _takeoffY = Body.GlobalPosition.Y;
         _flying = false;
