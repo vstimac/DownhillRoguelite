@@ -53,7 +53,7 @@ public static class GameOptions
     public static bool Subtitles { get; private set; } = true;
 
     /// <summary>The chosen character's id (CarrierRoster); an unknown or missing one falls back to the first.</summary>
-    public static string Character { get; private set; } = "modular";
+    public static string Character { get; private set; } = "default";
     public static Color BaseShirtColour { get; private set; } = new(0.28f, 0.35f, 0.43f);
     public static Color BasePackColour { get; private set; } = new(0.36f, 0.29f, 0.18f);
 
@@ -92,7 +92,7 @@ public static class GameOptions
         LookSensitivity = 1.0f;
         InvertLook = false;
         Subtitles = true;
-        Character = "modular";
+        Character = "default";
         BaseShirtColour = new Color(0.28f, 0.35f, 0.43f);
         BasePackColour = new Color(0.36f, 0.29f, 0.18f);
     }

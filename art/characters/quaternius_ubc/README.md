@@ -5,7 +5,8 @@ LICENSE.txt), the "Godot - UE" export: about 14k triangles, Unreal bone names (p
 neck_01, Head, clavicle/upperarm/lowerarm/hand, thigh/calf/foot/ball, fingers). Texture paths in the
 .gltf were fixed to the shipped file names; textures import at 1024 px at most (phones).
 
-- `modular.tres` is the roster entry ("The Carrier (modular)", id `modular`), the default character.
+- `modular.tres` is the roster entry ("The Carrier (modular)", id `modular`), picked under Character. Not yet
+  the default: with the hard hat and vest drawn on it, a UI test crashed in .NET finalization (under study).
 - RigFollower.UseRigOf maps the Unreal names onto the mannequin's Rigify (DEF-*) bones, so every
   animation, foot IK, balance lean and the ragdoll drive this body unchanged.
 - The body ships in underwear. ClothingVisualController cuts a shirt, trousers and boots from the body

@@ -21,5 +21,9 @@ folder; see the release page) - Tab: repack at a station
 Esc: pause and Options (volume, video, controls) - R twice: give up (new mountain)
 
 Headphones recommended.
+
+Wallpaper folder: a thank-you from us for beta testing. Desktop (1920x1080, 2560x1440) and
+phone (1080x1920) wallpapers of the key art. Thank you for playing and for every report!
+
 If it crashes, send this file: %APPDATA%\Godot\app_userdata\Downhill Roguelite\logs\godot.log
 (paste that path into the Explorer address bar to open it)

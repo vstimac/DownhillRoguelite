@@ -9,7 +9,7 @@ export path), zip_path = ../Builds/DownhillRoguelite-playtest1-windows.zip.
 What it does, and why:
 - Checks the export is whole: the .exe (with .NET embedded, export preset
   dotnet/embed_build_outputs=true, so the exe still runs when copied out on its own).
-- Adds the player README and the race launcher from export/playtest/.
+- Adds the player README, the race launcher and the beta testers' Wallpaper folder from export/playtest/.
 - Puts the Microsoft Visual C++ runtime DLLs next to the companion library
   (libnobodywho...dll needs them; a freshly installed Windows doesn't have them). Microsoft
   allows shipping these files next to the program ("app-local" deployment).
@@ -28,6 +28,7 @@ EXE = "DownhillRoguelite.exe"
 COMPANION = "libnobodywho-godot-x86_64-pc-windows-msvc-release.dll"
 VC_RUNTIME = ["vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll", "vcomp140.dll"]
 EXTRA = ["README.txt", "Race - same mountain.bat"]
+WALLPAPER = "Wallpaper"
 
 
 def fail(message):
@@ -49,6 +50,9 @@ def main():
 
     for name in EXTRA:
         shutil.copy2(os.path.join(ROOT, "export", "playtest", name), os.path.join(export_dir, name))
+    wallpapers = os.path.join(ROOT, "export", "playtest", WALLPAPER)
+    shutil.copytree(wallpapers, os.path.join(export_dir, WALLPAPER), dirs_exist_ok=True)
+    wallpaper_files = sorted(os.listdir(wallpapers))
 
     if os.path.isfile(os.path.join(export_dir, COMPANION)):
         system32 = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
@@ -74,7 +78,7 @@ def main():
         names = [info.orig_filename for info in archive.infolist()]
     if any("\\" in name for name in names):
         fail("zip has backslash paths")
-    wanted = [EXE] + EXTRA
+    wanted = [EXE] + EXTRA + [WALLPAPER + "/" + name for name in wallpaper_files]
     if any(name.endswith(COMPANION) for name in names):
         wanted += VC_RUNTIME
     for name in wanted:
