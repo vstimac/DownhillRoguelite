@@ -74,6 +74,8 @@
 [ext_resource type="Resource" path="res://environment/wayside/resources/abandoned_pack.tres" id="59_ws_pack"]
 [ext_resource type="Resource" path="res://environment/wayside/resources/cold_spring.tres" id="59_ws_spring"]
 [ext_resource type="Script" uid="uid://cgp8blsuttgg0" path="res://debug/ObjectiveDebugOverlay.cs" id="60_objective_overlay"]
+[ext_resource type="Script" path="res://wildlife/BeastDirector.cs" id="61_beasts"]
+[ext_resource type="Resource" path="res://wildlife/default_beasts.tres" id="62_beast_roster"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
@@ -241,6 +243,10 @@ script = ExtResource("21_stations")
 [node name="Wildlife" type="Node3D" parent="." unique_id=918513975]
 script = ExtResource("36_wildlife")
 Table = ExtResource("37_wildlife_table")
+
+[node name="Beasts" type="Node3D" parent="." unique_id=2061730419]
+script = ExtResource("61_beasts")
+Roster = ExtResource("62_beast_roster")
 
 [node name="Supplies" type="Node3D" parent="." unique_id=1717619826]
 script = ExtResource("18_supplies")
