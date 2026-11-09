@@ -1,161 +1,108 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bve6n1fyl7h5x"]
 
 [ext_resource type="PackedScene" path="res://player/Player.tscn" id="3_player"]
-[ext_resource type="Script" path="res://debug/FreeFlyCamera.cs" id="4_fly"]
-[ext_resource type="Script" path="res://debug/DebugSceneControls.cs" id="5_controls"]
-[ext_resource type="Script" path="res://debug/LocomotionDebugOverlay.cs" id="6_overlay"]
-[ext_resource type="Script" path="res://debug/FootPlacementDebugOverlay.cs" id="7_foot_overlay"]
-[ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="8_inventory"]
+[ext_resource type="Script" uid="uid://cjtab8m1pphk8" path="res://debug/FreeFlyCamera.cs" id="4_fly"]
+[ext_resource type="Script" uid="uid://u7dkqmpnf76b" path="res://debug/DebugSceneControls.cs" id="5_controls"]
+[ext_resource type="Script" uid="uid://q7fjfv4hhn3q" path="res://debug/LocomotionDebugOverlay.cs" id="6_overlay"]
+[ext_resource type="Script" uid="uid://gx2ipb6wv55d" path="res://debug/FootPlacementDebugOverlay.cs" id="7_foot_overlay"]
+[ext_resource type="Script" uid="uid://dxsiye8ytrkrf" path="res://inventory/CarrierInventory.cs" id="8_inventory"]
+[ext_resource type="Script" uid="uid://dic760uw3xbij" path="res://debug/LoadDebugVisual.cs" id="9_load_visual"]
+[ext_resource type="Script" uid="uid://co7ftq2mabw4a" path="res://debug/BalanceDebugOverlay.cs" id="10_balance_overlay"]
 [ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="11_backpack"]
-[ext_resource type="Script" path="res://inventory/interaction/PackingMode.cs" id="12_packing"]
-[ext_resource type="Script" path="res://debug/VitalsDebugOverlay.cs" id="13_vitals"]
-[ext_resource type="Script" path="res://debug/LoadDebugVisual.cs" id="9_load_visual"]
-[ext_resource type="Script" path="res://debug/BalanceDebugOverlay.cs" id="10_balance_overlay"]
-[ext_resource type="Script" path="res://terrain/TerrainStreamer.cs" id="14_streamer"]
+[ext_resource type="Script" uid="uid://mb55y0rrf0kr" path="res://inventory/interaction/PackingMode.cs" id="12_packing"]
+[ext_resource type="Script" uid="uid://c5wkqpvt18vxh" path="res://debug/VitalsDebugOverlay.cs" id="13_vitals"]
+[ext_resource type="Script" uid="uid://bl2r2x6sgj3xs" path="res://terrain/TerrainStreamer.cs" id="14_streamer"]
 [ext_resource type="Resource" path="res://terrain/default_terrain.tres" id="15_terrain_settings"]
-[ext_resource type="Script" path="res://debug/TerrainDebugControls.cs" id="16_terrain_controls"]
-[ext_resource type="Script" path="res://debug/TerrainDebugOverlay.cs" id="17_terrain_overlay"]
-[ext_resource type="Script" path="res://inventory/world/SupplySpawner.cs" id="18_supplies"]
+[ext_resource type="Script" uid="uid://bw4v4t32p8t8i" path="res://debug/TerrainDebugControls.cs" id="16_terrain_controls"]
+[ext_resource type="Script" uid="uid://dgk1y3vfujbd0" path="res://debug/TerrainDebugOverlay.cs" id="17_terrain_overlay"]
+[ext_resource type="Script" uid="uid://ds8kn4f6oi2jk" path="res://inventory/world/SupplySpawner.cs" id="18_supplies"]
 [ext_resource type="Resource" path="res://inventory/world/default_supplies.tres" id="19_supply_table"]
-[ext_resource type="Script" path="res://environment/DayNightCycle.cs" id="20_daynight"]
-[ext_resource type="Script" path="res://map/StationManager.cs" id="21_stations"]
-[ext_resource type="Script" path="res://environment/weather/WeatherSystem.cs" id="22_weather"]
+[ext_resource type="Script" uid="uid://baqwbl42l2nlx" path="res://environment/DayNightCycle.cs" id="20_daynight"]
+[ext_resource type="Script" uid="uid://cqvo41wd7lv1f" path="res://map/StationManager.cs" id="21_stations"]
+[ext_resource type="Script" uid="uid://dc31nq0e23rn1" path="res://environment/weather/WeatherSystem.cs" id="22_weather"]
 [ext_resource type="Resource" path="res://environment/weather/default_weather.tres" id="23_weather_table"]
-[ext_resource type="Script" path="res://environment/weather/WeatherParticles.cs" id="24_weather_particles"]
-[ext_resource type="Shader" path="res://environment/sky/descent_sky.gdshader" id="25_sky_shader"]
-[ext_resource type="Script" path="res://audio/MusicPlayer.cs" id="26_music"]
-[ext_resource type="AudioStream" path="res://audio/music/descent_day.wav" id="27_day_track"]
-[ext_resource type="AudioStream" path="res://audio/music/descent_night.wav" id="28_night_track"]
-[ext_resource type="Script" path="res://narrative/NarratorDirector.cs" id="29_narrator"]
-[ext_resource type="Script" path="res://world_ui/PauseMenu.cs" id="30_pause"]
-[ext_resource type="Script" path="res://audio/WeatherAudio.cs" id="31_weather_audio"]
-[ext_resource type="AudioStream" path="res://audio/ambience/wind.wav" id="32_wind"]
-[ext_resource type="AudioStream" path="res://audio/ambience/rain.wav" id="33_rain"]
-[ext_resource type="Script" path="res://audio/Footsteps.cs" id="34_footsteps"]
-[ext_resource type="Script" path="res://world_ui/CircleTitle.cs" id="35_circle_title"]
-[ext_resource type="Script" path="res://wildlife/WildlifeSpawner.cs" id="36_wildlife"]
+[ext_resource type="Script" uid="uid://cdtm4oafr5hdu" path="res://environment/weather/WeatherParticles.cs" id="24_weather_particles"]
+[ext_resource type="Shader" uid="uid://dmprm03fp6531" path="res://environment/sky/descent_sky.gdshader" id="25_sky_shader"]
+[ext_resource type="Script" uid="uid://be5i1pp5qd4te" path="res://audio/MusicPlayer.cs" id="26_music"]
+[ext_resource type="AudioStream" uid="uid://du06k4uogifpu" path="res://audio/music/descent_day.wav" id="27_day_track"]
+[ext_resource type="AudioStream" uid="uid://cpb1bnhrpkf0g" path="res://audio/music/descent_night.wav" id="28_night_track"]
+[ext_resource type="Script" uid="uid://duai4dl8rn757" path="res://narrative/NarratorDirector.cs" id="29_narrator"]
+[ext_resource type="Script" uid="uid://mdeqwxp2sioj" path="res://world_ui/PauseMenu.cs" id="30_pause"]
+[ext_resource type="Script" uid="uid://wn0y45nieiel" path="res://audio/WeatherAudio.cs" id="31_weather_audio"]
+[ext_resource type="AudioStream" uid="uid://ts8prkcyp1kc" path="res://audio/ambience/wind.wav" id="32_wind"]
+[ext_resource type="AudioStream" uid="uid://dstuk46m2vut7" path="res://audio/ambience/rain.wav" id="33_rain"]
+[ext_resource type="Script" uid="uid://buexhnwir7iia" path="res://audio/Footsteps.cs" id="34_footsteps"]
+[ext_resource type="Script" uid="uid://cw67rea8yios8" path="res://world_ui/CircleTitle.cs" id="35_circle_title"]
+[ext_resource type="Script" uid="uid://sqr3cwa1wxob" path="res://wildlife/WildlifeSpawner.cs" id="36_wildlife"]
 [ext_resource type="Resource" path="res://wildlife/default_wildlife.tres" id="37_wildlife_table"]
-[ext_resource type="Script" path="res://debug/WildlifeDebugOverlay.cs" id="38_wildlife_overlay"]
-[ext_resource type="Script" path="res://world_ui/RunSummaryView.cs" id="39_summary"]
-[ext_resource type="Script" path="res://progression/BoonOfferings.cs" id="40_boons"]
-[ext_resource type="Script" path="res://progression/BoonDefinition.cs" id="41_boon"]
-[ext_resource type="Script" path="res://progression/StartingKit.cs" id="42_kit"]
-[ext_resource type="Script" path="res://map/FieldMap.cs" id="43_map"]
-[ext_resource type="Script" path="res://audio/SoundEffects.cs" id="44_sfx"]
-[ext_resource type="Script" path="res://ui/Hud.cs" id="45_hud"]
-[ext_resource type="Script" path="res://narrative/CompanionChat.cs" id="46_companion"]
-[ext_resource type="Script" path="res://narrative/CompanionVoice.cs" id="47_voice"]
-[ext_resource type="Script" path="res://environment/FootTrail.cs" id="49_trail"]
-[ext_resource type="Script" path="res://narrative/StationVisitors.cs" id="48_visitors"]
-[ext_resource type="Resource" path="res://narrative/npcs/pilgrim.tres" id="48_pilgrim"]
+[ext_resource type="Script" uid="uid://jfh1eh07di0c" path="res://debug/WildlifeDebugOverlay.cs" id="38_wildlife_overlay"]
+[ext_resource type="Script" uid="uid://bv6fvnuu6kcaq" path="res://world_ui/RunSummaryView.cs" id="39_summary"]
+[ext_resource type="Script" uid="uid://c28ey4m8oanqx" path="res://progression/BoonOfferings.cs" id="40_boons"]
+[ext_resource type="Script" uid="uid://wiwl5ne4vej" path="res://progression/BoonDefinition.cs" id="41_boon"]
+[ext_resource type="Script" uid="uid://bllagmfjvvhjw" path="res://progression/StartingKit.cs" id="42_kit"]
+[ext_resource type="Script" uid="uid://pam7n16ghgdh" path="res://map/FieldMap.cs" id="43_map"]
+[ext_resource type="Script" uid="uid://cuo0d3yn3c1bi" path="res://audio/SoundEffects.cs" id="44_sfx"]
+[ext_resource type="Script" uid="uid://cek8dcxu1b70l" path="res://ui/Hud.cs" id="45_hud"]
+[ext_resource type="Script" uid="uid://b8u8q8vqklmeu" path="res://narrative/CompanionChat.cs" id="46_companion"]
+[ext_resource type="Script" uid="uid://cu7mqtridr03m" path="res://narrative/CompanionVoice.cs" id="47_voice"]
 [ext_resource type="Resource" path="res://narrative/npcs/cartographer.tres" id="48_cartographer"]
-[ext_resource type="Resource" path="res://narrative/npcs/old_carrier.tres" id="48_old_carrier"]
 [ext_resource type="Resource" path="res://narrative/npcs/fire_keeper.tres" id="48_fire_keeper"]
+[ext_resource type="Resource" path="res://narrative/npcs/old_carrier.tres" id="48_old_carrier"]
 [ext_resource type="Resource" path="res://narrative/npcs/penitent.tres" id="48_penitent"]
-[ext_resource type="Script" path="res://world_ui/StartScreen.cs" id="49_start_screen"]
-[ext_resource type="Script" path="res://progression/contracts/ContractDirector.cs" id="50_contracts"]
+[ext_resource type="Resource" path="res://narrative/npcs/pilgrim.tres" id="48_pilgrim"]
+[ext_resource type="Script" uid="uid://b2wjmgqn356je" path="res://narrative/StationVisitors.cs" id="48_visitors"]
+[ext_resource type="Script" uid="uid://i6f7icm2ie46" path="res://world_ui/StartScreen.cs" id="49_start_screen"]
+[ext_resource type="Script" uid="uid://fvuoqxhimvmk" path="res://environment/FootTrail.cs" id="49_trail"]
+[ext_resource type="Script" uid="uid://lnmaamvwxdaf" path="res://progression/contracts/ContractDirector.cs" id="50_contracts"]
 [ext_resource type="Resource" path="res://progression/contracts/resources/courier_sealed_parcel.tres" id="51_courier_parcel"]
+[ext_resource type="Script" uid="uid://c0b670ku72rbi" path="res://narrative/LorePlacer.cs" id="52_lore"]
+[ext_resource type="Script" uid="uid://cgq30fpsfg2n6" path="res://environment/SetPiecePlacer.cs" id="53_set_pieces"]
 [ext_resource type="Resource" path="res://progression/contracts/resources/ct_001_letter_downhill.tres" id="54_ct_001_letter_downhill"]
 [ext_resource type="Resource" path="res://progression/contracts/resources/ct_002_stone_for_the_scale.tres" id="54_ct_002_stone_for_the_scale"]
 [ext_resource type="Resource" path="res://progression/contracts/resources/ct_003_glass_truth.tres" id="54_ct_003_glass_truth"]
 [ext_resource type="Resource" path="res://progression/contracts/resources/ct_004_empty_hands.tres" id="54_ct_004_empty_hands"]
 [ext_resource type="Resource" path="res://progression/contracts/resources/ct_005_someones_last_map.tres" id="54_ct_005_someones_last_map"]
-[ext_resource type="Script" path="res://narrative/LorePlacer.cs" id="52_lore"]
-[ext_resource type="Script" path="res://environment/SetPiecePlacer.cs" id="53_set_pieces"]
-[ext_resource type="Script" path="res://progression/relics/RelicDirector.cs" id="55_relics"]
+[ext_resource type="Script" uid="uid://845jy3kpkmn6" path="res://progression/relics/RelicDirector.cs" id="55_relics"]
 [ext_resource type="Resource" path="res://progression/relics/resources/rl_001_unsent_letter.tres" id="56_rl_001"]
 [ext_resource type="Resource" path="res://progression/relics/resources/rl_004_counterweight.tres" id="56_rl_004"]
-
-[sub_resource type="Resource" id="Boon_steady_legs"]
-script = ExtResource("41_boon")
-Id = "steady_legs"
-DisplayName = "Steady Legs"
-Description = "The pack sways less: balance is a fifth stronger."
-Glow = Color(0.6, 0.85, 1.0, 1)
-Balance = 1.2
-
-[sub_resource type="Resource" id="Boon_iron_lungs"]
-script = ExtResource("41_boon")
-Id = "iron_lungs"
-DisplayName = "Iron Lungs"
-Description = "Rest comes quicker: stamina recovers a quarter faster."
-Glow = Color(0.5, 1.0, 0.7, 1)
-StaminaRecovery = 1.25
-
-[sub_resource type="Resource" id="Boon_deep_reserves"]
-script = ExtResource("41_boon")
-Id = "deep_reserves"
-DisplayName = "Deep Reserves"
-Description = "More in the tank: a fifth more stamina."
-Glow = Color(0.4, 0.8, 1.0, 1)
-StaminaMax = 1.2
-
-[sub_resource type="Resource" id="Boon_light_step"]
-script = ExtResource("41_boon")
-Id = "light_step"
-DisplayName = "Light Step"
-Description = "Walking costs 15 % less stamina."
-Glow = Color(0.8, 1.0, 0.6, 1)
-WalkDrain = 0.85
-
-[sub_resource type="Resource" id="Boon_strong_back"]
-script = ExtResource("41_boon")
-Id = "strong_back"
-DisplayName = "Strong Back"
-Description = "The load's weight costs a fifth less stamina."
-Glow = Color(1.0, 0.7, 0.4, 1)
-LoadDrain = 0.8
-
-[sub_resource type="Resource" id="Boon_lean_belly"]
-script = ExtResource("41_boon")
-Id = "lean_belly"
-DisplayName = "Lean Belly"
-Description = "Hunger and thirst grow 15 % slower."
-Glow = Color(1.0, 0.85, 0.5, 1)
-NeedsDrain = 0.85
-
-[sub_resource type="Resource" id="Boon_thick_blood"]
-script = ExtResource("41_boon")
-Id = "thick_blood"
-DisplayName = "Thick Blood"
-Description = "A third of the cold can't reach you."
-Glow = Color(1.0, 0.45, 0.35, 1)
-ColdResistance = 0.33
-
-[sub_resource type="Resource" id="Boon_sure_footing"]
-script = ExtResource("41_boon")
-Id = "sure_footing"
-DisplayName = "Sure Footing"
-Description = "Feet find purchase: 15 % more grip on any ground."
-Glow = Color(0.75, 0.7, 0.6, 1)
-Grip = 1.15
-
-[sub_resource type="Resource" id="Boon_long_stride"]
-script = ExtResource("41_boon")
-Id = "long_stride"
-DisplayName = "Long Stride"
-Description = "You walk 8 % faster."
-Glow = Color(0.6, 1.0, 1.0, 1)
-WalkSpeed = 1.08
-
-[sub_resource type="Resource" id="Boon_deep_sleep"]
-script = ExtResource("41_boon")
-Id = "deep_sleep"
-DisplayName = "Deep Sleep"
-Description = "A night's sleep heals half again as much."
-Glow = Color(0.7, 0.6, 1.0, 1)
-SleepHeal = 1.5
+[ext_resource type="Script" uid="uid://4g7d81jjle2y" path="res://progression/objectives/ObjectiveDirector.cs" id="57_objectives"]
+[ext_resource type="Script" uid="uid://bby2j8ojspwwt" path="res://environment/wayside/WaysidePlacer.cs" id="58_wayside"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/foragers_cache.tres" id="59_ws_cache"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/carriers_grave.tres" id="59_ws_grave"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/menders_bundle.tres" id="59_ws_mender"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/abandoned_pack.tres" id="59_ws_pack"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/cold_spring.tres" id="59_ws_spring"]
+[ext_resource type="Script" uid="uid://cgp8blsuttgg0" path="res://debug/ObjectiveDebugOverlay.cs" id="60_objective_overlay"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
 shader_parameter/top_color = Color(0.3, 0.36, 0.46, 1)
 shader_parameter/horizon_color = Color(0.62, 0.62, 0.62, 1)
 shader_parameter/ground_color = Color(0.12, 0.12, 0.13, 1)
+shader_parameter/darkness = 0.0
+shader_parameter/overcast = 0.0
+shader_parameter/base_clouds = 0.35
+shader_parameter/cloud_color = Color(0.78, 0.78, 0.8, 1)
+shader_parameter/cloud_night_color = Color(0.05, 0.055, 0.07, 1)
+shader_parameter/cloud_offset = Vector2(0, 0)
+shader_parameter/cloud_scale = 0.6
+shader_parameter/star_density = 0.0025
+shader_parameter/star_brightness = 1.6
+shader_parameter/twinkle_time = 0.0
+shader_parameter/sun_disc_color = Color(1, 0.9, 0.75, 1)
+shader_parameter/moon_disc_color = Color(0.8, 0.85, 1, 1)
+shader_parameter/sun_size = 0.9995
+shader_parameter/moon_size = 0.9996
+shader_parameter/horizon_dip = 0.12
+shader_parameter/range_height = 0.075
+shader_parameter/range_darkness = 0.45
+shader_parameter/haze_tint = Color(0.92, 0.95, 1, 1)
+shader_parameter/mist_brightness = 1.06
+shader_parameter/mist_scale = 0.35
 
 [sub_resource type="Sky" id="Sky_main"]
 sky_material = SubResource("ShaderMaterial_sky")
 process_mode = 3
-radiance_size = 3
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 2
@@ -175,173 +122,264 @@ fog_density = 0.012
 fog_aerial_perspective = 0.55
 fog_sky_affect = 0.6
 adjustment_enabled = true
-adjustment_saturation = 0.72
 adjustment_contrast = 1.1
+adjustment_saturation = 0.72
 
-[node name="TestTerrain" type="Node3D"]
+[sub_resource type="Resource" id="Boon_steady_legs"]
+script = ExtResource("41_boon")
+Id = "steady_legs"
+DisplayName = "Steady Legs"
+Description = "The pack sways less: balance is a fifth stronger."
+Glow = Color(0.6, 0.85, 1, 1)
+Balance = 1.2
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[sub_resource type="Resource" id="Boon_iron_lungs"]
+script = ExtResource("41_boon")
+Id = "iron_lungs"
+DisplayName = "Iron Lungs"
+Description = "Rest comes quicker: stamina recovers a quarter faster."
+Glow = Color(0.5, 1, 0.7, 1)
+StaminaRecovery = 1.25
+
+[sub_resource type="Resource" id="Boon_deep_reserves"]
+script = ExtResource("41_boon")
+Id = "deep_reserves"
+DisplayName = "Deep Reserves"
+Description = "More in the tank: a fifth more stamina."
+Glow = Color(0.4, 0.8, 1, 1)
+StaminaMax = 1.2
+
+[sub_resource type="Resource" id="Boon_light_step"]
+script = ExtResource("41_boon")
+Id = "light_step"
+DisplayName = "Light Step"
+Description = "Walking costs 15 % less stamina."
+Glow = Color(0.8, 1, 0.6, 1)
+WalkDrain = 0.85
+
+[sub_resource type="Resource" id="Boon_strong_back"]
+script = ExtResource("41_boon")
+Id = "strong_back"
+DisplayName = "Strong Back"
+Description = "The load's weight costs a fifth less stamina."
+Glow = Color(1, 0.7, 0.4, 1)
+LoadDrain = 0.8
+
+[sub_resource type="Resource" id="Boon_lean_belly"]
+script = ExtResource("41_boon")
+Id = "lean_belly"
+DisplayName = "Lean Belly"
+Description = "Hunger and thirst grow 15 % slower."
+Glow = Color(1, 0.85, 0.5, 1)
+NeedsDrain = 0.85
+
+[sub_resource type="Resource" id="Boon_thick_blood"]
+script = ExtResource("41_boon")
+Id = "thick_blood"
+DisplayName = "Thick Blood"
+Description = "A third of the cold can't reach you."
+Glow = Color(1, 0.45, 0.35, 1)
+ColdResistance = 0.33
+
+[sub_resource type="Resource" id="Boon_sure_footing"]
+script = ExtResource("41_boon")
+Id = "sure_footing"
+DisplayName = "Sure Footing"
+Description = "Feet find purchase: 15 % more grip on any ground."
+Glow = Color(0.75, 0.7, 0.6, 1)
+Grip = 1.15
+
+[sub_resource type="Resource" id="Boon_long_stride"]
+script = ExtResource("41_boon")
+Id = "long_stride"
+DisplayName = "Long Stride"
+Description = "You walk 8 % faster."
+Glow = Color(0.6, 1, 1, 1)
+WalkSpeed = 1.08
+
+[sub_resource type="Resource" id="Boon_deep_sleep"]
+script = ExtResource("41_boon")
+Id = "deep_sleep"
+DisplayName = "Deep Sleep"
+Description = "A night's sleep heals half again as much."
+Glow = Color(0.7, 0.6, 1, 1)
+SleepHeal = 1.5
+
+[node name="TestTerrain" type="Node3D" unique_id=1906186202]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1251545348]
 environment = SubResource("Environment_main")
 
-[node name="Sun" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.866025, -0.187303, 0.463592, 0.000000, 0.927184, 0.374607, -0.500000, -0.324419, 0.802965, 0, 100, 0)
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1174007289]
+transform = Transform3D(0.866025, -0.187303, 0.463592, 0, 0.927184, 0.374607, -0.5, -0.324419, 0.802965, 0, 100, 0)
 light_color = Color(0.86, 0.88, 0.95, 1)
 light_energy = 0.75
 shadow_enabled = true
 directional_shadow_max_distance = 120.0
 
-[node name="Terrain" type="Node3D" parent="."]
+[node name="Terrain" type="Node3D" parent="." unique_id=1812529261]
 script = ExtResource("14_streamer")
 Settings = ExtResource("15_terrain_settings")
 RandomSeedOnStart = true
 
-[node name="DayNight" type="Node" parent="." node_paths=PackedStringArray("Sun", "World")]
+[node name="DayNight" type="Node" parent="." unique_id=732582283 node_paths=PackedStringArray("Sun", "World")]
 script = ExtResource("20_daynight")
 Sun = NodePath("../Sun")
 World = NodePath("../WorldEnvironment")
 
-[node name="Weather" type="Node" parent="."]
+[node name="Weather" type="Node" parent="." unique_id=68359637]
 script = ExtResource("22_weather")
 Table = ExtResource("23_weather_table")
 
-[node name="WeatherParticles" type="Node3D" parent="."]
+[node name="WeatherParticles" type="Node3D" parent="." unique_id=1723845549]
 script = ExtResource("24_weather_particles")
 
-[node name="Stations" type="Node3D" parent="."]
+[node name="Stations" type="Node3D" parent="." unique_id=1778854391]
 script = ExtResource("21_stations")
 
-[node name="Wildlife" type="Node3D" parent="."]
+[node name="Wildlife" type="Node3D" parent="." unique_id=918513975]
 script = ExtResource("36_wildlife")
 Table = ExtResource("37_wildlife_table")
 
-[node name="Supplies" type="Node3D" parent="."]
+[node name="Supplies" type="Node3D" parent="." unique_id=1717619826]
 script = ExtResource("18_supplies")
 Table = ExtResource("19_supply_table")
 
-[node name="Player" parent="." instance=ExtResource("3_player")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.75, 15.05, 10)
+[node name="Player" parent="." unique_id=1914789764 instance=ExtResource("3_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.750035, 15.054848, 10.001066)
 
-[node name="Inventory" type="Node" parent="Player"]
+[node name="Inventory" type="Node" parent="Player" unique_id=105522899]
 script = ExtResource("8_inventory")
 Backpack = ExtResource("11_backpack")
 StartingItemPaths = PackedStringArray()
 AutoPackOnStart = false
 
-[node name="LoadVisual" type="Node3D" parent="Player"]
+[node name="LoadVisual" type="Node3D" parent="Player" unique_id=374256173]
 script = ExtResource("9_load_visual")
 
-[node name="FlyCamera" type="Camera3D" parent="."]
+[node name="FlyCamera" type="Camera3D" parent="." unique_id=119348772]
 far = 1000.0
 script = ExtResource("4_fly")
 
-[node name="TerrainControls" type="Node" parent="." node_paths=PackedStringArray("Streamer", "PlayerBody")]
+[node name="TerrainControls" type="Node" parent="." unique_id=1342556499 node_paths=PackedStringArray("Streamer", "PlayerBody")]
 script = ExtResource("16_terrain_controls")
 Streamer = NodePath("../Terrain")
 PlayerBody = NodePath("../Player")
 
-[node name="DebugControls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "PlayerCamera", "FlyCamera", "Weather", "Streamer")]
+[node name="DebugControls" type="Node" parent="." unique_id=985907744 node_paths=PackedStringArray("PlayerBody", "PlayerCamera", "FlyCamera", "Weather", "Streamer")]
 script = ExtResource("5_controls")
-KillHeight = -1e+09
 PlayerBody = NodePath("../Player")
 PlayerCamera = NodePath("../Player/CameraRig/SpringArm/Camera")
 FlyCamera = NodePath("../FlyCamera")
 Weather = NodePath("../Weather")
 Streamer = NodePath("../Terrain")
+KillHeight = -1000000000.0
 
-[node name="LocomotionOverlay" type="CanvasLayer" parent="."]
+[node name="LocomotionOverlay" type="CanvasLayer" parent="." unique_id=1413224649]
 script = ExtResource("6_overlay")
 
-[node name="FootOverlay" type="Node" parent="."]
+[node name="FootOverlay" type="Node" parent="." unique_id=110512194]
 script = ExtResource("7_foot_overlay")
 
-
-[node name="BalanceOverlay" type="CanvasLayer" parent="."]
+[node name="BalanceOverlay" type="CanvasLayer" parent="." unique_id=1367353406]
 script = ExtResource("10_balance_overlay")
 
-[node name="Packing" type="Node3D" parent="." node_paths=PackedStringArray("Inventory", "PlayerBody", "PlayerCamera")]
+[node name="Packing" type="Node3D" parent="." unique_id=1160890296 node_paths=PackedStringArray("Inventory", "PlayerBody", "PlayerCamera")]
 script = ExtResource("12_packing")
 Inventory = NodePath("../Player/Inventory")
 PlayerBody = NodePath("../Player")
 PlayerCamera = NodePath("../Player/CameraRig/SpringArm/Camera")
 
-[node name="VitalsOverlay" type="CanvasLayer" parent="."]
+[node name="VitalsOverlay" type="CanvasLayer" parent="." unique_id=604371908]
 script = ExtResource("13_vitals")
 
-[node name="TerrainOverlay" type="CanvasLayer" parent="." node_paths=PackedStringArray("Streamer")]
+[node name="TerrainOverlay" type="CanvasLayer" parent="." unique_id=1853083665 node_paths=PackedStringArray("Streamer")]
 script = ExtResource("17_terrain_overlay")
 Streamer = NodePath("../Terrain")
 
-[node name="Music" type="Node" parent="."]
+[node name="Music" type="Node" parent="." unique_id=390701379]
 script = ExtResource("26_music")
 DayTrack = ExtResource("27_day_track")
 NightTrack = ExtResource("28_night_track")
 
-[node name="WeatherAudio" type="Node" parent="."]
+[node name="WeatherAudio" type="Node" parent="." unique_id=1399613579]
 script = ExtResource("31_weather_audio")
 WindLoop = ExtResource("32_wind")
 RainLoop = ExtResource("33_rain")
 
-[node name="Footsteps" type="Node" parent="."]
+[node name="Footsteps" type="Node" parent="." unique_id=1297591177]
 script = ExtResource("34_footsteps")
 
-[node name="CircleTitle" type="Node3D" parent="."]
+[node name="CircleTitle" type="Node3D" parent="." unique_id=1609058986]
 script = ExtResource("35_circle_title")
 
-[node name="Narrator" type="Node" parent="."]
+[node name="Narrator" type="Node" parent="." unique_id=705435390]
 script = ExtResource("29_narrator")
 
-[node name="Companion" type="Node" parent="."]
+[node name="Companion" type="Node" parent="." unique_id=874194714]
 script = ExtResource("46_companion")
 
-[node name="CompanionVoice" type="Node3D" parent="."]
+[node name="CompanionVoice" type="Node3D" parent="." unique_id=1112224164]
 script = ExtResource("47_voice")
 
-[node name="FootTrail" type="Node3D" parent="."]
+[node name="FootTrail" type="Node3D" parent="." unique_id=83683003]
 script = ExtResource("49_trail")
 
-[node name="Visitors" type="Node3D" parent="."]
+[node name="Visitors" type="Node3D" parent="." unique_id=579738286]
 script = ExtResource("48_visitors")
 Personas = [ExtResource("48_pilgrim"), ExtResource("48_cartographer"), ExtResource("48_old_carrier"), ExtResource("48_fire_keeper"), ExtResource("48_penitent")]
 
-[node name="PauseMenu" type="CanvasLayer" parent="."]
+[node name="PauseMenu" type="CanvasLayer" parent="." unique_id=379047615]
 script = ExtResource("30_pause")
 
-[node name="WildlifeOverlay" type="CanvasLayer" parent="." node_paths=PackedStringArray("Spawner")]
+[node name="WildlifeOverlay" type="CanvasLayer" parent="." unique_id=8869241 node_paths=PackedStringArray("Spawner")]
 script = ExtResource("38_wildlife_overlay")
 Spawner = NodePath("../Wildlife")
 
-[node name="RunSummary" type="Node3D" parent="."]
+[node name="RunSummary" type="Node3D" parent="." unique_id=1522288183]
 script = ExtResource("39_summary")
 
-[node name="Boons" type="Node3D" parent="."]
+[node name="Boons" type="Node3D" parent="." unique_id=1003249237]
 script = ExtResource("40_boons")
 Boons = [SubResource("Boon_steady_legs"), SubResource("Boon_iron_lungs"), SubResource("Boon_deep_reserves"), SubResource("Boon_light_step"), SubResource("Boon_strong_back"), SubResource("Boon_lean_belly"), SubResource("Boon_thick_blood"), SubResource("Boon_sure_footing"), SubResource("Boon_long_stride"), SubResource("Boon_deep_sleep")]
 
-[node name="Contracts" type="Node3D" parent="."]
+[node name="Contracts" type="Node3D" parent="." unique_id=286667526]
 script = ExtResource("50_contracts")
 Contracts = [ExtResource("51_courier_parcel"), ExtResource("54_ct_001_letter_downhill"), ExtResource("54_ct_002_stone_for_the_scale"), ExtResource("54_ct_003_glass_truth"), ExtResource("54_ct_004_empty_hands"), ExtResource("54_ct_005_someones_last_map")]
 
-[node name="Lore" type="Node3D" parent="."]
+[node name="Lore" type="Node3D" parent="." unique_id=1586556100]
 script = ExtResource("52_lore")
 
-[node name="SetPieces" type="Node3D" parent="."]
+[node name="SetPieces" type="Node3D" parent="." unique_id=421797648]
 script = ExtResource("53_set_pieces")
 
-[node name="Relics" type="Node3D" parent="."]
+[node name="Relics" type="Node3D" parent="." unique_id=2021290421]
 script = ExtResource("55_relics")
 Relics = [ExtResource("56_rl_001"), ExtResource("56_rl_004")]
 
-[node name="StartingKit" type="Node" parent="."]
+[node name="Wayside" type="Node3D" parent="." unique_id=1266550322]
+script = ExtResource("58_wayside")
+Definitions = [ExtResource("59_ws_spring"), ExtResource("59_ws_pack"), ExtResource("59_ws_grave"), ExtResource("59_ws_cache"), ExtResource("59_ws_mender")]
+
+[node name="Objectives" type="Node" parent="." unique_id=960615987]
+script = ExtResource("57_objectives")
+
+[node name="ObjectiveOverlay" type="CanvasLayer" parent="." unique_id=1529110087 node_paths=PackedStringArray("Director", "Wayside")]
+script = ExtResource("60_objective_overlay")
+Director = NodePath("../Objectives")
+Wayside = NodePath("../Wayside")
+
+[node name="StartingKit" type="Node" parent="." unique_id=1183888386]
 script = ExtResource("42_kit")
 
-[node name="FieldMap" type="Node3D" parent="."]
+[node name="FieldMap" type="Node3D" parent="." unique_id=59869751]
 script = ExtResource("43_map")
 
-[node name="SoundEffects" type="Node" parent="."]
+[node name="SoundEffects" type="Node" parent="." unique_id=1519605839]
 script = ExtResource("44_sfx")
 
-[node name="Hud" type="CanvasLayer" parent="."]
+[node name="Hud" type="CanvasLayer" parent="." unique_id=2004278248]
 script = ExtResource("45_hud")
 
-[node name="StartScreen" type="CanvasLayer" parent="."]
+[node name="StartScreen" type="CanvasLayer" parent="." unique_id=783849376]
 script = ExtResource("49_start_screen")
