@@ -28,6 +28,19 @@ public partial class BeastSpecies : Resource
     [Export] public string WalkClip { get; set; } = "walk";
     [Export] public string RunClip { get; set; } = "run";
 
+    [ExportGroup("Voice")]
+    /// <summary>Played as it crouches before a charge (the warning), one picked at random.</summary>
+    [Export] public string[] GrowlSounds { get; set; } = System.Array.Empty<string>();
+    /// <summary>Played as it charges and as it tears food from the pack.</summary>
+    [Export] public string[] SnarlSounds { get; set; } = System.Array.Empty<string>();
+    /// <summary>Its call while it stalks (a howl, a roar), now and then, heard from far off.</summary>
+    [Export] public string[] CallSounds { get; set; } = System.Array.Empty<string>();
+    /// <summary>Seconds between calls while stalking.</summary>
+    [Export] public Vector2 CallInterval { get; set; } = new(16.0f, 30.0f);
+    [Export] public float VoiceVolumeDb { get; set; } = 6.0f;
+    /// <summary>How far its voice carries, in m.</summary>
+    [Export] public float VoiceRange { get; set; } = 70.0f;
+
     [ExportGroup("Body")]
     /// <summary>Width, height and length of the collision body, in m (a capsule fits inside; keep it a little smaller than the model so it doesn't snag on rough ground).</summary>
     [Export] public Vector3 BodySize { get; set; } = new(0.6f, 1.0f, 1.1f);

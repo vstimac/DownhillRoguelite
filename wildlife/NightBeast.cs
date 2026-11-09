@@ -48,6 +48,10 @@ public partial class NightBeast : CharacterBody3D
     public float DetourTime { get; set; } = 1.0f;
 
     private RandomNumberGenerator _random = new();
+    private AudioStreamPlayer3D? _voice;
+    private float _callTimer;
+    /// <summary>Voices loaded once and shared by every beast (no reloading while it hunts).</summary>
+    private static readonly System.Collections.Generic.Dictionary<string, AudioStream?> Voices = new();
     private AnimationPlayer? _animation;
     private string _clip = "";
     private float _timer;
@@ -103,6 +107,20 @@ public partial class NightBeast : CharacterBody3D
                 break;
             }
         }
+        // Headless runs (tests) have no audio output and never release playing streams.
+        if (DisplayServer.GetName() != "headless")
+        {
+            _voice = new AudioStreamPlayer3D
+            {
+                Name = "Voice",
+                VolumeDb = species.VoiceVolumeDb,
+                MaxDistance = species.VoiceRange,
+                UnitSize = 8.0f,
+                Position = species.EyeOffset,
+            };
+            AddChild(_voice);
+        }
+        _callTimer = _random.RandfRange(species.CallInterval.X * 0.3f, species.CallInterval.Y * 0.6f);
         _eyes = new Node3D { Name = "Eyes", Position = species.EyeOffset };
         StandardMaterial3D glow = new()
         {
@@ -170,12 +188,19 @@ public partial class NightBeast : CharacterBody3D
                     break;
                 }
                 walk = Stalk(dt, carrier, distance, facing);
+                _callTimer -= dt;
+                if (_callTimer <= 0.0f)
+                {
+                    Say(Species.CallSounds);
+                    _callTimer = _random.RandfRange(Species.CallInterval.X, Species.CallInterval.Y);
+                }
                 AttackTimer -= dt * hunger;
                 if (AttackTimer <= 0.0f && mayAttack)
                 {
                     State = Mode.WindUp;
                     _timer = Species.WindUp;
                     Play(Species.IdleClip, 2.5f);
+                    Say(Species.GrowlSounds);
                 }
                 break;
             case Mode.WindUp:
@@ -188,6 +213,7 @@ public partial class NightBeast : CharacterBody3D
                 if (_timer <= 0.0f)
                 {
                     State = Mode.Charge;
+                    Say(Species.SnarlSounds);
                     _chargeDirection = facing;
                     _timer = distance / Mathf.Max(Species.ChargeSpeed, 0.1f) + 0.8f;
                     Play(Species.RunClip, 1.6f);
@@ -356,6 +382,7 @@ public partial class NightBeast : CharacterBody3D
         if (species.StealsFood && FoodInPack.Length > 0)
         {
             LastHit = FoodInPack;
+            Say(species.SnarlSounds);
             GameEvents.RequestDrop(FoodInPack);
             GameEvents.RequestLaunch(_chargeDirection * species.ThrowSpeed * 0.5f, species.ThrowHeight * 0.4f, species.DisplayName);
         }
@@ -366,6 +393,32 @@ public partial class NightBeast : CharacterBody3D
         }
         State = Mode.Retreat;
         Play(species.RunClip, 1.0f);
+    }
+
+    /// <summary>Plays one of <paramref name="sounds"/> at random from where it stands.</summary>
+    private void Say(string[] sounds)
+    {
+        if (_voice == null || sounds.Length == 0)
+        {
+            return;
+        }
+        string path = sounds[_random.RandiRange(0, sounds.Length - 1)];
+        if (!Voices.TryGetValue(path, out AudioStream? stream))
+        {
+            stream = null;
+            if (ResourceLoader.Exists(path))
+            {
+                stream = ResourceLoader.Load<AudioStream>(path);
+            }
+            Voices[path] = stream;
+        }
+        if (stream == null)
+        {
+            return;
+        }
+        _voice.Stream = stream;
+        _voice.PitchScale = _random.RandfRange(0.94f, 1.06f);
+        _voice.Play();
     }
 
     private void BackToStalking()

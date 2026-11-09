@@ -8,6 +8,9 @@
 
 [sub_resource type="Resource" id="SheWolf"]
 script = ExtResource("1_species")
+GrowlSounds = PackedStringArray("res://audio/creatures/she_wolf_growl_0.wav", "res://audio/creatures/she_wolf_growl_1.wav", "res://audio/creatures/she_wolf_growl_2.wav")
+SnarlSounds = PackedStringArray("res://audio/creatures/she_wolf_snarl_0.wav", "res://audio/creatures/she_wolf_snarl_1.wav")
+CallSounds = PackedStringArray("res://audio/creatures/she_wolf_howl_0.wav", "res://audio/creatures/she_wolf_howl_1.wav")
 DisplayName = "she-wolf"
 Model = ExtResource("2_dog")
 ModelScale = 0.95
@@ -31,6 +34,9 @@ Weight = 3.0
 
 [sub_resource type="Resource" id="Leopard"]
 script = ExtResource("1_species")
+GrowlSounds = PackedStringArray("res://audio/creatures/leopard_growl_0.wav", "res://audio/creatures/leopard_growl_1.wav")
+SnarlSounds = PackedStringArray("res://audio/creatures/leopard_snarl_0.wav", "res://audio/creatures/leopard_snarl_1.wav")
+CallSounds = PackedStringArray("res://audio/creatures/leopard_chuff_0.wav")
 DisplayName = "leopard"
 Model = ExtResource("3_tiger")
 ModelScale = 0.9
@@ -54,6 +60,9 @@ Weight = 2.0
 
 [sub_resource type="Resource" id="Lion"]
 script = ExtResource("1_species")
+GrowlSounds = PackedStringArray("res://audio/creatures/lion_growl_0.wav", "res://audio/creatures/lion_growl_1.wav")
+SnarlSounds = PackedStringArray("res://audio/creatures/lion_snarl_0.wav", "res://audio/creatures/lion_snarl_1.wav")
+CallSounds = PackedStringArray("res://audio/creatures/lion_roar_0.wav")
 DisplayName = "lion"
 Model = ExtResource("4_lion")
 ModelScale = 1.1
