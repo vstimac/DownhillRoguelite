@@ -58,6 +58,7 @@
 [ext_resource type="Script" path="res://wildlife/TuntunSpawner.cs" id="92_tuntun"]
 [ext_resource type="Script" path="res://debug/FcatOverlay.cs" id="93_fcat"]
 [ext_resource type="Script" path="res://debug/CartSpawner.cs" id="94_cart"]
+[ext_resource type="Script" path="res://debug/LeakMonitor.cs" id="95_leak"]
 [ext_resource type="Script" uid="uid://fvuoqxhimvmk" path="res://environment/FootTrail.cs" id="49_trail"]
 [ext_resource type="Script" uid="uid://lnmaamvwxdaf" path="res://progression/contracts/ContractDirector.cs" id="50_contracts"]
 [ext_resource type="Resource" path="res://progression/contracts/resources/courier_sealed_parcel.tres" id="51_courier_parcel"]
@@ -413,6 +414,9 @@ script = ExtResource("92_tuntun")
 
 [node name="CartSpawner" type="Node3D" parent="." unique_id=1907733377]
 script = ExtResource("94_cart")
+
+[node name="LeakMonitor" type="Node" parent="." unique_id=1907733388]
+script = ExtResource("95_leak")
 
 [node name="Fcat" type="CanvasLayer" parent="." unique_id=1907733412]
 script = ExtResource("93_fcat")
