@@ -80,7 +80,7 @@ States `not_started / active / ready / completed`, saved. Each pays once (finish
 - The stand is placed on the path 400 m lower. A knock of 6+ damage while the banner rides on the pack's outside (exposure ≥ 0.5) tears it. A torn banner can still be planted: partial hand-in, `q3_broken` and +1 favour instead of `q3_complete` and +3.
 - If the run ends before the banner is planted, the banner is lost and the quest can be taken again.
 - Reward: the **megaphone**. Use it from the hotbar; it has a 30 s cooldown. It publishes `GameEvents.MegaphoneBlasted(position, radius 25 m, confuse 4 s, notice 10 s)`, then raises `GameEvents.Detectability` to 1.3 for the notice time.
-- **Interface only:** no hunter reads these yet. The night beasts (`wildlife/BeastDirector`) can scale attacks by `Detectability` and stall within the radius on `MegaphoneBlasted`.
+- The night beasts (`wildlife/BeastDirector`, docs/night-beasts.md) answer both: a blast throws off every beast in its radius for 4 s (a crouch or a charge breaks off), and while `Detectability` is above 1 they attack that much sooner. The podium's 1.1 counts too.
 
 ## The restsite
 
@@ -131,4 +131,5 @@ Per run only (not saved): the podium speech, the placed records, workers and mat
   - E talks; 1–5 choose.
   - Take "Imaš posao?" for quest 1. The records are on the way to Station 3.
   - `-- --president-voice=forest` plays the forest takes.
+  - `-- --at-station=1 --at-president` starts beside him (renders and quick checks). Renders (`--write-movie`) keep the save in memory, like tests.
   - To start over, delete `%APPDATA%/Godot/app_userdata/<project>/restsite_president.cfg`.

@@ -144,7 +144,9 @@ public partial class PresidentDirector : Node3D, IPresidentHost
         Manifest = VoiceManifest.Load(ManifestPath);
         Pack = VoicePack.Load(VoicePackPath);
         Text = TextTable.Load(TextPath);
-        Save = new PresidentSave(PersistentSave && DisplayServer.GetName() != "headless");
+        // Renders (--write-movie) keep the save in memory too, so screenshots don't count as visits.
+        bool rendering = System.Array.IndexOf(OS.GetCmdlineArgs(), "--write-movie") >= 0;
+        Save = new PresidentSave(PersistentSave && DisplayServer.GetName() != "headless" && !rendering);
         Dialogue = new PresidentDialogue(this, Manifest);
         GD.Print($"Restsite president: {Manifest.Count} lines, {Pack.Count} recorded ({VoiceVariant}), {Text.Count} texts.");
         GameEvents.StationReached += OnStation;

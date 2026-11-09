@@ -10,7 +10,10 @@ namespace DownhillRoguelite.Wildlife;
 /// beasts in out of sight behind the carrier (more of them deeper down), lets one attack at a time
 /// (none while the carrier is down), hurries them when the carrier carries food, and sends them
 /// away at a fire, in a shelter or at dawn. Says what's happening through hints (GameEvents.PublishHint).
-/// Reads only GameEvents, RunState and the WorldClock; Step can be driven directly by tests.
+/// A noticed carrier (GameEvents.Detectability above 1: the president's podium, the megaphone's echo)
+/// is attacked that much sooner; a megaphone blast (GameEvents.MegaphoneBlasted) throws off the beasts
+/// in its radius for a few seconds. Reads only GameEvents, RunState and the WorldClock; Step can be
+/// driven directly by tests.
 /// </summary>
 public partial class BeastDirector : Node3D
 {
@@ -40,6 +43,8 @@ public partial class BeastDirector : Node3D
     [Export] public float GoneDistance { get; set; } = 70.0f;
     /// <summary>Attacks come this much faster while the carrier carries food (it can be smelled).</summary>
     [Export] public float FoodHurry { get; set; } = 1.6f;
+    /// <summary>Said when a megaphone blast throws off a beast.</summary>
+    [Export] public string MegaphoneHint { get; set; } = "The noise throws the beasts off for a moment. Then they know exactly where you are.";
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
     [Export(PropertyHint.Layers3DPhysics)] public uint BodyLayer { get; set; } = 8;
     [Export(PropertyHint.Layers3DPhysics)] public uint BodyMask { get; set; } = 9;
@@ -83,6 +88,7 @@ public partial class BeastDirector : Node3D
         GameEvents.LocomotionUpdated += OnLocomotion;
         GameEvents.DownedChanged += OnDowned;
         GameEvents.RespawnRequested += Clear;
+        GameEvents.MegaphoneBlasted += OnMegaphone;
     }
 
     public override void _ExitTree()
@@ -90,6 +96,31 @@ public partial class BeastDirector : Node3D
         GameEvents.LocomotionUpdated -= OnLocomotion;
         GameEvents.DownedChanged -= OnDowned;
         GameEvents.RespawnRequested -= Clear;
+        GameEvents.MegaphoneBlasted -= OnMegaphone;
+    }
+
+    /// <summary>Throws off every beast within the blast's radius. Returns how many.</summary>
+    public int Blast(Vector3 at, float radius, float confuseSeconds)
+    {
+        int count = 0;
+        foreach (NightBeast beast in _beasts)
+        {
+            if (beast.GlobalPosition.DistanceTo(at) <= radius && beast.State != NightBeast.Mode.Leave)
+            {
+                beast.Confuse(confuseSeconds);
+                count++;
+            }
+        }
+        if (count > 0)
+        {
+            GameEvents.PublishHint(MegaphoneHint);
+        }
+        return count;
+    }
+
+    private void OnMegaphone(Vector3 at, float radius, float confuseSeconds, float noticeSeconds)
+    {
+        Blast(at, radius, confuseSeconds);
     }
 
     private void OnLocomotion(LocomotionSnapshot snapshot)
@@ -129,6 +160,8 @@ public partial class BeastDirector : Node3D
         {
             hunger = FoodHurry;
         }
+        // Noticed (the podium, the megaphone's echo): attacks come that much sooner.
+        hunger *= Mathf.Max(GameEvents.Detectability, 0.1f);
         bool someoneAttacking = false;
         foreach (NightBeast beast in _beasts)
         {

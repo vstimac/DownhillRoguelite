@@ -18,7 +18,9 @@ Dante meets three beasts at the foot of the hill: a leopard, a lion and a she-wo
 5. **Hit.** A hit throws the carrier `ThrowHeight` into the air along the charge (`GameEvents.RequestLaunch`). Space on the way down primes the roll and softens the landing; otherwise a hard landing knocks them down.
 6. **Retreat.** Hit or miss, it backs off to the edge of its ring and stalks again.
 
-Only one beast attacks at a time, and none while the carrier is down. Food in the pack (any item of category Food in `GameEvents.CarriedItems`) can be smelled: attacks come `FoodHurry` (1.6×) sooner.
+Only one beast attacks at a time, and none while the carrier is down. Food in the pack (any item of category Food in `GameEvents.CarriedItems`) can be smelled: attacks come `FoodHurry` (1.6×) sooner. A noticed carrier (`GameEvents.Detectability` above 1: the restsite president's podium speech, the megaphone's echo) is attacked that much sooner again.
+
+A megaphone blast (`GameEvents.MegaphoneBlasted`, docs/restsite-president.md) throws off every beast in its radius for a few seconds: a crouch or a charge under way breaks off, and it backs away without attacking. Then the echo makes the carrier easier to notice.
 
 ## The three beasts (`wildlife/default_beasts.tres`)
 
@@ -41,7 +43,7 @@ How many hunt at once: `BaseBeasts` + circle / `BeastsPerCircles`, at most `MaxB
 ## Debug and tests
 
 - `godot --path . -- --hour=23 --beasts-now`: night, and the beasts come within seconds.
-- `debug/tests/BeastTests.tscn`: none by day; one arrives behind at night; it stalks at a distance; it growls before it charges and the hit throws; a late sidestep makes it miss; the she-wolf takes food; fire and dawn send them away; more beasts deeper, no lion in Limbo.
+- `debug/tests/BeastTests.tscn`: none by day; one arrives behind at night; it stalks at a distance; it growls before it charges and the hit throws; a late sidestep makes it miss; the she-wolf takes food; a noticed carrier is attacked sooner; a megaphone blast breaks off a crouch; fire and dawn send them away; more beasts deeper, no lion in Limbo.
 
 ## Later
 

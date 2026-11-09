@@ -24,6 +24,8 @@ public partial class NightBeast : CharacterBody3D
 
     public BeastSpecies? Species { get; private set; }
     public Mode State { get; private set; } = Mode.Stalk;
+    /// <summary>Seconds left of being thrown off by a loud noise (the megaphone): it backs away and doesn't attack.</summary>
+    public float ConfusedFor { get; private set; }
     public float Radius { get; private set; }
     /// <summary>Seconds until it next attacks (counts down while stalking).</summary>
     public float AttackTimer { get; set; }
@@ -153,9 +155,20 @@ public partial class NightBeast : CharacterBody3D
         }
 
         Vector3 walk = Vector3.Zero;
+        if (ConfusedFor > 0.0f)
+        {
+            ConfusedFor = Mathf.Max(0.0f, ConfusedFor - dt);
+        }
         switch (State)
         {
             case Mode.Stalk:
+                if (ConfusedFor > 0.0f)
+                {
+                    // Thrown off: shies away from the noise and forgets the attack for now.
+                    walk = -facing * Species.StalkSpeed;
+                    Turn(-facing, dt);
+                    break;
+                }
                 walk = Stalk(dt, carrier, distance, facing);
                 AttackTimer -= dt * hunger;
                 if (AttackTimer <= 0.0f && mayAttack)
@@ -236,6 +249,28 @@ public partial class NightBeast : CharacterBody3D
             _held = 0.0f;
             _detour = DetourTime;
             _detourSide = -_detourSide;
+        }
+    }
+
+    /// <summary>
+    /// A loud noise close by (the megaphone): for these seconds it backs away and doesn't attack; a
+    /// crouch or a charge already under way breaks off. A leaving beast just keeps leaving.
+    /// </summary>
+    public void Confuse(float seconds)
+    {
+        if (State == Mode.Leave || Species == null)
+        {
+            return;
+        }
+        ConfusedFor = Mathf.Max(ConfusedFor, seconds);
+        if (State == Mode.WindUp || State == Mode.Charge)
+        {
+            State = Mode.Retreat;
+            if (_eyes != null)
+            {
+                _eyes.Scale = _eyesBase;
+            }
+            Play(Species.RunClip, 1.0f);
         }
     }
 
