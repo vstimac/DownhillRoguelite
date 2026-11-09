@@ -56,6 +56,7 @@
 [ext_resource type="Script" path="res://world_ui/LoadingScreen.cs" id="90_loading_screen"]
 [ext_resource type="Script" path="res://world_ui/ClappingCatOverlay.cs" id="91_clapping_cat"]
 [ext_resource type="Script" path="res://wildlife/TuntunSpawner.cs" id="92_tuntun"]
+[ext_resource type="Script" path="res://debug/FcatOverlay.cs" id="93_fcat"]
 [ext_resource type="Script" uid="uid://fvuoqxhimvmk" path="res://environment/FootTrail.cs" id="49_trail"]
 [ext_resource type="Script" uid="uid://lnmaamvwxdaf" path="res://progression/contracts/ContractDirector.cs" id="50_contracts"]
 [ext_resource type="Resource" path="res://progression/contracts/resources/courier_sealed_parcel.tres" id="51_courier_parcel"]
@@ -408,3 +409,6 @@ script = ExtResource("91_clapping_cat")
 
 [node name="Tuntun" type="Node3D" parent="." unique_id=1907733311]
 script = ExtResource("92_tuntun")
+
+[node name="Fcat" type="CanvasLayer" parent="." unique_id=1907733412]
+script = ExtResource("93_fcat")
