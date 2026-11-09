@@ -346,6 +346,14 @@ public partial class OptionsPanel : ParchmentPanel
             Changed = i => GameOptions.SetDisplay((DisplayMode)i),
         });
         WindowSizeRow(video);
+        Add(video, new ChoiceRow
+        {
+            Label = "Quality",
+            Hint = "Low: lower render resolution, short shadows, fewer trees and grass far away; for weak GPUs and laptops. High: the full look.",
+            Options = new[] { "Low", "Medium", "High" },
+            Selected = (int)GameOptions.Quality,
+            Changed = i => GameOptions.SetQuality((GraphicsQuality)i),
+        });
         Add(video, ChoiceRow.Toggle("Vertical sync", GameOptions.VSync, GameOptions.SetVSync,
             "Matches frames to the screen's refresh: no tearing, a touch more input delay."));
         FrameCapRow(video);

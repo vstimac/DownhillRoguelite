@@ -14,6 +14,20 @@ public partial class OptionsApplier : Node
 {
     private static readonly string[] Buses = { "Master", "Music", "Voice", "Ambience" };
 
+    [ExportGroup("Quality presets (Low, Medium, High)")]
+    /// <summary>3D render resolution as a share of the window (upscaled with FSR below 1).</summary>
+    [Export] public Vector3 RenderScale { get; set; } = new(0.67f, 0.85f, 1.0f);
+    /// <summary>Sun shadow map size, in pixels.</summary>
+    [Export] public Vector3I ShadowSize { get; set; } = new(1024, 2048, 4096);
+    /// <summary>How far the sun's shadows reach, in m.</summary>
+    [Export] public Vector3 ShadowDistance { get; set; } = new(40.0f, 55.0f, 70.0f);
+    /// <summary>Shadow edge softness (RenderingServer.ShadowQuality: 0 hard … 5 ultra).</summary>
+    [Export] public Vector3I ShadowSoftness { get; set; } = new(0, 1, 2);
+    /// <summary>Mesh detail threshold (higher drops detail sooner).</summary>
+    [Export] public Vector3 LodThreshold { get; set; } = new(4.0f, 2.0f, 1.0f);
+    /// <summary>Ambient occlusion (SSAO) on Low, Medium and High.</summary>
+    [Export] public Vector3I AmbientOcclusion { get; set; } = new(0, 1, 1);
+
     /// <summary>
     /// 0–1 on top of the master volume: the start screen keeps the world silent (0) and fades it in
     /// after Start. Changing a volume in Options never overrides it.
@@ -31,6 +45,8 @@ public partial class OptionsApplier : Node
         GameOptions.Changed += Apply;
         GetTree().Root.ContentScaleFactor = GameOptions.UiScale;
         ApplyVolumes();
+        // After the scene is in, so its sun and environment are there to set.
+        Callable.From(ApplyQuality).CallDeferred();
         // Render captures and headless runs keep the window they were given on the command line.
         if (OwnsWindow())
         {
@@ -57,9 +73,58 @@ public partial class OptionsApplier : Node
         root.ContentScaleFactor = GameOptions.UiScale;
         Debug.DebugDraw3D.SetEnabled(GameOptions.PathLines);
         ApplyVolumes();
+        ApplyQuality();
         if (OwnsWindow())
         {
             ApplyWindow();
+        }
+    }
+
+    /// <summary>
+    /// The graphics preset: render scale (FSR below full), the sun's shadow size, reach and softness,
+    /// mesh detail, and ambient occlusion. The terrain reads the preset for its plant view distances
+    /// (newly built ground), so Low also thins the far forest.
+    /// </summary>
+    private void ApplyQuality()
+    {
+        if (!IsInsideTree())
+        {
+            return;
+        }
+        int q = (int)GameOptions.Quality;
+        Viewport root = GetTree().Root;
+        float scale = RenderScale[q];
+        root.Scaling3DScale = scale;
+        if (scale < 0.999f)
+        {
+            root.Scaling3DMode = Viewport.Scaling3DModeEnum.Fsr;
+        }
+        else
+        {
+            root.Scaling3DMode = Viewport.Scaling3DModeEnum.Bilinear;
+        }
+        root.MeshLodThreshold = LodThreshold[q];
+        RenderingServer.DirectionalShadowAtlasSetSize(ShadowSize[q], true);
+        RenderingServer.DirectionalSoftShadowFilterSetQuality((RenderingServer.ShadowQuality)ShadowSoftness[q]);
+        foreach (Node node in GetTree().Root.FindChildren("*", "DirectionalLight3D", true, false))
+        {
+            if (node is DirectionalLight3D sun && sun.ShadowEnabled)
+            {
+                sun.DirectionalShadowMaxDistance = ShadowDistance[q];
+            }
+        }
+        Godot.Environment? environment = root.World3D?.Environment;
+        if (environment == null)
+        {
+            foreach (Node node in GetTree().Root.FindChildren("*", "WorldEnvironment", true, false))
+            {
+                environment = (node as WorldEnvironment)?.Environment;
+                break;
+            }
+        }
+        if (environment != null)
+        {
+            environment.SsaoEnabled = AmbientOcclusion[q] > 0;
         }
     }
 

@@ -245,6 +245,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
                 fade = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self;
             }
             else if (kind == PlantKind.Pebble) { view = _generator.Settings.PebbleViewDistance; }
+            view *= _generator.Settings.QualityViewScale[(int)DownhillRoguelite.Core.GameOptions.Quality];
             AddChild(new MultiMeshInstance3D
             {
                 Name = kind + "Batch",
