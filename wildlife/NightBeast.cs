@@ -466,6 +466,10 @@ public partial class NightBeast : CharacterBody3D
         {
             return;
         }
+        if (Species != null && clip == Species.RunClip && speed >= 1.0f)
+        {
+            speed *= Species.RunClipSpeed;
+        }
         _animation.SpeedScale = speed;
         if (_clip == clip)
         {

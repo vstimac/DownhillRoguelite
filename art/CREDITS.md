@@ -12,6 +12,7 @@ These packs are credited as CC0/public-domain releases by their respective creat
 | `art/creatures/quaternius_enemies` | Easy Animated Enemy Pack (Jan 2019) | Quaternius |
 | `art/creatures/quaternius_farm_animals` | Farm Animals Pack | Quaternius |
 | `art/creatures/kenney_cube_pets` | Cube Pets 2.0 | Kenney |
+| `art/creatures/quaternius_wolf` | Animal Pack Vol.2 (the wolf only) | Quaternius |
 | `art/items/kenney_survival_kit` | Survival Kit | Kenney |
 | `art/items/kenney_food_kit` | Food Kit | Kenney |
 | `art/props/kenney_graveyard_kit` | Graveyard Kit | Kenney |

@@ -27,6 +27,8 @@ public partial class BeastSpecies : Resource
     [Export] public string IdleClip { get; set; } = "idle";
     [Export] public string WalkClip { get; set; } = "walk";
     [Export] public string RunClip { get; set; } = "run";
+    /// <summary>Playback speed of the run clip (a model with only a walk cycle plays it faster to run).</summary>
+    [Export] public float RunClipSpeed { get; set; } = 1.0f;
 
     [ExportGroup("Voice")]
     /// <summary>Played as it crouches before a charge (the warning), one picked at random.</summary>
