@@ -67,7 +67,7 @@ Every item has a **category**:
 
 | | Easy | Normal | Hard |
 | --- | --- | --- | --- |
-| Real minutes per in-game day | 48 | 36 | 24 |
+| Real minutes per in-game day | 30 | 20 | 14 |
 | Hunger / thirst drain | ×0.7 | ×1 | ×1.4 |
 | Supplies in the world | ×1.4 | ×1 | ×0.7 |
 | Night harshness (cold damage, darkness) | mild | full | full, plus no starting light |

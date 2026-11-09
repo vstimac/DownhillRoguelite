@@ -11,7 +11,7 @@ public partial class DifficultySettings : Resource
 {
     [Export] public string DisplayName { get; set; } = "Normal";
     /// <summary>Real minutes per 24-hour in-game day.</summary>
-    [Export] public float DayLengthMinutes { get; set; } = 36.0f;
+    [Export] public float DayLengthMinutes { get; set; } = 20.0f;
     /// <summary>Multiplier on hunger and thirst drain.</summary>
     [Export] public float NeedsDrainMultiplier { get; set; } = 1.0f;
     /// <summary>Multiplier on how many supplies are scattered in the world.</summary>
