@@ -9,6 +9,8 @@ on:
 
 jobs:
   discord:
+    # A forced push (history rewritten, or a branch reset) carries no new work: don't repost old commits.
+    if: github.event_name != 'push' || !github.event.forced
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
