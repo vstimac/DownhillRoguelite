@@ -172,7 +172,7 @@ public partial class CarrierModel : Node3D
         {
             vestItem = VestItem;
         }
-        _worn = new CarrierWornGear { Name = "WornGear", Skeleton = skeleton, Vest = _vest, HelmetItem = helmetItem, VestItem = vestItem };
+        _worn = new CarrierWornGear { Name = "WornGear", Skeleton = skeleton, CharacterId = character.Id, Vest = _vest, HelmetItem = helmetItem, VestItem = vestItem };
         AddChild(_worn);
         Clothing = new ClothingVisualController { Name = "ClothingVisuals", Skeleton = skeleton, CharacterId = CharacterId };
         AddChild(Clothing);

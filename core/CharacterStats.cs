@@ -2,6 +2,7 @@ using Godot;
 namespace DownhillRoguelite.Core;
 
 /// <summary>Fictional gameplay tuning for a character; defaults are neutral. No mutable run state lives in this asset.</summary>
+[Tool]
 [GlobalClass]
 public partial class CharacterStats : Resource
 {

@@ -8,6 +8,7 @@ namespace DownhillRoguelite.Core;
 /// own pieces show the hard hat, the hair and the hi-vis vest; when they're empty, worn gear is drawn
 /// on the character instead (CarrierWornGear).
 /// </summary>
+[Tool]
 [GlobalClass]
 public partial class CarrierCharacter : Resource
 {

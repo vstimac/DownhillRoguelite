@@ -4,8 +4,10 @@
 [sub_resource type="Resource" id="Visual"]
 script = ExtResource("2_visual")
 Kind = 4
-AttachmentBone = "Spine1"
-Offset = Vector3(0, 0.05, 0.24)
+AttachmentBone = "Spine2"
+Offset = Vector3(0, -0.08, 0.24)
+FitBackpackToBody = true
+BackpackClearance = 0.015
 Colour = Color(0.36, 0.29, 0.18, 1)
 [resource]
 script = ExtResource("1_item")
