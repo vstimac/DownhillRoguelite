@@ -6,7 +6,8 @@ namespace DownhillRoguelite.WorldUi;
 /// <summary>
 /// When the carrier dies (GameEvents.RunEnded) a cat claps for him: a short green-screen video,
 /// keyed out, standing at the side of the screen over the run's summary. Esc skips it; it hides at
-/// the end of the clip or when the next run begins. Never takes the mouse.
+/// the end of the clip or when the next run begins. Never takes the mouse. If Tuntun Sahur's bat
+/// was the last thing to hit the carrier before he died, "Meow Meow" plays as well, until the next run.
 /// </summary>
 public partial class ClappingCatOverlay : CanvasLayer
 {
@@ -25,7 +26,20 @@ public partial class ClappingCatOverlay : CanvasLayer
     /// <summary>Width over height used until the video reports its own size (the clip is upright).</summary>
     [Export] public float FallbackAspect { get; set; } = 0.5625f;
 
+    [ExportGroup("Killed by Tuntun")]
+    [Export(PropertyHint.File, "*.mp3,*.ogg,*.wav")] public string TuntunMusicPath { get; set; } = "res://audio/music/meow_meow.mp3";
+    /// <summary>The cause Tuntun Sahur's hits carry (TuntunSahur.Cause).</summary>
+    [Export] public string TuntunCause { get; set; } = "Tuntun Sahur";
+    /// <summary>A death this soon after his hit (s) counts as his doing.</summary>
+    [Export] public float TuntunWindowSeconds { get; set; } = 10.0f;
+    [Export] public float MusicVolumeDb { get; set; } = -3.0f;
+    [Export] public StringName MusicBus { get; set; } = "Music";
+
     public bool Playing => _player != null && _player.Visible;
+    public bool MusicPlaying => _music != null && _music.Playing;
+
+    private AudioStreamPlayer? _music;
+    private double _tuntunHitAt = -1.0e9;
 
     private VideoStreamPlayer? _player;
     private float _wait = -1.0f;
@@ -60,12 +74,23 @@ public partial class ClappingCatOverlay : CanvasLayer
         GetViewport().SizeChanged += Place;
         GameEvents.RunEnded += OnRunEnded;
         GameEvents.RespawnRequested += Stop;
+        GameEvents.RespawnRequested += StopMusic;
+        GameEvents.KnockdownRequested += OnKnockdown;
+        GameEvents.LaunchRequested += OnLaunch;
+        if (ResourceLoader.Exists(TuntunMusicPath) && ResourceLoader.Load(TuntunMusicPath) is AudioStream song)
+        {
+            _music = new AudioStreamPlayer { Name = "TuntunMusic", Stream = song, VolumeDb = MusicVolumeDb, Bus = MusicBus };
+            AddChild(_music);
+        }
     }
 
     public override void _ExitTree()
     {
         GameEvents.RunEnded -= OnRunEnded;
         GameEvents.RespawnRequested -= Stop;
+        GameEvents.RespawnRequested -= StopMusic;
+        GameEvents.KnockdownRequested -= OnKnockdown;
+        GameEvents.LaunchRequested -= OnLaunch;
     }
 
     public override void _Process(double delta)
@@ -117,11 +142,56 @@ public partial class ClappingCatOverlay : CanvasLayer
 
     private void OnRunEnded(RunSummary summary)
     {
+        bool tuntun = KilledByTuntun(summary.Cause);
         if (DisplayServer.GetName() == "headless")
         {
             return;
         }
         _wait = Mathf.Max(DelaySeconds, 0.0f);
+        if (tuntun)
+        {
+            PlayMusic();
+        }
+    }
+
+    /// <summary>Whether this death is Tuntun Sahur's: his name is the cause, or his bat hit just before.</summary>
+    public bool KilledByTuntun(string cause)
+    {
+        if (!string.IsNullOrEmpty(cause) && cause.Contains(TuntunCause))
+        {
+            return true;
+        }
+        return Time.GetTicksMsec() / 1000.0 - _tuntunHitAt <= TuntunWindowSeconds;
+    }
+
+    /// <summary>Starts "Meow Meow" from the beginning (also for tests and renders).</summary>
+    public void PlayMusic()
+    {
+        _music?.Play();
+    }
+
+    public void StopMusic()
+    {
+        _music?.Stop();
+        _tuntunHitAt = -1.0e9;
+    }
+
+    private void OnKnockdown(Vector3 velocity, string cause)
+    {
+        NoteHit(cause);
+    }
+
+    private void OnLaunch(Vector3 velocity, float height, string cause)
+    {
+        NoteHit(cause);
+    }
+
+    private void NoteHit(string cause)
+    {
+        if (cause == TuntunCause)
+        {
+            _tuntunHitAt = Time.GetTicksMsec() / 1000.0;
+        }
     }
 
     /// <summary>Sizes the clip to the screen, keeping its aspect, and stands it at <see cref="Placement"/>.</summary>

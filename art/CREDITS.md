@@ -15,6 +15,7 @@ These packs are credited as CC0/public-domain releases by their respective creat
 | `art/creatures/quaternius_wolf` | Animal Pack Vol.2 (the wolf only) | Quaternius |
 | `art/creatures/tuntun` | Tuntun Sahur (STL supplied by the director, decimated) | unknown — check rights before a public release |
 | `art/video/clapping_cat.ogv` | Clapping cat (green-screen clip, supplied by the director) | unknown — check rights before a public release |
+| `audio/music/meow_meow.mp3` | "Meow Meow Meow (Original Mix)" by Meow Meow (supplied by the director; plays when Tuntun Sahur kills the carrier) | unknown — commercial track, check rights before a public release |
 | `art/items/kenney_survival_kit` | Survival Kit | Kenney |
 | `art/items/kenney_food_kit` | Food Kit | Kenney |
 | `art/props/kenney_graveyard_kit` | Graveyard Kit | Kenney |
