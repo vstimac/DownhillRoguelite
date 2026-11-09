@@ -45,8 +45,16 @@ public static class GameOptions
     /// <summary>Frame-rate cap; 0 = none.</summary>
     public static int MaxFps { get; private set; }
 
-    /// <summary>Multiplier on the camera's mouse and stick look speed (0.25–3).</summary>
+    /// <summary>Multiplier on the camera's right-stick look speed (0.25–3).</summary>
     public static float LookSensitivity { get; private set; } = 1.0f;
+    /// <summary>Linear multiplier on the camera's mouse look (0.1–5; 1 is the game's base speed).</summary>
+    public static float MouseSensitivity { get; private set; } = 1.0f;
+    /// <summary>Mouse look is eased over a few hundredths of a second (off: every count turns at once).</summary>
+    public static bool MouseSmoothing { get; private set; }
+    /// <summary>In-game mouse acceleration, 0 (off) to 1: faster flicks turn further per count.</summary>
+    public static float MouseAcceleration { get; private set; }
+    /// <summary>Raw mouse counts, bypassing the desktop's pointer speed and acceleration (off: look follows them, Windows only).</summary>
+    public static bool RawInput { get; private set; } = true;
     /// <summary>Moving the mouse up looks down.</summary>
     public static bool InvertLook { get; private set; }
     /// <summary>Spoken lines are captioned on screen.</summary>
@@ -90,6 +98,10 @@ public static class GameOptions
         VSync = true;
         MaxFps = 0;
         LookSensitivity = 1.0f;
+        MouseSensitivity = 1.0f;
+        MouseSmoothing = false;
+        MouseAcceleration = 0.0f;
+        RawInput = true;
         InvertLook = false;
         Subtitles = true;
         Character = "modular";
@@ -130,6 +142,11 @@ public static class GameOptions
         VSync = (bool)file.GetValue(Section, "vsync", VSync);
         MaxFps = Mathf.Max(0, (int)file.GetValue(Section, "max_fps", MaxFps));
         LookSensitivity = Mathf.Clamp((float)file.GetValue(Section, "look_sensitivity", LookSensitivity), 0.25f, 3.0f);
+        // Before Beta 2.4 one look sensitivity served mouse and stick: it carries over to the mouse.
+        MouseSensitivity = Mathf.Clamp((float)file.GetValue(Section, "mouse_sensitivity", LookSensitivity), 0.1f, 5.0f);
+        MouseSmoothing = (bool)file.GetValue(Section, "mouse_smoothing", MouseSmoothing);
+        MouseAcceleration = Mathf.Clamp((float)file.GetValue(Section, "mouse_acceleration", MouseAcceleration), 0.0f, 1.0f);
+        RawInput = (bool)file.GetValue(Section, "raw_input", RawInput);
         InvertLook = (bool)file.GetValue(Section, "invert_look", InvertLook);
         Subtitles = (bool)file.GetValue(Section, "subtitles", Subtitles);
         Changed?.Invoke();
@@ -154,6 +171,10 @@ public static class GameOptions
     public static void SetVSync(bool on) => Set(() => VSync = on);
     public static void SetMaxFps(int fps) => Set(() => MaxFps = Mathf.Max(0, fps));
     public static void SetLookSensitivity(float multiplier) => Set(() => LookSensitivity = Mathf.Clamp(multiplier, 0.25f, 3.0f));
+    public static void SetMouseSensitivity(float multiplier) => Set(() => MouseSensitivity = Mathf.Clamp(multiplier, 0.1f, 5.0f));
+    public static void SetMouseSmoothing(bool on) => Set(() => MouseSmoothing = on);
+    public static void SetMouseAcceleration(float amount) => Set(() => MouseAcceleration = Mathf.Clamp(amount, 0.0f, 1.0f));
+    public static void SetRawInput(bool on) => Set(() => RawInput = on);
     public static void SetInvertLook(bool on) => Set(() => InvertLook = on);
     public static void SetSubtitles(bool on) => Set(() => Subtitles = on);
 
@@ -207,6 +228,10 @@ public static class GameOptions
         file.SetValue(Section, "vsync", VSync);
         file.SetValue(Section, "max_fps", MaxFps);
         file.SetValue(Section, "look_sensitivity", LookSensitivity);
+        file.SetValue(Section, "mouse_sensitivity", MouseSensitivity);
+        file.SetValue(Section, "mouse_smoothing", MouseSmoothing);
+        file.SetValue(Section, "mouse_acceleration", MouseAcceleration);
+        file.SetValue(Section, "raw_input", RawInput);
         file.SetValue(Section, "invert_look", InvertLook);
         file.SetValue(Section, "subtitles", Subtitles);
         file.Save(_path);

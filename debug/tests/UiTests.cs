@@ -67,6 +67,7 @@ public partial class UiTests : Node3D
         TestSubtitles();
         TestLayout();
         await TestOptionsSaved();
+        TestMouseLook();
         await TestMenuLayout();
         await TestStartScreen();
 
@@ -297,7 +298,7 @@ public partial class UiTests : Node3D
         await Wait(0.1f);
         SliderRow? master = sheet.Row("Master volume") as SliderRow;
         ChoiceRow? subtitles = sheet.Row("Subtitles") as ChoiceRow;
-        SliderRow? look = sheet.Row("Look sensitivity") as SliderRow;
+        SliderRow? look = sheet.Row("Mouse sensitivity") as SliderRow;
         ChoiceRow? window = sheet.Row("Window") as ChoiceRow;
         if (master == null || subtitles == null || look == null || window == null)
         {
@@ -328,10 +329,10 @@ public partial class UiTests : Node3D
         float wantDb = Mathf.LinearToDb(Mathf.Max(GameOptions.MasterVolume * OptionsApplier.Hush, 0.0001f));
         bool bus = Mathf.Abs(busDb - wantDb) < 0.1f && Mathf.IsEqualApprox(GameOptions.MasterVolume, 0.5f);
         bool captions = Ui?.Captions != null && !Ui.Captions.Visible;
-        bool sensitivity = GameOptions.LookSensitivity > 1.0f;
+        bool sensitivity = GameOptions.MouseSensitivity > 1.0f;
         Check("options are saved and applied the moment they change",
             Mathf.IsEqualApprox(savedMaster, 0.5f) && savedSubtitles && savedDisplay && bus && captions && sensitivity,
-            $"saved master {savedMaster:0.00}, subtitles off {savedSubtitles}, borderless {savedDisplay}, Master bus {busDb:0.0} dB (want {wantDb:0.0}), captions hidden {captions}, look x{GameOptions.LookSensitivity:0.00}");
+            $"saved master {savedMaster:0.00}, subtitles off {savedSubtitles}, borderless {savedDisplay}, Master bus {busDb:0.0} dB (want {wantDb:0.0}), captions hidden {captions}, mouse x{GameOptions.MouseSensitivity:0.00}");
 
         // Reset all asks once more, then puts everything back (and the rows show it).
         InkButton? reset = null;
@@ -363,6 +364,60 @@ public partial class UiTests : Node3D
     }
 
     /// <summary>The start screen, pause menu and every Options tab fit 720p and 1080p with nothing clipped.</summary>
+    /// <summary>The mouse options: linear sensitivity, acceleration off at 0, smoothing keeps the total, all saved.</summary>
+    private void TestMouseLook()
+    {
+        MouseLookFilter filter = new();
+        float dt = 1.0f / 60.0f;
+        filter.Add(new Vector2(10.0f, 0.0f));
+        float plain = filter.Take(dt, 1.0f, 0.0f, false, true).X;
+        filter.Add(new Vector2(10.0f, 0.0f));
+        float doubled = filter.Take(dt, 2.0f, 0.0f, false, true).X;
+        bool linear = Mathf.IsEqualApprox(plain, 10.0f) && Mathf.IsEqualApprox(doubled, 20.0f);
+
+        // Acceleration: a slow and a fast movement turn the same per count at 0, the fast one further when on.
+        filter.Add(new Vector2(2.0f, 0.0f));
+        float slowOn = filter.Take(dt, 1.0f, 1.0f, false, true).X / 2.0f;
+        filter.Add(new Vector2(60.0f, 0.0f));
+        float fastOn = filter.Take(dt, 1.0f, 1.0f, false, true).X / 60.0f;
+        filter.Add(new Vector2(60.0f, 0.0f));
+        float fastOff = filter.Take(dt, 1.0f, 0.0f, false, true).X / 60.0f;
+        // Raw input off must leave the in-game acceleration working (the desktop gain comes first).
+        filter.Add(new Vector2(60.0f, 0.0f));
+        float fastNotRaw = filter.Take(dt, 1.0f, 1.0f, false, false).X;
+        filter.Add(new Vector2(60.0f, 0.0f));
+        float fastNotRawOff = filter.Take(dt, 1.0f, 0.0f, false, false).X;
+        bool acceleration = Mathf.IsEqualApprox(fastOff, 1.0f) && fastOn > slowOn * 1.5f && fastNotRaw > fastNotRawOff * 1.5f;
+
+        // Smoothing: less at once, the same in total.
+        filter.Clear();
+        filter.Add(new Vector2(30.0f, 0.0f));
+        float first = filter.Take(dt, 1.0f, 0.0f, true, true).X;
+        float total = first;
+        for (int i = 0; i < 120; i++)
+        {
+            total += filter.Take(dt, 1.0f, 0.0f, true, true).X;
+        }
+        bool smoothing = first < 30.0f * 0.8f && Mathf.Abs(total - 30.0f) < 0.01f;
+
+        // Saved and read back.
+        GameOptions.SetMouseSmoothing(true);
+        GameOptions.SetMouseAcceleration(0.4f);
+        GameOptions.SetRawInput(false);
+        ConfigFile file = new();
+        bool saved = file.Load(TestOptionsPath) == Error.Ok
+            && (bool)file.GetValue("options", "mouse_smoothing", false)
+            && Mathf.IsEqualApprox((float)file.GetValue("options", "mouse_acceleration", 0.0f), 0.4f)
+            && !(bool)file.GetValue("options", "raw_input", true);
+        GameOptions.UseFile(TestOptionsPath);
+        bool loaded = GameOptions.MouseSmoothing && Mathf.IsEqualApprox(GameOptions.MouseAcceleration, 0.4f) && !GameOptions.RawInput;
+        GameOptions.RestoreDefaults();
+        bool defaults = !GameOptions.MouseSmoothing && GameOptions.MouseAcceleration == 0.0f && GameOptions.RawInput && GameOptions.MouseSensitivity == 1.0f;
+        Check("mouse options combine as they should and are saved", linear && acceleration && smoothing && saved && loaded && defaults,
+            $"linear {linear} ({plain:0.00}, {doubled:0.00}), acceleration {acceleration} (slow {slowOn:0.00}, fast {fastOn:0.00}, off {fastOff:0.00}, not raw {fastNotRaw:0.0} vs {fastNotRawOff:0.0}), " +
+            $"smoothing {smoothing} (first {first:0.0}, total {total:0.00}), saved {saved}, loaded {loaded}, defaults {defaults}");
+    }
+
     private async Task TestMenuLayout()
     {
         Camera3D? game = GetViewport().GetCamera3D();

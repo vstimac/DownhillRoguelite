@@ -389,10 +389,58 @@ public partial class OptionsPanel : ParchmentPanel
         Add(access, ChoiceRow.Toggle("Subtitles", GameOptions.Subtitles, GameOptions.SetSubtitles,
             "Spoken lines are written on screen, on the side the voice comes from."));
 
+        // Mouse: applied in this order (MouseLookFilter): desktop pointer settings (Raw input off only),
+        // in-game acceleration, sensitivity, smoothing.
         Add(controls, new SliderRow
         {
-            Label = "Look sensitivity",
-            Hint = "How fast the camera turns with the mouse or the right stick.",
+            Label = "Mouse sensitivity",
+            Hint = "How far the camera turns per mouse movement. Linear: 2.00x turns twice as far.",
+            Min = 0.1,
+            Max = 5.0,
+            StepSize = 0.05,
+            Value = GameOptions.MouseSensitivity,
+            Format = "{0:0.00}x",
+            Live = true,
+            Changed = v => GameOptions.SetMouseSensitivity((float)v),
+        });
+        Add(controls, ChoiceRow.Toggle("Mouse smoothing", GameOptions.MouseSmoothing, GameOptions.SetMouseSmoothing,
+            "Eases the camera's turn over a few hundredths of a second. Smoother, with a little delay; the total turn is the same."));
+        Add(controls, new SliderRow
+        {
+            Label = "Mouse acceleration",
+            Hint = "Faster flicks turn further per movement. 0% is off: the turn always matches the movement. Works with Raw input on or off.",
+            Min = 0.0,
+            Max = 1.0,
+            StepSize = 0.05,
+            Value = GameOptions.MouseAcceleration,
+            ShowScale = 100.0,
+            Format = "{0:0}%",
+            Live = true,
+            Changed = v => GameOptions.SetMouseAcceleration((float)v),
+        });
+        string rawHint = "Yes: the mouse's own movement, ignoring the desktop's pointer speed and \"Enhance pointer precision\". " +
+            "No: the camera follows them like the desktop cursor.";
+        if (OS.GetName() != "Windows")
+        {
+            rawHint += " (Only Windows has desktop settings to follow; elsewhere both read the raw movement.)";
+        }
+        int raw = 0;
+        if (GameOptions.RawInput)
+        {
+            raw = 1;
+        }
+        Add(controls, new ChoiceRow
+        {
+            Label = "Raw input",
+            Hint = rawHint,
+            Options = new[] { "No", "Yes" },
+            Selected = raw,
+            Changed = i => GameOptions.SetRawInput(i == 1),
+        });
+        Add(controls, new SliderRow
+        {
+            Label = "Stick sensitivity",
+            Hint = "How fast the camera turns with the right stick of a controller.",
             Min = 0.25,
             Max = 3.0,
             StepSize = 0.05,

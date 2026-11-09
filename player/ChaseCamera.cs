@@ -37,6 +37,12 @@ public partial class ChaseCamera : Node3D
     [ExportGroup("Control")]
     /// <summary>Degrees per pixel of mouse movement.</summary>
     [Export] public float MouseSensitivity { get; set; } = 0.15f;
+    /// <summary>Mouse acceleration: the mouse speed (counts per second) at which full acceleration doubles the turn.</summary>
+    [Export] public float AccelerationReferenceSpeed { get; set; } = 1500.0f;
+    /// <summary>Most extra gain mouse acceleration can add (on top of 1).</summary>
+    [Export] public float AccelerationMaxBoost { get; set; } = 3.0f;
+    /// <summary>Mouse smoothing's time constant, in seconds.</summary>
+    [Export] public float SmoothingSeconds { get; set; } = 0.035f;
     /// <summary>Degrees per second at full right-stick deflection.</summary>
     [Export] public float StickSpeed { get; set; } = 140.0f;
     [Export] public float FollowSharpness { get; set; } = 14.0f;
@@ -51,6 +57,8 @@ public partial class ChaseCamera : Node3D
     private float _yawDegrees;
     private float _pitchDegrees;
     private float _timeSinceLook;
+    private readonly MouseLookFilter _mouse = new();
+    private bool _desktopRead;
 
     public override void _Ready()
     {
@@ -81,6 +89,8 @@ public partial class ChaseCamera : Node3D
             GameOptions.Load();
             Camera.Fov = GameOptions.FieldOfView;
             GameOptions.Changed += ApplyFieldOfView;
+            GameOptions.Changed += ReadDesktopPointer;
+            ReadDesktopPointer();
             if (Camera.Current)
             {
                 Input.MouseMode = Input.MouseModeEnum.Captured;
@@ -93,6 +103,7 @@ public partial class ChaseCamera : Node3D
     public override void _ExitTree()
     {
         GameOptions.Changed -= ApplyFieldOfView;
+        GameOptions.Changed -= ReadDesktopPointer;
         if (Target is PlayerController controller)
         {
             controller.Teleported -= SnapBehindTarget;
@@ -122,6 +133,7 @@ public partial class ChaseCamera : Node3D
         _yawDegrees = Mathf.RadToDeg(Target.GlobalRotation.Y);
         _pitchDegrees = DefaultPitch;
         _timeSinceLook = 0.0f;
+        _mouse.Clear();
         GlobalPosition = PivotOf(Target);
         ApplyRotation();
     }
@@ -136,8 +148,8 @@ public partial class ChaseCamera : Node3D
 
         if (@event is InputEventMouseMotion motion && Input.MouseMode == Input.MouseModeEnum.Captured)
         {
-            _yawDegrees -= motion.Relative.X * MouseSensitivity * GameOptions.LookSensitivity;
-            _pitchDegrees -= motion.Relative.Y * MouseSensitivity * GameOptions.LookSensitivity * LookPitchSign();
+            // Gathered here, turned in _Process once a frame (acceleration and smoothing need the frame's time).
+            _mouse.Add(motion.Relative);
             _timeSinceLook = 0.0f;
         }
         else if (@event.IsActionPressed(ActionReleaseMouse))
@@ -148,6 +160,16 @@ public partial class ChaseCamera : Node3D
         {
             Input.MouseMode = Input.MouseModeEnum.Captured;
         }
+    }
+
+    /// <summary>With Raw input off the camera follows the desktop's pointer settings: read them when it turns off.</summary>
+    private void ReadDesktopPointer()
+    {
+        if (!GameOptions.RawInput && !_desktopRead)
+        {
+            DesktopPointer.Refresh();
+        }
+        _desktopRead = !GameOptions.RawInput;
     }
 
     /// <summary>-1 when Options → Controls inverts the look.</summary>
@@ -172,6 +194,15 @@ public partial class ChaseCamera : Node3D
 
         if (Camera != null && Camera.Current)
         {
+            _mouse.AccelerationReferenceSpeed = AccelerationReferenceSpeed;
+            _mouse.AccelerationMaxBoost = AccelerationMaxBoost;
+            _mouse.SmoothingSeconds = SmoothingSeconds;
+            Vector2 look = _mouse.Take(dt, GameOptions.MouseSensitivity, GameOptions.MouseAcceleration, GameOptions.MouseSmoothing, GameOptions.RawInput);
+            if (!look.IsZeroApprox())
+            {
+                _yawDegrees -= look.X * MouseSensitivity;
+                _pitchDegrees -= look.Y * MouseSensitivity * LookPitchSign();
+            }
             Vector2 stick = Input.GetVector(ActionLookLeft, ActionLookRight, ActionLookUp, ActionLookDown);
             if (!stick.IsZeroApprox())
             {
