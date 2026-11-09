@@ -34,7 +34,7 @@ A dark survival adventure about descending a mountain that never ends — toward
 - The talking companion (optional) also needs the [Microsoft Visual C++ Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe) on older builds; the game runs without it.
 - Still stuck? [Open an issue](https://github.com/vstimac/DownhillRoguelite/issues/new/choose) and attach `%APPDATA%\Godot\app_userdata\Downhill Roguelite\logs\godot.log`.
 
-**Linux:** An **older**, experimental Linux build is available with [v0.1.2-playtest1](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.1.2-playtest1). It does not represent the Windows Beta 2.3 build. Follow [Linux instructions](docs/LINUX.md).
+**Linux (experimental):** Download [`DownhillRoguelite-linux-beta.tar.gz`](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.3-beta/DownhillRoguelite-linux-beta.tar.gz) from the same Beta 2.3 release (64-bit, Vulkan). Follow [Linux instructions](docs/LINUX.md).
 
 Beta 2.3 adds a forest at human scale, a new modular carrier, night beasts that stalk you after dark, the president at the rest site, a loading screen so the mountain is ready before you start, a smoother frame rate and a Wallpaper folder to thank our beta testers. It builds on Beta 2.2's title screen, Options, cargo jobs, relics and walking with weight. This is a playtest, not a finished release.
 
