@@ -5,7 +5,8 @@ namespace DownhillRoguelite.Debug;
 
 /// <summary>
 /// Debug overlay for locomotion: arrows for velocity, ground normal, fall line and input at the
-/// feet, plus a text readout. Reads LocomotionSnapshot events only. Hidden with F3.
+/// feet, plus a text readout and the performance readout (CPU, GPU, memory and why a frame is
+/// slow). Reads LocomotionSnapshot events only. Hidden with F3.
 /// </summary>
 public partial class LocomotionDebugOverlay : CanvasLayer
 {
@@ -18,6 +19,12 @@ public partial class LocomotionDebugOverlay : CanvasLayer
     [Export] public float ArrowLift { get; set; } = 0.05f;
     [Export] public int FontSize { get; set; } = 18;
     [Export] public Vector2 TextPosition { get; set; } = new(16.0f, 16.0f);
+    /// <summary>The performance box hangs from the right edge, this far in, in px...</summary>
+    [Export] public float PerformanceMargin { get; set; } = 16.0f;
+    /// <summary>...with its top this far down the screen (0–1), below the HUD notes and the balance readout.</summary>
+    [Export] public float PerformanceTop { get; set; } = 0.42f;
+    [Export] public int PerformanceFontSize { get; set; } = 15;
+    [Export] public Color PerformanceBackground { get; set; } = new(0.0f, 0.0f, 0.0f, 0.62f);
 
     [Export] public Color VelocityColor { get; set; } = new(0.3f, 1.0f, 0.3f);
     [Export] public Color NormalColor { get; set; } = new(0.3f, 0.6f, 1.0f);
@@ -25,6 +32,8 @@ public partial class LocomotionDebugOverlay : CanvasLayer
     [Export] public Color InputColor { get; set; } = new(1.0f, 1.0f, 1.0f);
 
     private Label? _label;
+    private PerformanceReadout? _performance;
+    private Label? _performanceLabel;
 
     public override void _Ready()
     {
@@ -34,6 +43,34 @@ public partial class LocomotionDebugOverlay : CanvasLayer
         _label.AddThemeColorOverride("font_outline_color", Colors.Black);
         _label.AddThemeConstantOverride("outline_size", FontSize / 4);
         AddChild(_label);
+        _performance = new PerformanceReadout { Name = "Performance" };
+        AddChild(_performance);
+        _performanceLabel = new Label
+        {
+            Visible = false,
+            AnchorLeft = 1.0f,
+            AnchorRight = 1.0f,
+            AnchorTop = PerformanceTop,
+            AnchorBottom = PerformanceTop,
+            OffsetLeft = -PerformanceMargin,
+            OffsetRight = -PerformanceMargin,
+            GrowHorizontal = Control.GrowDirection.Begin,
+        };
+        _performanceLabel.AddThemeFontSizeOverride("font_size", PerformanceFontSize);
+        _performanceLabel.AddThemeColorOverride("font_color", Colors.White);
+        _performanceLabel.AddThemeStyleboxOverride("normal", new StyleBoxFlat
+        {
+            BgColor = PerformanceBackground,
+            ContentMarginLeft = 10.0f,
+            ContentMarginRight = 10.0f,
+            ContentMarginTop = 6.0f,
+            ContentMarginBottom = 6.0f,
+            CornerRadiusTopLeft = 4,
+            CornerRadiusTopRight = 4,
+            CornerRadiusBottomLeft = 4,
+            CornerRadiusBottomRight = 4,
+        });
+        AddChild(_performanceLabel);
 
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
     }
@@ -53,6 +90,15 @@ public partial class LocomotionDebugOverlay : CanvasLayer
         // Text would cover the packing view.
         bool show = DebugDraw3D.Enabled && !GameEvents.IsPacking;
         _label.Visible = show;
+        if (_performance != null)
+        {
+            _performance.Active = show;
+        }
+        if (_performanceLabel != null)
+        {
+            _performanceLabel.Text = _performance?.Text ?? "";
+            _performanceLabel.Visible = show && _performanceLabel.Text.Length > 0;
+        }
         if (!show)
         {
             return;
