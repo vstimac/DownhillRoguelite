@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="SwordFit" format=3]
+
+[ext_resource type="Script" path="res://player/SwordFit.cs" id="1_1kmdo"]
+
+[resource]
+script = ExtResource("1_1kmdo")
+HandPosition = Vector3(-0.02, 0.059999995, 0)
+HandRotation = Vector3(80, -150, 0)
