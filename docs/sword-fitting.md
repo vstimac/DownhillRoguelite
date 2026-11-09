@@ -7,10 +7,12 @@ and loaded by the game.
 ## Open the fitting scene
 
 ```
-godot --path . res://debug/SwordFitting.tscn
+godot --path "D:\Game dev\release-wt" res://debug/SwordFitting.tscn
 ```
 
-(or open `debug/SwordFitting.tscn` in the editor and press F6). The carrier stands on a flat floor with
+(or open `debug/SwordFitting.tscn` in the editor and press F6). `--path` must point at the checkout
+that has the sword (the `feature/sword-combat` branch); run from any other folder and Godot opens a
+different project that has no fitting scene, and closes straight away. The carrier stands on a flat floor with
 the sword out, frozen in the guard pose.
 
 ## Keys

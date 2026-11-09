@@ -24,6 +24,13 @@ public partial class SwordFitting : Node3D
     [Export] public float ScrubStep { get; set; } = 0.05f;
     [Export] public float OrbitSpeed { get; set; } = 0.3f;
     [Export] public Vector2 ZoomRange { get; set; } = new(0.5f, 6.0f);
+    /// <summary>Where Ctrl+S saves (the game loads SwordFit.DefaultPath).</summary>
+    [Export] public string SavePath { get; set; } = SwordFit.DefaultPath;
+
+    /// <summary>The fit being edited, and whether the scene is set up (tests).</summary>
+    public SwordFit CurrentFit => _fit;
+    public bool IsSetUp => _ready;
+    public string Message => _message;
 
     private MeleeCombat? _combat;
     private SwordFit _fit = new();
@@ -352,10 +359,10 @@ public partial class SwordFitting : Node3D
 
     private void Save()
     {
-        Error result = ResourceSaver.Save(_fit, SwordFit.DefaultPath);
+        Error result = ResourceSaver.Save(_fit, SavePath);
         if (result == Error.Ok)
         {
-            _message = "Saved to " + SwordFit.DefaultPath;
+            _message = "Saved to " + SavePath;
         }
         else
         {
