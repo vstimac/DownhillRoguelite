@@ -576,6 +576,9 @@ public sealed class TerrainGenerator
         Color[] smoothColors = System.Array.Empty<Color>();
         if (_settings.SmoothShading)
         {
+            // Adjacent triangles have identical smooth normals/colours at a grid point.
+            // Share those vertices instead of allocating three large duplicate attribute arrays.
+            data.Vertices = new Vector3[points * points];
             smoothNormals = new Vector3[points * points];
             smoothColors = new Color[points * points];
             for (int j = 0; j < points; j++)
@@ -584,6 +587,7 @@ public sealed class TerrainGenerator
                 {
                     float x = corner.X + i * cell;
                     float z = corner.Z + j * cell;
+                    data.Vertices[i + j * points] = new Vector3(i * cell, data.Heights[i + j * points], j * cell);
                     float left = GridOrWorld(data, i - 1, j, corner);
                     float right = GridOrWorld(data, i + 1, j, corner);
                     float back = GridOrWorld(data, i, j - 1, corner);
@@ -594,30 +598,51 @@ public sealed class TerrainGenerator
                         Mathf.RadToDeg(normal.AngleTo(Vector3.Up)), surfaceColors);
                 }
             }
-        }
-        Vector3[] vertices = new Vector3[triangles * 3];
-        Vector3[] normals = new Vector3[triangles * 3];
-        Color[] colors = new Color[triangles * 3];
-        SplitMix64 jitter = new(SplitMix64.Mix(Seed, ChunkSalt(coord)));
-        int v = 0;
-        for (int j = 0; j < cells; j++)
-        {
-            for (int i = 0; i < cells; i++)
+            int[] indices = new int[triangles * 3];
+            int cornerIndex = 0;
+            for (int j = 0; j < cells; j++)
             {
-                Vector3 a = new(i * cell, data.Heights[i + j * points], j * cell);
-                Vector3 b = new((i + 1) * cell, data.Heights[i + 1 + j * points], j * cell);
-                Vector3 c = new(i * cell, data.Heights[i + (j + 1) * points], (j + 1) * cell);
-                Vector3 d = new((i + 1) * cell, data.Heights[i + 1 + (j + 1) * points], (j + 1) * cell);
-                // Clockwise seen from above, which Godot treats as the front face.
-                v = AddTriangle(vertices, normals, colors, v, a, b, d, corner, surfaceColors, jitter,
-                    smoothNormals, smoothColors, new Vector3I(i + j * points, i + 1 + j * points, i + 1 + (j + 1) * points));
-                v = AddTriangle(vertices, normals, colors, v, a, d, c, corner, surfaceColors, jitter,
-                    smoothNormals, smoothColors, new Vector3I(i + j * points, i + 1 + (j + 1) * points, i + (j + 1) * points));
+                for (int i = 0; i < cells; i++)
+                {
+                    int a = i + j * points;
+                    int b = a + 1;
+                    int c = a + points;
+                    int d = c + 1;
+                    // Exactly the same diagonal, corner order and winding as the flat path.
+                    indices[cornerIndex++] = a; indices[cornerIndex++] = b; indices[cornerIndex++] = d;
+                    indices[cornerIndex++] = a; indices[cornerIndex++] = d; indices[cornerIndex++] = c;
+                }
             }
+            data.Indices = indices;
+            data.Normals = smoothNormals;
+            data.Colors = smoothColors;
         }
-        data.Vertices = vertices;
-        data.Normals = normals;
-        data.Colors = colors;
+        else
+        {
+            Vector3[] vertices = new Vector3[triangles * 3];
+            Vector3[] normals = new Vector3[triangles * 3];
+            Color[] colors = new Color[triangles * 3];
+            SplitMix64 jitter = new(SplitMix64.Mix(Seed, ChunkSalt(coord)));
+            int v = 0;
+            for (int j = 0; j < cells; j++)
+            {
+                for (int i = 0; i < cells; i++)
+                {
+                    Vector3 a = new(i * cell, data.Heights[i + j * points], j * cell);
+                    Vector3 b = new((i + 1) * cell, data.Heights[i + 1 + j * points], j * cell);
+                    Vector3 c = new(i * cell, data.Heights[i + (j + 1) * points], (j + 1) * cell);
+                    Vector3 d = new((i + 1) * cell, data.Heights[i + 1 + (j + 1) * points], (j + 1) * cell);
+                    // Clockwise seen from above, which Godot treats as the front face.
+                    v = AddTriangle(vertices, normals, colors, v, a, b, d, corner, surfaceColors, jitter,
+                        smoothNormals, smoothColors, new Vector3I(i + j * points, i + 1 + j * points, i + 1 + (j + 1) * points));
+                    v = AddTriangle(vertices, normals, colors, v, a, d, c, corner, surfaceColors, jitter,
+                        smoothNormals, smoothColors, new Vector3I(i + j * points, i + 1 + (j + 1) * points, i + (j + 1) * points));
+                }
+            }
+            data.Vertices = vertices;
+            data.Normals = normals;
+            data.Colors = colors;
+        }
 
         PlaceObstacles(data, coord, corner);
         PlacePlants(data, coord, corner);

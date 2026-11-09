@@ -26,6 +26,8 @@ public sealed class TerrainChunkData
     public float[] Heights { get; }
     public Vector3[] Vertices { get; set; } = System.Array.Empty<Vector3>();
     public Vector3[] Normals { get; set; } = System.Array.Empty<Vector3>();
+    /// <summary>Shared-grid triangle corners for smooth meshes; flat shading remains unindexed.</summary>
+    public int[] Indices { get; set; } = System.Array.Empty<int>();
     public Color[] Colors { get; set; } = System.Array.Empty<Color>();
     public List<ObstacleData> Obstacles { get; } = new();
     /// <summary>Trees, grass and flowers, by biome.</summary>
