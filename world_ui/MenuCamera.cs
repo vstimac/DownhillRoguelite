@@ -31,6 +31,10 @@ public partial class MenuCamera : Camera3D
     [Export] public float DriftDegrees { get; set; } = 9.0f;
     [Export] public float DriftSeconds { get; set; } = 50.0f;
     [Export] public float PortraitDriftDegrees { get; set; } = 4.0f;
+    [Export] public float PortraitFillEnergy { get; set; } = 1.8f;
+    [Export] public float PortraitFillRange { get; set; } = 7.0f;
+    public float PortraitAngle { get; private set; }
+    private OmniLight3D? _portraitLight;
     /// <summary>Seconds to move between shots, and to fly into the run's camera.</summary>
     [Export] public float BlendSeconds { get; set; } = 1.3f;
     [Export] public float GameBlendSeconds { get; set; } = 1.8f;
@@ -57,6 +61,9 @@ public partial class MenuCamera : Camera3D
         ProcessMode = ProcessModeEnum.Always;
         TopLevel = true;
         Fov = VistaFov;
+        _portraitLight = new OmniLight3D { Name = "PortraitFill", OmniRange = PortraitFillRange,
+            LightEnergy = PortraitFillEnergy, LightColor = new Color(1, 0.92f, 0.82f), Visible = false };
+        AddChild(_portraitLight);
         GameEvents.LocomotionUpdated += OnLocomotion;
         if (GameEvents.CarrierPosition != Vector3.Zero)
         {
@@ -126,6 +133,7 @@ public partial class MenuCamera : Camera3D
 
     public override void _Process(double delta)
     {
+        if (_portraitLight != null) { _portraitLight.Visible = Current && CurrentShot == Shot.Portrait; }
         float dt = (float)delta;
         _time += dt;
         if (_blend < 1.0f)
@@ -185,6 +193,7 @@ public partial class MenuCamera : Camera3D
             drift = PortraitDriftDegrees;
         }
         float swing = Mathf.DegToRad(drift) * Mathf.Sin(_time * Mathf.Tau / Mathf.Max(DriftSeconds, 1.0f));
+        if (shot == Shot.Portrait) { swing += Mathf.DegToRad(PortraitAngle); }
         Vector3 forward = _forward.Rotated(Vector3.Up, swing);
         Vector3 right = forward.Cross(Vector3.Up).Normalized();
         Vector3 position = _carrier + right * offset.X + Vector3.Up * offset.Y + forward * offset.Z;
@@ -196,5 +205,12 @@ public partial class MenuCamera : Camera3D
             at += forward;
         }
         return new Transform3D(Basis.Identity, position).LookingAt(at, Vector3.Up);
+    }
+
+    public void TurnPortrait(float degrees)
+    {
+        if (CurrentShot != Shot.Portrait) { return; }
+        _from = GlobalTransform; _fromFov = Fov; _blend = 0; _blendSeconds = 0.3f;
+        PortraitAngle = Mathf.PosMod(PortraitAngle + degrees, 360);
     }
 }

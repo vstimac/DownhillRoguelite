@@ -113,7 +113,10 @@ public partial class CarrierModel : Node3D
             UseFallbackOutfit();
             return;
         }
-        Model = scene.Instantiate<Node3D>();
+        if (!scene.CanInstantiate()) { UseFallbackOutfit(); return; }
+        Node instance = scene.Instantiate();
+        if (instance is not Node3D characterModel) { instance.Free(); UseFallbackOutfit(); return; }
+        Model = characterModel;
         Model.Name = "Character";
         AddChild(Model);
         Skeleton3D? skeleton = null;

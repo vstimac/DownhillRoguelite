@@ -54,6 +54,8 @@ public static class GameOptions
 
     /// <summary>The chosen character's id (CarrierRoster); an unknown or missing one falls back to the first.</summary>
     public static string Character { get; private set; } = "default";
+    public static Color BaseShirtColour { get; private set; } = new(0.28f, 0.35f, 0.43f);
+    public static Color BasePackColour { get; private set; } = new(0.36f, 0.29f, 0.18f);
 
     private static bool _loaded;
     private static string _path = DefaultPath;
@@ -91,6 +93,8 @@ public static class GameOptions
         InvertLook = false;
         Subtitles = true;
         Character = "default";
+        BaseShirtColour = new Color(0.28f, 0.35f, 0.43f);
+        BasePackColour = new Color(0.36f, 0.29f, 0.18f);
     }
 
     /// <summary>Reads the saved options (once; later calls do nothing).</summary>
@@ -115,6 +119,8 @@ public static class GameOptions
         Filter = (ColourFilter)(int)file.GetValue(Section, "colour_filter", (int)Filter);
         UiScale = Mathf.Clamp((float)file.GetValue(Section, "ui_scale", UiScale), 0.75f, 1.5f);
         Character = (string)file.GetValue(Section, "character", Character);
+        BaseShirtColour = (Color)file.GetValue(Section, "base_shirt_colour", BaseShirtColour);
+        BasePackColour = (Color)file.GetValue(Section, "base_pack_colour", BasePackColour);
         MasterVolume = Volume(file, "volume_master", MasterVolume);
         MusicVolume = Volume(file, "volume_music", MusicVolume);
         VoiceVolume = Volume(file, "volume_voice", VoiceVolume);
@@ -138,6 +144,7 @@ public static class GameOptions
     public static void SetFilter(ColourFilter filter) => Set(() => Filter = filter);
     public static void SetUiScale(float scale) => Set(() => UiScale = Mathf.Clamp(scale, 0.75f, 1.5f));
     public static void SetCharacter(string id) => Set(() => Character = id);
+    public static void SetBaseOutfitColours(Color shirt, Color pack) => Set(() => { BaseShirtColour = shirt; BasePackColour = pack; });
     public static void SetMasterVolume(float volume) => Set(() => MasterVolume = Mathf.Clamp(volume, 0.0f, 1.0f));
     public static void SetMusicVolume(float volume) => Set(() => MusicVolume = Mathf.Clamp(volume, 0.0f, 1.0f));
     public static void SetVoiceVolume(float volume) => Set(() => VoiceVolume = Mathf.Clamp(volume, 0.0f, 1.0f));
@@ -154,10 +161,12 @@ public static class GameOptions
     public static void RestoreDefaults()
     {
         string character = Character;
+        Color shirt = BaseShirtColour, pack = BasePackColour;
         Set(() =>
         {
             ResetToDefaults();
             Character = character;
+            BaseShirtColour = shirt; BasePackColour = pack;
         });
     }
 
@@ -186,6 +195,8 @@ public static class GameOptions
         file.SetValue(Section, "colour_filter", (int)Filter);
         file.SetValue(Section, "ui_scale", UiScale);
         file.SetValue(Section, "character", Character);
+        file.SetValue(Section, "base_shirt_colour", BaseShirtColour);
+        file.SetValue(Section, "base_pack_colour", BasePackColour);
         file.SetValue(Section, "volume_master", MasterVolume);
         file.SetValue(Section, "volume_music", MusicVolume);
         file.SetValue(Section, "volume_voice", VoiceVolume);

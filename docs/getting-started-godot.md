@@ -81,6 +81,7 @@ new exported properties. See [C# exported properties](https://docs.godotengine.o
 | The full game | `debug/TestTerrain.tscn` | Terrain, Player, Stations, Weather, Supplies, Contracts, Hud. |
 | Movement on slopes/stairs | `debug/TestLocomotion.tscn` | Course node's exported values; Player. |
 | Inventory/packing | `debug/TestPacking.tscn` | Player/Inventory and Packing. |
+| Clothing and equipment | `debug/TestClothing.tscn` | Live garment buttons, condition, save/load and character switch. |
 | Player body/camera | `player/Player.tscn` | Collision, CameraRig, Stamina, Needs, Balance. Test it inside a level. |
 | Walking/turning feel | `player/default_locomotion.tres` | Speed, acceleration, turning and ground settings. |
 | Mountain shape | `terrain/default_terrain.tres` | TerrainSettings values; test with F5. |
@@ -89,6 +90,7 @@ new exported properties. See [C# exported properties](https://docs.godotengine.o
 | Weather | `environment/weather/default_weather.tres` | Weather table. |
 | Job text/reward | `progression/contracts/resources/*.tres` | Offer Text, Score, Cargo Item Path, Stations Ahead. |
 | NPC dialogue/content | `narrative/npcs/*.tres` | Each NPC's resource fields. |
+| Character presets/appearance | F5 → Character; `world_ui/CharacterPage.cs` | Presets, base shirt/pack colours and portrait rotation. |
 | HUD and menu layout | `ui/Hud.cs`, `ui/screens/`, `ui/hud/` | Most UI is built in C# when the game runs. |
 
 `TestTerrain` is the real entry scene despite its name. Its mountain is generated at runtime,

@@ -109,12 +109,15 @@ public partial class RigFollower : SkeletonModifier3D
     /// <summary>Matches bones and records both rigs' rest rotations (in each skeleton's space).</summary>
     private void Setup()
     {
+        // A character can be swapped again before this deferred setup runs.
+        if (!IsInsideTree() || IsQueuedForDeletion()) { return; }
         Skeleton3D? target = GetSkeleton();
         if (target == null || Driver == null)
         {
             GD.PushWarning("RigFollower: no skeleton or driver.");
             return;
         }
+        if (!target.IsInsideTree() || !Driver.IsInsideTree()) { return; }
         _pairs.Clear();
         for (int i = 0; i + 1 < BonePairs.Length; i += 2)
         {

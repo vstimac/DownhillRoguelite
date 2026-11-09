@@ -23,6 +23,8 @@ public partial class ClothingVisualController : Node
     private MeshInstance3D? _baseShirt;
     private MeshInstance3D? _nativeShirt;
     private Node3D? _basePack;
+    private BaseMaterial3D? _nativeShirtMaterial;
+    private ShaderMaterial? _packMaterial;
     private Shader? _shader;
 
     public override void _Ready()
@@ -37,6 +39,21 @@ public partial class ClothingVisualController : Node
         if (_baseShirt != null) { _baseShirt.Name = "BaseShirtPrototype"; _baseShirt.MaterialOverride = Material(_base.Colour); }
         _basePack = Attach(ClothingPrototypes.Backpack(), "Spine1", new Vector3(0, BasePackHeight, BasePackBackOffset), Vector3.Zero, Vector3.One);
         if (_basePack != null) { _basePack.Name = "BaseBackpackPrototype"; }
+        if (_nativeShirt?.GetActiveMaterial(0) is BaseMaterial3D native)
+        {
+            _nativeShirtMaterial = (BaseMaterial3D)native.Duplicate();
+            _nativeShirt.MaterialOverride = _nativeShirtMaterial;
+        }
+        _packMaterial = Material(GameOptions.BasePackColour);
+        if (_basePack != null)
+        {
+            foreach (Node node in _basePack.FindChildren("*", "MeshInstance3D", true, false))
+            {
+                if (node is MeshInstance3D mesh && mesh.Mesh is BoxMesh box && box.Size.X > 0.2f) { mesh.MaterialOverride = _packMaterial; }
+            }
+        }
+        GameOptions.Changed += ApplyBaseAppearance;
+        ApplyBaseAppearance();
         GameEvents.GearChanged += OnGear;
         OnGear(GameEvents.CurrentGear);
     }
@@ -44,6 +61,7 @@ public partial class ClothingVisualController : Node
     public override void _ExitTree()
     {
         GameEvents.GearChanged -= OnGear;
+        GameOptions.Changed -= ApplyBaseAppearance;
         RestoreBody();
         foreach (Node3D node in _visuals.Values) { Remove(node); }
         Remove(_baseShirt);
@@ -52,7 +70,11 @@ public partial class ClothingVisualController : Node
 
     private static void Remove(Node? node)
     {
-        if (node != null && IsInstanceValid(node) && !node.IsQueuedForDeletion()) { node.QueueFree(); }
+        if (node != null && IsInstanceValid(node) && !node.IsQueuedForDeletion())
+        {
+            if (node is Node3D visual) { visual.Visible = false; }
+            node.QueueFree();
+        }
     }
 
     private ShaderMaterial Material(Color colour)
@@ -60,6 +82,14 @@ public partial class ClothingVisualController : Node
         ShaderMaterial material = new() { Shader = _shader };
         material.SetShaderParameter("cloth_colour", colour);
         return material;
+    }
+
+    private void ApplyBaseAppearance()
+    {
+        if (!IsInsideTree()) { return; }
+        if (_baseShirt?.MaterialOverride is ShaderMaterial shirt) { shirt.SetShaderParameter("cloth_colour", GameOptions.BaseShirtColour); }
+        if (_nativeShirtMaterial != null) { _nativeShirtMaterial.AlbedoColor = GameOptions.BaseShirtColour; }
+        _packMaterial?.SetShaderParameter("cloth_colour", GameOptions.BasePackColour);
     }
 
     private void OnGear(GearSnapshot gear)
@@ -138,8 +168,9 @@ public partial class ClothingVisualController : Node
         if (visual.Kind <= ClothingVisual.VisualKind.PrototypeGloves) { return ClothingPrototypes.Garment(Skeleton!, visual); }
         if (visual.Kind == ClothingVisual.VisualKind.PrototypeBackpack)
         { return Attach(ClothingPrototypes.Backpack(), visual.AttachmentBone, visual.Offset, visual.RotationDegrees, visual.Scale); }
-        if (visual.Scene == null) { GD.PushWarning(item.ItemId + ": missing clothing scene"); return null; }
-        Node3D source = visual.Scene.Instantiate<Node3D>();
+        if (visual.Scene == null || !visual.Scene.CanInstantiate()) { GD.PushWarning(item.ItemId + ": missing clothing scene"); return null; }
+        Node instance = visual.Scene.Instantiate();
+        if (instance is not Node3D source) { instance.Free(); GD.PushWarning(item.ItemId + ": clothing scene must have a 3D root"); return null; }
         if (visual.Kind == ClothingVisual.VisualKind.Rigid)
         { return Attach(source, visual.AttachmentBone, visual.Offset, visual.RotationDegrees, visual.Scale); }
         Skeleton3D? sourceRig = source as Skeleton3D;
@@ -164,6 +195,8 @@ public partial class ClothingVisualController : Node
 
     private Node3D? Attach(Node3D model, string bone, Vector3 offset, Vector3 rotation, Vector3 scale)
     {
+        if (!offset.IsFinite() || !rotation.IsFinite() || !scale.IsFinite() || scale.X <= 0 || scale.Y <= 0 || scale.Z <= 0)
+        { model.Free(); GD.PushWarning("Clothing attachment has invalid offsets or scale"); return null; }
         if (Skeleton == null || !ClothingRig.Frame(Skeleton, out Basis frame, out float metres)) { model.Free(); return null; }
         int index = ClothingRig.Bone(Skeleton, bone);
         if (index < 0) { model.Free(); return null; }

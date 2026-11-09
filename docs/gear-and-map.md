@@ -24,6 +24,12 @@ As built (`map/FieldMap.cs`, `MapCanvas.cs`, `MapChart.cs`, `WaypointMarker.cs`)
 
 ## M14 Gear and durability (built, branch `m14-gear`)
 
+**2026-11-09 implementation update:** [Modular clothing](modular-clothing.md) now extends this
+baseline with ten unique slots, layered torso clothing, skinned garment prototypes, rigid pack
+attachments, visual condition and explicit persistence. Equip/unequip preflights the complete
+transfer; if pocket spill cannot fit, the action fails safely instead of losing contents. The
+list below records the original M14 baseline; the linked implementation guide describes current behaviour.
+
 As built (inventory/CarrierEquipment.cs, core/GearSnapshot.cs, debug/tests/GearTests):
 
 - **Slots:** backpack plus six clothing slots: head, torso, legs, hands, feet, cape. One piece per slot.

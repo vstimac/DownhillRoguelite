@@ -11,3 +11,8 @@ Pocket supplies support eating/drinking, explicit tool consumption, mending and 
 `StoredItem` retains per-copy durability in loose supplies and pockets. Packing, auto-arranging, dressing, dropping, throwing and picking up preserve it, including broken gear at zero durability. Repack orders can select only owned backpack/loose copies; stale or repeated entries cannot duplicate items or remove pocket contents.
 
 Read `docs/inventory-design.md` first.
+
+Modular clothing extends the same equipment manager with ten unique slots, atomic storage
+preflight, stable physical copy identities and explicit carried-load persistence. Per-copy
+appearance travels with durability through every container. See [the implementation and asset
+pipeline](../docs/modular-clothing.md); open `debug/TestClothing.tscn` for a working workshop.

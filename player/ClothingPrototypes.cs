@@ -15,7 +15,7 @@ public static class ClothingPrototypes
         List<int> bones = new(), triangles = new();
         List<float> weights = new();
         const int sides = 20;
-        void Tube(Vector3 from, Vector3 to, float width, float depth, int first, int last)
+        void Tube(Vector3 from, Vector3 to, float width, float depth, int first, int last, bool torso = false)
         {
             if (first < 0 || last < 0 || from.DistanceSquaredTo(to) < 0.00001f) { return; }
             Vector3 axis = (to - from).Normalized();
@@ -24,19 +24,33 @@ public static class ClothingPrototypes
             Vector3 back = right.Cross(axis).Normalized();
             right = axis.Cross(back).Normalized();
             int start = vertices.Count;
-            for (int ring = 0; ring < 4; ring++)
+            int rings = 4;
+            if (torso) { rings = 6; }
+            float[] widths = { 0.82f, 0.82f, 0.93f, 1.0f, 0.95f, 0.32f };
+            float[] depths = { 0.90f, 0.84f, 0.98f, 1.0f, 0.92f, 0.60f };
+            for (int ring = 0; ring < rings; ring++)
             {
-                float t = ring / 3.0f;
+                float t = ring / (float)(rings - 1);
+                float radiusX = width, radiusZ = depth, slopeX = 0, slopeZ = 0;
+                if (torso)
+                {
+                    radiusX *= widths[ring]; radiusZ *= depths[ring];
+                    int before = System.Math.Max(0, ring - 1), after = System.Math.Min(rings - 1, ring + 1);
+                    float length = (after - before) * from.DistanceTo(to) * metres / (rings - 1);
+                    slopeX = width * (widths[after] - widths[before]) / length;
+                    slopeZ = depth * (depths[after] - depths[before]) / length;
+                }
                 for (int segment = 0; segment < sides; segment++)
                 {
                     float angle = Mathf.Tau * segment / sides;
-                    Vector3 normal = (right * Mathf.Cos(angle) + back * Mathf.Sin(angle)).Normalized();
-                    vertices.Add(from.Lerp(to, t) + right * Mathf.Cos(angle) * width / metres + back * Mathf.Sin(angle) * depth / metres);
+                    float cos = Mathf.Cos(angle), sin = Mathf.Sin(angle);
+                    Vector3 normal = (right * cos + back * sin - axis * (slopeX * cos * cos + slopeZ * sin * sin)).Normalized();
+                    vertices.Add(from.Lerp(to, t) + right * cos * radiusX / metres + back * sin * radiusZ / metres);
                     normals.Add(normal);
                     uv.Add(new Vector2(segment / (float)sides, t));
                     bones.AddRange(new[] { first, last, 0, 0 });
                     weights.AddRange(new[] { 1.0f - t, t, 0.0f, 0.0f });
-                    if (ring < 3)
+                    if (ring < rings - 1)
                     {
                         int a = start + ring * sides + segment;
                         int b = start + ring * sides + (segment + 1) % sides;
@@ -82,7 +96,7 @@ public static class ClothingPrototypes
             Vector3 hips = ClothingRig.Rest(rig, "Hips");
             Vector3 neck = ClothingRig.Rest(rig, "Neck");
             Tube(hips - frame.Y * 0.045f / metres, neck - frame.Y * 0.04f / metres, width, 0.135f + slack,
-                ClothingRig.Bone(rig, "Hips"), ClothingRig.Bone(rig, "Spine2"));
+                ClothingRig.Bone(rig, "Hips"), ClothingRig.Bone(rig, "Spine2"), true);
             foreach (string side in new[] { "Left", "Right" })
             {
                 if (definition.Kind == ClothingVisual.VisualKind.PrototypeJacket)

@@ -249,6 +249,7 @@ public partial class StartScreen : CanvasLayer
         _options.SetOpenNow(false);
         _characters = new CharacterPage { Name = "Characters", RosterPath = RosterPath };
         _characters.BackPressed += () => ClosePage(_characters);
+        _characters.PreviewTurnRequested += degrees => _camera?.TurnPortrait(degrees);
         _root.AddChild(_characters);
         _characters.SetOpenNow(false);
         _about = new CreditsPage { Name = "About", Version = VersionText };

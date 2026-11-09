@@ -36,6 +36,9 @@ for the outgoing copy, computes the resulting pocket capacity and repacks any po
 Only a valid complete plan is committed. Failure preserves the original placements and copies;
 it does not drop or destroy pocket contents. The worn item leaves normal backpack storage.
 Per-copy durability, wetness, dirt, variant and tint survive pack/loose/pocket/worn/world transfers.
+Every physical copy also has a stable GUID, independent of its shared item resource. Duplicate
+pickups of an already-owned identity are rejected. Snapshot restoration removes only matching
+saved identities from world drops, leaving other copies of the same kind untouched.
 
 The built-in backpack grid/frame remains the game's existing storage container. The new
 `trail_backpack` is a removable external pack on that frame, with its own carried mass and pocket;
@@ -49,6 +52,9 @@ base-pack model, and the equipped external pack replaces that base visual.
 - `trail_backpack`: **rigid prototype** on a Spine1 BoneAttachment3D.
 - Existing hats/helmets and cape use their existing bone-attachment implementation.
 - Other slots can use authored rigid or skinned `ClothingVisual` scenes.
+
+The trail shirt and external pack are registered as rare entries in the normal supply table,
+available from the first circle. They also start in the clothing workshop for immediate testing.
 
 The prototypes generate actual vertex bone indices, normalized weights and inverse-rest Skin
 binds for the current rig. They are low-poly test garments, not production art or real cloth.
@@ -78,6 +84,7 @@ multiply stats. Defaults preserve existing tuning.
 Effects are rebuilt from currently worn, unbroken pieces, so repeat equips or loads cannot
 stack them. Broken garments retain mass and their visual damage. Movement and route estimates
 use the same speed factor; movement stamina and route estimates use the same stamina factor.
+Fixed stamina costs (jump/dive) also apply that factor once.
 Wind resistance affects weather chill. The existing ragdoll impact path applies fall and
 physical protection once; hunger/thirst/cold damage does not receive armour protection.
 
@@ -88,6 +95,7 @@ load: grid placements, loose copies, pockets, worn slots, pack durability and pe
 This scope prevents worn items being duplicated by independently restoring storage. Version,
 dimensions, resource paths, slots, placements, duplicate cargo identities and condition data are
 validated before mutation. Repeated loads replace state rather than adding items or effects.
+The current identity-bearing schema is version 2; older experimental snapshots are rejected safely.
 Writes replace a temporary file atomically. Invalid/missing files leave the current load intact.
 
 This is **explicit equipment/load persistence**, not a saved world or run-resume implementation.
@@ -128,6 +136,9 @@ resources first. Current canonical persistent items live in `res://inventory/ite
 6. Drop the shirt, face it and press E to pick it up; then equip it again. Condition stays intact.
 7. Use Remote → Skeleton3D to inspect skinned prototypes and BoneAttachment3D nodes.
 
+For the preset/colour/rotating portrait screen, run F5 → Character. The starter character-creation
+flow and its current asset limits are documented in [character creation](character-creation.md).
+
 Automated scenes: ModularEquipmentTests, CharacterPreviewTests, CharacterTests, GearTests,
 GearConditionTests, CarriedMassTests, PocketUseTests, plus the existing full regression suite.
 
@@ -142,6 +153,15 @@ Skin checks accept the actual Vučić skin on its own rig and reject identical b
 changed rest transforms. All four prototypes have finite vertices and valid weights. Uploaded
 weights use a two-unit UNORM16 tolerance, matching the measured 0.99998474 sum and the engine's
 [16-bit weight unpacking](https://github.com/godotengine/godot/blob/master/servers/rendering/renderer_rd/shaders/skeleton.glsl).
+
+The final code regression passed **42 scenes / 497 checks**, all processes exiting successfully
+with no FAIL/error lines, followed by a clean 300-frame main-scene smoke. After the final neckline
+geometry refinement and native-body masking checks, the four clothing/customization suites passed another **58 checks** and
+the actual Vučić creation screen was rendered and inspected again. This validates the implemented
+workflow and current rigs; production fit, masks and the complete animation matrix still require
+the manual asset checks above.
+The legacy GearTests also passed its 28 checks on that final source. Registering the new loot
+entries was followed by clean Survival, Station, Objective and Wayside scenes (53 checks).
 
 ## Every-five-frame capture
 
