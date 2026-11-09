@@ -163,7 +163,7 @@ public partial class RunState : Node
         CarrierCharacter? selected = null;
         // Core headless regressions have a deterministic neutral Carrier baseline, independent of player saves/model availability.
         if (DisplayServer.GetName() == "headless" && id == "default")
-        { selected = GD.Load<CarrierCharacter>("res://art/characters/carrier.tres"); }
+        { selected = CarrierRoster.LoadCharacter("res://art/characters/carrier.tres"); }
         else { selected = CarrierRoster.Load()?.Pick(id); }
         Character.Select(selected);
         CharacterRunStarted = started;

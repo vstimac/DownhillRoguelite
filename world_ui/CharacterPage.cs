@@ -129,7 +129,7 @@ public partial class CharacterPage : ParchmentPanel
         }
         foreach (string entry in roster.CharacterPaths)
         {
-            if (ResourceLoader.Exists(entry) && ResourceLoader.Load(entry) is CarrierCharacter character)
+            if (CarrierRoster.LoadCharacter(entry) is CarrierCharacter character)
             {
                 list.Add(character);
             }

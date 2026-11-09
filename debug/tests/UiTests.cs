@@ -51,6 +51,9 @@ public partial class UiTests : Node3D
         PlayerBody.Teleport(Streamer.SpawnPoint + Vector3.Up * 0.1f, 0.0f);
         await Wait(1.0f);
 
+        // GC_STRESS=1: collect garbage nonstop on another thread, which turns finalizer races (a resource
+        // finalized while the game loads it again) from rare crashes into certain ones.
+        if (OS.HasEnvironment("GC_STRESS")) { _ = System.Threading.Tasks.Task.Run(() => { while (true) { System.GC.Collect(); System.GC.WaitForPendingFinalizers(); System.Threading.Thread.Sleep(2); } }); }
         await TestDials(PlayerBody.Health);
         TestDescent();
         await TestHotbar(needs);
