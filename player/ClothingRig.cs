@@ -9,6 +9,18 @@ public static class ClothingRig
     {
         int found = RigFollower.FindBone(rig, name);
         if (found >= 0) { return found; }
+        // Unreal-named rigs (Quaternius base characters).
+        string unreal = name switch
+        {
+            "Hips" => "pelvis", "Spine" => "spine_01", "Spine1" => "spine_02", "Spine2" => "spine_03",
+            "Neck" => "neck_01", "LeftUpLeg" => "thigh_l", "RightUpLeg" => "thigh_r",
+            "LeftLeg" => "calf_l", "RightLeg" => "calf_r", "LeftFoot" => "foot_l", "RightFoot" => "foot_r",
+            "LeftArm" => "upperarm_l", "RightArm" => "upperarm_r", "LeftForeArm" => "lowerarm_l", "RightForeArm" => "lowerarm_r",
+            "LeftHand" => "hand_l", "RightHand" => "hand_r", "LeftHandMiddle1" => "middle_01_l", "RightHandMiddle1" => "middle_01_r",
+            "LeftShoulder" => "clavicle_l", "RightShoulder" => "clavicle_r",
+            _ => "",
+        };
+        if (unreal.Length > 0 && rig.FindBone(unreal) >= 0) { return rig.FindBone(unreal); }
         string alias = name switch
         {
             "Hips" => "hips", "Spine" => "spine.001", "Spine1" => "spine.002", "Spine2" => "spine.003",

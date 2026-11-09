@@ -178,6 +178,8 @@ public partial class TerrainSettings : Resource
     [ExportGroup("Forest detail")]
     [Export] public float PlantBatchSize { get; set; } = 16.0f;
     [Export] public double PlantBuildBudgetMilliseconds { get; set; } = 3.0;
+    /// <summary>The same budget behind the loading screen, where a long frame doesn't matter.</summary>
+    [Export] public double LoadingPlantBudgetMilliseconds { get; set; } = 40.0;
     [Export] public float TreeViewDistance { get; set; } = 220.0f;
     [Export] public float ForestClusterWavelength { get; set; } = 45.0f;
     [Export] public float PebbleDensity { get; set; } = 0.12f;

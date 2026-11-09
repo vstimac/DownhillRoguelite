@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CarrierCharacter" format=3]
+
+[ext_resource type="Script" path="res://core/CarrierCharacter.cs" id="1_character"]
+[ext_resource type="Script" path="res://core/CharacterStats.cs" id="2_stats"]
+
+[sub_resource type="Resource" id="Stats"]
+script = ExtResource("2_stats")
+AbilityName = "Second Wind"
+AbilityDescription = "Recover 40% of maximum stamina immediately."
+Cooldown = 75.0
+RestoreStaminaFraction = 0.4
+
+[resource]
+script = ExtResource("1_character")
+Id = "modular"
+DisplayName = "The Carrier (modular)"
+Description = "The porter on a modular body: clothes, hats and packs are separate pieces that fit any base character."
+ModelPath = "res://art/characters/quaternius_ubc/Superhero_Male_FullBody.gltf"
+Stats = SubResource("Stats")

@@ -13,7 +13,16 @@ public partial class ClothingVisualController : Node
     public string CharacterId { get; set; } = "";
     [Export] public float BasePackBackOffset { get; set; } = 0.24f;
     [Export] public float BasePackHeight { get; set; } = 0.05f;
+    /// <summary>Colours of the trousers and boots cut from a base character's body (see BodyGarment).</summary>
+    [Export] public Color BodyTrousersColour { get; set; } = new(0.27f, 0.25f, 0.21f);
+    [Export] public Color BodyBootsColour { get; set; } = new(0.22f, 0.14f, 0.08f);
+    /// <summary>How far each body-cut garment stands off the skin, in the body mesh's units (metres).</summary>
+    [Export] public float BodyShirtInflate { get; set; } = 0.006f;
+    [Export] public float BodyTrousersInflate { get; set; } = 0.009f;
+    [Export] public float BodyBootsInflate { get; set; } = 0.012f;
     public bool HasBaseOutfit => _baseShirt != null && _basePack != null;
+    private MeshInstance3D? _bodyTrousers;
+    private MeshInstance3D? _bodyBoots;
     public IReadOnlyDictionary<EquipSlot, Node3D> Visuals => _visuals;
     private readonly Dictionary<EquipSlot, Node3D> _visuals = new();
     private readonly Dictionary<EquipSlot, ItemDefinition> _definitions = new();
@@ -35,8 +44,12 @@ public partial class ClothingVisualController : Node
         {
             if (node is MeshInstance3D mesh && mesh.Name == "Ch17_Shirt") { _nativeShirt = mesh; }
         }
-        _baseShirt = ClothingPrototypes.Garment(Skeleton, _base);
-        if (_baseShirt != null) { _baseShirt.Name = "BaseShirtPrototype"; _baseShirt.MaterialOverride = Material(_base.Colour); }
+        CutBodyGarments();
+        if (_baseShirt == null)
+        {
+            _baseShirt = ClothingPrototypes.Garment(Skeleton, _base);
+            if (_baseShirt != null) { _baseShirt.Name = "BaseShirtPrototype"; _baseShirt.MaterialOverride = Material(_base.Colour); }
+        }
         _basePack = Attach(ClothingPrototypes.Backpack(), "Spine1", new Vector3(0, BasePackHeight, BasePackBackOffset), Vector3.Zero, Vector3.One);
         if (_basePack != null) { _basePack.Name = "BaseBackpackPrototype"; }
         if (_nativeShirt?.GetActiveMaterial(0) is BaseMaterial3D native)
@@ -66,6 +79,25 @@ public partial class ClothingVisualController : Node
         foreach (Node3D node in _visuals.Values) { Remove(node); }
         Remove(_baseShirt);
         Remove(_basePack);
+        Remove(_bodyTrousers);
+        Remove(_bodyBoots);
+    }
+
+    /// <summary>
+    /// A base character in underwear (Unreal-named rig, no shirt of its own) gets a shirt, trousers and
+    /// boots cut from its own body, which fit it exactly; the shirt then takes the base shirt's place.
+    /// </summary>
+    private void CutBodyGarments()
+    {
+        if (Skeleton == null || _nativeShirt != null || Skeleton.FindBone("spine_01") < 0) { return; }
+        MeshInstance3D? body = BodyGarment.FindBody(Skeleton);
+        if (body == null) { return; }
+        _baseShirt = BodyGarment.Cut(body, new[] { "spine_01", "spine_02", "spine_03", "clavicle_l", "clavicle_r", "upperarm_l", "upperarm_r", "lowerarm_l", "lowerarm_r" }, BodyShirtInflate, "BodyShirt");
+        if (_baseShirt != null) { _baseShirt.MaterialOverride = Material(_base.Colour); }
+        _bodyTrousers = BodyGarment.Cut(body, new[] { "pelvis", "thigh_l", "thigh_r", "calf_l", "calf_r" }, BodyTrousersInflate, "BodyTrousers");
+        if (_bodyTrousers != null) { _bodyTrousers.MaterialOverride = Material(BodyTrousersColour); }
+        _bodyBoots = BodyGarment.Cut(body, new[] { "foot_l", "foot_r", "ball_l", "ball_r" }, BodyBootsInflate, "BodyBoots");
+        if (_bodyBoots != null) { _bodyBoots.MaterialOverride = Material(BodyBootsColour); }
     }
 
     private static void Remove(Node? node)
@@ -149,6 +181,8 @@ public partial class ClothingVisualController : Node
         }
         if (_baseShirt != null) { _baseShirt.Visible = _nativeShirt == null && !_visuals.ContainsKey(EquipSlot.InnerTorso) && !_visuals.ContainsKey(EquipSlot.OuterTorso); }
         if (_basePack != null) { _basePack.Visible = !_visuals.ContainsKey(EquipSlot.Back); }
+        if (_bodyTrousers != null) { _bodyTrousers.Visible = !_visuals.ContainsKey(EquipSlot.Legs); }
+        if (_bodyBoots != null) { _bodyBoots.Visible = !_visuals.ContainsKey(EquipSlot.Feet); }
     }
 
     private void RestoreBody()

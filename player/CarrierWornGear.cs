@@ -406,6 +406,7 @@ public partial class CarrierWornGear : Node
                 return i;
             }
         }
-        return -1;
+        // Rigs with other naming (Unreal-style base characters, the mannequin).
+        return ClothingRig.Bone(Skeleton, name);
     }
 }

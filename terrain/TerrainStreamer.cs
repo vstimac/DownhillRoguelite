@@ -42,6 +42,27 @@ public partial class TerrainStreamer : Node3D
     public double MaxApplyMilliseconds { get; private set; }
     public float Depth { get; private set; }
     public IEnumerable<Vector2I> LoadedChunks => _chunks.Keys;
+    /// <summary>Set by the loading screen: chunks then build their plants with a much larger budget per frame.</summary>
+    public static bool Loading { get; set; }
+    /// <summary>A new mountain was built around a new spawn point (its plants still follow, frame by frame).</summary>
+    public event System.Action? Reseeded;
+
+    /// <summary>Loaded chunks whose trees, grass and stones are still being added.</summary>
+    public int PlantsPendingCount
+    {
+        get
+        {
+            int count = 0;
+            foreach (TerrainChunk chunk in _chunks.Values)
+            {
+                if (chunk.PlantsPending)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+    }
 
     [ExportGroup("Ground look")]
     /// <summary>The ground shader (patches, grain, bumps, rocky slopes); empty: plain vertex colours.</summary>
@@ -262,6 +283,7 @@ public partial class TerrainStreamer : Node3D
         // The synchronous start-up builds shouldn't count as streaming hitches.
         MaxApplyMilliseconds = 0.0;
         GameEvents.PublishDepth(0.0f);
+        Reseeded?.Invoke();
     }
 
     public override void _Process(double delta)

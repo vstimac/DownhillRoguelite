@@ -74,6 +74,15 @@ and roughness, dirt and abrasion. It does not duplicate mesh resources or run cl
 Wetness/dirt use world-clock rates; rain wets clothing, dry conditions dry it, walking adds dirt.
 Wet garments lose some warmth. Durability remains the existing hit-point system.
 
+### Base characters and body-cut clothes
+
+The default carrier is now a modular base character (Quaternius Universal Base Characters, Unreal bone
+names; art/characters/quaternius_ubc). It ships in underwear, so ClothingVisualController cuts a shirt,
+trousers and boots from the body mesh itself (player/BodyGarment.cs): the triangles that the torso, leg
+or foot bones drive, pushed a few millimetres out and skinned to the same skeleton. They fit any body of
+that rig, bend exactly with it and cost one draw call each. The shirt takes the base shirt's colour;
+torso, legs or feet clothing hides the matching cut piece.
+
 ## Gameplay effects
 
 Item resources retain weight, grid dimensions, category, durability, warmth, rain resistance,

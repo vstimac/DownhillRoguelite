@@ -88,7 +88,12 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
         {
             ulong frame = Engine.GetProcessFrames();
             if (frame != _plantFrame) { _plantFrame = frame; _plantFrameSpent = 0; }
-            double budget = Mathf.Max(_generator!.Settings.PlantBuildBudgetMilliseconds, 0.5);
+            double budget = _generator!.Settings.PlantBuildBudgetMilliseconds;
+            if (TerrainStreamer.Loading)
+            {
+                budget = _generator.Settings.LoadingPlantBudgetMilliseconds;
+            }
+            budget = Mathf.Max(budget, 0.5);
             if (_plantFrameSpent >= budget) { return; }
             ulong start = Time.GetTicksUsec();
             int collections = System.GC.CollectionCount(2);

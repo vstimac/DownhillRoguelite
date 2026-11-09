@@ -64,6 +64,53 @@ public partial class RigFollower : SkeletonModifier3D
     public Vector3[] TargetPose { get; private set; } = System.Array.Empty<Vector3>();
     public Vector3[] DriverPose { get; private set; } = System.Array.Empty<Vector3>();
 
+    /// <summary>
+    /// Sets the pairs, hips and aligned limbs for the rig <paramref name="skeleton"/> uses: Unreal-named
+    /// rigs (Quaternius Universal Base Characters: pelvis, spine_01, upperarm_l...) or Mixamo (the default).
+    /// </summary>
+    public void UseRigOf(Skeleton3D skeleton)
+    {
+        if (skeleton.FindBone("pelvis") < 0 || skeleton.FindBone("spine_01") < 0)
+        {
+            return;
+        }
+        BonePairs = UnrealPairs();
+        HipsBone = "pelvis";
+        AlignBones = new[] { "upperarm_l", "lowerarm_l", "upperarm_r", "lowerarm_r", "thigh_l", "calf_l", "thigh_r", "calf_r" };
+    }
+
+    /// <summary>Unreal-named bones (Quaternius base characters) and the mannequin (Rigify) bones they follow.</summary>
+    public static string[] UnrealPairs()
+    {
+        List<string> pairs = new()
+        {
+            "pelvis", "hips", "spine_01", "spine.001", "spine_02", "spine.002", "spine_03", "spine.003",
+            "neck_01", "neck", "Head", "head",
+        };
+        foreach (string s in new[] { "l", "r" })
+        {
+            string side = s.ToUpperInvariant();
+            pairs.AddRange(new[]
+            {
+                $"clavicle_{s}", $"shoulder.{side}", $"upperarm_{s}", $"upper_arm.{side}", $"lowerarm_{s}", $"forearm.{side}", $"hand_{s}", $"hand.{side}",
+                $"thigh_{s}", $"thigh.{side}", $"calf_{s}", $"shin.{side}", $"foot_{s}", $"foot.{side}", $"ball_{s}", $"toe.{side}",
+            });
+            foreach ((string finger, string f) in new[] { ("index", "f_index"), ("middle", "f_middle"), ("ring", "f_ring"), ("pinky", "f_pinky"), ("thumb", "thumb") })
+            {
+                for (int k = 1; k <= 3; k++)
+                {
+                    pairs.Add($"{finger}_0{k}_{s}");
+                    pairs.Add($"{f}.0{k}.{side}");
+                }
+            }
+        }
+        for (int i = 1; i < pairs.Count; i += 2)
+        {
+            pairs[i] = "DEF-" + pairs[i];
+        }
+        return pairs.ToArray();
+    }
+
     /// <summary>Mixamo bones and the mannequin (Rigify) bones they follow.</summary>
     public static string[] DefaultPairs()
     {

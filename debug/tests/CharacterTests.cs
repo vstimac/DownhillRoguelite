@@ -94,7 +94,7 @@ public partial class CharacterTests : Node3D
         })
         {
             RigFollower follower = look.Follower;
-            Vector3 own = World(skeleton, follower.TargetPose, RigFollower.FindBone(skeleton, "x_" + to)) - World(skeleton, follower.TargetPose, RigFollower.FindBone(skeleton, "x_" + from));
+            Vector3 own = World(skeleton, follower.TargetPose, ClothingRig.Bone(skeleton, to)) - World(skeleton, follower.TargetPose, ClothingRig.Bone(skeleton, from));
             Vector3 driver = World(look.Driver, follower.DriverPose, look.Driver.FindBone(driverTo)) - World(look.Driver, follower.DriverPose, look.Driver.FindBone(driverFrom));
             float angle = Mathf.RadToDeg(own.Normalized().AngleTo(driver.Normalized()));
             Check(angle <= LimbTolerance, $"{name}'s {from} lies along the mannequin's ({angle:0}°)",

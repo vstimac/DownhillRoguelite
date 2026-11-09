@@ -156,6 +156,7 @@ public partial class CarrierModel : Node3D
         }
         CharacterId = character.Id;
         Follower = new RigFollower { Name = "RigFollower", Driver = Driver };
+        Follower.UseRigOf(skeleton);
         skeleton.AddChild(Follower);
         _helmet = Piece(skeleton, character.HelmetMesh);
         _hair = Piece(skeleton, character.HairMesh);

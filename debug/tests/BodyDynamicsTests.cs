@@ -146,8 +146,8 @@ public partial class BodyDynamicsTests : Node3D
         {
             return 0.0f;
         }
-        int hips = RigFollower.FindBone(skeleton, "x_Hips");
-        int chest = RigFollower.FindBone(skeleton, "x_Neck");
+        int hips = ClothingRig.Bone(skeleton, "Hips");
+        int chest = ClothingRig.Bone(skeleton, "Neck");
         if (hips < 0 || chest < 0)
         {
             return 0.0f;
