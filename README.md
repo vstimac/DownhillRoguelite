@@ -12,7 +12,7 @@ A dark survival adventure about descending a mountain that never ends — toward
 
 **Godot 4.7 .NET · C# · Windows and Linux playtests · In active development**
 
-[**Download Windows Beta 2.2**](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.2-beta/DownhillRoguelite-playtest1-windows.zip) · [All releases](https://github.com/vstimac/DownhillRoguelite/releases) · [Report feedback](https://github.com/vstimac/DownhillRoguelite/issues/new/choose)
+[**Download Windows Beta 2.3**](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.3-beta/DownhillRoguelite-playtest1-windows.zip) · [All releases](https://github.com/vstimac/DownhillRoguelite/releases) · [Report feedback](https://github.com/vstimac/DownhillRoguelite/issues/new/choose)
 
 </div>
 
@@ -20,9 +20,9 @@ A dark survival adventure about descending a mountain that never ends — toward
 
 ## Play the game
 
-**Latest published Windows build: [v0.2.2-beta](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.2.2-beta)** (8 November 2026).
+**Latest published Windows build: [v0.2.3-beta](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.2.3-beta)** (9 November 2026).
 
-1. Download [`DownhillRoguelite-playtest1-windows.zip`](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.2-beta/DownhillRoguelite-playtest1-windows.zip) (~220 MB).
+1. Download [`DownhillRoguelite-playtest1-windows.zip`](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.3-beta/DownhillRoguelite-playtest1-windows.zip) (~220 MB).
 2. Right-click the ZIP and choose **Extract All**. **Don't run the game from inside the ZIP**: Windows then copies only the `.exe` out and the game closes straight away.
 3. Open the extracted folder and run **`DownhillRoguelite.exe`**. Keep the files in that folder together.
 
@@ -34,9 +34,9 @@ A dark survival adventure about descending a mountain that never ends — toward
 - The talking companion (optional) also needs the [Microsoft Visual C++ Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe) on older builds; the game runs without it.
 - Still stuck? [Open an issue](https://github.com/vstimac/DownhillRoguelite/issues/new/choose) and attach `%APPDATA%\Godot\app_userdata\Downhill Roguelite\logs\godot.log`.
 
-**Linux:** An **older**, experimental Linux build is available with [v0.1.2-playtest1](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.1.2-playtest1). It does not represent the Windows Beta 2.2 build. Follow [Linux instructions](docs/LINUX.md).
+**Linux:** An **older**, experimental Linux build is available with [v0.1.2-playtest1](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.1.2-playtest1). It does not represent the Windows Beta 2.3 build. Follow [Linux instructions](docs/LINUX.md).
 
-Beta 2.2 fixes the crash on start (nothing to install now) and adds a title screen with full Options, cargo jobs, relics, more paths between stations and walking with weight, building on Beta 2's carrier, vault movement, stamina, reduced idle sliding, clock and boon improvements. This is a playtest, not a finished release.
+Beta 2.3 adds a forest at human scale, a new modular carrier, night beasts that stalk you after dark, the president at the rest site, a loading screen so the mountain is ready before you start, a smoother frame rate and a Wallpaper folder to thank our beta testers. It builds on Beta 2.2's title screen, Options, cargo jobs, relics and walking with weight. This is a playtest, not a finished release.
 
 ## Join the project — we need your help!
 
