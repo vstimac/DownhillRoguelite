@@ -38,6 +38,7 @@ public sealed class TerrainGenerator
     private const ulong HazardBumpSalt = 11;
     private const ulong BiomeSalt = 12;
     private const ulong PlantSalt = 13;
+    private const ulong DetailSalt = 14;
     // 1D noise is read along a line off the lattice (noise is 0 on lattice points).
     private const float LineOffset = 0.5f;
     // Step for slope by finite differences, in m.
@@ -54,6 +55,7 @@ public sealed class TerrainGenerator
     private readonly GradientNoise _scree;
     private readonly GradientNoise _hazardBumps;
     private readonly GradientNoise _biomeDither;
+    private readonly GradientNoise _forestPatches;
     private readonly float _gradeTangent;
     private readonly float _clearingSlopeTangent;
     private readonly float _summitCliffTangent;
@@ -83,6 +85,7 @@ public sealed class TerrainGenerator
         _scree = new GradientNoise(SplitMix64.Mix(seed, ScreeSalt));
         _hazardBumps = new GradientNoise(SplitMix64.Mix(seed, HazardBumpSalt));
         _biomeDither = new GradientNoise(SplitMix64.Mix(seed, BiomeSalt));
+        _forestPatches = new GradientNoise(SplitMix64.Mix(seed, DetailSalt));
         _gradeTangent = Mathf.Tan(Mathf.DegToRad(settings.Grade));
         _clearingSlopeTangent = Mathf.Tan(Mathf.DegToRad(settings.ClearingSlope));
         _summitCliffTangent = Mathf.Tan(Mathf.DegToRad(settings.SummitCliffSlope));
@@ -569,6 +572,29 @@ public sealed class TerrainGenerator
         }
 
         int triangles = cells * cells * 2;
+        Vector3[] smoothNormals = System.Array.Empty<Vector3>();
+        Color[] smoothColors = System.Array.Empty<Color>();
+        if (_settings.SmoothShading)
+        {
+            smoothNormals = new Vector3[points * points];
+            smoothColors = new Color[points * points];
+            for (int j = 0; j < points; j++)
+            {
+                for (int i = 0; i < points; i++)
+                {
+                    float x = corner.X + i * cell;
+                    float z = corner.Z + j * cell;
+                    float left = GridOrWorld(data, i - 1, j, corner);
+                    float right = GridOrWorld(data, i + 1, j, corner);
+                    float back = GridOrWorld(data, i, j - 1, corner);
+                    float front = GridOrWorld(data, i, j + 1, corner);
+                    Vector3 normal = new Vector3(left - right, 2 * cell, back - front).Normalized();
+                    smoothNormals[i + j * points] = normal;
+                    smoothColors[i + j * points] = GroundColor(new Vector3(x, data.Heights[i + j * points], z),
+                        Mathf.RadToDeg(normal.AngleTo(Vector3.Up)), surfaceColors);
+                }
+            }
+        }
         Vector3[] vertices = new Vector3[triangles * 3];
         Vector3[] normals = new Vector3[triangles * 3];
         Color[] colors = new Color[triangles * 3];
@@ -583,8 +609,10 @@ public sealed class TerrainGenerator
                 Vector3 c = new(i * cell, data.Heights[i + (j + 1) * points], (j + 1) * cell);
                 Vector3 d = new((i + 1) * cell, data.Heights[i + 1 + (j + 1) * points], (j + 1) * cell);
                 // Clockwise seen from above, which Godot treats as the front face.
-                v = AddTriangle(vertices, normals, colors, v, a, b, d, corner, surfaceColors, jitter);
-                v = AddTriangle(vertices, normals, colors, v, a, d, c, corner, surfaceColors, jitter);
+                v = AddTriangle(vertices, normals, colors, v, a, b, d, corner, surfaceColors, jitter,
+                    smoothNormals, smoothColors, new Vector3I(i + j * points, i + 1 + j * points, i + 1 + (j + 1) * points));
+                v = AddTriangle(vertices, normals, colors, v, a, d, c, corner, surfaceColors, jitter,
+                    smoothNormals, smoothColors, new Vector3I(i + j * points, i + 1 + (j + 1) * points, i + (j + 1) * points));
             }
         }
         data.Vertices = vertices;
@@ -593,16 +621,50 @@ public sealed class TerrainGenerator
 
         PlaceObstacles(data, coord, corner);
         PlacePlants(data, coord, corner);
+        PlacePebbles(data, coord, corner);
         data.BuildMilliseconds = timer.Elapsed.TotalMilliseconds;
         return data;
     }
 
     private int AddTriangle(Vector3[] vertices, Vector3[] normals, Color[] colors, int v,
-        Vector3 p0, Vector3 p1, Vector3 p2, Vector3 corner, Color[] surfaceColors, SplitMix64 jitter)
+        Vector3 p0, Vector3 p1, Vector3 p2, Vector3 corner, Color[] surfaceColors, SplitMix64 jitter,
+        Vector3[] smoothNormals, Color[] smoothColors, Vector3I gridIndices)
     {
-        Vector3 normal = (p2 - p0).Cross(p1 - p0).Normalized();
-        Vector3 centre = (p0 + p1 + p2) / 3.0f + corner;
-        float slope = Mathf.RadToDeg(normal.AngleTo(Vector3.Up));
+        vertices[v] = p0;
+        vertices[v + 1] = p1;
+        vertices[v + 2] = p2;
+        if (smoothNormals.Length > 0)
+        {
+            for (int k = 0; k < 3; k++)
+            {
+                normals[v + k] = smoothNormals[gridIndices[k]];
+                colors[v + k] = smoothColors[gridIndices[k]];
+            }
+        }
+        else
+        {
+            Vector3 normal = (p2 - p0).Cross(p1 - p0).Normalized();
+            Vector3 centre = (p0 + p1 + p2) / 3.0f + corner;
+            Color color = GroundColor(centre, Mathf.RadToDeg(normal.AngleTo(Vector3.Up)), surfaceColors);
+            float brightness = 1.0f + jitter.Range(-_settings.ColorJitter, _settings.ColorJitter);
+            color = new Color(color.R * brightness, color.G * brightness, color.B * brightness);
+            for (int k = 0; k < 3; k++)
+            {
+                normals[v + k] = normal;
+                colors[v + k] = color;
+            }
+        }
+        return v + 3;
+    }
+
+    private float GridOrWorld(TerrainChunkData data, int x, int z, Vector3 corner)
+    {
+        if (x >= 0 && z >= 0 && x < data.GridPoints && z < data.GridPoints) { return data.Heights[x + z * data.GridPoints]; }
+        return Height(corner.X + x * _settings.CellSize, corner.Z + z * _settings.CellSize);
+    }
+
+    private Color GroundColor(Vector3 centre, float slope, Color[] surfaceColors)
+    {
         float pathWeight = PathWeight(centre.X, centre.Z, out RouteKind kind);
         TerrainSurface surface = Classify(centre.X, centre.Z, slope, pathWeight, kind);
         Color color = surfaceColors[(int)surface];
@@ -613,18 +675,7 @@ public sealed class TerrainGenerator
             tint = Colors.White.Lerp(tint, 0.5f);
         }
         color = new Color(color.R * tint.R, color.G * tint.G, color.B * tint.B);
-        float brightness = 1.0f + jitter.Range(-_settings.ColorJitter, _settings.ColorJitter);
-        color = new Color(color.R * brightness, color.G * brightness, color.B * brightness);
-
-        vertices[v] = p0;
-        vertices[v + 1] = p1;
-        vertices[v + 2] = p2;
-        for (int k = 0; k < 3; k++)
-        {
-            normals[v + k] = normal;
-            colors[v + k] = color;
-        }
-        return v + 3;
+        return color;
     }
 
     /// <summary>
@@ -799,17 +850,29 @@ public sealed class TerrainGenerator
             Vector2 lean = new(random.Range(-1.0f, 1.0f), random.Range(-1.0f, 1.0f));
             float ground = Height(x, z);
             Biome? biome = BiomeAt(x, z, DepthAt(ground));
-            if (biome == null || biome.TreeModels.Length == 0 || keep * maxTrees >= biome.TreeDensity)
+            if (biome == null || biome.TreeModels.Length == 0)
             {
                 continue;
             }
+            float densityFactor = 1;
+            if (biome.ClusterTrees)
+            {
+                float wave = Mathf.Max(_settings.ForestClusterWavelength, 1);
+                densityFactor = Mathf.Clamp(0.55f + _forestPatches.Sample(x / wave, z / wave) * 1.8f, 0.1f, 1);
+            }
+            if (keep * maxTrees >= biome.TreeDensity * densityFactor) { continue; }
             if (TooCloseToPath(x, z, 2.0f) || NearStation(x, z, _settings.ClearingRadius + _settings.TreeStationGap) || SlopeDegrees(x, z) > _settings.TreeMaxSlope)
             {
                 continue;
             }
             string model = biome.TreeModels[Mathf.Min((int)(pick * biome.TreeModels.Length), biome.TreeModels.Length - 1)];
             float height = Mathf.Lerp(biome.TreeHeight.X, biome.TreeHeight.Y, tall);
-            data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground, z), yaw, height, lean * Mathf.DegToRad(biome.TreeLean)));
+            if (biome.SaplingShare > 0 && tall < biome.SaplingShare)
+            {
+                height = Mathf.Lerp(biome.SaplingHeight.X, biome.SaplingHeight.Y, tall / biome.SaplingShare);
+            }
+            data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground, z), yaw, height,
+                lean * Mathf.DegToRad(biome.TreeLean), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
         }
 
         // Grass and flowers: a jittered grid at the densest rate, thinned per biome; heights from the grid.
@@ -861,12 +924,37 @@ public sealed class TerrainGenerator
                 }
                 string model = models[Mathf.Min((int)(pick * models.Length), models.Length - 1)];
                 float s = Mathf.Lerp(biome.GrassScale.X, biome.GrassScale.Y, scale);
-                data.Plants.Add(new PlantData(kind, model, new Vector3(x, ground, z), yaw, s, Vector2.Zero));
+                data.Plants.Add(new PlantData(kind, model, new Vector3(x, ground, z), yaw, s, Vector2.Zero, biome.GroundPlantsInMetres));
             }
         }
     }
 
-    /// <summary>Height inside a chunk from its grid (local x, z in m), bilinear.</summary>
+    private void PlacePebbles(TerrainChunkData data, Vector2I coord, Vector3 corner)
+    {
+        if (_settings.PebbleModels.Length == 0 || _settings.PebbleDensity <= 0) { return; }
+        SplitMix64 random = new(SplitMix64.Mix(SplitMix64.Mix(Seed, DetailSalt), ChunkSalt(coord)));
+        float size = _settings.ChunkSize;
+        int count = Mathf.Min(Mathf.RoundToInt(size * size * _settings.PebbleDensity), 4096);
+        for (int i = 0; i < count; i++)
+        {
+            float lx = random.Range(0, size);
+            float lz = random.Range(0, size);
+            float x = corner.X + lx;
+            float z = corner.Z + lz;
+            float slope = GridSlope(data, lx, lz);
+            if (slope > _settings.DetailMaxSlope) { continue; }
+            float height = GridHeight(data, lx, lz);
+            TerrainSurface surface = SurfaceAt(x, z);
+            if (surface == TerrainSurface.Snow) { continue; }
+            // Leave the trodden centre clear, but show stones on shoulders and exposed off-trail ground.
+            if (PathWeight(x, z, out _) > 0.9f) { continue; }
+            string model = _settings.PebbleModels[random.NextInt(_settings.PebbleModels.Length)];
+            data.Plants.Add(new PlantData(PlantKind.Pebble, model, new Vector3(x, height, z), random.Range(-Mathf.Pi, Mathf.Pi),
+                random.Range(_settings.PebbleHeight.X, _settings.PebbleHeight.Y), Vector2.Zero, true));
+        }
+    }
+
+    /// <summary>Height on the rendered grid triangles (local x, z in m).</summary>
     private float GridHeight(TerrainChunkData data, float lx, float lz)
     {
         float cell = _settings.CellSize;
@@ -881,7 +969,9 @@ public sealed class TerrainGenerator
         float h10 = data.Heights[i + 1 + j * points];
         float h01 = data.Heights[i + (j + 1) * points];
         float h11 = data.Heights[i + 1 + (j + 1) * points];
-        return Mathf.Lerp(Mathf.Lerp(h00, h10, fx), Mathf.Lerp(h01, h11, fx), fz);
+        // Follow the rendered a-b-d / a-d-c diagonal instead of floating on a bilinear patch.
+        if (fx >= fz) { return h00 + (h10 - h00) * fx + (h11 - h10) * fz; }
+        return h00 + (h11 - h01) * fx + (h01 - h00) * fz;
     }
 
     /// <summary>Slope inside a chunk from its grid, in degrees.</summary>

@@ -6,8 +6,9 @@ It is a composition/gameplay reference, not a requirement to copy its illustrati
 
 ## Decisions
 
-- Target Galaxy Tab A9, initially assume the 4 GB variant. Sustained 30 FPS is the first acceptance
-  target; 60 FPS is optional only after measurement. There has been no on-device performance test.
+- PC development and polish come first. Galaxy Tab A9 remains a design constraint; Android export,
+  touch controls and on-device testing are finishing work, as directed by the user. Assume the 4 GB
+  variant until confirmed. Sustained 30 FPS is the eventual Android target, not a measured result.
 - Keep the deterministic generator, route queries and streamed collision as the starting point.
   Improve rendering and placement separately from navigation/terrain height mathematics.
 - Do not replace the entire terrain subsystem before comparing one representative section.
@@ -48,8 +49,8 @@ It is a composition/gameplay reference, not a requirement to copy its illustrati
 Compare Compatibility and Mobile on the tablet, using the same route, camera and load. Record
 frame-time distribution, streaming spikes, memory, draw calls and triangles. Test ten minutes
 for thermal slowdown, then inspect grass overdraw, shadow cost and collision workload separately.
-Desktop fixed-fps captures are visual checks, not performance evidence for Android. Verify C#
-Android export, touch controls and device deployment early; this project currently uses Godot
+Desktop fixed-fps captures are visual checks, not performance evidence for Android. During finishing,
+verify C# Android export, touch controls and device deployment; this project currently uses Godot
 4.7.2 .NET with net9.0 configured for Android, but no Android export has been validated here.
 
 ## References checked

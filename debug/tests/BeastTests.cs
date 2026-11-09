@@ -24,6 +24,8 @@ public partial class BeastTests : Node3D
 	[Export] public BeastDirector? Director { get; set; }
 	/// <summary>The test stands this far down the route from the summit, in m.</summary>
 	[Export] public float StartDown { get; set; } = 150.0f;
+	/// <summary>Clear trail approach for the food-hit check; roaming and dodging are tested separately.</summary>
+	[Export] public float FoodApproachDistance { get; set; } = 6.0f;
 
 	private readonly List<string> _failures = new();
 	private int _launches;
@@ -297,6 +299,15 @@ public partial class BeastTests : Node3D
 		NightBeast beast = director.Beasts[0];
 		await Stalk(player, director, 6.0f);
 		GameEvents.PublishCarriedItems(new List<string> { "rope", "dried_fruit" });
+		// This check needs a successful hit, not a random orbit with a tree between the actors.
+		// Keep the real terrain/body collisions, but reset both actors to the clear trail.
+		IRouteQuery? route = GetNodeOrNull<RunState>("/root/RunState")?.Route;
+		if (route != null && Streamer != null)
+		{
+			float z = Streamer.SpawnPoint.Z - StartDown;
+			await Place(player, route.RoutePoint(z), 1.0f);
+			beast.Relocate(route.RoutePoint(z + FoodApproachDistance) + Vector3.Up * 0.05f);
+		}
 		_launches = 0;
 		_dropped = "";
 		beast.AttackTimer = 0.0f;
@@ -309,7 +320,7 @@ public partial class BeastTests : Node3D
 		GameEvents.PublishCarriedItems(new List<string>());
 		Check("with food in the pack the she-wolf tears it out (and only knocks the carrier)",
 			_dropped == "dried_fruit" && _launches == 1,
-			$"dropped '{_dropped}', launches {_launches}");
+			$"dropped '{_dropped}', launches {_launches}, state {beast.State}, food '{beast.FoodInPack}', distance {beast.GlobalPosition.DistanceTo(player.GlobalPosition):0.0} m, stuck {beast.StuckFor:0.00} s");
 		await Recover(player, director);
 	}
 

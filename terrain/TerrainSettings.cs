@@ -17,6 +17,8 @@ public partial class TerrainSettings : Resource
     /// <summary>Cells per chunk side; chunks are ChunkCells × CellSize metres wide.</summary>
     [Export] public int ChunkCells { get; set; } = 64;
     [Export] public float CellSize { get; set; } = 1.0f;
+    /// <summary>Continuous lighting and vertex surface colours; does not change the height grid or collision.</summary>
+    [Export] public bool SmoothShading { get; set; } = true;
 
     [ExportGroup("Mountain")]
     /// <summary>Average descent angle of the mountain along -Z.</summary>
@@ -165,7 +167,7 @@ public partial class TerrainSettings : Resource
     /// <summary>Width of the band where one biome turns into the next, in m of depth.</summary>
     [Export] public float BiomeBlend { get; set; } = 240.0f;
     /// <summary>Grass and flowers are drawn this far from the camera, in m.</summary>
-    [Export] public float GrassViewDistance { get; set; } = 75.0f;
+    [Export] public float GrassViewDistance { get; set; } = 45.0f;
     /// <summary>Grass blades' colour before the biome's tint (a little deeper than the grassy ground).</summary>
     [Export] public Color GrassColor { get; set; } = new(0.5f, 0.62f, 0.4f);
     /// <summary>Trees keep this far from stations' fires, in m (on top of the clearing).</summary>
@@ -173,12 +175,25 @@ public partial class TerrainSettings : Resource
     /// <summary>Trees don't grow on ground steeper than this, in degrees.</summary>
     [Export] public float TreeMaxSlope { get; set; } = 32.0f;
 
+    [ExportGroup("Forest detail")]
+    [Export] public float PlantBatchSize { get; set; } = 16.0f;
+    [Export] public double PlantBuildBudgetMilliseconds { get; set; } = 3.0;
+    [Export] public float TreeViewDistance { get; set; } = 220.0f;
+    [Export] public float ForestClusterWavelength { get; set; } = 45.0f;
+    [Export] public float PebbleDensity { get; set; } = 0.12f;
+    [Export] public Vector2 PebbleHeight { get; set; } = new(0.025f, 0.09f);
+    [Export] public float PebbleViewDistance { get; set; } = 30.0f;
+    [Export] public float DetailMaxSlope { get; set; } = 40.0f;
+    [Export] public string[] PebbleModels { get; set; } =
+    {
+        Kit + "stone_smallA.glb", Kit + "stone_smallB.glb", Kit + "stone_smallC.glb",
+    };
+
     public static Biome[] DefaultBiomes()
     {
         return new[]
         {
-            Biome.Make("Limbo", 0.0f, new Color(0.93f, 0.97f, 0.92f), new[] { Kit + "tree_pineRoundA.glb", Kit + "tree_pineRoundB.glb", Kit + "tree_pineRoundC.glb", Kit + "tree_pineRoundD.glb", Kit + "tree_pineTallA.glb", Kit + "tree_pineTallB.glb", Kit + "tree_pineTallC.glb", Kit + "tree_pineDefaultA.glb" }, 4.0f, new Vector2(4.5f, 9.0f), 2.0f,
-                new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.35f, new[] { Kit + "flower_purpleA.glb", Kit + "flower_purpleB.glb", Kit + "flower_purpleC.glb" }, 0.02f),
+            ForestBiome(),
             Biome.Make("Lust", 1800.0f, new Color(1.0f, 0.96f, 0.86f), new[] { Kit + "tree_tall.glb", Kit + "tree_thin.glb", Kit + "tree_pineSmallA.glb", Kit + "tree_pineSmallC.glb" }, 2.0f, new Vector2(4.0f, 7.0f), 14.0f,
                 new[] { Kit + "grass_large.glb", Kit + "grass_leafs.glb" }, 0.5f, new[] { Kit + "flower_redA.glb", Kit + "flower_redB.glb", Kit + "flower_redC.glb" }, 0.04f),
             Biome.Make("Gluttony", 3600.0f, new Color(0.78f, 0.9f, 0.72f), new[] { Kit + "tree_oak_dark.glb", Kit + "tree_default_dark.glb", Kit + "tree_fat_darkh.glb", Kit + "tree_detailed_dark.glb" }, 6.0f, new Vector2(5.0f, 9.0f), 4.0f,
@@ -201,4 +216,20 @@ public partial class TerrainSettings : Resource
     }
 
     public float ChunkSize => ChunkCells * CellSize;
+
+    private static Biome ForestBiome()
+    {
+        const string forest = "res://art/environment/forest/";
+        Biome biome = Biome.Make("Limbo", 0, new Color(0.88f, 0.94f, 0.83f),
+            new[] { forest + "pine_0.tscn", forest + "pine_1.tscn", forest + "pine_2.tscn" },
+            22, new Vector2(10, 18), 2,
+            new[] { forest + "grass_0.tscn", forest + "grass_1.tscn", forest + "grass_2.tscn" },
+            0.7f, new[] { Kit + "flower_purpleA.glb", Kit + "flower_purpleB.glb" }, 0.015f);
+        biome.GroundPlantsInMetres = true;
+        biome.GrassScale = new Vector2(0.12f, 0.4f);
+        biome.TrunkRadiusPerMetre = 0.0125f;
+        biome.ClusterTrees = true;
+        biome.SaplingShare = 0.15f;
+        return biome;
+    }
 }

@@ -99,6 +99,7 @@ public partial class TerrainDebugOverlay : CanvasLayer
             $"Depth {Streamer.Depth:0} m   Circle {circle + 1}: {circleName}\n" +
             $"Ground {generator.SlopeDegrees(position.X, position.Z):0}°  {_locomotion.Surface}   spine {spineOffset:+0.0;-0.0} m\n" +
             $"Chunks {Streamer.LoadedCount}   build {Streamer.LastBuildMilliseconds:0} ms   add {Streamer.LastApplyMilliseconds:0.0} ms (max {Streamer.MaxApplyMilliseconds:0.0})\n" +
+            $"Plants shared frame max {TerrainChunk.MaxPlantFrameMilliseconds:0.0} ms   draw calls {Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame):0}\n" +
             Situation() + "\n" +
             Map.WaypointCairn.Describe(GameEvents.LatestEstimate, _clock).Replace("\n", "   ");
         _label.Position = new Vector2((GetViewport().GetVisibleRect().Size.X - TextWidth) * 0.5f, TextTop);

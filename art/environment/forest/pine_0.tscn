@@ -1,0 +1,5 @@
+[gd_scene format=3]
+[ext_resource type="ArrayMesh" path="res://art/environment/forest/pine_0.res" id="1_mesh"]
+[node name="pine_0" type="Node3D"]
+[node name="Geometry" type="MeshInstance3D" parent="."]
+mesh = ExtResource("1_mesh")
