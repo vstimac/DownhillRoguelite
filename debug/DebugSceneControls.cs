@@ -53,6 +53,13 @@ public partial class DebugSceneControls : Node
         {
             Input.ActionPress("player_brake");
         }
+        // `--perf` prints where the frame time goes (debug/PerfLog).
+        if (System.Array.IndexOf(args, "--perf") >= 0)
+        {
+            AddChild(new PerfLog { Name = "PerfLog", Breakdown = System.Array.IndexOf(args, "--perf-breakdown") >= 0 || System.Array.IndexOf(args, "--perf-cpu") >= 0,
+                CpuBreakdown = System.Array.IndexOf(args, "--perf-cpu") >= 0,
+                Counting = System.Array.IndexOf(args, "--perf-nodes") >= 0 });
+        }
         // `--promo` hides every overlay and the bars, for clean screenshots.
         if (System.Array.IndexOf(args, "--promo") >= 0)
         {

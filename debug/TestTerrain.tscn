@@ -219,7 +219,8 @@ transform = Transform3D(0.866025, -0.187303, 0.463592, 0, 0.927184, 0.374607, -0
 light_color = Color(0.86, 0.88, 0.95, 1)
 light_energy = 0.75
 shadow_enabled = true
-directional_shadow_max_distance = 120.0
+directional_shadow_mode = 1
+directional_shadow_max_distance = 70.0
 
 [node name="Terrain" type="Node3D" parent="." unique_id=1812529261]
 script = ExtResource("14_streamer")

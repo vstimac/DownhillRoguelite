@@ -65,6 +65,8 @@ public partial class WildlifeSpawner : Node3D
         GameEvents.RespawnRequested -= Clear;
     }
 
+    private int _tick;
+
     public override void _PhysicsProcess(double delta)
     {
         if (!_hasCarrier || Table == null)
@@ -95,8 +97,21 @@ public partial class WildlifeSpawner : Node3D
                 _animals.RemoveAt(i);
                 continue;
             }
+            // Far, calm animals step less often: nobody sees a grazing sheep 100 m off at 60 Hz.
+            bool calm = animal.State == WildlifeAnimal.Mode.Idle || animal.State == WildlifeAnimal.Mode.Walk;
+            int every = Mathf.Max(Table.FarTickEvery, 1);
+            if (calm && every > 1 && horizontal > Table.FarDistance)
+            {
+                if ((_tick + i) % every != 0)
+                {
+                    continue;
+                }
+                animal.Tick(dt * every, _carrier, _carrierInput, _sprinting, space);
+                continue;
+            }
             animal.Tick(dt, _carrier, _carrierInput, _sprinting, space);
         }
+        _tick++;
 
         _spawnTimer -= dt;
         if (Spawning && _spawnTimer <= 0.0f && _animals.Count < Table.MaxAnimals)

@@ -55,6 +55,11 @@ public partial class DayNightCycle : Node
     [ExportGroup("Sky shader")]
     /// <summary>Cloud drift per m/s of wind, in cloud-texture units per second.</summary>
     [Export] public float CloudDrift { get; set; } = 0.004f;
+    /// <summary>
+    /// Seconds between updates of the sun, fog and sky (the day and the clouds change slowly). Every
+    /// update re-uploads the environment and the sky material, so doing it every frame cost about 1 ms.
+    /// </summary>
+    [Export] public float UpdateInterval { get; set; } = 1.0f / 30.0f;
     /// <summary>Cloud drift with no wind, so the sky never stands still.</summary>
     [Export] public Vector2 CloudIdleDrift { get; set; } = new(0.003f, 0.001f);
 
@@ -76,6 +81,7 @@ public partial class DayNightCycle : Node
     private ShaderMaterial? _skyShader;
     private Vector2 _cloudOffset;
     private float _twinkle;
+    private float _sinceUpdate;
 
     public override void _Ready()
     {
@@ -114,6 +120,12 @@ public partial class DayNightCycle : Node
         Vector3 wind = GameEvents.CurrentWeather.Wind;
         _cloudOffset += (new Vector2(wind.X, wind.Z) * CloudDrift + CloudIdleDrift) * dt;
         _twinkle += dt;
+        _sinceUpdate += dt;
+        if (_sinceUpdate < UpdateInterval)
+        {
+            return;
+        }
+        _sinceUpdate = 0.0f;
         Apply();
     }
 

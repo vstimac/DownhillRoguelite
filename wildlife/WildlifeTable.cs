@@ -24,6 +24,10 @@ public partial class WildlifeTable : Resource
     [Export] public float DespawnDistance { get; set; } = 180.0f;
     /// <summary>Animals this far behind (uphill of) the carrier are removed, in m.</summary>
     [Export] public float BehindDistance { get; set; } = 80.0f;
+    /// <summary>Calm animals (idle or walking) farther than this are updated less often, in m (saves physics time).</summary>
+    [Export] public float FarDistance { get; set; } = 45.0f;
+    /// <summary>A far, calm animal is updated once every this many physics steps (with the time of all of them).</summary>
+    [Export] public int FarTickEvery { get; set; } = 4;
 
     [ExportGroup("Scatter")]
     /// <summary>A fall scatters every animal within this distance, in m.</summary>

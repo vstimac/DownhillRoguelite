@@ -166,7 +166,9 @@ entries was followed by clean Survival, Station, Objective and Wayside scenes (5
 ## Every-five-frame capture
 
 The debug-only PlaytestCapture autoload records the **game viewport** every five rendered
-frames, including menus while the world is paused. F9 pauses/resumes capture. Restart an
+frames, including menus while the world is paused. It is **off by default** (the GPU readback and
+JPEG encoding halved the frame rate, about 118 → 58 FPS on the dev PC): F9 starts/stops it during
+play, and `-- --capture` starts a run with it on. Restart an
 already-running game once after building to load the new recorder.
 
 Default output: `D:\Game dev\math-audit-artifacts\live-capture\<session>`. Each session keeps
@@ -176,6 +178,6 @@ score highlights visual changes; camera motion, fog and lighting also affect it,
 a semantic bug detector. Captures must still be inspected. GPU readback/encoding adds overhead;
 disable capture when measuring performance. It does not record other desktop applications.
 
-Overrides after `--`: `--capture-off`, `--capture-every=5`, `--capture-max=600`,
+Overrides after `--`: `--capture`, `--capture-off`, `--capture-every=5`, `--capture-max=600`,
 `--capture-directory=D:/path`. Headless runs never capture; movie exports skip this recorder
 unless explicit capture arguments are supplied. Capture ends with the game process.

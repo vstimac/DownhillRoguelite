@@ -269,7 +269,8 @@ public partial class BeastTests : Node3D
 		}
 		bool crouched = beast.State == NightBeast.Mode.WindUp;
 		float far = Flat(beast.GlobalPosition - player.GlobalPosition);
-		GameEvents.PublishMegaphone(player.GlobalPosition, far + 5.0f, 4.0f, 10.0f);
+		// The blast reaches by straight-line distance (a beast up the slope is farther than flat).
+		GameEvents.PublishMegaphone(player.GlobalPosition, beast.GlobalPosition.DistanceTo(player.GlobalPosition) + 5.0f, 4.0f, 10.0f);
 		bool brokeOff = beast.State == NightBeast.Mode.Retreat && beast.ConfusedFor > 0.0f;
 		bool attacked = false;
 		for (float elapsed = 0.0f; elapsed < 3.5f; elapsed += dt)

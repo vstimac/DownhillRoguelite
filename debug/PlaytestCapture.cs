@@ -7,10 +7,14 @@ using Godot;
 
 namespace DownhillRoguelite.Debug;
 
-/// <summary>Debug-only, game-viewport recording. Keeps a bounded rolling sequence at a rendered-frame interval.</summary>
+/// <summary>
+/// Debug-only, game-viewport recording. Keeps a bounded rolling sequence at a rendered-frame interval.
+/// Off by default: each capture reads the frame back from the GPU and encodes a JPEG, which halves the
+/// frame rate. F9 turns it on and off during play; `-- --capture` (or an explicit capture argument) starts with it on.
+/// </summary>
 public partial class PlaytestCapture : Node
 {
-    [Export] public bool Enabled { get; set; } = true;
+    [Export] public bool Enabled { get; set; }
     [Export] public int EveryFrames { get; set; } = 5;
     [Export] public int MaxImages { get; set; } = 600;
     [Export] public float Quality { get; set; } = 0.88f;
@@ -30,11 +34,12 @@ public partial class PlaytestCapture : Node
         bool explicitCapture = false;
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
+            if (arg == "--capture") { Enabled = true; explicitCapture = true; }
             if (arg == "--capture-off") { Enabled = false; }
             if (arg.StartsWith("--capture-directory=", StringComparison.Ordinal))
-            { OutputDirectory = arg["--capture-directory=".Length..]; explicitCapture = true; }
+            { OutputDirectory = arg["--capture-directory=".Length..]; explicitCapture = true; Enabled = true; }
             if (arg.StartsWith("--capture-every=", StringComparison.Ordinal) && int.TryParse(arg["--capture-every=".Length..], out int interval))
-            { EveryFrames = Math.Max(interval, 1); explicitCapture = true; }
+            { EveryFrames = Math.Max(interval, 1); explicitCapture = true; Enabled = true; }
             if (arg.StartsWith("--capture-max=", StringComparison.Ordinal) && int.TryParse(arg["--capture-max=".Length..], out int limit))
             { MaxImages = Math.Clamp(limit, 1, 10000); }
         }
