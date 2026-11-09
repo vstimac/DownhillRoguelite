@@ -155,7 +155,7 @@ public partial class StartScreen : CanvasLayer
     {
         foreach (Node node in GetTree().Root.FindChildren("*", "CanvasLayer", true, false))
         {
-            if (node is CanvasLayer layer && layer != this && layer is not ColourFilterLayer && layer.Visible && !_hidden.Contains(layer))
+            if (node is CanvasLayer layer && layer != this && layer is not ColourFilterLayer && layer is not LoadingScreen && layer.Visible && !_hidden.Contains(layer))
             {
                 layer.Visible = false;
                 _hidden.Add(layer);

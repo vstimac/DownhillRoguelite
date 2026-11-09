@@ -103,6 +103,8 @@ public partial class LoadingScreen : CanvasLayer
         }
         _fade?.Kill();
         _root.Modulate = Colors.White;
+        _root.MouseFilter = Control.MouseFilterEnum.Stop;
+        _root.Visible = true;
         Visible = true;
         _shown = 0.0f;
         _progress = 0.0f;
@@ -187,13 +189,24 @@ public partial class LoadingScreen : CanvasLayer
             GetTree().Paused = false;
         }
         _pausedByUs = false;
+        // Even if something shows the layer again (the start menu restores the canvas layers it hid),
+        // a faded screen must never take the mouse from the camera.
+        if (_root != null)
+        {
+            _root.MouseFilter = Control.MouseFilterEnum.Ignore;
+        }
         if (!fade || _root == null)
         {
+            _root?.Hide();
             Visible = false;
             return;
         }
         _fade = CreateTween();
         _fade.TweenProperty(_root, "modulate:a", 0.0f, FadeSeconds);
-        _fade.TweenCallback(Callable.From(() => Visible = false));
+        _fade.TweenCallback(Callable.From(() =>
+        {
+            _root.Visible = false;
+            Visible = false;
+        }));
     }
 }
