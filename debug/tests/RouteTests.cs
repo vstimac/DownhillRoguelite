@@ -60,6 +60,7 @@ public partial class RouteTests : Node3D
         TestSurfaces(generator, route, stage);
         TestSupplies(route, stage);
         await TestSign(PlayerBody, route, stage);
+        await TestJunction(PlayerBody, route, stage);
         await TestChoice(PlayerBody, route, stage);
 
         GameEvents.RouteOptionsUpdated -= OnOptions;
@@ -474,6 +475,36 @@ public partial class RouteTests : Node3D
         Check("walking onto a branch chooses it, and the estimate follows that path",
             _chosenStage == stage && _chosenKind == kind && estimate.Kind == kind,
             $"chose {RouteSign.KindName(_chosenKind)} in stage {_chosenStage} (expected {RouteSign.KindName(kind)} in {stage}), estimate along {RouteSign.KindName(estimate.Kind)}");
+    }
+
+    /// <summary>The signpost where the paths split: an arm per path, named Safe/Fast/Loot, each aimed at its own path.</summary>
+    private async Task TestJunction(PlayerController player, IRouteQuery route, int stage)
+    {
+        Vector2 zone = route.BranchZone(stage);
+        await Place(player, route.RoutePoint(zone.X + 8.0f), 1.0f);
+        Stations!.Junctions.TryGetValue(stage, out JunctionSignpost? post);
+        int paths = route.PathCount(stage);
+        bool ok = post != null && post.Words.Length == paths;
+        string detail = "no signpost";
+        if (post != null)
+        {
+            detail = "";
+            for (int path = 0; path < post.Words.Length && path < paths; path++)
+            {
+                RouteKind kind = route.PathKind(stage, path);
+                Vector2 aim = post.Directions[path];
+                // Every arm points downhill (-Z); a branch's arm leans to the side its path swings to.
+                float swing = route.PathPoint(stage, path, Mathf.Lerp(zone.X, zone.Y, 0.3f)).X - route.RoutePoint(Mathf.Lerp(zone.X, zone.Y, 0.3f)).X;
+                bool side = path == 0 || Mathf.Abs(swing) < 5.0f || Mathf.Sign(aim.X) == Mathf.Sign(swing);
+                bool word = post.Words[path] == JunctionSignpost.Word(kind);
+                if (!(aim.Y < 0.0f && side && word))
+                {
+                    ok = false;
+                }
+                detail += $"{post.Words[path]} ({RouteSign.KindName(kind)}) aims ({aim.X:0.00}, {aim.Y:0.00}), path swings {swing:0} m; ";
+            }
+        }
+        Check("a signpost at the split points each path's arm (Safe, Fast, Loot) at its path", ok, $"stage {stage}, {paths} paths: {detail}");
     }
 
     private async Task Place(PlayerController player, Vector3 position, float settle)

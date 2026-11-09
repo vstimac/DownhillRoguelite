@@ -48,6 +48,15 @@ public partial class StationManager : Node3D
     [Export] public float MarkerDistance { get; set; } = 30.0f;
     /// <summary>...this far to the side of the path's centre (negative: left, facing downhill), in m.</summary>
     [Export] public float MarkerSideOffset { get; set; } = -2.8f;
+    /// <summary>The junction signpost stands this far above the split (along Z), in m.</summary>
+    [Export] public float JunctionAbove { get; set; } = 3.0f;
+    /// <summary>...this far to the side of the main path (negative: left, facing downhill), in m.</summary>
+    [Export] public float JunctionSideOffset { get; set; } = -2.6f;
+    /// <summary>Each arm points at its path where it has moved this far from the main path, in m...</summary>
+    [Export] public float JunctionSeparation { get; set; } = 12.0f;
+    /// <summary>...or this far below the split if it hasn't yet (and the safe arm points this far down the main path), in m.</summary>
+    [Export] public float JunctionAimDistance { get; set; } = 90.0f;
+
     /// <summary>Step for measuring a path's length, in m along Z.</summary>
     [Export] public float MeasureStep { get; set; } = 6.0f;
 
@@ -60,12 +69,14 @@ public partial class StationManager : Node3D
     public WaypointCairn? LabelledCairn { get; private set; }
     public IReadOnlyDictionary<int, RouteSign> Signs => _signs;
     public IReadOnlyDictionary<int, PathMarker> Markers => _markers;
+    public IReadOnlyDictionary<int, JunctionSignpost> Junctions => _junctions;
 
     private readonly Dictionary<int, StationSite> _stations = new();
     private readonly Dictionary<int, WaypointCairn> _cairns = new();
     private readonly HashSet<int> _reached = new();
     private readonly Dictionary<int, RouteSign> _signs = new();
     private readonly Dictionary<int, PathMarker> _markers = new();
+    private readonly Dictionary<int, JunctionSignpost> _junctions = new();
     private int _chosenStage = -1;
     private Node3D? _summit;
     private Label3D? _summitLabel;
@@ -155,6 +166,7 @@ public partial class StationManager : Node3D
         StreamCairns(route);
         StreamSigns(route);
         StreamMarkers(route);
+        StreamJunctions(route);
         UpdateShelter();
         UpdateCairnLabel();
         UpdateChoice(route);
@@ -339,6 +351,72 @@ public partial class StationManager : Node3D
             }
         }
         RemoveExcept(_markers, wanted);
+    }
+
+    /// <summary>A signpost where each stage's paths split, near the carrier, one arm aimed down each path.</summary>
+    private void StreamJunctions(IRouteQuery route)
+    {
+        List<int> wanted = new();
+        int first = Mathf.Max(0, route.StageAt(_focus.Z + StationLoadDistance));
+        int last = route.StageAt(_focus.Z - StationLoadDistance);
+        for (int stage = first; stage <= last; stage++)
+        {
+            int paths = route.PathCount(stage);
+            if (paths < 2)
+            {
+                continue;
+            }
+            Vector2 zone = route.BranchZone(stage);
+            float z = zone.X + JunctionAbove;
+            if (Mathf.Abs(z - _focus.Z) > CairnLoadDistance)
+            {
+                continue;
+            }
+            wanted.Add(stage);
+            if (_junctions.ContainsKey(stage))
+            {
+                continue;
+            }
+            Vector3 split = route.RoutePoint(z);
+            float x = split.X + JunctionSideOffset;
+            Vector3 post = new(x, route.GroundHeight(x, z) - GroundSink, z);
+            RouteKind[] kinds = new RouteKind[paths];
+            Vector2[] directions = new Vector2[paths];
+            for (int path = 0; path < paths; path++)
+            {
+                kinds[path] = route.PathKind(stage, path);
+                Vector3 target = AimPoint(route, stage, path, zone.X);
+                directions[path] = new Vector2(target.X - post.X, target.Z - post.Z);
+            }
+            JunctionSignpost sign = new() { Name = "JunctionSignpost" + stage, Stage = stage };
+            AddChild(sign);
+            sign.GlobalPosition = post;
+            sign.Build(kinds, directions);
+            _junctions[stage] = sign;
+        }
+        RemoveExcept(_junctions, wanted);
+    }
+
+    /// <summary>
+    /// Where a junction arm points for a path: the first point below the split where the path has
+    /// clearly left the main path, so each arm shows the way into its own path.
+    /// </summary>
+    private Vector3 AimPoint(IRouteQuery route, int stage, int path, float splitZ)
+    {
+        float step = Mathf.Max(MeasureStep, 0.5f);
+        if (path > 0)
+        {
+            for (float down = step; down <= JunctionAimDistance; down += step)
+            {
+                float z = splitZ - down;
+                Vector3 point = route.PathPoint(stage, path, z);
+                if (Mathf.Abs(point.X - route.RoutePoint(z).X) >= JunctionSeparation)
+                {
+                    return point;
+                }
+            }
+        }
+        return route.PathPoint(stage, path, splitZ - JunctionAimDistance);
     }
 
     /// <summary>A path's length on the ground between two z, in m (sampled every MeasureStep).</summary>
