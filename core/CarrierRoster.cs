@@ -7,6 +7,7 @@ namespace DownhillRoguelite.Core;
 /// The playable characters, in the order the start screen offers them. The first available one is the
 /// default. Characters whose model isn't in the project (not added yet, or kept out of git) are skipped.
 /// </summary>
+[Tool]
 [GlobalClass]
 public partial class CarrierRoster : Resource
 {

@@ -2,6 +2,7 @@ using Godot;
 namespace DownhillRoguelite.Inventory;
 
 /// <summary>Authored visual contract. Imported skinning is accepted only after bind/rest validation.</summary>
+[Tool]
 [GlobalClass]
 public partial class ClothingVisual : Resource
 {

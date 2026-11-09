@@ -16,6 +16,8 @@ namespace DownhillRoguelite.Player;
 public partial class CarrierWornGear : Node
 {
     public Skeleton3D? Skeleton { get; set; }
+    /// <summary>The character (CarrierCharacter.Id) wearing it, for the hand-made fits (ClothingFit).</summary>
+    public string CharacterId { get; set; } = "";
     /// <summary>His vest mesh: the oilskin coat is a grown copy of it.</summary>
     public MeshInstance3D? Vest { get; set; }
     /// <summary>The items shown by CarrierModel from his own pieces, skipped here.</summary>
@@ -47,13 +49,24 @@ public partial class CarrierWornGear : Node
     private float _metresPerUnit = 1.0f;
     private float _torsoX;
     private float _torsoZ;
+    private bool _setUp;
 
     public override void _Ready()
     {
-        if (Skeleton == null)
+        Setup(true);
+    }
+
+    /// <summary>
+    /// Measures the body (once); with <paramref name="listen"/> it then follows the worn gear. The
+    /// clothing fitting scene calls it without listening and shows gear through ShowGear.
+    /// </summary>
+    public void Setup(bool listen)
+    {
+        if (Skeleton == null || _setUp)
         {
             return;
         }
+        _setUp = true;
         _metresPerUnit = Mathf.Max(Skeleton.GlobalBasis.Scale.X, 0.0001f);
         Vector3 hips = RestOrigin("Hips");
         Vector3 head = RestOrigin("Head");
@@ -71,8 +84,49 @@ public partial class CarrierWornGear : Node
         right = up.Cross(back).Normalized();
         _frame = new Basis(right, up, back);
         MeasureTorso();
+        if (!listen)
+        {
+            return;
+        }
         GameEvents.GearChanged += OnGear;
         OnGear(GameEvents.CurrentGear);
+    }
+
+    /// <summary>Shows this gear without listening for changes (the clothing fitting scene).</summary>
+    public void ShowGear(GearSnapshot gear)
+    {
+        OnGear(gear);
+    }
+
+    /// <summary>
+    /// The pieces shown now with their fit keys (ClothingFitter): the item id and the piece, e.g.
+    /// wool_hat-Head, oilskin_coat-LeftArm.
+    /// </summary>
+    public List<KeyValuePair<string, Node3D>> Pieces()
+    {
+        List<KeyValuePair<string, Node3D>> pieces = new();
+        foreach ((EquipSlot slot, List<Node3D> nodes) in _shown)
+        {
+            string id = _shownItem.GetValueOrDefault(slot, "");
+            foreach (Node3D node in nodes)
+            {
+                if (id.Length > 0 && IsInstanceValid(node) && !node.IsQueuedForDeletion())
+                {
+                    pieces.Add(new KeyValuePair<string, Node3D>(PieceKey(id, node), node));
+                }
+            }
+        }
+        return pieces;
+    }
+
+    private static string PieceKey(string id, Node3D node)
+    {
+        string name = node.Name.ToString();
+        if (name.StartsWith("Worn"))
+        {
+            name = name.Substring("Worn".Length);
+        }
+        return id + "-" + name;
     }
 
     public override void _ExitTree()
@@ -141,6 +195,10 @@ public partial class CarrierWornGear : Node
             case EquipSlot.Cape:
                 ShowCape(nodes);
                 break;
+        }
+        foreach (Node3D node in nodes)
+        {
+            ClothingFitter.Fit(Skeleton, CharacterId, PieceKey(id, node), node);
         }
     }
 

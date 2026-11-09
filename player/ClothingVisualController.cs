@@ -35,10 +35,21 @@ public partial class ClothingVisualController : Node
     private BaseMaterial3D? _nativeShirtMaterial;
     private ShaderMaterial? _packMaterial;
     private Shader? _shader;
+    private bool _setUp;
 
     public override void _Ready()
     {
-        if (Skeleton == null) { return; }
+        Setup(true);
+    }
+
+    /// <summary>
+    /// Builds the base outfit (once); with <paramref name="listen"/> it then follows the worn gear and the
+    /// options. The clothing fitting scene calls it without listening and shows gear through ShowGear.
+    /// </summary>
+    public void Setup(bool listen)
+    {
+        if (Skeleton == null || _setUp) { return; }
+        _setUp = true;
         _shader = GD.Load<Shader>("res://player/clothing_condition.gdshader");
         foreach (Node node in Skeleton.FindChildren("*", "MeshInstance3D", true, false))
         {
@@ -65,10 +76,51 @@ public partial class ClothingVisualController : Node
                 if (node is MeshInstance3D mesh && mesh.Mesh is BoxMesh box && box.Size.X > 0.2f) { mesh.MaterialOverride = _packMaterial; }
             }
         }
-        GameOptions.Changed += ApplyBaseAppearance;
+        ClothingFitter.Fit(Skeleton, CharacterId, BaseShirtKey(), _baseShirt);
+        ClothingFitter.Fit(Skeleton, CharacterId, "body_trousers", _bodyTrousers);
+        ClothingFitter.Fit(Skeleton, CharacterId, "body_boots", _bodyBoots);
+        ClothingFitter.Fit(Skeleton, CharacterId, "base_pack", _basePack);
         ApplyBaseAppearance();
+        if (!listen) { return; }
+        GameOptions.Changed += ApplyBaseAppearance;
         GameEvents.GearChanged += OnGear;
         OnGear(GameEvents.CurrentGear);
+    }
+
+    /// <summary>Shows this gear without listening for changes (the clothing fitting scene).</summary>
+    public void ShowGear(GearSnapshot gear)
+    {
+        OnGear(gear);
+    }
+
+    /// <summary>The pieces shown now with their fit keys (ClothingFitter): the base outfit's and each worn item's.</summary>
+    public List<KeyValuePair<string, Node3D>> Pieces()
+    {
+        List<KeyValuePair<string, Node3D>> pieces = new();
+        AddPiece(pieces, BaseShirtKey(), _baseShirt);
+        AddPiece(pieces, "body_trousers", _bodyTrousers);
+        AddPiece(pieces, "body_boots", _bodyBoots);
+        AddPiece(pieces, "base_pack", _basePack);
+        foreach ((EquipSlot slot, Node3D visual) in _visuals)
+        {
+            AddPiece(pieces, _definitions[slot].ItemId, visual);
+        }
+        return pieces;
+    }
+
+    private static void AddPiece(List<KeyValuePair<string, Node3D>> pieces, string key, Node3D? node)
+    {
+        if (node != null && IsInstanceValid(node) && node.Visible)
+        {
+            pieces.Add(new KeyValuePair<string, Node3D>(key, node));
+        }
+    }
+
+    /// <summary>The base shirt's fit key: cut from the body, or the drawn prototype.</summary>
+    private string BaseShirtKey()
+    {
+        if (_baseShirt != null && _baseShirt.Name == "BodyShirt") { return "body_shirt"; }
+        return "base_shirt";
     }
 
     public override void _ExitTree()
@@ -147,6 +199,7 @@ public partial class ClothingVisualController : Node
                         ShaderMaterial material = Material(item.Clothing.Colour);
                         _materials[slot] = material;
                         ApplyMaterial(visual, material);
+                        ClothingFitter.Fit(Skeleton, CharacterId, item.ItemId, visual);
                     }
                 }
             }

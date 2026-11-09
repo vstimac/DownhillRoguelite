@@ -7,6 +7,7 @@ namespace DownhillRoguelite.Inventory;
 /// A kind of item that can go in the backpack. Shapes are boxes measured in grid cells for now
 /// (see docs/inventory-design.md); irregular shapes come later.
 /// </summary>
+[Tool]
 [GlobalClass]
 public partial class ItemDefinition : Resource
 {
