@@ -40,6 +40,7 @@ public partial class WildlifeSpawner : Node3D
     private RunState? _run;
     private Vector3 _carrier;
     private Vector3 _carrierVelocity;
+    private Vector3 _carrierInput;
     private bool _hasCarrier;
     private bool _sprinting;
     private float _spawnTimer;
@@ -94,7 +95,7 @@ public partial class WildlifeSpawner : Node3D
                 _animals.RemoveAt(i);
                 continue;
             }
-            animal.Tick(dt, _carrier, _sprinting, space);
+            animal.Tick(dt, _carrier, _carrierInput, _sprinting, space);
         }
 
         _spawnTimer -= dt;
@@ -259,6 +260,7 @@ public partial class WildlifeSpawner : Node3D
     {
         _carrier = snapshot.Position;
         _carrierVelocity = snapshot.Velocity;
+        _carrierInput = snapshot.InputDirection;
         _hasCarrier = true;
     }
 

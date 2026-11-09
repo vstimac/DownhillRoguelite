@@ -81,11 +81,25 @@ public partial class PlayerController : CharacterBody3D
         FloorConstantSpeed = true;
         FloorBlockOnWall = true;
         GameEvents.BalanceUpdated += OnBalanceUpdated;
+        GameEvents.LaunchRequested += OnLaunchRequested;
     }
 
     public override void _ExitTree()
     {
         GameEvents.BalanceUpdated -= OnBalanceUpdated;
+        GameEvents.LaunchRequested -= OnLaunchRequested;
+    }
+
+    private Vector3? _launch;
+    private string _launchCause = "";
+
+    /// <summary>Queues a throw for the next physics step: up fast enough to reach the height, plus the push.</summary>
+    private void OnLaunchRequested(Vector3 horizontal, float height, string cause)
+    {
+        float gravity = _gravity * Settings.GravityScale;
+        float up = Mathf.Sqrt(2.0f * gravity * Mathf.Max(height, 0.0f));
+        _launch = new Vector3(horizontal.X, up, horizontal.Z);
+        _launchCause = cause;
     }
 
     private void OnBalanceUpdated(BalanceSnapshot snapshot)
@@ -164,6 +178,14 @@ public partial class PlayerController : CharacterBody3D
         {
             _externalVelocity = Vector3.Zero;
             Velocity = ComputeAirVelocity(input, dt);
+        }
+        if (_launch is Vector3 launch)
+        {
+            // Thrown: leaves the ground this step (floor snap doesn't hold a body moving up).
+            _launch = null;
+            Velocity = launch;
+            grounded = false;
+            GameEvents.PublishLaunched(_launchCause);
         }
 
         // Walking under your own power costs stamina; standing still lets it recover.

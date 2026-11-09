@@ -1,10 +1,13 @@
+using DownhillRoguelite.Core;
 using Godot;
 
 namespace DownhillRoguelite.Wildlife;
 
 /// <summary>
-/// One animal: grazes, wanders a few metres now and then, turns to watch the carrier go by, and
-/// bolts away when the carrier comes too close, sprints nearby or falls (Scatter). A physics body:
+/// One animal: grazes, wanders a few metres now and then, turns to watch the carrier go by and
+/// stands its ground when the carrier walks into it (bolting on approach is a table option). Pushed
+/// for long, it gives way a little, then turns round and shoves the carrier into the air
+/// (GameEvents.RequestLaunch); a fall nearby still scatters it (Scatter). A physics body:
 /// a capsule sized to the species walks on the ground with gravity, slides on what's too steep and
 /// bumps into rocks, other animals and the carrier; its model leans to the slope underfoot so legs
 /// and head don't sink in. Flyers float at their height above the ground. The spawner drives it
@@ -17,7 +20,19 @@ public partial class WildlifeAnimal : CharacterBody3D
         Idle,
         Walk,
         Flee,
+        /// <summary>Pushed too long: turning on the carrier, about to shove.</summary>
+        Shove,
     }
+
+    /// <summary>Seconds the carrier has been pushing this animal (reset once it calms down).</summary>
+    public float PushTime { get; private set; }
+    /// <summary>How many times this animal has shoved the carrier.</summary>
+    public int Shoves { get; private set; }
+    /// <summary>The capsule's radius, in m.</summary>
+    public float Radius { get; private set; }
+
+    private float _calm;
+    private float _shoveCooldown;
 
     public WildlifeSpecies? Species { get; private set; }
     public Mode State { get; private set; } = Mode.Idle;
@@ -58,6 +73,7 @@ public partial class WildlifeAnimal : CharacterBody3D
         Vector3 body = species.BodySize;
         float radius = Mathf.Max(0.05f, Mathf.Min(body.X, body.Z) * 0.5f);
         float height = Mathf.Max(body.Y, radius * 2.0f);
+        Radius = radius;
         AddChild(new CollisionShape3D
         {
             Shape = new CapsuleShape3D { Radius = radius, Height = height },
@@ -80,6 +96,12 @@ public partial class WildlifeAnimal : CharacterBody3D
     /// <summary>Advances the animal by dt given where the carrier is and whether it sprints.</summary>
     public void Tick(float dt, Vector3 carrier, bool sprinting, PhysicsDirectSpaceState3D space)
     {
+        Tick(dt, carrier, Vector3.Zero, sprinting, space);
+    }
+
+    /// <summary>Advances the animal by dt given where the carrier is, where it's steering (input) and whether it sprints.</summary>
+    public void Tick(float dt, Vector3 carrier, Vector3 carrierInput, bool sprinting, PhysicsDirectSpaceState3D space)
+    {
         if (Species == null || _table == null)
         {
             return;
@@ -87,8 +109,16 @@ public partial class WildlifeAnimal : CharacterBody3D
         Vector3 toCarrier = carrier - GlobalPosition;
         toCarrier.Y = 0.0f;
         float distance = toCarrier.Length();
+        _shoveCooldown = Mathf.Max(0.0f, _shoveCooldown - dt);
 
-        if (State != Mode.Flee)
+        if (State == Mode.Shove)
+        {
+            ShoveStep(dt, toCarrier, distance, space);
+            return;
+        }
+        Vector3 pushedBy = Pushed(toCarrier, distance, carrierInput, dt);
+
+        if (State != Mode.Flee && _table.FleeFromCarrier)
         {
             float shy = Species.FleeDistance;
             if (sprinting)
@@ -137,9 +167,76 @@ public partial class WildlifeAnimal : CharacterBody3D
                 Wander();
             }
         }
+        if (!pushedBy.IsZeroApprox())
+        {
+            // A heavy animal gives way slowly under the push, whatever it was doing.
+            walk = pushedBy * _table.PushYieldSpeed;
+        }
 
         Step(walk, dt, space);
         LeanToGround(dt);
+    }
+
+    /// <summary>
+    /// Whether the carrier is pushing: touching (within the margin) and steering into the animal.
+    /// Counts the pushing time and starts the shove when patience runs out (big enough animals).
+    /// Returns the direction it's being pushed in, or zero.
+    /// </summary>
+    private Vector3 Pushed(Vector3 toCarrier, float distance, Vector3 carrierInput, float dt)
+    {
+        float touching = Radius + _table!.CarrierRadius + _table.PushContactMargin;
+        Vector3 input = new(carrierInput.X, 0.0f, carrierInput.Z);
+        bool pushing = false;
+        if (distance < touching && distance > 0.001f && input.LengthSquared() > 0.01f)
+        {
+            Vector3 away = -toCarrier / distance;
+            pushing = input.Normalized().Dot(away) >= _table.PushMinAlignment;
+        }
+        if (!pushing)
+        {
+            _calm += dt;
+            if (_calm >= _table.PushForgetTime)
+            {
+                PushTime = 0.0f;
+            }
+            return Vector3.Zero;
+        }
+        _calm = 0.0f;
+        PushTime += dt;
+        bool bigEnough = Species!.BodySize.Y >= _table.MinShoverHeight;
+        if (bigEnough && PushTime >= _table.PushPatience && _shoveCooldown <= 0.0f)
+        {
+            State = Mode.Shove;
+            _timer = _table.ShoveWindUp;
+            // Stamping: the run clip, fast, on the spot.
+            Play(Species.FleeClip, Species.FleeClipSpeed * 2.0f, 0.0f);
+        }
+        return -toCarrier / distance;
+    }
+
+    /// <summary>Turns round to face the carrier, braces for the wind-up, then throws them if still in reach.</summary>
+    private void ShoveStep(float dt, Vector3 toCarrier, float distance, PhysicsDirectSpaceState3D space)
+    {
+        if (distance > 0.01f)
+        {
+            Turn(toCarrier / distance, dt * 4.0f);
+        }
+        _timer -= dt;
+        Step(Vector3.Zero, dt, space);
+        LeanToGround(dt);
+        if (_timer > 0.0f)
+        {
+            return;
+        }
+        float reach = Radius + _table!.CarrierRadius + _table.PushContactMargin + 0.6f;
+        if (distance < reach && distance > 0.001f)
+        {
+            GameEvents.RequestLaunch(toCarrier / distance * _table.ShoveSpeed, _table.ShoveHeight, Species!.DisplayName);
+            Shoves++;
+        }
+        PushTime = 0.0f;
+        _shoveCooldown = _table.ShoveCooldown;
+        Rest();
     }
 
     /// <summary>Bolts away from a point (a fall, a sprinting carrier).</summary>

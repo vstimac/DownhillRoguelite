@@ -26,6 +26,7 @@ radius = 0.3
 height = 1.8
 
 [node name="Player" type="CharacterBody3D" node_paths=PackedStringArray("Stamina", "Health")]
+collision_mask = 9
 script = ExtResource("1_controller")
 Settings = ExtResource("2_settings")
 Stamina = NodePath("Stamina")

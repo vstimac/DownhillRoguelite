@@ -487,6 +487,23 @@ public static partial class GameEvents
         KillRequested?.Invoke(cause);
     }
 
+    /// <summary>
+    /// Asks for the carrier to be thrown into the air (an animal's shove, a beast's charge):
+    /// (horizontal velocity in m/s, height to reach in m, who did it). The controller launches the
+    /// carrier; the landing is an ordinary one, so the timed roll (Space) can take it.
+    /// </summary>
+    public static event Action<Godot.Vector3, float, string>? LaunchRequested;
+
+    public static void RequestLaunch(Godot.Vector3 horizontal, float height, string cause)
+    {
+        LaunchRequested?.Invoke(horizontal, height, cause);
+    }
+
+    /// <summary>Raised when the carrier is thrown (cause), for notes and sounds.</summary>
+    public static event Action<string>? Launched;
+
+    public static void PublishLaunched(string cause) => Launched?.Invoke(cause);
+
     /// <summary>True while a narrator line is playing (music ducks under it).</summary>
     public static bool IsNarrating { get; private set; }
 
