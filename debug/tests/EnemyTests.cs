@@ -10,7 +10,8 @@ namespace DownhillRoguelite.Debug;
 /// The humanoid enemies (the bog ogre and the pack fiend) on a flat floor with a stand-in carrier:
 /// their models follow the animated rig; they wander until the carrier is in sight, then run in; their
 /// blows hurt and shove the carrier, unless the shield takes them; they guard or roll aside from a
-/// swing they see coming; they reel when hit and die at 0 health; the director brings them.
+/// swing they see coming; they reel when hit (their health bar drops) and die at 0 health; the director
+/// brings them; the jade urn, used, gives stamina or wakes the jade glutton beside the nearest tree.
 /// Run: godot --headless --path . --fixed-fps 60 res://debug/tests/EnemyTests.tscn
 /// </summary>
 public partial class EnemyTests : Node3D
@@ -29,11 +30,12 @@ public partial class EnemyTests : Node3D
         GameEvents.LaunchRequested += OnLaunch;
         GameEvents.KnockdownRequested += OnKnockdown;
 
-        foreach (string id in new[] { "ogre", "packbeast" })
+        foreach (string id in new[] { "ogre", "packbeast", "jade_glutton" })
         {
             await Species(GD.Load<EnemySpecies>($"res://wildlife/enemies/{id}.tres"));
         }
         await Director();
+        await Wake();
 
         GameEvents.DamageRequested -= OnDamage;
         GameEvents.LaunchRequested -= OnLaunch;
@@ -126,6 +128,8 @@ public partial class EnemyTests : Node3D
         guard.TakeHit(20.0f, Vector3.Forward * 3.0f, "sword");
         Check($"{name}: an unguarded blow wounds it and it reels", guard.State == HumanoidEnemy.Phase.Stagger && Mathf.IsEqualApprox(health - guard.Health, 20.0f),
             $"{guard.State}, lost {health - guard.Health:0.0}");
+        Check($"{name}: its health bar shows what's left", guard.Bar != null && Mathf.IsEqualApprox(guard.Bar.Fraction, guard.Health / guard.MaxHealth) && guard.Bar.Fraction < 1.0f,
+            $"bar {guard.Bar?.Fraction:0.00}, health {guard.Health:0}/{guard.MaxHealth:0}");
         guard.QueueFree();
 
         // Or it rolls aside, out of the blow's way.
@@ -171,6 +175,53 @@ public partial class EnemyTests : Node3D
         Check("the director brings enemies, more and tougher deeper down", director.Enemies.Count == 1 && director.MostEnemies() == 3 && Mathf.IsEqualApprox(brought.Health, 160.0f * 1.4f),
             $"{director.Enemies.Count} brought, at most {director.MostEnemies()} in circle 4, health {brought.Health:0}");
         director.QueueFree();
+        await Frames(2);
+    }
+
+    /// <summary>The jade urn: used, it gives stamina or (by chance) wakes the glutton by the nearest tree, which comes at once.</summary>
+    private async Task Wake()
+    {
+        Inventory.ItemDefinition urn = GD.Load<Inventory.ItemDefinition>("res://inventory/items/jade_urn.tres");
+        Check("the jade urn gives stamina, or one time in five wakes the glutton", urn.UsableAlone && urn.UseStamina > 0.0f
+            && urn.Wakes(0.1f) && !urn.Wakes(0.5f) && Mathf.IsEqualApprox(urn.UseWakeChance, 0.2f) && urn.UseWakes == "jade_glutton", "");
+
+        Vector3 near = new(6.0f, 0.0f, -6.0f);
+        StaticBody3D trees = new() { Name = "TreeTrunks" };
+        trees.AddToGroup("tree_trunks");
+        trees.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = 0.3f, Height = 3.0f }, Position = near + Vector3.Up * 1.5f });
+        trees.AddChild(new CollisionShape3D { Shape = new CylinderShape3D { Radius = 0.3f, Height = 3.0f }, Position = new Vector3(-20.0f, 1.5f, -20.0f) });
+        AddChild(trees);
+        EnemyDirector director = new()
+        {
+            Wakeable = new[] { GD.Load<EnemySpecies>("res://wildlife/enemies/jade_glutton.tres") },
+            Arrivals = false,
+            CircleOverride = 0,
+        };
+        AddChild(director);
+        await Frames(2);
+        GameEvents.PublishLocomotion(default(LocomotionSnapshot));
+        GameEvents.RequestWake("jade_glutton", "Grinning jade urn");
+        await Frames(2);
+        HumanoidEnemy? woken = null;
+        if (director.Enemies.Count == 1)
+        {
+            woken = director.Enemies[0];
+        }
+        float fromTree = 99.0f;
+        float fromCarrier = 0.0f;
+        if (woken != null)
+        {
+            fromTree = new Vector2(woken.GlobalPosition.X - near.X, woken.GlobalPosition.Z - near.Z).Length();
+            fromCarrier = new Vector2(woken.GlobalPosition.X, woken.GlobalPosition.Z).Length();
+        }
+        Check("used, it wakes the glutton beside the nearest tree, and it comes at once", woken != null && fromTree < 1.5f && fromCarrier > near.Length()
+            && woken.Aware && woken.State == HumanoidEnemy.Phase.Chase,
+            $"{director.Enemies.Count} woken, {fromTree:0.0} m from the tree, {fromCarrier:0.0} m from the carrier, aware {woken?.Aware}, {woken?.State}");
+        GameEvents.RequestWake("ogre", "nothing");
+        await Frames(2);
+        Check("only the kinds that can be woken wake", director.Enemies.Count == 1, $"{director.Enemies.Count}");
+        director.QueueFree();
+        trees.QueueFree();
         await Frames(2);
     }
 

@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="EnemySpecies" format=3]
+
+[ext_resource type="Script" path="res://wildlife/EnemySpecies.cs" id="1_species"]
+
+[resource]
+script = ExtResource("1_species")
+Id = "jade_glutton"
+DisplayName = "the jade glutton"
+ModelPath = "res://art/characters/enemies/jade_glutton/jade_glutton.glb"
+ModelHeight = 0.91
+Height = 2.1
+BodyRadius = 0.5
+WalkSpeed = 1.2
+RunSpeed = 3.4
+SprintSpeed = 4.8
+SprintBeyond = 14.0
+Acceleration = 6.0
+TurnSpeed = 220.0
+SightRange = 40.0
+GiveUpRange = 90.0
+Reach = 1.6
+ReachAngle = 55.0
+Attacks = PackedStringArray("Punch_Jab", "Punch_Cross", "Sword_Attack")
+AttackDamage = PackedFloat32Array(12, 16, 26)
+AttackPush = PackedFloat32Array(3, 4.5, 7)
+AttackSpeed = PackedFloat32Array(0.85, 0.85, 0.7)
+AttackWindow = Array[Vector2]([Vector2(0.25, 0.55), Vector2(0.3, 0.6), Vector2(0.35, 0.6)])
+KnockdownPush = 6.5
+AttackCooldown = 1.5
+Health = 200.0
+GuardChance = 0.45
+DodgeChance = 0.05
+GuardSeconds = 1.4
+GuardedDamage = 0.08
+DodgeSpeed = 3.5
+StaggerSeconds = 0.4
+HeavyHit = 40.0
+HeavyStaggerSeconds = 0.75
+BlockedRecoil = 2.0
+CallSounds = PackedStringArray("res://audio/creatures/lion_roar_0.wav")
+HurtSounds = PackedStringArray("res://audio/creatures/lion_growl_0.wav", "res://audio/creatures/lion_growl_1.wav")
+GuardSounds = PackedStringArray("res://audio/combat/sword_block_0.wav", "res://audio/combat/sword_block_1.wav")
+VolumeDb = 3.0
+VoicePitch = 0.6

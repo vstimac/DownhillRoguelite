@@ -50,8 +50,11 @@ public partial class CarrierInventory : Node
     private ItemDefinitions? _looseDefinitions;
     private readonly List<ItemDefinition> _all = new();
 
+    private readonly RandomNumberGenerator _useRoll = new();
+
     public override void _Ready()
     {
+        _useRoll.Randomize();
         if (Backpack == null)
         {
             GD.PushError("CarrierInventory: Backpack is not assigned.");
@@ -696,6 +699,14 @@ public partial class CarrierInventory : Node
                 {
                     continue;
                 }
+                if (pocketed.UsableAlone && pocketed.Category != ItemCategory.Food && pocketed.Category != ItemCategory.Water)
+                {
+                    if (RemovePocketItem(pocketed))
+                    {
+                        UseUp(pocketed);
+                    }
+                    return;
+                }
                 if (pocketed.Category != ItemCategory.Food && pocketed.Category != ItemCategory.Water)
                 {
                     return;
@@ -728,7 +739,26 @@ public partial class CarrierInventory : Node
                 Consume(item);
                 GameEvents.PublishItemConsumed(SupplyNeed.Thirst, itemId, RestoreOf(item.Definition));
             }
+            else if (item.Definition.UsableAlone)
+            {
+                Consume(item);
+                UseUp(item.Definition);
+            }
             return;
+        }
+    }
+
+    /// <summary>An item used up for its effect: its stamina, or (by chance) what it wakes.</summary>
+    private void UseUp(ItemDefinition item)
+    {
+        if (item.Wakes(_useRoll.Randf()))
+        {
+            GameEvents.RequestWake(item.UseWakes, item.DisplayName);
+            return;
+        }
+        if (item.UseStamina > 0.0f)
+        {
+            GameEvents.RequestStaminaRestore(item.UseStamina);
         }
     }
 

@@ -16,6 +16,16 @@ namespace DownhillRoguelite.Wildlife;
 public partial class EnemyDirector : Node3D
 {
     [Export] public EnemySpecies[] Species { get; set; } = System.Array.Empty<EnemySpecies>();
+    /// <summary>Kinds that never just arrive: an item wakes them (GameEvents.WakeRequested) by the nearest tree.</summary>
+    [Export] public EnemySpecies[] Wakeable { get; set; } = System.Array.Empty<EnemySpecies>();
+    /// <summary>The trees' trunk bodies (the terrain's group), searched this far from the carrier (m).</summary>
+    [Export] public string TreeGroup { get; set; } = "tree_trunks";
+    [Export] public float TreeSearch { get; set; } = 40.0f;
+    /// <summary>How far from the trunk's middle, on the far side from the carrier, it steps out (m).</summary>
+    [Export] public float BesideTree { get; set; } = 1.0f;
+    /// <summary>With no tree near, this far ahead of the carrier (m).</summary>
+    [Export] public float NoTreeDistance { get; set; } = 8.0f;
+    [Export] public string WakeHint { get; set; } = "Something wakes among the trees...";
     /// <summary>Seconds before the first arrive, and between arrivals.</summary>
     [Export] public Vector2 FirstDelay { get; set; } = new(90.0f, 150.0f);
     [Export] public Vector2 Interval { get; set; } = new(120.0f, 240.0f);
@@ -68,12 +78,14 @@ public partial class EnemyDirector : Node3D
         }
         GameEvents.LocomotionUpdated += OnLocomotion;
         GameEvents.NewMountain += OnNewMountain;
+        GameEvents.WakeRequested += OnWake;
     }
 
     public override void _ExitTree()
     {
         GameEvents.LocomotionUpdated -= OnLocomotion;
         GameEvents.NewMountain -= OnNewMountain;
+        GameEvents.WakeRequested -= OnWake;
     }
 
     private void OnLocomotion(LocomotionSnapshot snapshot)
@@ -83,6 +95,77 @@ public partial class EnemyDirector : Node3D
     }
 
     private void OnNewMountain(ulong seed) => Clear();
+
+    private void OnWake(string speciesId, string cause)
+    {
+        EnemySpecies? species = null;
+        foreach (EnemySpecies kind in Wakeable)
+        {
+            if (kind != null && kind.Id == speciesId)
+            {
+                species = kind;
+            }
+        }
+        if (species == null || !_hasCarrier)
+        {
+            return;
+        }
+        Wake(species);
+    }
+
+    /// <summary>Brings this kind beside the tree nearest the carrier (or ahead if there's none) and sets it on them.</summary>
+    public HumanoidEnemy Wake(EnemySpecies species)
+    {
+        Vector3 carrier = _carrier.Position;
+        Vector3 spot;
+        if (NearestTree(carrier, out Vector3 trunk))
+        {
+            Vector3 away = new(trunk.X - carrier.X, 0.0f, trunk.Z - carrier.Z);
+            if (away.LengthSquared() < 0.0001f)
+            {
+                away = Vector3.Forward;
+            }
+            spot = Ground(trunk + away.Normalized() * BesideTree);
+        }
+        else
+        {
+            spot = Ground(carrier + Ahead() * NoTreeDistance);
+        }
+        HumanoidEnemy enemy = Bring(species, spot);
+        enemy.Alert(carrier);
+        if (WakeHint.Length > 0)
+        {
+            GameEvents.PublishHint(WakeHint);
+        }
+        return enemy;
+    }
+
+    /// <summary>The trunk (its middle, on the ground plane) nearest to <paramref name="from"/> within TreeSearch.</summary>
+    public bool NearestTree(Vector3 from, out Vector3 trunk)
+    {
+        trunk = from;
+        float best = TreeSearch;
+        bool found = false;
+        foreach (Node body in GetTree().GetNodesInGroup(TreeGroup))
+        {
+            foreach (Node child in body.GetChildren())
+            {
+                if (child is not CollisionShape3D shape)
+                {
+                    continue;
+                }
+                Vector3 at = shape.GlobalPosition;
+                float distance = new Vector2(at.X - from.X, at.Z - from.Z).Length();
+                if (distance < best)
+                {
+                    best = distance;
+                    trunk = at;
+                    found = true;
+                }
+            }
+        }
+        return found;
+    }
 
     public override void _PhysicsProcess(double delta)
     {

@@ -13,3 +13,10 @@ Hand, Thigh, Calf, Foot, ToeBase, fingers, twist bones), rest facing +Z. They ha
 their own: wildlife/HumanoidEnemy.cs plays the Universal Animation Library's clips on a hidden
 mannequin and RigFollower (TripoPairs) copies its pose onto the model. Any other Tripo-rigged humanoid
 works the same way: add a model here and an EnemySpecies .tres.
+
+## jade_glutton
+
+`jade_glutton/jade_glutton.glb`: a jade pot-headed glutton in a red sash (Tripo model from the
+director's concept sheet, same 78-bone Tripo rig; ModelHeight 0.91, faces +Z). It never just
+arrives: using the "Grinning jade urn" item (stamina +20) has a 20 % chance to wake it beside the
+nearest tree instead (`EnemyDirector.Wakeable`, `GameEvents.WakeRequested`), and it comes at once.

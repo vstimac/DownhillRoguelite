@@ -184,6 +184,14 @@ public static partial class GameEvents
     }
 
     /// <summary>Asks the inventory to use one carried item with this id (eat or drink it), e.g. from the hotbar.</summary>
+    /// <summary>Gives the carrier back this much stamina (an item used up for it).</summary>
+    public static event Action<float>? StaminaRestoreRequested;
+    public static void RequestStaminaRestore(float amount) => StaminaRestoreRequested?.Invoke(amount);
+
+    /// <summary>Wakes an enemy of this kind (EnemySpecies Id) by the nearest tree, roused by the named cause (an item).</summary>
+    public static event Action<string, string>? WakeRequested;
+    public static void RequestWake(string speciesId, string cause) => WakeRequested?.Invoke(speciesId, cause);
+
     public static event Action<string>? UseItemRequested;
 
     public static void RequestUseItem(string itemId)

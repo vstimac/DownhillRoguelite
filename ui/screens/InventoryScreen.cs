@@ -325,8 +325,12 @@ public partial class InventoryScreen : ParchmentPanel
         _detailIcon.SetItem(item, _counts.GetValueOrDefault(item.ItemId));
         _detailTitle.Text = item.DisplayName;
         _detailBody.Text = ItemText.Describe(item) + "\n" + ItemText.Properties(item) + "\n\n" + ItemText.HowToUse(item);
-        _use.Visible = item.Category is ItemCategory.Food or ItemCategory.Water or ItemCategory.Clothing or ItemCategory.Material || ItemText.OpensMap(item);
+        _use.Visible = item.Category is ItemCategory.Food or ItemCategory.Water or ItemCategory.Clothing or ItemCategory.Material || ItemText.OpensMap(item) || item.UsableAlone;
         _use.Text = "Eat";
+        if (item.UsableAlone && item.Category != ItemCategory.Food && item.Category != ItemCategory.Water)
+        {
+            _use.Text = "Use";
+        }
         if (ItemText.OpensMap(item))
         {
             _use.Text = "Map";
@@ -401,7 +405,7 @@ public partial class InventoryScreen : ParchmentPanel
         {
             ItemText.ToggleMap();
         }
-        else if (item.Category == ItemCategory.Food || item.Category == ItemCategory.Water)
+        else if (item.Category == ItemCategory.Food || item.Category == ItemCategory.Water || item.UsableAlone)
         {
             GameEvents.RequestUseItem(item.ItemId);
         }

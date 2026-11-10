@@ -26,6 +26,17 @@ public partial class ItemDefinition : Resource
     [Export] public float Nutrition { get; set; }
     /// <summary>Thirst restored when drunk (Water), out of 100.</summary>
     [Export] public float Hydration { get; set; }
+    /// <summary>Stamina it gives back when used (0: none).</summary>
+    [Export] public float UseStamina { get; set; }
+    /// <summary>Or, with this chance (0..1), using it wakes an enemy (an EnemySpecies Id) by the nearest tree instead.</summary>
+    [Export(PropertyHint.Range, "0,1")] public float UseWakeChance { get; set; }
+    [Export] public string UseWakes { get; set; } = "";
+
+    /// <summary>Used up on its own for an effect (stamina, or what it wakes), like food is eaten.</summary>
+    public bool UsableAlone => UseStamina > 0.0f || (UseWakes.Length > 0 && UseWakeChance > 0.0f);
+
+    /// <summary>Whether a use with this roll (0..1) wakes its enemy rather than giving the stamina.</summary>
+    public bool Wakes(float roll) => UseWakes.Length > 0 && roll < UseWakeChance;
 
     [Export] public ItemTags Tags { get; set; } = ItemTags.None;
     [Export] public OrientationRule Orientation { get; set; } = OrientationRule.Any;

@@ -71,10 +71,15 @@ public partial class CarrierStamina : Node
     {
         _run = GetNodeOrNull<RunState>("/root/RunState");
         if (_run != null) { _characterCapacity = _run.Character.Stats.Stamina; _run.CharacterChanged += OnCharacterChanged; }
+        GameEvents.StaminaRestoreRequested += Restore;
         Refill();
     }
 
-    public override void _ExitTree() { if (_run != null) { _run.CharacterChanged -= OnCharacterChanged; } }
+    public override void _ExitTree()
+    {
+        if (_run != null) { _run.CharacterChanged -= OnCharacterChanged; }
+        GameEvents.StaminaRestoreRequested -= Restore;
+    }
 
     private void OnCharacterChanged()
     {

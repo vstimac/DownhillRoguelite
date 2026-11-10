@@ -26,6 +26,10 @@ public static class ItemText
         {
             use = "Right-click or V opens the map (M) to draw on: paper and pencil let you mark it.";
         }
+        else if (item.UsableAlone)
+        {
+            use = "Use it up: the Use button, right-click, or V on the hotbar.";
+        }
         return use + "\nDrop it: Shift+right-click, the Drop button, G on the hotbar, or drag it off the page to throw it.";
     }
 
@@ -91,6 +95,14 @@ public static class ItemText
         if (item.Hydration > 0.0f)
         {
             text += $"\nWater +{item.Hydration:0}";
+        }
+        if (item.UseStamina > 0.0f)
+        {
+            text += $"\nStamina +{item.UseStamina:0}";
+        }
+        if (item.UseWakes.Length > 0 && item.UseWakeChance > 0.0f)
+        {
+            text += $"\n...or ({item.UseWakeChance * 100.0f:0} % chance) it wakes something";
         }
         if (item.Warmth > 0.0f)
         {

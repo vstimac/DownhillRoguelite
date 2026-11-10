@@ -15,6 +15,8 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
 
     /// <summary>Bodies the carrier can vault over (boulders and fallen trunks).</summary>
     public const string VaultableGroup = "vaultable";
+    /// <summary>The standing trees' trunk bodies (one per chunk, a cylinder per tree).</summary>
+    public const string TreeGroup = "tree_trunks";
 
     private TerrainGenerator? _generator;
     private SurfaceType?[] _surfaces = System.Array.Empty<SurfaceType?>();
@@ -283,6 +285,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
         if (_treeBody == null)
         {
             _treeBody = new StaticBody3D { Name = "TreeTrunks" };
+            _treeBody.AddToGroup(TreeGroup);
             if (trunkSurface != null) { _treeBody.SetMeta(SurfaceType.MetaKey, trunkSurface); }
         }
         float radius = Mathf.Clamp(plant.Scale * 0.035f, 0.12f, 0.4f);

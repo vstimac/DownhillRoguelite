@@ -54,6 +54,9 @@ public static class ItemModels
             case "leather_patch":
                 AddPatch(root);
                 break;
+            case "jade_urn":
+                AddUrn(root);
+                break;
             default:
                 AddBundle(root, item.DebugColor);
                 break;
@@ -207,6 +210,18 @@ public static class ItemModels
             Part(parent, new BoxMesh { Size = new Vector3(0.008f, 0.002f, 0.003f) }, new Color(0.85f, 0.8f, 0.65f),
                 new Vector3(Mathf.Cos(a) * 0.07f, 0.0068f, Mathf.Sin(a) * 0.052f), new Vector3(0.0f, -Mathf.RadToDeg(a) + 90.0f, 0.0f));
         }
+    }
+
+    /// <summary>A small jade urn: round belly, neck, lip and a side handle.</summary>
+    private static void AddUrn(Node3D parent)
+    {
+        Color jade = new(0.22f, 0.52f, 0.36f);
+        MeshInstance3D belly = Part(parent, new SphereMesh { Radius = 0.09f, Height = 0.18f, RadialSegments = 18, Rings = 10 }, jade, Vector3.Up * 0.09f, default, 0.25f);
+        belly.Scale = new Vector3(1.0f, 0.9f, 1.0f);
+        Part(parent, new CylinderMesh { TopRadius = 0.045f, BottomRadius = 0.055f, Height = 0.06f, RadialSegments = 16 }, jade, Vector3.Up * 0.18f, default, 0.25f);
+        Part(parent, new TorusMesh { InnerRadius = 0.04f, OuterRadius = 0.058f, Rings = 16, RingSegments = 8 }, jade.Darkened(0.15f), Vector3.Up * 0.21f, default, 0.25f);
+        Part(parent, new TorusMesh { InnerRadius = 0.025f, OuterRadius = 0.035f, Rings = 12, RingSegments = 6 }, jade.Darkened(0.15f),
+            new Vector3(0.085f, 0.15f, 0.0f), new Vector3(90.0f, 0.0f, 0.0f), 0.25f);
     }
 
     /// <summary>A canvas-wrapped bundle tied with two straps, for any item without a model of its own.</summary>

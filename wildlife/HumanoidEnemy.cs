@@ -54,12 +54,16 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     /// <summary>After dying it sinks this deep over SinkSeconds before it's removed.</summary>
     [Export] public float SinkDepth { get; set; } = 1.2f;
     [Export] public float SinkSeconds { get; set; } = 2.0f;
+    /// <summary>Height of the health bar above its head (m).</summary>
+    [Export] public float HealthBarGap { get; set; } = 0.35f;
 
     /// <summary>Health multiplier (deeper circles make them tougher); set before it enters the tree.</summary>
     public float Toughness { get; set; } = 1.0f;
 
     public Phase State { get; private set; } = Phase.Wander;
     public float Health { get; private set; }
+    public float MaxHealth { get; private set; }
+    public EnemyHealthBar? Bar { get; private set; }
     public RigFollower? Follower { get; private set; }
     public AnimationPlayer? Animations { get; private set; }
     public string Clip { get; private set; } = "";
@@ -110,6 +114,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
             return;
         }
         Health = Species.Health * Toughness;
+        MaxHealth = Health;
         _gravity = ProjectSettings.GetSetting("physics/3d/default_gravity").AsSingle();
         CollisionLayer = 0;
         CollisionMask = GroundMask;
@@ -122,6 +127,11 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
             Position = Vector3.Up * Species.Height * 0.5f,
         });
         BuildVisual();
+        if (Species.HealthBar)
+        {
+            Bar = new EnemyHealthBar { Name = "HealthBar", Position = Vector3.Up * (Species.Height + HealthBarGap) };
+            AddChild(Bar);
+        }
         if (DisplayServer.GetName() != "headless")
         {
             _voice = new AudioStreamPlayer3D { Name = "Voice", VolumeDb = Species.VolumeDb, PitchScale = Species.VoicePitch, UnitSize = 8.0f, Position = Vector3.Up * Species.Height * 0.8f };
@@ -190,6 +200,18 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     }
 
     // --- Where the carrier is, and what they do ---
+
+    /// <summary>Woken (an item used near it): it knows where the carrier is and comes for them at once.</summary>
+    public void Alert(Vector3 carrierFeet)
+    {
+        _aware = true;
+        Track(carrierFeet);
+        if (State == Phase.Wander)
+        {
+            Enter(Phase.Chase);
+        }
+        Say(Species?.CallSounds ?? System.Array.Empty<string>());
+    }
 
     /// <summary>Tells it where the carrier is (their feet), as the locomotion events do.</summary>
     public void Track(Vector3 carrierFeet)
@@ -554,6 +576,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         {
             Guarded++;
             Health = Mathf.Max(0.0f, Health - damage * Species.GuardedDamage);
+            ShowHealth();
             _shove = new Vector3(push.X, 0.0f, push.Z) * 0.4f;
             Say(Species.GuardSounds);
             // The guard holds a moment longer.
@@ -566,6 +589,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         }
         Wounds++;
         Health = Mathf.Max(0.0f, Health - damage);
+        ShowHealth();
         _shove = new Vector3(push.X, 0.0f, push.Z);
         Say(Species.HurtSounds);
         if (Health <= 0.0f)
@@ -593,8 +617,17 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         Enter(Phase.Stagger);
     }
 
+    private void ShowHealth()
+    {
+        Bar?.Set(Health / Mathf.Max(MaxHealth, 0.01f));
+    }
+
     private void Die()
     {
+        if (Bar != null)
+        {
+            Bar.Visible = false;
+        }
         Enter(Phase.Dead);
         Play(DeathClip, ClipBlend * 0.5f, 1.0f, true);
         Velocity = Vector3.Zero;

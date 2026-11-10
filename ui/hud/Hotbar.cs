@@ -154,7 +154,7 @@ public partial class Hotbar : Control
             GameEvents.RequestMend(id);
             return true;
         }
-        if (item.Category != ItemCategory.Food && item.Category != ItemCategory.Water)
+        if (item.Category != ItemCategory.Food && item.Category != ItemCategory.Water && !item.UsableAlone)
         {
             return false;
         }
