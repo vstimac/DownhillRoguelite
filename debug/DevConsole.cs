@@ -95,7 +95,6 @@ public partial class DevConsole : CanvasLayer
     private void Build()
     {
         _panel = new PanelContainer { Name = "Console", MouseFilter = Control.MouseFilterEnum.Stop };
-        _panel.SetAnchorsPreset(Control.LayoutPreset.TopWide);
         _panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = new Color(0.05f, 0.05f, 0.06f, 0.9f), ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 8, ContentMarginBottom = 8 });
         AddChild(_panel);
         VBoxContainer column = new();
@@ -119,8 +118,10 @@ public partial class DevConsole : CanvasLayer
         column.AddChild(_input);
         _fps = new Label { Visible = false, HorizontalAlignment = HorizontalAlignment.Right };
         _fps.SetAnchorsPreset(Control.LayoutPreset.TopRight);
-        _fps.Position = new Vector2(-520, 8);
-        _fps.Size = new Vector2(510, 24);
+        _fps.OffsetLeft = -520.0f;
+        _fps.OffsetRight = -10.0f;
+        _fps.OffsetTop = 8.0f;
+        _fps.OffsetBottom = 32.0f;
         _fps.AddThemeColorOverride("font_color", new Color(1.0f, 1.0f, 0.6f));
         _fps.AddThemeColorOverride("font_outline_color", Colors.Black);
         _fps.AddThemeConstantOverride("outline_size", 4);
