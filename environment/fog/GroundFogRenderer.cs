@@ -123,6 +123,9 @@ public partial class GroundFogRenderer : MeshInstance3D
         Material.SetShaderParameter("fine_step", s.FineStep);
         Material.SetShaderParameter("distance_step", s.DistanceStep);
         Material.SetShaderParameter("edge_fade", s.EdgeFade);
+        Material.SetShaderParameter("far_fade", s.FarFade);
+        Material.SetShaderParameter("near_clear", s.NearClear);
+        Material.SetShaderParameter("top_soft", s.TopSoftness);
         Material.SetShaderParameter("debug_mode", debugMode);
     }
 

@@ -6,3 +6,5 @@
 script = ExtResource("1_settings")
 Depth = 0.8
 Ambient = 0.6
+Density = 1.1
+NoiseAmount = 0.8

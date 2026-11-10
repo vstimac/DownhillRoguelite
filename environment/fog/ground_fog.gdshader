@@ -37,6 +37,12 @@ uniform float fine_step = 0.22;
 // Inside the fog, steps grow with distance by this share of it (far fog needs less detail).
 uniform float distance_step = 0.035;
 uniform float edge_fade = 18.0;
+// The fog thins out from this share of max_distance to nothing at max_distance, so it has no far edge.
+uniform float far_fade = 0.55;
+// The fog thins toward the camera inside this distance (m), so the view never starts in a white wall.
+uniform float near_clear = 3.5;
+// How much of the layer's height the top thins over (0: a hard top, 1: thinning from the ground up).
+uniform float top_soft = 0.7;
 // 0 off, 1 density (blue thin to red thick), 2 flow (direction as colour), 3 ground (1 m bands, grey where unsampled).
 uniform int debug_mode = 0;
 
@@ -114,10 +120,15 @@ void fragment() {
 			vec4 before = texture(fog_prev, (p.xz - prev_origin) / patch_size);
 			vec4 cell = mix(before, now, blend);
 			vec2 edges = min(uv, vec2(1.0) - uv) * patch_size;
-			float shown = smoothstep(0.6, 1.0, now.a) * smoothstep(0.0, edge_fade, min(edges.x, edges.y));
+			// A round fade inside the square patch and a fade with distance: no straight edge or wall at the horizon.
+			float from_middle = length(uv - vec2(0.5)) * patch_size;
+			float round_edge = smoothstep(0.0, edge_fade, patch_size * 0.5 - from_middle);
+			float far = 1.0 - smoothstep(max_distance * far_fade, max_distance, t);
+			float near = smoothstep(near_clear * 0.25, near_clear, t);
+			float shown = smoothstep(0.6, 1.0, now.a) * round_edge * far * near;
 			float n = smoothstep(0.2, 0.8, wisp_noise(p, cell.gb));
 			float top = depth * cell.r * (1.0 + ragged_top * (n - 0.5) * 2.0);
-			float body = 1.0 - smoothstep(top * 0.3, top + 0.05, above);
+			float body = 1.0 - smoothstep(top * (1.0 - top_soft), top + 0.1, above);
 			body *= smoothstep(-0.3, 0.05, above);
 			float thick = mix(1.0 - noise_amount, 1.0 + noise_amount, n);
 			float sigma = density * max(cell.r, 0.0) * thick * body * shown;

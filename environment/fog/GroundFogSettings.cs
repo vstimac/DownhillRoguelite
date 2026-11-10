@@ -118,4 +118,10 @@ public partial class GroundFogSettings : Resource
     [Export] public float DistanceStep { get; set; } = 0.035f;
     /// <summary>The fog fades out over this much of the patch's edge, in m.</summary>
     [Export] public float EdgeFade { get; set; } = 18.0f;
+    /// <summary>The fog thins from this share of MaxDistance to nothing at MaxDistance, so it never ends in a line.</summary>
+    [Export] public float FarFade { get; set; } = 0.55f;
+    /// <summary>The fog thins toward the camera inside this distance (m), so the view never starts in a white wall.</summary>
+    [Export] public float NearClear { get; set; } = 3.5f;
+    /// <summary>How much of the layer's height its top thins over (0 a hard top, 1 thinning from the ground up).</summary>
+    [Export] public float TopSoftness { get; set; } = 0.7f;
 }
