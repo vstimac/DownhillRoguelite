@@ -16,8 +16,6 @@ A dark survival adventure about descending a mountain that never ends — toward
 
 [![Join the Downhill Roguelite Discord](https://img.shields.io/badge/Discord-Join%20the%20descent-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/vhPkSvPk2)
 
-<img src="docs/media/u-ram.jpg" width="360" alt="Framed meme: pa onda stavi me u ram, da znam da tebi pripadam">
-
 </div>
 
 ---
@@ -38,6 +36,7 @@ A dark survival adventure about descending a mountain that never ends — toward
 | **Graphics** | Vulkan-capable GPU with up-to-date drivers (integrated graphics start on Low quality) | Dedicated NVIDIA / AMD GPU |
 | **Storage** | ~1 GB free | ~3.5 GB with the optional AI companion model |
 | **Sound** | | Headphones (directional voices) |
+| **Heart** | <img src="docs/media/u-ram.jpg" width="150" alt="Framed meme: pa onda stavi me u ram, da znam da tebi pripadam"> | |
 
 ## Play the game
 
