@@ -18,9 +18,9 @@ public partial class CharacterPreviewTests : Node3D
         CarrierModel look = player.GetNode<CarrierModel>("CarrierModel");
         for (int i = 0; i < 30; i++) { await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); }
         GetTree().Paused = true;
-        foreach (string id in new[] { "vucic", "default", "vucic", "default" })
+        // One carrier; his outfit presets swap the same model.
+        foreach (string id in new[] { "modular", "carrier_mountaineer", "modular", "carrier_foreman" })
         {
-            if (id == "default" && !ResourceLoader.Exists("res://art/characters/mixamo/carrier.fbx")) { continue; }
             bool shown = look.ShowCharacter(id);
             if (look.Follower != null) { look.Follower.RecordPose = true; }
             for (int i = 0; i < 12; i++) { await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); }
@@ -51,7 +51,7 @@ public partial class CharacterPreviewTests : Node3D
         for (int i = 0; i < 5; i++) { await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); }
         Check("a character without albedo textures falls back to the dressed default rig", !custom && look.Model == null && look.Clothing?.HasBaseOutfit == true);
         look.RosterPath = rosterPath;
-        look.ShowCharacter("vucic");
+        look.ShowCharacter("modular");
         GetTree().Paused = false;
         GetTree().Quit(Math.Min(_failures, 1));
     }

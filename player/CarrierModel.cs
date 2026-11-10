@@ -172,9 +172,9 @@ public partial class CarrierModel : Node3D
         {
             vestItem = VestItem;
         }
-        _worn = new CarrierWornGear { Name = "WornGear", Skeleton = skeleton, CharacterId = character.Id, Vest = _vest, HelmetItem = helmetItem, VestItem = vestItem };
+        _worn = new CarrierWornGear { Name = "WornGear", Skeleton = skeleton, CharacterId = character.FitId, Vest = _vest, HelmetItem = helmetItem, VestItem = vestItem };
         AddChild(_worn);
-        Clothing = new ClothingVisualController { Name = "ClothingVisuals", Skeleton = skeleton, CharacterId = CharacterId };
+        Clothing = new ClothingVisualController { Name = "ClothingVisuals", Skeleton = skeleton, CharacterId = character.FitId };
         AddChild(Clothing);
         OnGear(GameEvents.CurrentGear);
     }

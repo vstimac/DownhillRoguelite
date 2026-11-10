@@ -38,9 +38,9 @@ public partial class CharacterTests : Node3D
         await Frames(30);
 
         List<CarrierCharacter> characters = roster.Available();
-        bool hasVucic = characters.Exists(c => c.Id == "vucic");
-        Check(hasVucic, $"the roster offers {characters.Count} characters, Vučić among them",
-            "Vučić's model is missing from the roster");
+        bool hasOutfits = characters.Exists(c => c.Id == "modular") && characters.Exists(c => c.Id == "carrier_mountaineer");
+        Check(hasOutfits, $"the roster offers the carrier in {characters.Count} outfits",
+            "the carrier or his outfit presets are missing from the roster");
         foreach (CarrierCharacter character in characters)
         {
             await TestCharacter(look, character);

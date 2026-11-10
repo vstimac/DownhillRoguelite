@@ -21,6 +21,26 @@ public partial class CarrierCharacter : Resource
     [Export] public string HairMesh { get; set; } = "";
     [Export] public string VestMesh { get; set; } = "";
     [Export] public CharacterStats? Stats { get; set; }
+    /// <summary>
+    /// Presets of one model share its clothing fits: the id the model's fitted clothes are saved under
+    /// (player/clothing_fit.tres). Empty: the character's own Id.
+    /// </summary>
+    [Export] public string ModelId { get; set; } = "";
+    /// <summary>Clothes this preset starts every run wearing (item ids from inventory/items).</summary>
+    [Export] public string[] StartingWear { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>The id clothing fits and per-model clothes are looked up by.</summary>
+    public string FitId
+    {
+        get
+        {
+            if (ModelId.Length > 0)
+            {
+                return ModelId;
+            }
+            return Id;
+        }
+    }
 
     /// <summary>Whether the model file is in the project (models kept out of git may be missing).</summary>
     public bool Available => ModelPath.Length > 0 && ResourceLoader.Exists(ModelPath);

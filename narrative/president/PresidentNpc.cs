@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using DownhillRoguelite.Core;
+using DownhillRoguelite.Player;
 using Godot;
 
 namespace DownhillRoguelite.Narrative;
@@ -17,9 +18,18 @@ public partial class PresidentNpc : Node3D, IInteractable, IDescribed
     public const string NpcId = "npc_restsite_president";
 
     [Export] public PackedScene? Model { get; set; }
+    /// <summary>The model loaded when Model isn't set: Vučić (a Tripo model on a Mixamo rig). Empty: simple shapes.</summary>
+    [Export(PropertyHint.File, "*.glb")] public string ModelPath { get; set; } = "res://art/characters/vucic/vucic.glb";
     [Export] public float ModelScale { get; set; } = 1.0f;
+    /// <summary>Turn of the model about Y so it faces the carrier (front is +Z), in degrees.</summary>
+    [Export] public float ModelYaw { get; set; } = 0.0f;
+    /// <summary>
+    /// A model with a rig but no clips of its own follows this hidden mannequin (RigFollower), which
+    /// plays IdleClip and TalkClip from the Universal Animation Library.
+    /// </summary>
+    [Export(PropertyHint.File, "*.glb")] public string DriverPath { get; set; } = "res://art/characters/quaternius_ual/UAL_Mannequin.glb";
     [Export] public string IdleClip { get; set; } = "Idle";
-    [Export] public string TalkClip { get; set; } = "Talk";
+    [Export] public string TalkClip { get; set; } = "Idle_Talking";
     [Export] public string TalkParameter { get; set; } = "parameters/talk/blend_amount";
     /// <summary>The conversation closes when the carrier is further than this, in m.</summary>
     [Export] public float LeaveDistance { get; set; } = 8.0f;
@@ -319,11 +329,17 @@ public partial class PresidentNpc : Node3D, IInteractable, IDescribed
 
     private void BuildBody()
     {
+        if (Model == null && ModelPath.Length > 0 && ResourceLoader.Exists(ModelPath))
+        {
+            Model = ResourceLoader.Load<PackedScene>(ModelPath);
+        }
         if (Model != null)
         {
             Node3D model = Model.Instantiate<Node3D>();
             model.Scale = Vector3.One * ModelScale;
+            model.RotationDegrees = new Vector3(0.0f, ModelYaw, 0.0f);
             AddChild(model);
+            Follow(model);
             foreach (Node node in model.FindChildren("*", "AnimationPlayer", true, false))
             {
                 _animation = node as AnimationPlayer;
@@ -345,6 +361,45 @@ public partial class PresidentNpc : Node3D, IInteractable, IDescribed
         _head = new Node3D { Name = "Head", Position = new Vector3(0.0f, 1.55f, 0.0f) };
         body.AddChild(_head);
         _head.AddChild(Part(new SphereMesh { Radius = 0.15f, Height = 0.32f }, SkinColor, new Vector3(0.0f, 0.1f, 0.0f)));
+    }
+
+    /// <summary>A rigged model without clips follows the mannequin, whose AnimationPlayer then plays his clips.</summary>
+    private void Follow(Node3D model)
+    {
+        if (model.FindChildren("*", "AnimationPlayer", true, false).Count > 0 || DriverPath.Length == 0)
+        {
+            return;
+        }
+        Skeleton3D? skeleton = null;
+        foreach (Node node in model.FindChildren("*", "Skeleton3D", true, false))
+        {
+            skeleton = node as Skeleton3D;
+            break;
+        }
+        if (skeleton == null || ResourceLoader.Load(DriverPath) is not PackedScene driverScene || driverScene.Instantiate() is not Node3D driver)
+        {
+            return;
+        }
+        driver.Name = "Driver";
+        model.AddChild(driver);
+        Skeleton3D? driverSkeleton = null;
+        foreach (Node node in driver.FindChildren("*", "Skeleton3D", true, false))
+        {
+            driverSkeleton = node as Skeleton3D;
+            break;
+        }
+        foreach (Node node in driver.FindChildren("*", "AnimationPlayer", true, false))
+        {
+            _animation = node as AnimationPlayer;
+            break;
+        }
+        if (driverSkeleton == null)
+        {
+            return;
+        }
+        RigFollower follower = new() { Name = "RigFollower", Driver = driverSkeleton };
+        follower.UseRigOf(skeleton);
+        skeleton.AddChild(follower);
     }
 
     private static MeshInstance3D Part(Mesh mesh, Color color, Vector3 at)

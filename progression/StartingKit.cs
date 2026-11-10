@@ -22,6 +22,11 @@ public partial class StartingKit : Node
         "res://inventory/items/med_kit.tres",
     };
 
+    /// <summary>Where the preset's clothes (CarrierCharacter.StartingWear, by item id) are found.</summary>
+    [Export] public string ItemFolder { get; set; } = "res://inventory/items/";
+    /// <summary>Clothes the chosen preset put on at the start of this run (tests).</summary>
+    public int PresetWorn { get; private set; }
+
     private RunState? _run;
 
     public override void _Ready()
@@ -56,13 +61,23 @@ public partial class StartingKit : Node
         CallDeferred(MethodName.Grant);
     }
 
-    private void Grant()
+    /// <summary>Gives the unlocked gear and the chosen preset's clothes (at every run's start; tests call it directly).</summary>
+    public void Grant()
     {
         if (_run == null)
         {
             return;
         }
         List<string> items = Unlocked(_run.Records.BestDepth);
+        List<string> wear = new();
+        foreach (string id in _run.Character.Definition?.StartingWear ?? System.Array.Empty<string>())
+        {
+            string path = $"{ItemFolder}{id}.tres";
+            if (ResourceLoader.Exists(path))
+            {
+                wear.Add(id);
+            }
+        }
         _run.StartingKit.Clear();
         foreach (string path in items)
         {
@@ -74,6 +89,15 @@ public partial class StartingKit : Node
         if (items.Count > 0)
         {
             GameEvents.PublishItemsGranted(items.ToArray());
+        }
+        // The preset's clothes, each put on as soon as it is given (so it never needs room in the pack).
+        PresetWorn = 0;
+        foreach (string id in wear)
+        {
+            string path = $"{ItemFolder}{id}.tres";
+            GameEvents.PublishItemsGranted(new[] { path });
+            GameEvents.RequestWear(id);
+            PresetWorn++;
         }
     }
 }

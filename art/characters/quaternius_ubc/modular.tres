@@ -13,7 +13,7 @@ RestoreStaminaFraction = 0.4
 [resource]
 script = ExtResource("1_character")
 Id = "modular"
-DisplayName = "The Carrier (modular)"
+DisplayName = "The Carrier"
 Description = "The porter on a modular body: clothes, hats and packs are separate pieces that fit any base character."
 ModelPath = "res://art/characters/quaternius_ubc/Superhero_Male_FullBody.gltf"
 Stats = SubResource("Stats")

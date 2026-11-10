@@ -4,4 +4,4 @@
 
 [resource]
 script = ExtResource("1_roster")
-CharacterPaths = PackedStringArray("res://art/characters/carrier.tres", "res://art/characters/quaternius_ubc/modular.tres", "res://art/characters/plenki/plenki.tres", "res://art/characters/vucic/vucic.tres")
+CharacterPaths = PackedStringArray("res://art/characters/quaternius_ubc/modular.tres", "res://art/characters/quaternius_ubc/presets/carrier_ranger.tres", "res://art/characters/quaternius_ubc/presets/carrier_mountaineer.tres", "res://art/characters/quaternius_ubc/presets/carrier_foreman.tres", "res://art/characters/quaternius_ubc/presets/carrier_winter.tres")

@@ -195,6 +195,27 @@ public partial class ProgressionTests : Node3D
         Check("the best depth ever unlocks gear the next run starts with",
             emptyAtFirst && unlocked == 2 && inventory.AllItems.Count == 2 && _run.StartingKit.Count == 2,
             $"none at 0 m {emptyAtFirst}, {unlocked} unlocked at 700 m, new run starts with [{string.Join(", ", names)}], kit [{string.Join(", ", _run.StartingKit)}]");
+
+        // An outfit preset starts the run in its clothes.
+        CarrierCharacter? before = _run.Character.Definition;
+        _run.StartNewRun();
+        await WaitSeconds(0.5f);
+        // (A headless new run always takes the neutral carrier; pick the preset as the start screen would.)
+        _run.BeginCharacterRun("carrier_mountaineer");
+        kit.Grant();
+        await WaitSeconds(0.5f);
+        HashSet<string> worn = new();
+        foreach (EquipSlot slot in System.Enum.GetValues<EquipSlot>())
+        {
+            if (inventory.Equipment?.WornIn(slot) is ItemDefinition item)
+            {
+                worn.Add(item.ItemId);
+            }
+        }
+        Check("the Mountaineer preset starts the run in its clothes",
+            kit.PresetWorn == 5 && worn.Count == 5,
+            $"put on {kit.PresetWorn}, worn [{string.Join(", ", worn)}]");
+        _run.Character.Select(before);
     }
 
     private async Task Place(PlayerController player, Vector3 position, float settle)

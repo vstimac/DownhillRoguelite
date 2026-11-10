@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="CarrierCharacter" format=3]
+
+[ext_resource type="Script" path="res://core/CarrierCharacter.cs" id="1_character"]
+[ext_resource type="Script" path="res://core/CharacterStats.cs" id="2_stats"]
+
+[sub_resource type="Resource" id="Stats"]
+script = ExtResource("2_stats")
+Health = 1.1
+Stamina = 0.9
+Speed = 1.05
+Recovery = 0.9
+NeedsDrain = 1.1
+AbilityName = "Iron Resolve"
+AbilityDescription = "For 8s: stamina costs fall 35% and impact damage falls 20%."
+Cooldown = 60.0
+Duration = 8.0
+ActiveStaminaCost = 0.65
+ActiveImpactResistance = 0.2
+
+[resource]
+script = ExtResource("1_character")
+Id = "carrier_foreman"
+DisplayName = "The Carrier · Foreman"
+Description = "Hard hat, hi-vis vest, trail shirt, wool trousers and hobnail boots. Seen from every station, and tougher than he looks."
+ModelPath = "res://art/characters/quaternius_ubc/Superhero_Male_FullBody.gltf"
+Stats = SubResource("Stats")
+ModelId = "modular"
+StartingWear = PackedStringArray("hard_hat", "hi_vis_vest", "trail_shirt", "wool_trousers", "hobnail_boots")

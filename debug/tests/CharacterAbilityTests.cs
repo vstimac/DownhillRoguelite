@@ -18,14 +18,14 @@ public partial class CharacterAbilityTests : Node3D
         CarrierHealth health = player.Health!;
         for (int i = 0; i < 5; i++) { await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); }
         run.SetProcess(false);
-        CarrierCharacter[] profiles = { GD.Load<CarrierCharacter>("res://art/characters/carrier.tres"),
-            GD.Load<CarrierCharacter>("res://art/characters/vucic/vucic.tres"), GD.Load<CarrierCharacter>("res://art/characters/plenki/plenki.tres") };
+        CarrierCharacter[] profiles = { GD.Load<CarrierCharacter>("res://art/characters/quaternius_ubc/modular.tres"),
+            GD.Load<CarrierCharacter>("res://art/characters/quaternius_ubc/presets/carrier_foreman.tres"), GD.Load<CarrierCharacter>("res://art/characters/quaternius_ubc/presets/carrier_winter.tres") };
         Check("all roster profiles have valid and distinct abilities", profiles.All(profile => profile.Stats?.Valid() == true)
             && profiles.Select(profile => profile.Stats!.AbilityName).Distinct().Count() == profiles.Length);
-        run.BeginCharacterRun("default"); health.Refill(); stamina.Refill();
+        run.BeginCharacterRun("modular"); health.Refill(); stamina.Refill();
         health.TakeDamage(50, "test"); stamina.SetCurrent(50);
-        run.BeginCharacterRun("vucic");
-        Check("Vučić has distinct health and stamina capacities", Near(health.EffectiveMax, 110) && Near(stamina.EffectiveMax, 90));
+        run.BeginCharacterRun("carrier_foreman");
+        Check("the Foreman has distinct health and stamina capacities", Near(health.EffectiveMax, 110) && Near(stamina.EffectiveMax, 90));
         Check("changing origin preserves health and stamina fractions without refilling", Near(health.Current, 55) && Near(stamina.Current, 45));
         float baseCost = stamina.WalkDrainPerSecond(0, 1, false, false);
         Check("Iron Resolve activates its unique temporary effects", run.TryUseCharacterAbility() && run.Character.Active
@@ -33,8 +33,8 @@ public partial class CharacterAbilityTests : Node3D
         float beforeSpend = stamina.Current;
         Check("active ability applies to fixed stamina costs once", stamina.TrySpend(10) && Near(beforeSpend - stamina.Current, 6.5f));
         Check("cooldown prevents repeated activation", !run.TryUseCharacterAbility() && Near(run.Character.CooldownLeft, 60));
-        GameOptions.SetCharacter("default");
-        Check("changing saved appearance cannot swap a live origin or reset its cooldown", run.Character.Id == "vucic"
+        GameOptions.SetCharacter("modular");
+        Check("changing saved appearance cannot swap a live origin or reset its cooldown", run.Character.Id == "carrier_foreman"
             && run.Character.Active && Near(run.Character.CooldownLeft, 60) && Near(health.EffectiveMax, 110));
         run.SetProcess(true);
         float pausedCooldown = run.Character.CooldownLeft;
@@ -46,29 +46,29 @@ public partial class CharacterAbilityTests : Node3D
         run.Character.Tick(8);
         Check("temporary effects expire without changing permanent stats", !run.Character.Active && Near(run.Character.ImpactFactor, 1)
             && Near(stamina.WalkDrainPerSecond(0, 1, false, false), baseCost) && Near(stamina.EffectiveMax, 90));
-        run.BeginCharacterRun("default"); stamina.SetCurrent(0);
+        run.BeginCharacterRun("modular"); stamina.SetCurrent(0);
         Check("Second Wind restores stamina and clears reachable exhaustion", run.TryUseCharacterAbility() && Near(stamina.Current, 40) && !stamina.Exhausted);
         run.Character.Tick(74);
         Check("ability remains unavailable until its full cooldown ends", !run.TryUseCharacterAbility());
         run.Character.Tick(1);
         Check("ability becomes usable exactly at cooldown completion", run.TryUseCharacterAbility() && Near(stamina.Current, 80));
-        run.BeginCharacterRun("default"); stamina.SetCurrent(20);
+        run.BeginCharacterRun("modular"); stamina.SetCurrent(20);
         Input.ParseInputEvent(new InputEventAction { Action = CharacterAbility.Action, Pressed = true });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         Input.ParseInputEvent(new InputEventAction { Action = CharacterAbility.Action, Pressed = false });
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         Check("the bound ability input reaches the real player effect", Near(stamina.Current, 60) && Near(run.Character.CooldownLeft, 75));
-        run.BeginCharacterRun("vucic");
+        run.BeginCharacterRun("carrier_foreman");
         GameEvents.PublishPackingMode(true);
         Check("packing blocks ready abilities without consuming cooldown", !run.TryUseCharacterAbility() && run.Character.CooldownLeft == 0);
         GameEvents.PublishPackingMode(false);
         run.Modifiers.WalkSpeed = 1.2f;
         Check("character movement stacks with boons once in actual speed and ETA source", Near(player.WalkingSpeed(0), player.Settings.StrideSpeed * 1.2f * 1.05f));
-        run.BeginCharacterRun("vucic");
+        run.BeginCharacterRun("carrier_foreman");
         Check("selecting the same profile cannot stack its stats", Near(health.EffectiveMax, 110) && Near(stamina.EffectiveMax, 90));
         run.BeginCharacterRun("plenki");
         Check("a missing character model remains unavailable", run.Character.Id != "plenki" && !CarrierRoster.Load()!.Available().Any(profile => profile.Id == "plenki"));
-        run.BeginCharacterRun("vucic");
+        run.BeginCharacterRun("carrier_foreman");
         health.TakeDamage(1000, "test");
         Check("dead characters cannot use a ready ability", run.RunOver && !run.TryUseCharacterAbility());
         run.StartNewRun(1);

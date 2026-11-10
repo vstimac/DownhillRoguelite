@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="CarrierCharacter" format=3]
+
+[ext_resource type="Script" path="res://core/CarrierCharacter.cs" id="1_character"]
+[ext_resource type="Script" path="res://core/CharacterStats.cs" id="2_stats"]
+
+[sub_resource type="Resource" id="Stats"]
+script = ExtResource("2_stats")
+Health = 1.0
+Stamina = 1.05
+Speed = 1.05
+Recovery = 1.0
+NeedsDrain = 1.0
+AbilityName = "Second Wind"
+AbilityDescription = "Recover 40% of maximum stamina immediately."
+Cooldown = 75.0
+RestoreStaminaFraction = 0.4
+
+[resource]
+script = ExtResource("1_character")
+Id = "carrier_ranger"
+DisplayName = "The Carrier · Ranger"
+Description = "Hood, jerkin, breeches and hobnail boots: the forest outfit, quiet and quick on the trail."
+ModelPath = "res://art/characters/quaternius_ubc/Superhero_Male_FullBody.gltf"
+Stats = SubResource("Stats")
+ModelId = "modular"
+StartingWear = PackedStringArray("ranger_hood", "ranger_jerkin", "ranger_breeches", "hobnail_boots")

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CarrierCharacter" format=3]
+
+[ext_resource type="Script" path="res://core/CarrierCharacter.cs" id="1_character"]
+[ext_resource type="Script" path="res://core/CharacterStats.cs" id="2_stats"]
+
+[sub_resource type="Resource" id="Stats"]
+script = ExtResource("2_stats")
+AbilityName = "Second Wind"
+AbilityDescription = "Recover 40% of maximum stamina immediately."
+Cooldown = 75.0
+RestoreStaminaFraction = 0.4
+
+[resource]
+script = ExtResource("1_character")
+Id = "carrier_mountaineer"
+DisplayName = "The Carrier · Mountaineer"
+Description = "Wool hat, trail shirt, wool trousers, hobnail boots and gloves: dressed for the mountain, and he gets his breath back when it counts."
+ModelPath = "res://art/characters/quaternius_ubc/Superhero_Male_FullBody.gltf"
+Stats = SubResource("Stats")
+ModelId = "modular"
+StartingWear = PackedStringArray("wool_hat", "trail_shirt", "wool_trousers", "hobnail_boots", "leather_gloves")

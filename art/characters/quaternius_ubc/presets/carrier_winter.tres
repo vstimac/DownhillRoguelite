@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="CarrierCharacter" format=3]
+
+[ext_resource type="Script" path="res://core/CarrierCharacter.cs" id="1_character"]
+[ext_resource type="Script" path="res://core/CharacterStats.cs" id="2_stats"]
+
+[sub_resource type="Resource" id="Stats"]
+script = ExtResource("2_stats")
+Health = 0.9
+Stamina = 1.2
+Speed = 0.95
+Recovery = 1.1
+NeedsDrain = 0.9
+AbilityName = "Measured Pace"
+AbilityDescription = "For 10s: half stamina costs and 35% cold resistance, at 90% speed."
+Cooldown = 70.0
+Duration = 10.0
+ActiveStaminaCost = 0.5
+ActiveColdResistance = 0.35
+ActiveSpeed = 0.9
+
+[resource]
+script = ExtResource("1_character")
+Id = "carrier_winter"
+DisplayName = "The Carrier · Winter Walker"
+Description = "A fur cape over wool trousers, with a wool hat and gloves: slow and steady through the cold."
+ModelPath = "res://art/characters/quaternius_ubc/Superhero_Male_FullBody.gltf"
+Stats = SubResource("Stats")
+ModelId = "modular"
+StartingWear = PackedStringArray("fur_cape", "wool_hat", "leather_gloves", "wool_trousers")
