@@ -27,6 +27,11 @@ public partial class Dive : Node3D
     /// <summary>Plays the dive's clips on the driving skeleton (its action slot).</summary>
     [Export] public CharacterAnimator? Animator { get; set; }
     [Export] public float StaminaCost { get; set; } = 15.0f;
+    /// <summary>A Ctrl press is remembered this long (s), so pressing a moment before landing or while a step bumps the feet off the ground still dives.</summary>
+    [Export] public float PressBuffer { get; set; } = 0.25f;
+    /// <summary>Still counts as on the ground this long after the feet left it (s): uneven slopes lift them for a frame or two all the time.</summary>
+    [Export] public float GroundGrace { get; set; } = 0.2f;
+    [Export] public string WindedHint { get; set; } = "Too winded to dive";
 
     [ExportGroup("Timing (s) and speeds (m/s)")]
     [Export] public float PushOffSeconds { get; set; } = 0.22f;
@@ -89,6 +94,8 @@ public partial class Dive : Node3D
     public int Blocked { get; private set; }
 
     private Vector3 _forward = Vector3.Forward;
+    private float _pressed = -1.0f;
+    private float _offGround;
     private Vector3 _direction;
     private float _takeoffY;
     private float _landY;
@@ -136,10 +143,31 @@ public partial class Dive : Node3D
             Step((float)delta);
             return;
         }
+        float dt = (float)delta;
         bool busy = GameEvents.IsDowned || GameEvents.IsPacking || GameEvents.IsScreenOpen || GameEvents.IsConversing || GameEvents.IsMapOpen;
-        if (!busy && Input.IsActionJustPressed(ActionDive) && Body.IsOnFloor())
+        if (Body.IsOnFloor())
         {
-            TryDive();
+            _offGround = 0.0f;
+        }
+        else
+        {
+            _offGround += dt;
+        }
+        if (Input.IsActionJustPressed(ActionDive))
+        {
+            _pressed = PressBuffer;
+        }
+        if (_pressed >= 0.0f)
+        {
+            _pressed -= dt;
+        }
+        if (!busy && _pressed >= 0.0f && _offGround <= GroundGrace)
+        {
+            _pressed = -1.0f;
+            if (!TryDive() && !Diving && Body.Stamina != null && Body.Stamina.Current < StaminaCost)
+            {
+                GameEvents.PublishHint(WindedHint);
+            }
             return;
         }
         UpdateRollCue(busy);

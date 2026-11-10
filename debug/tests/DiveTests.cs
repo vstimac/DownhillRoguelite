@@ -46,6 +46,8 @@ public partial class DiveTests : Node3D
         await TestRoll(PlayerBody, dive, true);
         await Place(PlayerBody, Streamer.SpawnPoint);
         await TestRoll(PlayerBody, dive, false);
+        await Place(PlayerBody, Streamer.SpawnPoint);
+        await TestBufferedPress(PlayerBody, dive);
 
         if (_failures.Count == 0)
         {
@@ -104,6 +106,33 @@ public partial class DiveTests : Node3D
         Check(leastAway > 0.3f, $"the dive is animated on the body, never a T-pose (least {leastAway:0.00} rad from rest)",
             $"dive pose: least {leastAway:0.00} rad from the rest pose (a T-pose)");
         Check(_animator!.ActionWeight < 0.05f, "after the dive the normal animation is back", $"action weight {_animator.ActionWeight:0.00} after the dive");
+    }
+
+    private async Task TestBufferedPress(PlayerController player, Dive dive)
+    {
+        // Ctrl pressed a moment before the feet touch down (a bump on the slope) still dives on landing.
+        int dives = dive.Dives;
+        player.Teleport(player.GlobalPosition + Vector3.Up * 0.8f, player.Rotation.Y);
+        for (int i = 0; i < 60 && Height(player) > 0.2f; i++)
+        {
+            await Frame();
+        }
+        bool airborne = !player.IsOnFloor();
+        Input.ActionPress("player_dive");
+        await Frame();
+        Input.ActionRelease("player_dive");
+        bool dived = false;
+        for (int i = 0; i < 40 && !dived; i++)
+        {
+            await Frame();
+            dived = dive.Dives > dives;
+        }
+        Check(airborne && dived, "Ctrl pressed just before landing still dives", $"airborne {airborne}, dived {dived}");
+        for (int i = 0; i < 300 && dive.Diving; i++)
+        {
+            await Frame();
+        }
+        await WaitSeconds(0.5f);
     }
 
     private async Task TestTree(PlayerController player, Dive dive)
