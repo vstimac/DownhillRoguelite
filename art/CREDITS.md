@@ -29,6 +29,7 @@ These packs are credited as CC0/public-domain releases by their respective creat
 | `art/props/kenney_castle_kit` | Castle Kit | Kenney |
 | `art/props/quaternius_medieval_village` | Medieval Village MegaKit (Standard; 15 models, textures cut to 512 px) | Quaternius |
 | `art/characters/quaternius_ubc` | Universal Base Characters (Standard; male base body, textures capped at 1024 px) | Quaternius |
+| `art/characters/quaternius_outfits` | Modular Character Outfits – Fantasy (Standard; male Peasant and Ranger, textures cut to 1024 px) | Quaternius |
 | `art/environment/ground` | Forest Ground 04, Rock Ground (1K textures; see its README and sources.json) | Poly Haven (Rob Tuytel, Rico Cilliers) |
 
 Links: [Quaternius](https://quaternius.com/) · [Kenney](https://kenney.nl/) · [Poly Haven](https://polyhaven.com/).

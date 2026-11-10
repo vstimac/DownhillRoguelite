@@ -21,6 +21,7 @@ public partial class ClothingFittingPlay : Node3D
         "trail_shirt,wool_trousers,leather_gloves,trail_backpack,wool_hat",
         "trail_shirt,oilskin_coat,wool_trousers,hobnail_boots,hard_hat",
         "trail_shirt,hi_vis_vest,wool_trousers,hobnail_boots,fur_cape",
+        "trail_shirt,ranger_jerkin,ranger_breeches,hobnail_boots,ranger_hood,trail_backpack",
     };
     /// <summary>Starting steps for a shift (m), a turn (degrees) and a size change; [ and ] halve and double them.</summary>
     [Export] public float MoveStep { get; set; } = 0.005f;

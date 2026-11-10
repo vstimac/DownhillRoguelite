@@ -26,7 +26,7 @@ public partial class ClothingFitTests : Node3D
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
 
         Dictionary<string, Marker3D> handles = Handles(fitting);
-        Check("every worn piece has a handle, gloves one per hand", handles.ContainsKey("trail_shirt") && handles.ContainsKey("wool_trousers")
+        Check("every worn piece has a handle, gloves one per hand", Has(handles, "trail_shirt") && Has(handles, "wool_trousers")
             && handles.ContainsKey("leather_gloves-Left") && handles.ContainsKey("leather_gloves-Right")
             && handles.ContainsKey("trail_backpack") && handles.ContainsKey("wool_hat-Head"), string.Join(", ", handles.Keys));
 
@@ -102,6 +102,19 @@ public partial class ClothingFitTests : Node3D
             }
         }
         return handles;
+    }
+
+    /// <summary>A handle for this piece, or for one of its parts (a modelled garment's meshes and sides).</summary>
+    private static bool Has(Dictionary<string, Marker3D> handles, string piece)
+    {
+        foreach (string key in handles.Keys)
+        {
+            if (key == piece || key.StartsWith(piece + "-"))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void Check(string name, bool pass, string detail)

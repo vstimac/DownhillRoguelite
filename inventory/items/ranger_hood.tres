@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+[ext_resource type="Script" path="res://inventory/ClothingVisual.cs" id="2_visual"]
+[ext_resource type="PackedScene" path="res://art/characters/quaternius_outfits/Male_Ranger.gltf" id="3_model"]
+
+[sub_resource type="Resource" id="Modelled"]
+script = ExtResource("2_visual")
+Kind = 6
+Scene = ExtResource("3_model")
+MeshNames = PackedStringArray("Male_Ranger_Head_Hood")
+CharacterIds = PackedStringArray("modular")
+Colour = Color(1, 1, 1, 1)
+IsPrototype = false
+Textured = true
+KeepMaterials = PackedStringArray("MI_Regular_Male")
+HideBodyBones = PackedStringArray()
+RestTolerance = 0.05
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "ranger_hood"
+DisplayName = "Ranger's hood"
+Description = "A deep hood with a short cape over the shoulders. Keeps the rain off the neck."
+Category = 4
+Tags = 0
+Orientation = 0
+MassKg = 0.3
+SizeCells = Vector3i(3, 1, 3)
+DebugColor = Color(0.3, 0.33, 0.22, 1)
+Slot = 1
+MaxDurability = 60.0
+Warmth = 0.07
+RainProof = 0.35
+GripBonus = 0.0
+WindCatch = 0.02
+Pockets = 0
+MendType = "cloth"
+ModelMesh = "Male_Ranger_Head_Hood"
+ModelLieFlat = true
+ModelSource = "res://art/characters/quaternius_outfits/Male_Ranger.gltf"
+ClothingVariants = Array[ExtResource("2_visual")]([SubResource("Modelled")])

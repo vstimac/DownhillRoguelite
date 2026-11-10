@@ -1,6 +1,21 @@
 [gd_resource type="Resource" script_class="ItemDefinition" format=3]
 
 [ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+[ext_resource type="Script" path="res://inventory/ClothingVisual.cs" id="2_visual"]
+[ext_resource type="PackedScene" path="res://art/characters/quaternius_outfits/Male_Ranger.gltf" id="3_model"]
+
+[sub_resource type="Resource" id="Modelled"]
+script = ExtResource("2_visual")
+Kind = 6
+Scene = ExtResource("3_model")
+MeshNames = PackedStringArray("Male_Ranger_Feet_Boots")
+CharacterIds = PackedStringArray("modular")
+Colour = Color(1, 1, 1, 1)
+IsPrototype = false
+Textured = true
+KeepMaterials = PackedStringArray("MI_Regular_Male")
+HideBodyBones = PackedStringArray("calf_l", "calf_r", "foot_l", "foot_r", "ball_l", "ball_r")
+RestTolerance = 0.05
 
 [resource]
 script = ExtResource("1_item")
@@ -22,3 +37,4 @@ Pockets = 0
 MendType = "leather"
 ModelSource = "res://art/characters/mixamo/carrier.fbx"
 ModelMesh = "Ch17_Boots"
+ClothingVariants = Array[ExtResource("2_visual")]([SubResource("Modelled")])

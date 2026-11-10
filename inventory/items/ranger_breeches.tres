@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+[ext_resource type="Script" path="res://inventory/ClothingVisual.cs" id="2_visual"]
+[ext_resource type="PackedScene" path="res://art/characters/quaternius_outfits/Male_Ranger.gltf" id="3_model"]
+
+[sub_resource type="Resource" id="Modelled"]
+script = ExtResource("2_visual")
+Kind = 6
+Scene = ExtResource("3_model")
+MeshNames = PackedStringArray("Male_Ranger_Legs")
+CharacterIds = PackedStringArray("modular")
+Colour = Color(1, 1, 1, 1)
+IsPrototype = false
+Textured = true
+KeepMaterials = PackedStringArray("MI_Regular_Male")
+HideBodyBones = PackedStringArray("pelvis", "thigh_l", "thigh_r")
+RestTolerance = 0.05
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "ranger_breeches"
+DisplayName = "Ranger's breeches"
+Description = "Close-cut riding breeches, patched at the knee. Two deep pockets."
+Category = 4
+Tags = 0
+Orientation = 0
+MassKg = 0.8
+SizeCells = Vector3i(5, 2, 5)
+DebugColor = Color(0.3, 0.26, 0.2, 1)
+Slot = 3
+MaxDurability = 90.0
+Warmth = 0.1
+RainProof = 0.15
+GripBonus = 0.0
+WindCatch = 0.0
+Pockets = 2
+MendType = "leather"
+ModelMesh = "Male_Ranger_Legs"
+ModelLieFlat = true
+ModelSource = "res://art/characters/quaternius_outfits/Male_Ranger.gltf"
+ClothingVariants = Array[ExtResource("2_visual")]([SubResource("Modelled")])

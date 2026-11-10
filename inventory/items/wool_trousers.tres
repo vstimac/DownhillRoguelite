@@ -1,14 +1,28 @@
 [gd_resource type="Resource" script_class="ItemDefinition" format=3]
 
 [ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
-[ext_resource type="Script" path="res://inventory/ClothingVisual.cs" id="2_clothing"]
+[ext_resource type="Script" path="res://inventory/ClothingVisual.cs" id="2_visual"]
+[ext_resource type="PackedScene" path="res://art/characters/quaternius_outfits/Male_Peasant.gltf" id="3_model"]
 
 [sub_resource type="Resource" id="Visual"]
-script = ExtResource("2_clothing")
+script = ExtResource("2_visual")
 Kind = 2
 FitSlack = 0.02
 Colour = Color(0.32, 0.30, 0.27, 1)
 HideBodyMeshes = PackedStringArray("Ch17_Pants")
+
+[sub_resource type="Resource" id="Modelled"]
+script = ExtResource("2_visual")
+Kind = 6
+Scene = ExtResource("3_model")
+MeshNames = PackedStringArray("Male_Peasant_Legs")
+CharacterIds = PackedStringArray("modular")
+Colour = Color(1, 1, 1, 1)
+IsPrototype = false
+Textured = true
+KeepMaterials = PackedStringArray("MI_Regular_Male")
+HideBodyBones = PackedStringArray("pelvis", "thigh_l", "thigh_r")
+RestTolerance = 0.05
 
 [resource]
 script = ExtResource("1_item")
@@ -32,3 +46,4 @@ ModelSource = "res://art/characters/mixamo/carrier.fbx"
 ModelMesh = "Ch17_Pants"
 ModelLieFlat = true
 Clothing = SubResource("Visual")
+ClothingVariants = Array[ExtResource("2_visual")]([SubResource("Modelled")])

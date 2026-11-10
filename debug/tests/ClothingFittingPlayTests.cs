@@ -43,6 +43,10 @@ public partial class ClothingFittingPlayTests : Node
         await Press(Key.Tab, shift: true);
         Check("Tab and Shift+Tab move between pieces", picked && play.Selected == first, $"moved {picked}, back {play.Selected == first}");
 
+        // Measured from where the piece starts (a saved fit may already move it), not from zero.
+        Vector3 startPosition = play.Selected!.Position;
+        Vector3 startTurn = play.Selected.RotationDegrees;
+        Vector3 startSize = play.Selected.Scale;
         await Press(Key.Up);
         await Press(Key.Up);
         await Press(Key.Pageup);
@@ -54,8 +58,9 @@ public partial class ClothingFittingPlayTests : Node
         Vector3 turn = handle.RotationDegrees;
         Vector3 size = handle.Scale;
         Check("arrows shift, Shift turns, Ctrl stretches and + sizes the piece",
-            Mathf.IsEqualApprox(position.Y, 0.01f) && Mathf.IsEqualApprox(position.Z, 0.005f) && Mathf.IsEqualApprox(turn.Y, 5.0f)
-            && Mathf.IsEqualApprox(size.Y, 1.04f) && Mathf.IsEqualApprox(size.X, 1.02f),
+            Mathf.IsEqualApprox(position.Y - startPosition.Y, 0.01f) && Mathf.IsEqualApprox(position.Z - startPosition.Z, 0.005f)
+            && Mathf.IsEqualApprox(turn.Y - startTurn.Y, 5.0f)
+            && Mathf.IsEqualApprox(size.Y - startSize.Y, 0.04f) && Mathf.IsEqualApprox(size.X - startSize.X, 0.02f),
             $"shift {position}, turn {turn}, size {size}");
 
         string key = handle.GetMeta("clothing_fit_key", handle.Name.ToString()).AsString();

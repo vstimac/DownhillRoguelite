@@ -39,6 +39,24 @@ public partial class ItemDefinition : Resource
     [Export] public float MaxDurability { get; set; }
     [Export(PropertyHint.MultilineText)] public string Description { get; set; } = "";
     [Export] public ClothingVisual? Clothing { get; set; }
+    /// <summary>
+    /// Fitted looks for particular characters (each lists its CharacterIds): a character with one wears
+    /// it instead of <see cref="Clothing"/> (e.g. a modelled shirt made for the modular body).
+    /// </summary>
+    [Export] public ClothingVisual[] ClothingVariants { get; set; } = System.Array.Empty<ClothingVisual>();
+
+    /// <summary>The look this character wears: its fitted variant, else the general one (null for none).</summary>
+    public ClothingVisual? ClothingFor(string characterId)
+    {
+        foreach (ClothingVisual variant in ClothingVariants)
+        {
+            if (variant != null && System.Array.IndexOf(variant.CharacterIds, characterId) >= 0)
+            {
+                return variant;
+            }
+        }
+        return Clothing;
+    }
     [Export] public float SpeedMultiplier { get; set; } = 1.0f;
     [Export] public float StaminaMultiplier { get; set; } = 1.0f;
     [Export] public float WindProof { get; set; }

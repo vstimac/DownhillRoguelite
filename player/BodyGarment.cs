@@ -163,4 +163,129 @@ public static class BodyGarment
         garment.Skeleton = garment.GetPathTo(skeleton);
         return garment;
     }
+
+    /// <summary>
+    /// The body without the skin the clothes cover: every surface (with its material) minus the
+    /// triangles that have most of their corners mostly on <paramref name="hiddenBones"/>, so the body
+    /// can't poke through a modelled garment. Added beside the body, which the caller hides. Null if the
+    /// body isn't a skinned mesh.
+    /// </summary>
+    public static MeshInstance3D? Keep(MeshInstance3D body, ICollection<string> hiddenBones, string name)
+    {
+        if (body.Mesh is not ArrayMesh source || body.Skin == null || body.GetParent() is not Skeleton3D skeleton)
+        {
+            return null;
+        }
+        HashSet<int> hidden = new();
+        foreach (string bone in hiddenBones)
+        {
+            int index = skeleton.FindBone(bone);
+            if (index >= 0)
+            {
+                hidden.Add(index);
+            }
+        }
+        int[] bindBone = BindBones(body.Skin, skeleton);
+        ArrayMesh kept = new();
+        for (int surface = 0; surface < source.GetSurfaceCount(); surface++)
+        {
+            Godot.Collections.Array arrays = source.SurfaceGetArrays(surface);
+            Vector3[] position = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+            int[] boneIndex = arrays[(int)Mesh.ArrayType.Bones].AsInt32Array();
+            float[] weight = arrays[(int)Mesh.ArrayType.Weights].AsFloat32Array();
+            int[] index = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+            if (position.Length == 0 || boneIndex.Length == 0 || index.Length == 0)
+            {
+                continue;
+            }
+            int perVertex = boneIndex.Length / position.Length;
+            bool[] covered = new bool[position.Length];
+            for (int v = 0; v < position.Length; v++)
+            {
+                int bind = boneIndex[v * perVertex + Strongest(weight, v, perVertex)];
+                covered[v] = bind >= 0 && bind < bindBone.Length && hidden.Contains(bindBone[bind]);
+            }
+            List<int> indices = new();
+            for (int t = 0; t + 2 < index.Length; t += 3)
+            {
+                int corners = 0;
+                for (int c = 0; c < 3; c++)
+                {
+                    if (covered[index[t + c]])
+                    {
+                        corners++;
+                    }
+                }
+                if (corners >= 2)
+                {
+                    continue;
+                }
+                indices.Add(index[t]);
+                indices.Add(index[t + 1]);
+                indices.Add(index[t + 2]);
+            }
+            if (indices.Count == 0)
+            {
+                continue;
+            }
+            arrays[(int)Mesh.ArrayType.Index] = indices.ToArray();
+            Mesh.ArrayFormat flags = 0;
+            if (perVertex == 8)
+            {
+                flags = Mesh.ArrayFormat.FlagUse8BoneWeights;
+            }
+            kept.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, flags);
+            Material? material = body.GetSurfaceOverrideMaterial(surface);
+            if (material == null)
+            {
+                material = source.SurfaceGetMaterial(surface);
+            }
+            kept.SurfaceSetMaterial(kept.GetSurfaceCount() - 1, material);
+        }
+        if (kept.GetSurfaceCount() == 0)
+        {
+            return null;
+        }
+        MeshInstance3D garment = new()
+        {
+            Name = name,
+            Mesh = kept,
+            Skin = body.Skin,
+            Transform = body.Transform,
+            CastShadow = body.CastShadow,
+            MaterialOverride = body.MaterialOverride,
+        };
+        skeleton.AddChild(garment);
+        garment.Skeleton = garment.GetPathTo(skeleton);
+        return garment;
+    }
+
+    /// <summary>Bind index → skeleton bone (vertices' bone indices point into the skin's binds).</summary>
+    private static int[] BindBones(Skin skin, Skeleton3D skeleton)
+    {
+        int[] bindBone = new int[skin.GetBindCount()];
+        for (int i = 0; i < bindBone.Length; i++)
+        {
+            bindBone[i] = skin.GetBindBone(i);
+            StringName bindName = skin.GetBindName(i);
+            if (bindName != null && !bindName.IsEmpty)
+            {
+                bindBone[i] = skeleton.FindBone(bindName);
+            }
+        }
+        return bindBone;
+    }
+
+    private static int Strongest(float[] weight, int vertex, int perVertex)
+    {
+        int strongest = 0;
+        for (int k = 1; k < perVertex; k++)
+        {
+            if (weight[vertex * perVertex + k] > weight[vertex * perVertex + strongest])
+            {
+                strongest = k;
+            }
+        }
+        return strongest;
+    }
 }

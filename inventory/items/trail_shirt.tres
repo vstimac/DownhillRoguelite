@@ -1,17 +1,31 @@
 [gd_resource type="Resource" script_class="ItemDefinition" format=3]
 [ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
 [ext_resource type="Script" path="res://inventory/ClothingVisual.cs" id="2_visual"]
+[ext_resource type="PackedScene" path="res://art/characters/quaternius_outfits/Male_Peasant.gltf" id="3_model"]
 [sub_resource type="Resource" id="Visual"]
 script = ExtResource("2_visual")
 Kind = 0
 Colour = Color(0.24, 0.34, 0.43, 1)
 MaterialColours = PackedColorArray(0.24, 0.34, 0.43, 1, 0.25, 0.34, 0.22, 1, 0.68, 0.61, 0.47, 1)
 HideBodyMeshes = PackedStringArray("Ch17_Shirt")
+[sub_resource type="Resource" id="Modelled"]
+script = ExtResource("2_visual")
+Kind = 6
+Scene = ExtResource("3_model")
+MeshNames = PackedStringArray("Male_Peasant_Body", "Male_Peasant_Arms")
+CharacterIds = PackedStringArray("modular")
+Colour = Color(1, 1, 1, 1)
+IsPrototype = false
+Textured = true
+KeepMaterials = PackedStringArray("MI_Regular_Male")
+HideBodyBones = PackedStringArray("spine_01", "spine_02", "spine_03", "clavicle_l", "clavicle_r", "upperarm_l", "upperarm_r", "lowerarm_l", "lowerarm_r", "hand_l", "hand_r", "index_01_l", "index_02_l", "index_03_l", "index_04_leaf_l", "middle_01_l", "middle_02_l", "middle_03_l", "middle_04_leaf_l", "ring_01_l", "ring_02_l", "ring_03_l", "ring_04_leaf_l", "pinky_01_l", "pinky_02_l", "pinky_03_l", "pinky_04_leaf_l", "thumb_01_l", "thumb_02_l", "thumb_03_l", "thumb_04_leaf_l", "index_01_r", "index_02_r", "index_03_r", "index_04_leaf_r", "middle_01_r", "middle_02_r", "middle_03_r", "middle_04_leaf_r", "ring_01_r", "ring_02_r", "ring_03_r", "ring_04_leaf_r", "pinky_01_r", "pinky_02_r", "pinky_03_r", "pinky_04_leaf_r", "thumb_01_r", "thumb_02_r", "thumb_03_r", "thumb_04_leaf_r")
+RestTolerance = 0.05
+
 [resource]
 script = ExtResource("1_item")
 ItemId = "trail_shirt"
-DisplayName = "Trail shirt (prototype)"
-Description = "A fitted, skinned test garment. Prototype geometry; no cloth simulation."
+DisplayName = "Trail shirt"
+Description = "A plain linen shirt, laced at the neck. Light, and quick to dry."
 MassKg = 0.35
 SizeCells = Vector3i(2, 2, 1)
 Category = 4
@@ -20,3 +34,4 @@ MaxDurability = 100.0
 Warmth = 0.08
 MendType = "cloth"
 Clothing = SubResource("Visual")
+ClothingVariants = Array[ExtResource("2_visual")]([SubResource("Modelled")])

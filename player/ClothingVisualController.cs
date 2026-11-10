@@ -27,7 +27,12 @@ public partial class ClothingVisualController : Node
     private readonly Dictionary<EquipSlot, Node3D> _visuals = new();
     private readonly Dictionary<EquipSlot, ItemDefinition> _definitions = new();
     private readonly Dictionary<MeshInstance3D, bool> _originalVisibility = new();
-    private readonly Dictionary<EquipSlot, ShaderMaterial> _materials = new();
+    private readonly Dictionary<EquipSlot, ClothingVisual> _looks = new();
+    private readonly Dictionary<EquipSlot, List<ShaderMaterial>> _materials = new();
+    /// <summary>The body, and the copy of it without the skin worn modelled clothes cover (BodyGarment.Keep).</summary>
+    private MeshInstance3D? _body;
+    private MeshInstance3D? _keptBody;
+    private string _keptBones = "";
     private readonly ClothingVisual _base = new() { Kind = ClothingVisual.VisualKind.PrototypeShirt };
     private MeshInstance3D? _baseShirt;
     private MeshInstance3D? _nativeShirt;
@@ -55,6 +60,7 @@ public partial class ClothingVisualController : Node
         {
             if (node is MeshInstance3D mesh && mesh.Name == "Ch17_Shirt") { _nativeShirt = mesh; }
         }
+        _body = BodyGarment.FindBody(Skeleton);
         CutBodyGarments();
         if (_baseShirt == null)
         {
@@ -93,6 +99,16 @@ public partial class ClothingVisualController : Node
         OnGear(gear);
     }
 
+    /// <summary>The body as drawn now: whole, or without the skin under modelled clothes (null if it has none).</summary>
+    public MeshInstance3D? ShownBody
+    {
+        get
+        {
+            if (_keptBody != null && IsInstanceValid(_keptBody) && _keptBody.Visible) { return _keptBody; }
+            return _body;
+        }
+    }
+
     /// <summary>The pieces shown now with their fit keys (ClothingFitter): the base outfit's and each worn item's.</summary>
     public List<KeyValuePair<string, Node3D>> Pieces()
     {
@@ -128,6 +144,7 @@ public partial class ClothingVisualController : Node
         GameEvents.GearChanged -= OnGear;
         GameOptions.Changed -= ApplyBaseAppearance;
         RestoreBody();
+        ShowWholeBody();
         foreach (Node3D node in _visuals.Values) { Remove(node); }
         Remove(_baseShirt);
         Remove(_basePack);
@@ -184,43 +201,63 @@ public partial class ClothingVisualController : Node
             WornPiece piece = gear.In(slot);
             ItemDefinition? item = piece.Definition;
             if (item == null && !piece.Empty) { item = ItemText.Find(piece.ItemId); }
+            ClothingVisual? look = item?.ClothingFor(CharacterId);
             if (!_definitions.TryGetValue(slot, out ItemDefinition? previous) || previous != item)
             {
                 if (_visuals.Remove(slot, out Node3D? old)) { Remove(old); }
                 _definitions.Remove(slot);
+                _looks.Remove(slot);
                 _materials.Remove(slot);
-                if (item?.Clothing != null)
+                if (item != null && look != null)
                 {
                     _definitions[slot] = item;
-                    Node3D? visual = Build(item);
+                    _looks[slot] = look;
+                    Node3D? visual = Build(item, look);
                     if (visual != null)
                     {
                         _visuals[slot] = visual;
-                        ShaderMaterial material = Material(item.Clothing.Colour);
-                        _materials[slot] = material;
-                        ApplyMaterial(visual, material);
+                        _materials[slot] = Dress(visual, look);
                         ClothingFitter.Fit(Skeleton, CharacterId, item.ItemId, visual);
                     }
                 }
             }
-            if (item?.Clothing != null && _materials.TryGetValue(slot, out ShaderMaterial? cloth))
+            if (look != null && _materials.TryGetValue(slot, out List<ShaderMaterial>? cloths))
             {
-                Color colour = item.Clothing.Colour;
-                if (item.Clothing.MaterialColours.Length > 0)
+                Color colour = look.Colour;
+                if (look.MaterialColours.Length > 0)
                 {
-                    colour = item.Clothing.MaterialColours[Math.Clamp(piece.Appearance.Variant, 0, item.Clothing.MaterialColours.Length - 1)];
+                    colour = look.MaterialColours[Math.Clamp(piece.Appearance.Variant, 0, look.MaterialColours.Length - 1)];
                 }
                 if (piece.Appearance.Tint.A > 0) { colour = piece.Appearance.Tint; }
-                cloth.SetShaderParameter("cloth_colour", colour);
-                cloth.SetShaderParameter("wetness", Mathf.Clamp(piece.Appearance.Wetness, 0, 1));
-                cloth.SetShaderParameter("dirt", Mathf.Clamp(piece.Appearance.Dirt, 0, 1));
-                cloth.SetShaderParameter("wear", 1.0f - Mathf.Clamp(piece.Fraction, 0, 1));
+                foreach (ShaderMaterial cloth in cloths)
+                {
+                    cloth.SetShaderParameter("cloth_colour", colour);
+                    cloth.SetShaderParameter("wetness", Mathf.Clamp(piece.Appearance.Wetness, 0, 1));
+                    cloth.SetShaderParameter("dirt", Mathf.Clamp(piece.Appearance.Dirt, 0, 1));
+                    cloth.SetShaderParameter("wear", 1.0f - Mathf.Clamp(piece.Fraction, 0, 1));
+                }
             }
         }
-        RestoreBody();
+        // A garment over another hides it (a jerkin over the shirt).
+        HashSet<EquipSlot> covered = new();
         foreach ((EquipSlot slot, Node3D _) in _visuals)
         {
-            foreach (string name in _definitions[slot].Clothing!.HideBodyMeshes)
+            foreach (string name in _looks[slot].HidesSlots)
+            {
+                if (Enum.TryParse(name, out EquipSlot under) && under != slot) { covered.Add(under); }
+            }
+        }
+        foreach ((EquipSlot slot, Node3D visual) in _visuals)
+        {
+            visual.Visible = !covered.Contains(slot);
+        }
+        RestoreBody();
+        SortedSet<string> hiddenBones = new(StringComparer.Ordinal);
+        foreach ((EquipSlot slot, Node3D visual) in _visuals)
+        {
+            if (!visual.Visible) { continue; }
+            foreach (string bone in _looks[slot].HideBodyBones) { hiddenBones.Add(bone); }
+            foreach (string name in _looks[slot].HideBodyMeshes)
             {
                 foreach (Node node in Skeleton.FindChildren("*", "MeshInstance3D", true, false))
                 {
@@ -236,6 +273,27 @@ public partial class ClothingVisualController : Node
         if (_basePack != null) { _basePack.Visible = !_visuals.ContainsKey(EquipSlot.Back); }
         if (_bodyTrousers != null) { _bodyTrousers.Visible = !_visuals.ContainsKey(EquipSlot.Legs); }
         if (_bodyBoots != null) { _bodyBoots.Visible = !_visuals.ContainsKey(EquipSlot.Feet); }
+        HideCoveredSkin(hiddenBones);
+    }
+
+    /// <summary>Draws the body without the skin on these bones (none: the whole body), rebuilt when they change.</summary>
+    private void HideCoveredSkin(SortedSet<string> bones)
+    {
+        string key = string.Join(",", bones);
+        if (key == _keptBones) { return; }
+        ShowWholeBody();
+        _keptBones = key;
+        if (bones.Count == 0 || _body == null || !IsInstanceValid(_body)) { return; }
+        _keptBody = BodyGarment.Keep(_body, bones, "BodyUnderClothes");
+        if (_keptBody != null) { _body.Visible = false; }
+    }
+
+    private void ShowWholeBody()
+    {
+        Remove(_keptBody);
+        _keptBody = null;
+        _keptBones = "";
+        if (_body != null && IsInstanceValid(_body)) { _body.Visible = true; }
     }
 
     private void RestoreBody()
@@ -247,9 +305,8 @@ public partial class ClothingVisualController : Node
         _originalVisibility.Clear();
     }
 
-    private Node3D? Build(ItemDefinition item)
+    private Node3D? Build(ItemDefinition item, ClothingVisual visual)
     {
-        ClothingVisual visual = item.Clothing!;
         if (visual.CharacterIds.Length > 0 && Array.IndexOf(visual.CharacterIds, CharacterId) < 0)
         { GD.PushWarning(item.ItemId + ": no fitted variant for " + CharacterId); return null; }
         if (visual.Kind <= ClothingVisual.VisualKind.PrototypeGloves) { return ClothingPrototypes.Garment(Skeleton!, visual); }
@@ -269,9 +326,9 @@ public partial class ClothingVisualController : Node
         {
             if (node is not MeshInstance3D mesh || Array.IndexOf(visual.MeshNames, mesh.Name.ToString()) < 0) { continue; }
             if (sourceRig == null || mesh.GetParent() != sourceRig
-                || !ClothingCompatibility.TryBind(mesh, sourceRig, Skeleton, out Skin skin, out problem))
+                || !ClothingCompatibility.TryBind(mesh, sourceRig, Skeleton, visual.RestTolerance, out Skin skin, out problem))
             { source.Free(); holder.QueueFree(); GD.PushWarning(item.ItemId + ": " + problem); return null; }
-            MeshInstance3D copy = new() { Mesh = mesh.Mesh, Skin = skin, Transform = mesh.Transform };
+            MeshInstance3D copy = new() { Name = mesh.Name, Mesh = mesh.Mesh, Skin = skin, Transform = mesh.Transform };
             holder.AddChild(copy);
             copy.Skeleton = copy.GetPathTo(Skeleton);
         }
@@ -294,6 +351,54 @@ public partial class ClothingVisualController : Node
         Basis rotationBasis = Basis.FromEuler(rotation * Mathf.Pi / 180.0f);
         model.Transform = rest.AffineInverse() * new Transform3D((frame * rotationBasis).Scaled(scale / metres), rest.Origin + frame * offset / metres);
         return attachment;
+    }
+
+    /// <summary>
+    /// The condition materials for a garment: one plain cloth for all of it, or (Textured) one per
+    /// surface carrying that surface's own textures, except the surfaces it keeps as modelled.
+    /// </summary>
+    private List<ShaderMaterial> Dress(Node3D visual, ClothingVisual look)
+    {
+        List<ShaderMaterial> materials = new();
+        if (!look.Textured)
+        {
+            ShaderMaterial plain = Material(look.Colour);
+            ApplyMaterial(visual, plain);
+            materials.Add(plain);
+            return materials;
+        }
+        List<MeshInstance3D> meshes = new();
+        if (visual is MeshInstance3D own) { meshes.Add(own); }
+        foreach (Node node in visual.FindChildren("*", "MeshInstance3D", true, false))
+        {
+            if (node is MeshInstance3D mesh) { meshes.Add(mesh); }
+        }
+        foreach (MeshInstance3D mesh in meshes)
+        {
+            if (mesh.Mesh == null) { continue; }
+            for (int surface = 0; surface < mesh.Mesh.GetSurfaceCount(); surface++)
+            {
+                Material? modelled = mesh.Mesh.SurfaceGetMaterial(surface);
+                if (modelled != null && Array.IndexOf(look.KeepMaterials, modelled.ResourceName) >= 0) { continue; }
+                ShaderMaterial material = Material(look.Colour);
+                if (modelled is BaseMaterial3D standard)
+                {
+                    if (standard.AlbedoTexture != null)
+                    {
+                        material.SetShaderParameter("textured", true);
+                        material.SetShaderParameter("albedo_texture", standard.AlbedoTexture);
+                    }
+                    if (standard.NormalEnabled && standard.NormalTexture != null)
+                    {
+                        material.SetShaderParameter("has_normal", true);
+                        material.SetShaderParameter("normal_texture", standard.NormalTexture);
+                    }
+                }
+                mesh.SetSurfaceOverrideMaterial(surface, material);
+                materials.Add(material);
+            }
+        }
+        return materials;
     }
 
     private static void ApplyMaterial(Node3D root, ShaderMaterial material)
