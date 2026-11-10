@@ -23,6 +23,8 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget
     }
 
     public BeastSpecies? Species { get; private set; }
+    /// <summary>Beaten off, it leaves a little behind: fewer finds than a killed enemy.</summary>
+    [Export] public KillLoot Loot { get; set; } = new() { CommonCount = new Vector2I(1, 2), RareChance = 0.15f };
     public Mode State { get; private set; } = Mode.Stalk;
     /// <summary>Seconds left of being thrown off by a loud noise (the megaphone): it backs away and doesn't attack.</summary>
     public float ConfusedFor { get; private set; }
@@ -408,10 +410,21 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget
         {
             State = Mode.Leave;
             LeavingFor = 0.0f;
+            BeatenOff();
             Play(Species!.RunClip, 1.6f);
             return false;
         }
         return true;
+    }
+
+    private void BeatenOff()
+    {
+        string name = Species?.DisplayName ?? "";
+        if (name.Length == 0)
+        {
+            name = "beast";
+        }
+        Loot.Scatter(this, GlobalPosition, name);
     }
 
     public void TakeHit(float damage, Vector3 push, string source)
@@ -433,6 +446,7 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget
         {
             State = Mode.Leave;
             LeavingFor = 0.0f;
+            BeatenOff();
             Play(species.RunClip, 1.6f);
             return;
         }

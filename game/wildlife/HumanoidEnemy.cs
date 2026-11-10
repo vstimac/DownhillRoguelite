@@ -72,6 +72,10 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     /// (times DeathThrow, plus DeathLift up; the upper body DeathUpperPush more). Off: the death clip.
     /// </summary>
     [Export] public bool RagdollDeath { get; set; } = true;
+    /// <summary>What a kill leaves on the ground (KillLoot's defaults when not set).</summary>
+    [Export] public KillLoot? Loot { get; set; }
+    /// <summary>The items its death left (tests).</summary>
+    public List<Inventory.WorldItem> Dropped { get; private set; } = new();
     [Export] public float DeathThrow { get; set; } = 0.8f;
     [Export] public float DeathLift { get; set; } = 1.2f;
     [Export] public float DeathUpperPush { get; set; } = 1.5f;
@@ -730,6 +734,13 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         }
         Velocity = Vector3.Zero;
         RemoveFromGroup(IMeleeTarget.Group);
+        Loot ??= new KillLoot();
+        string name = Species!.DisplayName;
+        if (name.Length == 0)
+        {
+            name = "enemy";
+        }
+        Dropped = Loot.Scatter(this, GlobalPosition, name);
     }
 
     /// <summary>Lies a while, then sinks into the ground and is gone.</summary>

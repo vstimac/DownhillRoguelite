@@ -173,6 +173,25 @@ public partial class EnemyTests : Node3D
         bool finite = coreNow.IsFinite();
         Check($"{name}: it falls as a ragdoll, carried by the blow", parts >= 5 && finite && coreNow.Y < standingTop && (coreNow - corePosition).Dot(Vector3.Forward) > 0.1f,
             $"{parts} parts, core from y {corePosition.Y:0.00} to {coreNow.Y:0.00} (standing chest {standingTop:0.00}), {(coreNow - corePosition).Dot(Vector3.Forward):0.00} m along the blow");
+        // The kill pays: two to five things land on the ground around the body, ready to pick up.
+        int landed = 0;
+        List<string> loot = new();
+        foreach (Inventory.WorldItem item in body.Dropped)
+        {
+            if (IsInstanceValid(item) && item.GlobalPosition.DistanceTo(body.GlobalPosition) < 3.0f && item.Definition != null)
+            {
+                landed++;
+                loot.Add(item.Definition.ItemId);
+            }
+        }
+        Check($"{name}: the kill leaves loot on the ground", landed >= 2 && landed <= 5, $"{landed} items: [{string.Join(", ", loot)}]");
+        foreach (Inventory.WorldItem item in body.Dropped)
+        {
+            if (IsInstanceValid(item))
+            {
+                item.QueueFree();
+            }
+        }
         body.QueueFree();
         await Frames(2);
     }
