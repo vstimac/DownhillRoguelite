@@ -20,6 +20,7 @@ config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
 [autoload]
 
+PatchLoader="*res://core/PatchLoader.cs"
 RunState="*res://core/RunState.cs"
 WorldClock="*res://core/WorldClock.cs"
 DebugDraw3D="*res://debug/DebugDraw3D.cs"

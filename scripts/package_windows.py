@@ -1,7 +1,7 @@
 """
 Packs a Windows export into the zip players download, the same way every time.
 
-    python scripts/package_windows.py [export_dir] [zip_path]
+    python scripts/package_windows.py [export_dir] [zip_path] [version]
 
 Defaults: export_dir = ../Builds/DownhillRoguelite-playtest1 (the "Windows Desktop" preset's
 export path), zip_path = ../Builds/DownhillRoguelite-playtest1-windows.zip.
@@ -27,7 +27,8 @@ TOP = "DownhillRoguelite-playtest1"
 EXE = "DownhillRoguelite.exe"
 COMPANION = "libnobodywho-godot-x86_64-pc-windows-msvc-release.dll"
 VC_RUNTIME = ["vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll", "msvcp140_1.dll", "vcomp140.dll"]
-EXTRA = ["README.txt", "Race - same mountain.bat"]
+EXTRA = ["README.txt", "Race - same mountain.bat", "Update game.bat", "update.ps1"]
+PCK = "DownhillRoguelite.pck"
 WALLPAPER = "Wallpaper"
 
 
@@ -43,10 +44,19 @@ def main():
     exe = os.path.join(export_dir, EXE)
     if not os.path.isfile(exe):
         fail(f"no {EXE} in {export_dir}; export the 'Windows Desktop' preset first")
+    # The game's data and code sit next to the exe (not embedded), so updates can replace just what changed.
+    if not os.path.isfile(os.path.join(export_dir, PCK)):
+        fail(f"no {PCK} next to the exe; export with binary_format/embed_pck=false")
     data = [d for d in os.listdir(export_dir) if d.startswith("data_") and os.path.isdir(os.path.join(export_dir, d))]
-    if data:
-        print(f"note  {data[0]} is present: .NET is not embedded, so the exe crashes if moved without it."
-              " Set dotnet/embed_build_outputs=true in export_presets.cfg.")
+    if not data:
+        fail("no data_ folder next to the exe; export with dotnet/embed_build_outputs=false")
+    # A full release is the base later updates are made against (scripts/make_update.py). Pass the
+    # release's tag (e.g. v0.2.5-beta): update.ps1 compares it with the newest release's tag.
+    version = sys.argv[3] if len(sys.argv) > 3 else ""
+    if version:
+        for name in ("base.txt", "version.txt"):
+            with open(os.path.join(export_dir, name), "w", encoding="utf-8") as f:
+                f.write(version + "\n")
 
     for name in EXTRA:
         shutil.copy2(os.path.join(ROOT, "export", "playtest", name), os.path.join(export_dir, name))
@@ -78,7 +88,7 @@ def main():
         names = [info.orig_filename for info in archive.infolist()]
     if any("\\" in name for name in names):
         fail("zip has backslash paths")
-    wanted = [EXE] + EXTRA + [WALLPAPER + "/" + name for name in wallpaper_files]
+    wanted = [EXE, PCK] + EXTRA + [WALLPAPER + "/" + name for name in wallpaper_files]
     if any(name.endswith(COMPANION) for name in names):
         wanted += VC_RUNTIME
     for name in wanted:
