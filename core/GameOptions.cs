@@ -20,7 +20,11 @@ public static class GameOptions
     {
         // Whoever asks first gets the saved options: a system reading Quality in its _Ready before
         // anyone had loaded them used to see the defaults (High, so the fog came back on Low).
-        Load();
+        // Headless runs (the tests, CI) keep the defaults, as RunState does.
+        if (DisplayServer.GetName() != "headless")
+        {
+            Load();
+        }
     }
 
     /// <summary>Single player: the world stops while the inventory page or the pack is open.</summary>

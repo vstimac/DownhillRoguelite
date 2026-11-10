@@ -326,6 +326,8 @@ public partial class GroundFogTests : Node3D
         AddChild(walker);
         GroundFog fog = new() { Name = "GroundFog", Settings = settings, Target = walker, DrawWhenHeadless = true };
         AddChild(fog);
+        // On, whatever this machine's saved options say (Low quality or Ground fog off turn it off).
+        fog.SetFogEnabled(true);
         System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
         await Until(() => fog.Simulation!.KnownCells >= fog.Simulation.Size * fog.Simulation.Size * 0.98f, 3.0f);
         double learn = watch.Elapsed.TotalMilliseconds;

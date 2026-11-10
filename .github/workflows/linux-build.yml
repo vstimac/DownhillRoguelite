@@ -96,9 +96,13 @@ jobs:
           status=0
           for t in BalanceTests UiTests GearTests PackingTests StationTests ProgressionTests MapTests TerrainTests LocomotionTests SurvivalTests NarratorTests DiveTests CharacterTests BodyDynamicsTests; do
             [ -f "debug/tests/$t.tscn" ] || continue
-            r="$(timeout 300 "$GODOT" --headless --path . --fixed-fps 60 "res://debug/tests/$t.tscn" 2>&1 | grep -E 'TESTS: (PASS|FAIL)' | tail -1)"
+            timeout 300 "$GODOT" --headless --path . --fixed-fps 60 "res://debug/tests/$t.tscn" > "$t.log" 2>&1 || true
+            r="$(grep -E 'TESTS: (PASS|FAIL)' "$t.log" | tail -1 || true)"
             echo "$t: ${r:-no result}"
-            case "$r" in *PASS*) ;; *) status=1 ;; esac
+            case "$r" in
+              *PASS*) ;;
+              *) status=1; echo "::group::$t output (last 60 lines)"; tail -60 "$t.log"; echo "::endgroup::" ;;
+            esac
           done
           exit $status
 
