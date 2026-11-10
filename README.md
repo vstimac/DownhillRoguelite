@@ -12,7 +12,9 @@ A dark survival adventure about descending a mountain that never ends — toward
 
 **Godot 4.7 .NET · C# · Windows and Linux playtests · In active development**
 
-[**Download Windows Beta 2.5**](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-beta-2.5-windows.zip) · [All releases](https://github.com/vstimac/DownhillRoguelite/releases) · [Report feedback](https://github.com/vstimac/DownhillRoguelite/issues/new/choose)
+[**Download Windows Beta 2.5**](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-beta-2.5-windows.zip) · [All releases](https://github.com/vstimac/DownhillRoguelite/releases) · [Report feedback](https://github.com/vstimac/DownhillRoguelite/issues/new/choose) · [**Join our Discord**](https://discord.gg/vhPkSvPk2)
+
+[![Join the DownhillRoguelite Discord](https://img.shields.io/badge/Discord-Join%20the%20descent-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/vhPkSvPk2)
 
 </div>
 
@@ -47,7 +49,9 @@ Beta 2.5 lets you save and quit a run and continue it later, adds a Ground fog s
 
 You don't need to be a professional: help with a single model, animation, bug report or playtest.
 
-**[I want to help →](https://github.com/vstimac/DownhillRoguelite/issues/new?template=help-wanted.md)** · [Contribution guidelines](CONTRIBUTING.md) · [Open issues](https://github.com/vstimac/DownhillRoguelite/issues)
+**Come and talk to us on [Discord](https://discord.gg/vhPkSvPk2)**: playtest news, builds, feedback and a place to say hello before you help.
+
+**[I want to help →](https://github.com/vstimac/DownhillRoguelite/issues/new?template=help-wanted.md)** · [Join the Discord](https://discord.gg/vhPkSvPk2) · [Contribution guidelines](CONTRIBUTING.md) · [Open issues](https://github.com/vstimac/DownhillRoguelite/issues)
 
 *Open collaboration; no paid position is being advertised. Project code uses MIT, while art, music, voices and other assets have separate rights; read [RIGHTS.md](RIGHTS.md) before uploading files.*
 
