@@ -46,6 +46,11 @@ public partial class PlayerController : CharacterBody3D
     /// </summary>
     public Vector3? DirectionOverride { get; set; }
 
+    /// <summary>A world-space direction the body turns to face instead of its travel (the sword's facing), or null.</summary>
+    public Vector3? FacingOverride { get; set; }
+    /// <summary>How quickly it turns to FacingOverride.</summary>
+    [Export] public float FacingOverrideSharpness { get; set; } = 22.0f;
+
     /// <summary>Raised after a step-up moves the body instantly, with the world-space jump, so visuals can smooth it.</summary>
     public event System.Action<Vector3>? SteppedUp;
 
@@ -648,6 +653,18 @@ public partial class PlayerController : CharacterBody3D
 
     private void UpdateFacing(Vector3 input, float dt)
     {
+        if (FacingOverride.HasValue)
+        {
+            // Combat (MeleeCombat) holds the facing: toward the locked enemy, or where a swing goes.
+            Vector3 face = Flatten(FacingOverride.Value, false);
+            if (!face.IsZeroApprox())
+            {
+                float faceYaw = Mathf.Atan2(-face.X, -face.Z);
+                float faceWeight = 1.0f - Mathf.Exp(-FacingOverrideSharpness * dt);
+                Rotation = new Vector3(0.0f, Mathf.LerpAngle(Rotation.Y, faceYaw, faceWeight), 0.0f);
+                return;
+            }
+        }
         Vector3 look = IntendedVelocity();
         if (look.Length() < Settings.FacingMinSpeed)
         {

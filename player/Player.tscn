@@ -19,6 +19,7 @@
 [ext_resource type="Script" path="res://player/CarrierModel.cs" id="17_carrier_model"]
 [ext_resource type="Script" path="res://player/Dive.cs" id="18_vault"]
 [ext_resource type="Script" path="res://player/MeleeCombat.cs" id="21_melee"]
+[ext_resource type="Script" path="res://player/LockOn.cs" id="22_lock_on"]
 [ext_resource type="Script" path="res://player/BodyDynamics.cs" id="19_body_dynamics"]
 [ext_resource type="Script" path="res://player/CharacterAbility.cs" id="20_character_ability"]
 
@@ -116,10 +117,14 @@ Stamina = NodePath("../Stamina")
 [node name="CharacterAbility" type="Node" parent="."]
 script = ExtResource("20_character_ability")
 
-[node name="Dive" type="Node3D" parent="." node_paths=PackedStringArray("Body", "Look")]
+[node name="Dive" type="Node3D" parent="." node_paths=PackedStringArray("Body", "Animator")]
 script = ExtResource("18_vault")
 Body = NodePath("..")
-Look = NodePath("../CarrierModel")
+Animator = NodePath("../Animator")
+
+[node name="LockOn" type="Node" parent="." node_paths=PackedStringArray("Body")]
+script = ExtResource("22_lock_on")
+Body = NodePath("..")
 
 [node name="MeleeCombat" type="Node" parent="." node_paths=PackedStringArray("Body", "Stamina", "Driver")]
 script = ExtResource("21_melee")

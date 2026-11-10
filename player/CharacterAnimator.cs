@@ -8,6 +8,8 @@ namespace DownhillRoguelite.Player;
 /// AnimationTree in code: idle, phase-synchronized walk/jog/sprint with a stride-matched common
 /// cadence, a partial crouch for braking, and short authored takeoff/landing transitions. The
 /// controller retains all movement authority. Native clip speeds were measured from the planted toe.
+/// On top of everything an action slot plays one clip over the whole body (PlayAction), as the dive
+/// and the landing roll do; it fades in and out.
 /// </summary>
 public partial class CharacterAnimator : Node
 {
@@ -39,6 +41,8 @@ public partial class CharacterAnimator : Node
     [Export] public float TransitionFadeTime { get; set; } = 0.09f;
     /// <summary>Running landings retain their stride instead of replacing it with a full stationary crouch.</summary>
     [Export] public float MovingLandingWeight { get; set; } = 0.25f;
+    /// <summary>How long an action clip (PlayAction) takes to fade in or out, in s.</summary>
+    [Export] public float ActionFadeTime { get; set; } = 0.12f;
 
     [ExportGroup("Native clip speeds (m/s)")]
     [Export] public float WalkClipSpeed { get; set; } = 1.05f;
@@ -77,6 +81,7 @@ public partial class CharacterAnimator : Node
     private const string RateSuffix = "_rate";
     private const string TakeoffNode = "takeoff";
     private const string LandingNode = "landing";
+    private const string ActionNode = "action";
 
     private AnimationTree? _tree;
     public AnimationTree? Tree => _tree;
@@ -97,6 +102,17 @@ public partial class CharacterAnimator : Node
     private float _jogLength;
     private float _sprintLength;
     private float _brakeLength;
+    private AnimationNodeAnimation? _action;
+    private float _actionTime;
+    private float _actionSpeed = 1.0f;
+    private bool _actionLoops;
+    private bool _actionOn;
+    private float _actionWeight;
+
+    /// <summary>The clip in the action slot, its place in it (s) and how much of it shows (0–1).</summary>
+    public StringName ActionClip { get; private set; } = "";
+    public float ActionTime => _actionTime;
+    public float ActionWeight => _actionWeight;
 
     public override void _Ready()
     {
@@ -201,6 +217,65 @@ public partial class CharacterAnimator : Node
 
         UpdateCadence(targetSpeed);
         UpdateAirTransitions(dt);
+        UpdateAction(dt);
+    }
+
+    /// <summary>
+    /// Plays a clip over the whole body from <paramref name="from"/> s at <paramref name="speed"/>,
+    /// fading in (or switching straight over if one is already showing); false if there's no such clip.
+    /// </summary>
+    public bool PlayAction(StringName clip, float from, float speed, bool loop)
+    {
+        if (_action == null || Animations?.HasAnimation(clip) != true)
+        {
+            return false;
+        }
+        _action.Animation = clip;
+        ActionClip = clip;
+        _actionTime = from;
+        _actionSpeed = speed;
+        _actionLoops = loop;
+        _actionOn = true;
+        return true;
+    }
+
+    /// <summary>Fades the action clip out; the normal animation takes over again.</summary>
+    public void StopAction()
+    {
+        _actionOn = false;
+    }
+
+    private void UpdateAction(float dt)
+    {
+        if (_action == null)
+        {
+            return;
+        }
+        float target = 0.0f;
+        if (_actionOn)
+        {
+            target = 1.0f;
+            float length = Length(ActionClip);
+            _actionTime += dt * _actionSpeed;
+            if (_actionLoops)
+            {
+                _actionTime = Mathf.PosMod(_actionTime, length);
+            }
+            else
+            {
+                _actionTime = Mathf.Min(_actionTime, length);
+            }
+        }
+        if (ActionFadeTime > 0.0f)
+        {
+            _actionWeight = Mathf.MoveToward(_actionWeight, target, dt / ActionFadeTime);
+        }
+        else
+        {
+            _actionWeight = target;
+        }
+        _tree!.Set($"parameters/{ActionNode}_seek/seek_request", _actionTime);
+        SetBlend(ActionNode + "_blend", Mathf.SmoothStep(0.0f, 1.0f, _actionWeight));
     }
 
     private float Length(StringName clip)
@@ -287,7 +362,9 @@ public partial class CharacterAnimator : Node
 
         AddTransition(tree, TakeoffNode, TakeoffClip, AirBlendNode);
         AddTransition(tree, LandingNode, LandingClip, TakeoffNode + "_blend");
-        tree.ConnectNode("output", 0, LandingNode + "_blend");
+        AddTransition(tree, ActionNode, IdleClip, LandingNode + "_blend");
+        _action = tree.GetNode(ActionNode) as AnimationNodeAnimation;
+        tree.ConnectNode("output", 0, ActionNode + "_blend");
         return tree;
     }
 

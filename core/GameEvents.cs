@@ -754,4 +754,15 @@ public static partial class GameEvents
     {
         FootPlacementUpdated?.Invoke(snapshot);
     }
+
+    /// <summary>The enemy the carrier has locked on to (Tab), or null: the camera keeps it in view, the sword faces it.</summary>
+    public static Godot.Node3D? LockTarget { get; private set; }
+
+    public static event Action<Godot.Node3D?>? LockTargetChanged;
+
+    public static void PublishLockTarget(Godot.Node3D? target)
+    {
+        LockTarget = target;
+        LockTargetChanged?.Invoke(target);
+    }
 }

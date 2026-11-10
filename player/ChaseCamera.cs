@@ -54,6 +54,12 @@ public partial class ChaseCamera : Node3D
     /// <summary>No auto align below this horizontal speed, in m/s.</summary>
     [Export] public float AutoAlignMinSpeed { get; set; } = 1.0f;
 
+    [ExportGroup("Lock on")]
+    /// <summary>With an enemy locked on (Tab): how quickly the view swings to it, the aim's height on it (m) and the pitch it settles at.</summary>
+    [Export] public float LockSharpness { get; set; } = 7.0f;
+    [Export] public float LockAimHeight { get; set; } = 1.0f;
+    [Export] public float LockPitch { get; set; } = -14.0f;
+
     private float _yawDegrees;
     private float _pitchDegrees;
     private float _timeSinceLook;
@@ -251,11 +257,39 @@ public partial class ChaseCamera : Node3D
             }
         }
 
-        AutoAlign(dt);
+        if (!FollowLock(dt))
+        {
+            AutoAlign(dt);
+        }
 
         float weight = 1.0f - Mathf.Exp(-FollowSharpness * dt);
         GlobalPosition = GlobalPosition.Lerp(PivotOf(Target), weight);
         ApplyRotation();
+    }
+
+    /// <summary>Keeps the locked enemy (GameEvents.LockTarget) in view, beyond the carrier; false with no lock.</summary>
+    private bool FollowLock(float dt)
+    {
+        Node3D? locked = GameEvents.LockTarget;
+        if (Target == null || locked == null || !IsInstanceValid(locked))
+        {
+            return false;
+        }
+        Vector3 pivot = PivotOf(Target);
+        Vector3 aim = locked.GlobalPosition + Vector3.Up * LockAimHeight;
+        Vector3 to = aim - pivot;
+        float flat = new Vector2(to.X, to.Z).Length();
+        if (flat < 0.3f)
+        {
+            return true;
+        }
+        float weight = 1.0f - Mathf.Exp(-LockSharpness * dt);
+        float yaw = Mathf.LerpAngle(Mathf.DegToRad(_yawDegrees), Mathf.Atan2(-to.X, -to.Z), weight);
+        _yawDegrees = Mathf.RadToDeg(yaw);
+        float pitch = LockPitch + Mathf.RadToDeg(Mathf.Atan2(to.Y, flat));
+        _pitchDegrees = Mathf.Lerp(_pitchDegrees, pitch, weight);
+        _timeSinceLook = 0.0f;
+        return true;
     }
 
     private void AutoAlign(float dt)

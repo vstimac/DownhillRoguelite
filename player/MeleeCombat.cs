@@ -136,6 +136,8 @@ public partial class MeleeCombat : Node
     public Vector3 BladeTip { get; private set; }
 
     private SwordAnimator? _animator;
+    /// <summary>The way the camera looked when this swing or kick started.</summary>
+    private Vector3? _swingFacing;
     private MixamoOverlay? _overlay;
     private Node3D? _sword;
     private float _bladeLength = 0.8f;
@@ -575,6 +577,7 @@ public partial class MeleeCombat : Node
         }
         ComboIndex = Mathf.Clamp(index, 0, Combo.Length - 1);
         State = Stance.Attacking;
+        _swingFacing = CameraFacing();
         _chainQueued = false;
         _struck.Clear();
         _haveTip = false;
@@ -595,6 +598,7 @@ public partial class MeleeCombat : Node
             return false;
         }
         State = Stance.Kicking;
+        _swingFacing = CameraFacing();
         _struck.Clear();
         _animator?.Play("kick", ClipBlend, KickSpeed);
         PublishSwing("kick");
@@ -723,6 +727,52 @@ public partial class MeleeCombat : Node
         }
         UpdateBlade();
         UpdateWeights(dt);
+        UpdateFacing();
+    }
+
+    /// <summary>
+    /// With the sword drawn the carrier faces the locked enemy (Tab); without a lock, a swing or kick
+    /// turns him the way the camera looks when it starts. Otherwise he faces where he goes.
+    /// </summary>
+    private void UpdateFacing()
+    {
+        if (Body == null)
+        {
+            return;
+        }
+        Vector3? face = null;
+        Node3D? locked = GameEvents.LockTarget;
+        if (Drawn && locked != null && IsInstanceValid(locked))
+        {
+            Vector3 to = locked.GlobalPosition - Body.GlobalPosition;
+            to.Y = 0.0f;
+            if (to.LengthSquared() > 0.01f)
+            {
+                face = to.Normalized();
+            }
+        }
+        else if ((State == Stance.Attacking || State == Stance.Kicking) && _swingFacing.HasValue)
+        {
+            face = _swingFacing;
+        }
+        Body.FacingOverride = face;
+    }
+
+    /// <summary>Where the camera looks, flat, or null without one.</summary>
+    private Vector3? CameraFacing()
+    {
+        Camera3D? camera = GetViewport()?.GetCamera3D();
+        if (camera == null)
+        {
+            return null;
+        }
+        Vector3 look = -camera.GlobalBasis.Z;
+        look.Y = 0.0f;
+        if (look.LengthSquared() < 0.0001f)
+        {
+            return null;
+        }
+        return look.Normalized();
     }
 
     private void ToGuard()

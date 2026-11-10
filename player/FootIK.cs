@@ -147,7 +147,9 @@ public partial class FootIK : Node3D
         _hasLastOrigin = true;
 
         float targetWeight = 0.0f;
-        if (Body.State == LocomotionState.Idle || Body.State == LocomotionState.Striding || Body.State == LocomotionState.Braking)
+        bool grounded = Body.State == LocomotionState.Idle || Body.State == LocomotionState.Striding || Body.State == LocomotionState.Braking;
+        // A dive or a landing roll moves the legs itself: no feet on the ground.
+        if (grounded && !GameEvents.IsVaulting)
         {
             targetWeight = 1.0f;
         }
