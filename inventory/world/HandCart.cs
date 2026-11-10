@@ -50,6 +50,15 @@ public partial class HandCart : RigidBody3D, IInteractable, IPushable
     /// <summary>The handles slip out of the hands if they end up this far from the hitch, in m.</summary>
     [Export] public float BreakDistance { get; set; } = 3.5f;
 
+    [ExportGroup("Rope")]
+    /// <summary>
+    /// The carrier pulls on a rope: two lines from the grips of the handle bar to a knot at his waist
+    /// (this high above his feet, this far behind his middle), each this long, so they sag a little.
+    /// </summary>
+    [Export] public float RopeWaistHeight { get; set; } = 1.0f;
+    [Export] public float RopeWaistBack { get; set; } = 0.14f;
+    [Export] public float RopeLength { get; set; } = 1.3f;
+
     [ExportGroup("Wheels")]
     /// <summary>How quickly sideways sliding is stopped while a wheel touches ground (per s).</summary>
     [Export] public float LateralGrip { get; set; } = 12.0f;
@@ -95,6 +104,7 @@ public partial class HandCart : RigidBody3D, IInteractable, IPushable
     public Node3D? Cargo => _cargo;
 
     private readonly Node3D[] _wheels = new Node3D[2];
+    private readonly TowRope[] _ropes = new TowRope[2];
     private Node3D? _cargo;
     private Label3D? _prompt;
     private bool _focused;
@@ -125,6 +135,11 @@ public partial class HandCart : RigidBody3D, IInteractable, IPushable
         CenterOfMassMode = CenterOfMassModeEnum.Custom;
         CenterOfMass = BalancePoint;
         Build();
+        for (int i = 0; i < _ropes.Length; i++)
+        {
+            _ropes[i] = new TowRope { Name = "Rope" + i };
+            AddChild(_ropes[i]);
+        }
         _cargo = new Node3D { Name = "Cargo" };
         AddChild(_cargo);
         // Placed somewhere new: hold still until there is ground below to settle onto.
@@ -384,6 +399,51 @@ public partial class HandCart : RigidBody3D, IInteractable, IPushable
             {
                 GameEvents.PublishTow(Mass);
             }
+        }
+    }
+
+    /// <summary>The ropes' sag now (tests): how low the middle hangs, in m; 0 when not towing.</summary>
+    public float RopeSag => _ropes[0]?.Visible == true ? _ropes[0].Sag : 0.0f;
+
+    /// <summary>The knot at the carrier's waist the ropes run to.</summary>
+    public Vector3 RopeKnot()
+    {
+        if (Puller == null || !IsInstanceValid(Puller))
+        {
+            return HandlePoint;
+        }
+        Vector3 back = Puller.GlobalBasis.Z;
+        back.Y = 0.0f;
+        if (back.LengthSquared() > 0.0001f)
+        {
+            back = back.Normalized();
+        }
+        return Puller.GlobalPosition + Vector3.Up * RopeWaistHeight + back * RopeWaistBack;
+    }
+
+    public override void _Process(double delta)
+    {
+        if (!Towing)
+        {
+            foreach (TowRope rope in _ropes)
+            {
+                if (rope != null && rope.Visible)
+                {
+                    rope.Hide3D();
+                }
+            }
+            return;
+        }
+        Vector3 knot = RopeKnot();
+        for (int i = 0; i < _ropes.Length; i++)
+        {
+            float side = -1.0f;
+            if (i == 1)
+            {
+                side = 1.0f;
+            }
+            Vector3 grip = ToGlobal(new Vector3(HandleTip.X * side * 0.8f, HandleTip.Y, HandleTip.Z));
+            _ropes[i]?.Hang(grip, knot, RopeLength);
         }
     }
 

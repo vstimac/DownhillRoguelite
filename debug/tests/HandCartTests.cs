@@ -94,10 +94,15 @@ public partial class HandCartTests : Node3D
 			$"held {cart.Towing}, travelled {travelled:0.0} m, handles off the hitch up to {worst:0.00} m, behind {-behind.Normalized().Dot(downhill):0.00}");
 		float upright = cart.GlobalBasis.Y.Dot(Vector3.Up);
 		Check("it stays on its wheels", upright > 0.7f, $"upright {upright:0.00}");
+		await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+		float knotToBar = cart.RopeKnot().DistanceTo(cart.HandlePoint);
+		Check("a rope runs from his waist to the handle bar", cart.GetNodeOrNull<Node3D>("Rope0")?.Visible == true && cart.GetNodeOrNull<Node3D>("Rope1")?.Visible == true && knotToBar < cart.RopeLength + 0.6f,
+			$"ropes shown {cart.GetNodeOrNull<Node3D>("Rope0")?.Visible}, waist to bar {knotToBar:0.00} m, sag {cart.RopeSag:0.00} m");
 
 		// Let go: it parks again.
 		cart.LetGo();
 		float parkedAfter = await Until(() => cart.Parked, 6.0f);
+		Check("let go, the rope is gone", cart.GetNodeOrNull<Node3D>("Rope0")?.Visible == false, $"rope shown {cart.GetNodeOrNull<Node3D>("Rope0")?.Visible}");
 		Check("let go, it parks", cart.Parked && !cart.Towing && GameEvents.TowMass == 0.0f,
 			$"after {parkedAfter:0.0} s, frozen {cart.Freeze}, tow mass {GameEvents.TowMass:0}");
 
