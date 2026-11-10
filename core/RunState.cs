@@ -151,6 +151,17 @@ public partial class RunState : Node
         GameEvents.RelicDelivered += OnRelicDelivered;
         RunNumber = Records.Runs + 1;
         ConfigureCharacter(null, false);
+        GameOptions.Changed += OnOptionsChanged;
+    }
+
+    /// <summary>Picking another character in Options during a run swaps to them on the spot (look and stats).</summary>
+    private void OnOptionsChanged()
+    {
+        if (!CharacterRunStarted || DisplayServer.GetName() == "headless" || GameOptions.Character == Character.Id)
+        {
+            return;
+        }
+        ConfigureCharacter(GameOptions.Character, true);
     }
 
     private void ConfigureCharacter(string? requested, bool started)
@@ -306,6 +317,7 @@ public partial class RunState : Node
         GameEvents.ContractAccepted -= OnContractAccepted;
         GameEvents.ContractResolved -= OnContractResolved;
         GameEvents.RelicDelivered -= OnRelicDelivered;
+        GameOptions.Changed -= OnOptionsChanged;
         _difficultySettings = null;
         _circles = null;
         Route = null;
