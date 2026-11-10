@@ -17,6 +17,8 @@ public partial class MusicPlayer : Node
     [Export] public float VolumeDb { get; set; } = -3.0f;
     /// <summary>Extra drop while the narrator speaks, in dB.</summary>
     [Export] public float DuckDb { get; set; } = -9.0f;
+    /// <summary>Drop while the summit car's radio plays one of the player's songs, in dB.</summary>
+    [Export] public float RadioDuckDb { get; set; } = -40.0f;
     /// <summary>How fast volumes follow their targets (per second).</summary>
     [Export] public float FadeSpeed { get; set; } = 1.5f;
 
@@ -24,6 +26,7 @@ public partial class MusicPlayer : Node
     private AudioStreamPlayer? _night;
     private WorldClock? _clock;
     private float _duck;
+    private float _radioDuck;
 
     public override void _Ready()
     {
@@ -78,6 +81,12 @@ public partial class MusicPlayer : Node
             duckTarget = 1.0f;
         }
         _duck = Mathf.MoveToward(_duck, duckTarget, FadeSpeed * (float)delta);
+        float radioTarget = 0.0f;
+        if (GameEvents.IsRadioPlaying)
+        {
+            radioTarget = 1.0f;
+        }
+        _radioDuck = Mathf.MoveToward(_radioDuck, radioTarget, FadeSpeed * (float)delta);
         Fade(_day, daylight, delta);
         Fade(_night, 1.0f - daylight, delta);
     }
@@ -89,7 +98,7 @@ public partial class MusicPlayer : Node
             return;
         }
         float linear = Mathf.Clamp(mix, 0.0001f, 1.0f);
-        float target = VolumeDb + Mathf.LinearToDb(linear) + DuckDb * _duck;
+        float target = VolumeDb + Mathf.LinearToDb(linear) + DuckDb * _duck + RadioDuckDb * _radioDuck;
         player.VolumeDb = Mathf.MoveToward(player.VolumeDb, target, 30.0f * FadeSpeed * (float)delta);
     }
 }

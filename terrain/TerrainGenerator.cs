@@ -61,6 +61,9 @@ public sealed class TerrainGenerator
     private readonly float _summitCliffTangent;
     private readonly float _summitCapTangent;
     private readonly float _startHeight;
+    // The summit's level pad (centre on the ground); none until worked out at the end of the constructor.
+    private Vector3 _summitPad;
+    private bool _hasSummitPad;
     private readonly object _stationLock = new();
     private readonly object _indexLock = new();
     private int _indexCells = -1;
@@ -96,6 +99,44 @@ public sealed class TerrainGenerator
         _summitCapTangent = Mathf.Tan(Mathf.DegToRad(settings.SummitCapSlope));
         _startHeight = SpineHeight(settings.SpawnZ);
         EnsureStations(settings.PrecomputedStations);
+        if (settings.SummitPadRadius > 0.0f)
+        {
+            float padZ = settings.SpawnZ + settings.SummitPadBehind;
+            float padX = SpineX(padZ) + settings.SummitPadSide;
+            float padY = Mathf.Min(Height(padX, padZ), SummitHeight);
+            _summitPad = new Vector3(padX, padY, padZ);
+            _hasSummitPad = true;
+        }
+    }
+
+    /// <summary>Centre of the summit's level pad, on its ground (where the old car stands).</summary>
+    public Vector3 SummitPad => _summitPad;
+
+    /// <summary>True within <paramref name="margin"/> m of the summit pad's level ground (nothing is scattered there).</summary>
+    public bool OnSummitPad(float x, float z, float margin)
+    {
+        if (!_hasSummitPad)
+        {
+            return false;
+        }
+        return new Vector2(x - _summitPad.X, z - _summitPad.Z).Length() < _settings.SummitPadRadius + margin;
+    }
+
+    /// <summary>Levels the ground on the summit pad, blending it into the slope around.</summary>
+    private float ApplySummitPad(float x, float z, float height)
+    {
+        if (!_hasSummitPad)
+        {
+            return height;
+        }
+        float reach = _settings.SummitPadRadius + _settings.SummitPadBlend;
+        float distance = new Vector2(x - _summitPad.X, z - _summitPad.Z).Length();
+        if (distance >= reach)
+        {
+            return height;
+        }
+        float weight = 1.0f - Mathf.SmoothStep(_settings.SummitPadRadius, reach, distance);
+        return Mathf.Lerp(height, _summitPad.Y, weight);
     }
 
     /// <summary>Route height at the start of the run, before any clearing.</summary>
@@ -419,7 +460,7 @@ public sealed class TerrainGenerator
 
     public float Height(float x, float z)
     {
-        return Mathf.Min(ApplyClearings(x, z, RawHeight(x, z)), SummitCap(z));
+        return Mathf.Min(ApplySummitPad(x, z, ApplyClearings(x, z, RawHeight(x, z))), SummitCap(z));
     }
 
     /// <summary>Height of the summit plateau: the highest ground of the whole mountain.</summary>
@@ -757,7 +798,7 @@ public sealed class TerrainGenerator
             float tiltX = random.Range(-maxTilt, maxTilt);
             float tiltZ = random.Range(-maxTilt, maxTilt);
 
-            if (TooCloseToPath(x, z, extent))
+            if (TooCloseToPath(x, z, extent) || OnSummitPad(x, z, extent + 1.0f))
             {
                 continue;
             }
@@ -902,7 +943,7 @@ public sealed class TerrainGenerator
                 densityFactor = Mathf.Clamp(0.55f + _forestPatches.Sample(x / wave, z / wave) * 1.8f, 0.1f, 1);
             }
             if (keep * maxTrees >= biome.TreeDensity * densityFactor) { continue; }
-            if (TooCloseToPath(x, z, 2.0f) || NearStation(x, z, _settings.ClearingRadius + _settings.TreeStationGap) || SlopeDegrees(x, z) > _settings.TreeMaxSlope)
+            if (TooCloseToPath(x, z, 2.0f) || NearStation(x, z, _settings.ClearingRadius + _settings.TreeStationGap) || OnSummitPad(x, z, 3.0f) || SlopeDegrees(x, z) > _settings.TreeMaxSlope)
             {
                 continue;
             }
@@ -959,7 +1000,7 @@ public sealed class TerrainGenerator
                 }
                 float pathWeight = PathWeight(x, z, out RouteKind route);
                 // Grass grows up to the path's trodden middle, and only on grassy ground.
-                if (pathWeight > 0.85f || Classify(x, z, GridSlope(data, lx, lz), 0.0f, route) != TerrainSurface.Grass)
+                if (pathWeight > 0.85f || OnSummitPad(x, z, 0.5f) || Classify(x, z, GridSlope(data, lx, lz), 0.0f, route) != TerrainSurface.Grass)
                 {
                     continue;
                 }
@@ -988,7 +1029,7 @@ public sealed class TerrainGenerator
             TerrainSurface surface = SurfaceAt(x, z);
             if (surface == TerrainSurface.Snow) { continue; }
             // Leave the trodden centre clear, but show stones on shoulders and exposed off-trail ground.
-            if (PathWeight(x, z, out _) > 0.9f) { continue; }
+            if (PathWeight(x, z, out _) > 0.9f || OnSummitPad(x, z, 0.5f)) { continue; }
             string model = _settings.PebbleModels[random.NextInt(_settings.PebbleModels.Length)];
             data.Plants.Add(new PlantData(PlantKind.Pebble, model, new Vector3(x, height, z), random.Range(-Mathf.Pi, Mathf.Pi),
                 random.Range(_settings.PebbleHeight.X, _settings.PebbleHeight.Y), Vector2.Zero, true));

@@ -23,6 +23,7 @@ public partial class Hud : CanvasLayer
     private static readonly StringName ActionInventory = "inventory_open";
     private static readonly StringName ActionJournal = "journal_open";
     private static readonly StringName ActionTalk = "talk_open";
+    private static readonly StringName ActionRadio = "radio_open";
 
     public StatDial? HealthDial { get; private set; }
     public StatDial? HungerDial { get; private set; }
@@ -42,6 +43,7 @@ public partial class Hud : CanvasLayer
     public MapScreen? MapPage { get; private set; }
     public JournalScreen? Journal { get; private set; }
     public TalkScreen? Talk { get; private set; }
+    public RadioScreen? RadioPage { get; private set; }
     public DialogueChoices? Choices { get; private set; }
     public ThrowZone? ThrowZone { get; private set; }
     public UiLayoutEditor? LayoutEditor { get; private set; }
@@ -124,6 +126,11 @@ public partial class Hud : CanvasLayer
         Journal.Closed += OnPageClosed;
         Talk.Closed += OnPageClosed;
         GameEvents.TalkRequested += OnTalkRequested;
+        RadioPage = new RadioScreen();
+        _root.AddChild(RadioPage);
+        RadioPage.Closed += OnPageClosed;
+        GameEvents.RadioPageRequested += OnRadioPageRequested;
+        GameEvents.RadioChanged += OnRadioChanged;
 
         // The player can drag everything: pages by their title, HUD pieces with Alt held.
         LayoutEditor = new UiLayoutEditor { Name = "LayoutEditor" };
@@ -143,6 +150,7 @@ public partial class Hud : CanvasLayer
         LayoutEditor.AddPage("map", MapPage);
         LayoutEditor.AddPage("journal", Journal);
         LayoutEditor.AddPage("talk", Talk);
+        LayoutEditor.AddPage("radio", RadioPage);
         LayoutEditor.Place = PlacePiece;
         LayoutEditor.EditingChanged += OnEditing;
         MapPage.Closed += OnPageClosed;
@@ -156,6 +164,8 @@ public partial class Hud : CanvasLayer
     {
         GameEvents.VitalsUpdated -= OnVitals;
         GameEvents.TalkRequested -= OnTalkRequested;
+        GameEvents.RadioPageRequested -= OnRadioPageRequested;
+        GameEvents.RadioChanged -= OnRadioChanged;
         if (GameEvents.IsScreenOpen)
         {
             GameEvents.PublishScreenOpen(false);
@@ -254,7 +264,7 @@ public partial class Hud : CanvasLayer
             Hotbar.Position = new Vector2((screen.X - Hotbar.Size.X) * 0.5f, screen.Y - Hotbar.Size.Y - 10);
         }
         Tooltip?.SetHome(new Vector2(screen.X - 350, screen.Y - 300));
-        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, MapPage, Journal, Talk })
+        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, MapPage, Journal, Talk, RadioPage })
         {
             if (page != null)
             {
@@ -295,6 +305,28 @@ public partial class Hud : CanvasLayer
         {
             Toggle(Talk);
         }
+    }
+
+    /// <summary>E at the summit's Reno 4: the radio page opens (if it isn't already).</summary>
+    private void OnRadioPageRequested()
+    {
+        if (RadioPage != null && !(RadioPage.IsOpen && RadioPage.Visible) && !GameEvents.IsPacking)
+        {
+            Toggle(RadioPage);
+        }
+    }
+
+    private string _radioNoted = "";
+
+    /// <summary>A paper note names each new song as it starts.</summary>
+    private void OnRadioChanged(RadioState radio)
+    {
+        if (!radio.Playing || radio.TrackName.Length == 0 || radio.TrackName == _radioNoted)
+        {
+            return;
+        }
+        _radioNoted = radio.TrackName;
+        Notes?.Note("Radio: " + radio.TrackName);
     }
 
     private void PlacePiece(Control piece, Vector2 at)
@@ -339,6 +371,11 @@ public partial class Hud : CanvasLayer
             Toggle(Journal);
             GetViewport().SetInputAsHandled();
         }
+        else if (@event.IsActionPressed(ActionRadio))
+        {
+            Toggle(RadioPage);
+            GetViewport().SetInputAsHandled();
+        }
         else if (EnableCompanionChat && @event.IsActionPressed(ActionTalk) && Talk != null && !(Talk.IsOpen && Talk.Visible))
         {
             // Enter talks with the companion; once the page is open, Enter sends what's typed.
@@ -354,7 +391,7 @@ public partial class Hud : CanvasLayer
         {
             return;
         }
-        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, Journal, Talk, MapPage })
+        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, Journal, Talk, RadioPage, MapPage })
         {
             if (page != null && page.IsOpen && page.Visible)
             {
@@ -377,7 +414,7 @@ public partial class Hud : CanvasLayer
             page.Close();
             return;
         }
-        foreach (ParchmentPanel? other in new ParchmentPanel?[] { Inventory, Journal, Talk })
+        foreach (ParchmentPanel? other in new ParchmentPanel?[] { Inventory, Journal, Talk, RadioPage })
         {
             if (other != null && other != page && other.IsOpen && other.Visible)
             {
@@ -398,7 +435,8 @@ public partial class Hud : CanvasLayer
 
     private void OnPageClosed()
     {
-        bool anyOpen = (Inventory != null && Inventory.IsOpen) || (Journal != null && Journal.IsOpen) || (Talk != null && Talk.IsOpen);
+        bool anyOpen = (Inventory != null && Inventory.IsOpen) || (Journal != null && Journal.IsOpen) || (Talk != null && Talk.IsOpen)
+            || (RadioPage != null && RadioPage.IsOpen);
         if (anyOpen)
         {
             return;

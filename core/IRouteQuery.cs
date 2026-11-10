@@ -15,6 +15,10 @@ public interface IRouteQuery
     /// <summary>Z where the run starts; the route descends toward -Z.</summary>
     float StartZ { get; }
 
+    /// <summary>Centre of the summit's level pad on its ground (where the old car stands), and its radius in m.</summary>
+    Vector3 SummitPad { get; }
+    float SummitPadRadius { get; }
+
     /// <summary>The main path's point (on the ground) at <paramref name="z"/>.</summary>
     Vector3 RoutePoint(float z);
 

@@ -1,0 +1,55 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/SummitRadioLab.cs" id="1_lab"]
+[ext_resource type="Script" path="res://terrain/TerrainStreamer.cs" id="2_streamer"]
+[ext_resource type="Resource" path="res://terrain/default_terrain.tres" id="3_terrain_settings"]
+[ext_resource type="Script" path="res://audio/RadioPlayer.cs" id="4_radio"]
+[ext_resource type="Script" path="res://environment/SummitRadio.cs" id="5_summit"]
+[ext_resource type="PackedScene" path="res://art/props/reno4/reno4.glb" id="6_reno4"]
+[ext_resource type="PackedScene" path="res://art/characters/skeleton/skeleton_sitting.glb" id="7_skeleton"]
+[ext_resource type="PackedScene" path="res://art/props/kenney_graveyard_kit/GLB format/bench.glb" id="8_bench"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_material"]
+sky_top_color = Color(0.38, 0.5, 0.68, 1)
+sky_horizon_color = Color(0.72, 0.74, 0.78, 1)
+ground_horizon_color = Color(0.72, 0.74, 0.78, 1)
+
+[sub_resource type="Sky" id="Sky_main"]
+sky_material = SubResource("Sky_material")
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 2
+sky = SubResource("Sky_main")
+ambient_light_source = 3
+tonemap_mode = 2
+
+[node name="SummitRadioLab" type="Node3D" node_paths=PackedStringArray("Summit", "Camera")]
+script = ExtResource("1_lab")
+Summit = NodePath("SummitRadio")
+Camera = NodePath("Camera")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.187303, 0.463592, 0, 0.927184, 0.374607, -0.5, -0.324419, 0.802965, 0, 100, 0)
+light_energy = 1.1
+shadow_enabled = true
+directional_shadow_max_distance = 60.0
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_streamer")
+Settings = ExtResource("3_terrain_settings")
+
+[node name="Radio" type="Node" parent="."]
+script = ExtResource("4_radio")
+
+[node name="SummitRadio" type="Node3D" parent="."]
+script = ExtResource("5_summit")
+CarScene = ExtResource("6_reno4")
+SkeletonScene = ExtResource("7_skeleton")
+BenchScene = ExtResource("8_bench")
+
+[node name="Camera" type="Camera3D" parent="."]
+current = true
+fov = 55.0

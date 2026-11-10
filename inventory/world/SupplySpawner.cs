@@ -193,6 +193,13 @@ public partial class SupplySpawner : Node3D
                 slots.Add(new Slot(entry, x, z, $"{cell.X}:{cell.Y}:{i}"));
             }
         }
+        // Nothing lies on the summit's level pad (the old car stands there).
+        Vector3 pad = route.SummitPad;
+        float padRadius = route.SummitPadRadius;
+        if (padRadius > 0.0f)
+        {
+            slots.RemoveAll(slot => new Vector2(slot.X - pad.X, slot.Z - pad.Z).Length() < padRadius + 0.5f);
+        }
         return slots;
     }
 

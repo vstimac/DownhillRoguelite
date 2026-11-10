@@ -10,6 +10,8 @@ public sealed class MathTestRoute : IRouteQuery
     public float RisePerMetre { get; init; }
     public float FlatApproach { get; init; }
     public float StartZ => 0.0f;
+    public Vector3 SummitPad => new(-12.0f, 0.0f, 5.0f);
+    public float SummitPadRadius => 0.0f;
     public Vector3 RoutePoint(float z) => new(0.0f, Mathf.Max(0.0f, -z - FlatApproach) * RisePerMetre, z);
     public Vector3 Station(int index) => RoutePoint(-Length * index);
     public int NextStationIndex(float z) => 1;

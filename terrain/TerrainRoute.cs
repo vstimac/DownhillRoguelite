@@ -15,6 +15,10 @@ public sealed class TerrainRoute : IRouteQuery
 
     public float StartZ => _generator.Settings.SpawnZ;
 
+    public Vector3 SummitPad => _generator.SummitPad;
+
+    public float SummitPadRadius => _generator.Settings.SummitPadRadius;
+
     public Vector3 RoutePoint(float z)
     {
         float x = _generator.SpineX(z);

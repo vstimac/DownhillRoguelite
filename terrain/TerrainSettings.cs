@@ -61,6 +61,14 @@ public partial class TerrainSettings : Resource
     [Export] public float SummitCapSlope { get; set; } = 12.0f;
     /// <summary>A carrier this far below the summit, behind it, has fallen into the abyss and dies, in m.</summary>
     [Export] public float AbyssDrop { get; set; } = 25.0f;
+    /// <summary>A level pad on the summit plateau for the old car and its bench: this far to the side of the route (negative: left), in m. Its blend keeps clear of the path and the spawn (more than SpineHalfWidth + radius + blend).</summary>
+    [Export] public float SummitPadSide { get; set; } = -12.0f;
+    /// <summary>...and this far behind the start (on the plateau, before the cliff), in m.</summary>
+    [Export] public float SummitPadBehind { get; set; } = 5.0f;
+    /// <summary>Radius of the pad's level ground, in m (0: no pad). Nothing grows or lies on it.</summary>
+    [Export] public float SummitPadRadius { get; set; } = 4.5f;
+    /// <summary>Width of the ring blending the pad into the ground around it, in m.</summary>
+    [Export] public float SummitPadBlend { get; set; } = 3.0f;
 
     [ExportGroup("Stations")]
     /// <summary>Metres of descent between stations (one day's stage).</summary>

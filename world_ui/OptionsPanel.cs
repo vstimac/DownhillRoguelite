@@ -609,6 +609,7 @@ public partial class OptionsPanel : ParchmentPanel
             ("Inventory: wear, mend, drop", InputGlyphs.Both("inventory_open")),
             ("Journal", InputGlyphs.Both("journal_open")),
             ("Map", InputGlyphs.Both("map_toggle")),
+            ("Radio (the summit car's songs)", InputGlyphs.Both("radio_open")),
             ("Hotbar: choose / use", "1-9 or mouse wheel  ·  V"),
             ("Move any part of the interface", "Alt + drag  ·  Alt+Backspace resets"),
             ("Give up the run", "R twice"),

@@ -18,6 +18,8 @@ These packs are credited as CC0/public-domain releases by their respective creat
 | `art/characters/enemies/brute` | The bog ogre (Tripo-generated, rigged model supplied by the director) | Tripo AI output — check Tripo's licence terms for the plan used before a public release |
 | `art/characters/enemies/packbeast` | The pack fiend (Tripo-generated "backpack monster", rigged, supplied by the director) | Tripo AI output — check Tripo's licence terms for the plan used before a public release |
 | `art/characters/enemies/jade_glutton` | The jade glutton (Tripo-generated from the director's concept sheet, rigged) | Tripo AI output — check Tripo's licence terms for the plan used before a public release; its look follows a well-known card-game character, so check that too |
+| `art/props/reno4` | The summit's Renault 4 (Tripo-generated, supplied by the director; scaled to 3.7 m, textures cut to 2K/1K JPEG) | Tripo AI output — check Tripo's licence terms for the plan used before a public release |
+| `art/characters/skeleton` | The skeleton on the summit's bench (anatomical model supplied by the director, posed sitting and decimated) | unknown — check rights before a public release |
 | `audio/music/meow_meow.mp3` | "Meow Meow Meow (Original Mix)" by Meow Meow (supplied by the director; plays when Tuntun Sahur kills the carrier) | unknown — commercial track, check rights before a public release |
 | `art/items/kenney_survival_kit` | Survival Kit | Kenney |
 | `art/items/kenney_food_kit` | Food Kit | Kenney |
