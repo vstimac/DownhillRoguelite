@@ -19,6 +19,8 @@ public partial class EnemySpecies : Resource
     /// <summary>Turn of the model about up, in degrees, so it faces the way it walks.</summary>
     [Export] public float ModelYaw { get; set; }
     [Export] public float BodyRadius { get; set; } = 0.4f;
+    /// <summary>Its weight (kg): how hard it shoves the carrier and crates aside, and how easily it is shoved.</summary>
+    [Export] public float Mass { get; set; } = 90.0f;
     /// <summary>A plain health bar over its head.</summary>
     [Export] public bool HealthBar { get; set; } = true;
 

@@ -1,3 +1,4 @@
+using DownhillRoguelite.Environment;
 using DownhillRoguelite.Inventory;
 using DownhillRoguelite.WorldUi;
 using Godot;
@@ -37,6 +38,20 @@ public partial class StationSite : Node3D
     [Export] public Vector2 BeaconFade { get; set; } = new(14.0f, 40.0f);
     /// <summary>The station's hand cart: where it stands (from the fire, m), its turn (degrees), and how high above the ground it is set before settling (m).</summary>
     [Export] public Vector3 CartAt { get; set; } = new(-6.4f, 0.0f, 5.2f);
+    /// <summary>Share of a prop's width and depth its collision box takes (models are rounder than their bounds).</summary>
+    [Export] public float PropFootprint { get; set; } = 0.8f;
+    /// <summary>Loose props start this high above the terrace and settle onto it (m).</summary>
+    [Export] public float LooseLift { get; set; } = 0.05f;
+    /// <summary>Layer of the camp's fixed props (stall, fence, graves, posts): the carrier and the cart bump into them.</summary>
+    [Export(PropertyHint.Layers3DPhysics)] public uint SolidLayer { get; set; } = 16;
+
+    /// <summary>What a camp prop is to the physics: walked through, a fixed solid, or a loose rigid body.</summary>
+    private enum PropBody
+    {
+        None,
+        Solid,
+        Loose,
+    }
     [Export] public float CartYaw { get; set; } = 25.0f;
     [Export] public float CartDrop { get; set; } = 0.3f;
     [Export] public Color WoodColor { get; set; } = new(0.4f, 0.28f, 0.18f);
@@ -164,33 +179,33 @@ public partial class StationSite : Node3D
         const string Town = "res://art/props/kenney_fantasy_town_kit/GLB format/";
         const string Castle = "res://art/props/kenney_castle_kit/GLB format/";
         const string Village = "res://art/props/quaternius_medieval_village/";
-        (string Model, Vector3 At, float Yaw, float Height)[] props =
+        (string Model, Vector3 At, float Yaw, float Height, PropBody Body, float Mass)[] props =
         {
-            (Nature + "campfire_stones.glb", Vector3.Zero, 0.0f, 0.3f),
-            (Nature + "campfire_logs.glb", Vector3.Zero, 20.0f, 0.45f),
+            (Nature + "campfire_stones.glb", Vector3.Zero, 0.0f, 0.3f, PropBody.None, 0.0f),
+            (Nature + "campfire_logs.glb", Vector3.Zero, 20.0f, 0.45f, PropBody.None, 0.0f),
             // Seats: a log on each side and a stump, round the fire.
-            (Nature + "log.glb", new Vector3(-2.4f, 0.0f, 0.4f), 90.0f, 0.4f),
-            (Nature + "log.glb", new Vector3(2.0f, 0.0f, 1.6f), 50.0f, 0.4f),
-            (Nature + "stump_round.glb", new Vector3(0.4f, 0.0f, 2.5f), 0.0f, 0.45f),
-            (Kit + "lantern-candle.glb", new Vector3(-1.3f, 0.0f, 1.3f), 0.0f, 0.5f),
+            (Nature + "log.glb", new Vector3(-2.4f, 0.0f, 0.4f), 90.0f, 0.4f, PropBody.Loose, 45.0f),
+            (Nature + "log.glb", new Vector3(2.0f, 0.0f, 1.6f), 50.0f, 0.4f, PropBody.Loose, 45.0f),
+            (Nature + "stump_round.glb", new Vector3(0.4f, 0.0f, 2.5f), 0.0f, 0.45f, PropBody.Loose, 30.0f),
+            (Kit + "lantern-candle.glb", new Vector3(-1.3f, 0.0f, 1.3f), 0.0f, 0.5f, PropBody.Loose, 3.0f),
             // The tent, open toward the fire.
-            (Nature + "tent_detailedOpen.glb", TentAt, TentYaw, 2.2f),
+            (Nature + "tent_detailedOpen.glb", TentAt, TentYaw, 2.2f, PropBody.None, 0.0f),
             // Graves behind the tent, a fence behind them.
-            (Kit + "gravestone-round.glb", new Vector3(9.4f, 0.0f, 2.2f), -75.0f, 1.0f),
-            (Kit + "gravestone-cross.glb", new Vector3(9.8f, 0.0f, 0.4f), -95.0f, 1.2f),
-            (Kit + "gravestone-broken.glb", new Vector3(9.3f, 0.0f, -1.4f), -60.0f, 0.7f),
-            (Town + "fence.glb", new Vector3(11.6f, 0.0f, 1.4f), 90.0f, 0.9f),
-            (Town + "fence-broken.glb", new Vector3(11.7f, 0.0f, -1.0f), 96.0f, 0.9f),
+            (Kit + "gravestone-round.glb", new Vector3(9.4f, 0.0f, 2.2f), -75.0f, 1.0f, PropBody.Solid, 0.0f),
+            (Kit + "gravestone-cross.glb", new Vector3(9.8f, 0.0f, 0.4f), -95.0f, 1.2f, PropBody.Solid, 0.0f),
+            (Kit + "gravestone-broken.glb", new Vector3(9.3f, 0.0f, -1.4f), -60.0f, 0.7f, PropBody.Solid, 0.0f),
+            (Town + "fence.glb", new Vector3(11.6f, 0.0f, 1.4f), 90.0f, 0.9f, PropBody.Solid, 0.0f),
+            (Town + "fence-broken.glb", new Vector3(11.7f, 0.0f, -1.0f), 96.0f, 0.9f, PropBody.Solid, 0.0f),
             // The trader's corner across the fire.
-            (Town + "stall-green.glb", new Vector3(-8.2f, 0.0f, 0.4f), 90.0f, 2.4f),
-            (Village + "Prop_Crate.gltf", new Vector3(-8.4f, 0.0f, 2.8f), 15.0f, 0.6f),
-            (Village + "Prop_Crate.gltf", new Vector3(-7.7f, 0.0f, 3.4f), -20.0f, 0.5f),
-            (Nature + "log_stack.glb", new Vector3(-7.8f, 0.0f, -2.4f), 90.0f, 0.7f),
-            (Town + "lantern.glb", new Vector3(-3.6f, 0.0f, -3.4f), 0.0f, 2.2f),
-            (Town + "lantern.glb", new Vector3(4.2f, 0.0f, 3.0f), 0.0f, 2.2f),
+            (Town + "stall-green.glb", new Vector3(-8.2f, 0.0f, 0.4f), 90.0f, 2.4f, PropBody.Solid, 0.0f),
+            (Village + "Prop_Crate.gltf", new Vector3(-8.4f, 0.0f, 2.8f), 15.0f, 0.6f, PropBody.Loose, 18.0f),
+            (Village + "Prop_Crate.gltf", new Vector3(-7.7f, 0.0f, 3.4f), -20.0f, 0.5f, PropBody.Loose, 18.0f),
+            (Nature + "log_stack.glb", new Vector3(-7.8f, 0.0f, -2.4f), 90.0f, 0.7f, PropBody.Solid, 0.0f),
+            (Town + "lantern.glb", new Vector3(-3.6f, 0.0f, -3.4f), 0.0f, 2.2f, PropBody.Solid, 0.0f),
+            (Town + "lantern.glb", new Vector3(4.2f, 0.0f, 3.0f), 0.0f, 2.2f, PropBody.Solid, 0.0f),
             // The way in (uphill): two banners with the station's name between them.
-            (Castle + "flag-banner-long.glb", new Vector3(-GateHalfWidth, 0.0f, GateZ), 0.0f, 3.8f),
-            (Castle + "flag-banner-long.glb", new Vector3(GateHalfWidth, 0.0f, GateZ), 0.0f, 3.8f),
+            (Castle + "flag-banner-long.glb", new Vector3(-GateHalfWidth, 0.0f, GateZ), 0.0f, 3.8f, PropBody.None, 0.0f),
+            (Castle + "flag-banner-long.glb", new Vector3(GateHalfWidth, 0.0f, GateZ), 0.0f, 3.8f, PropBody.None, 0.0f),
         };
         float tilt = Mathf.Tan(Mathf.DegToRad(TerraceSlope));
         // A hand cart by the trader's corner the carrier can take along (E at the handles).
@@ -198,7 +213,7 @@ public partial class StationSite : Node3D
         AddChild(cart);
         cart.Position = new Vector3(CartAt.X, CartAt.Z * tilt + cart.WheelRadius + CartDrop, CartAt.Z);
         cart.RotationDegrees = new Vector3(0.0f, CartYaw, 0.0f);
-        foreach ((string path, Vector3 at, float yaw, float height) in props)
+        foreach ((string path, Vector3 at, float yaw, float height, PropBody kind, float mass) in props)
         {
             if (!ResourceLoader.Exists(path) || ResourceLoader.Load(path) is not PackedScene scene)
             {
@@ -209,9 +224,30 @@ public partial class StationSite : Node3D
             Aabb bounds = DownhillRoguelite.Core.ModelFit.Bounds(holder);
             float scale = height / Mathf.Max(bounds.Size.Y, 0.01f);
             holder.Transform = DownhillRoguelite.Core.ModelFit.FitOnGround(bounds, bounds.Size * scale, true);
-            Node3D place = new() { Position = new Vector3(at.X, at.Z * tilt, at.Z), RotationDegrees = new Vector3(0.0f, yaw, 0.0f) };
-            place.AddChild(holder);
-            AddChild(place);
+            Vector3 fitted = bounds.Size * scale;
+            Vector3 spot = new(at.X, at.Z * tilt, at.Z);
+            Vector3 turn = new(0.0f, yaw, 0.0f);
+            if (kind == PropBody.Loose)
+            {
+                // Rests a hair above the terrace and settles onto it once the ground is there.
+                LooseProp loose = new() { Name = holder.Name, Mass = mass, Position = spot + Vector3.Up * LooseLift, RotationDegrees = turn };
+                loose.SetBox(fitted, PropFootprint);
+                loose.AddChild(holder);
+                AddChild(loose);
+            }
+            else
+            {
+                Node3D place = new() { Position = spot, RotationDegrees = turn };
+                place.AddChild(holder);
+                if (kind == PropBody.Solid)
+                {
+                    StaticBody3D solid = new() { Name = "Solid", CollisionLayer = SolidLayer, CollisionMask = 0 };
+                    Vector3 box = new(fitted.X * PropFootprint, fitted.Y, fitted.Z * PropFootprint);
+                    solid.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = box }, Position = new Vector3(0.0f, box.Y * 0.5f, 0.0f) });
+                    place.AddChild(solid);
+                }
+                AddChild(place);
+            }
             if (at == TentAt && path.Contains("tent"))
             {
                 _tentPlaced = true;

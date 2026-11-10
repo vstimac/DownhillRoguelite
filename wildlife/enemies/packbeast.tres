@@ -10,6 +10,7 @@ ModelPath = "res://art/characters/enemies/packbeast/packbeast.fbx"
 ModelHeight = 0.98
 Height = 1.9
 BodyRadius = 0.38
+Mass = 75.0
 WalkSpeed = 1.5
 RunSpeed = 4.4
 SprintSpeed = 6.5

@@ -10,6 +10,7 @@ ModelPath = "res://art/characters/enemies/jade_glutton/jade_glutton.glb"
 ModelHeight = 0.91
 Height = 2.1
 BodyRadius = 0.5
+Mass = 220.0
 WalkSpeed = 1.2
 RunSpeed = 3.4
 SprintSpeed = 4.8

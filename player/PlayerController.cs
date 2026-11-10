@@ -32,6 +32,14 @@ public partial class PlayerController : CharacterBody3D
 
     /// <summary>When false, movement input is ignored, e.g. while a debug camera is active.</summary>
     [Export] public bool InputEnabled { get; set; } = true;
+    /// <summary>The carrier's own weight (kg) for shoving things and other characters; what they carry is added.</summary>
+    [Export] public float BodyMass { get; set; } = 70.0f;
+    /// <summary>How far round the carrier other characters are eased off (m).</summary>
+    [Export] public float BodyRadius { get; set; } = 0.35f;
+    /// <summary>Share of the carrier's walking speed (after the weights) a shoved cart or crate is pushed up to (0 to 1).</summary>
+    [Export] public float PushStrength { get; set; } = 0.9f;
+    /// <summary>The most one step's shove may change a cart's or crate's speed (m/s).</summary>
+    [Export] public float MaxPushSpeedChange { get; set; } = 0.5f;
     /// <summary>A rolled landing (Dive) counts as this share of its impact speed.</summary>
     [Export] public float RollSoftening { get; set; } = 0.15f;
     /// <summary>Keys move the carrier: input is on and the player isn't typing to the companion.</summary>
@@ -92,12 +100,14 @@ public partial class PlayerController : CharacterBody3D
         FloorBlockOnWall = true;
         GameEvents.BalanceUpdated += OnBalanceUpdated;
         GameEvents.LaunchRequested += OnLaunchRequested;
+        CharacterSpacing.Register(this, BodyRadius, BodyMass);
     }
 
     public override void _ExitTree()
     {
         GameEvents.BalanceUpdated -= OnBalanceUpdated;
         GameEvents.LaunchRequested -= OnLaunchRequested;
+        CharacterSpacing.Unregister(this);
         _groundProbe?.Dispose(); _groundProbe = null;
         _stepBlocker?.Dispose(); _stepBlocker = null;
         _stepGround?.Dispose(); _stepGround = null;
@@ -211,6 +221,29 @@ public partial class PlayerController : CharacterBody3D
         bool wasAirborne = State == LocomotionState.Airborne;
         Vector3 preMoveVelocity = Velocity;
         MoveAndSlide();
+        // Carts and crates give way instead of stopping the carrier dead; other characters are eased apart.
+        float carriedMass = BodyMass + CarriedLoad.Mass;
+        // Pushed toward the pace the carrier is walking at (input × stride or sprint speed), not the speed
+        // left after the body stopped them: leaning into a crate keeps it sliding.
+        float pace = Settings.StrideSpeed;
+        if (Sprinting)
+        {
+            pace = Settings.SprintSpeed;
+        }
+        Vector3 leaning = input * pace;
+        if (preMoveVelocity.LengthSquared() > leaning.LengthSquared())
+        {
+            leaning = preMoveVelocity;
+        }
+        float keep = BodyPush.Push(this, carriedMass, leaning, PushStrength, MaxPushSpeedChange);
+        if (keep < 1.0f)
+        {
+            // Walks on behind what it shoves at the pace the weights allow, instead of from standstill.
+            Vector3 onward = leaning * keep;
+            Velocity = new Vector3(onward.X, Velocity.Y, onward.Z);
+        }
+        CharacterSpacing.SetMass(this, carriedMass);
+        CharacterSpacing.Separate(this, dt);
         if (wasAirborne && !grounded && IsOnFloor())
         {
             // Speed into the surface, not raw vertical speed, so landing on a slope going with it is softer.

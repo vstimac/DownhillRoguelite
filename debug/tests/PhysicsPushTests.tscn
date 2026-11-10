@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/PhysicsPushTests.cs" id="1_tests"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="2_player"]
+[ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="3_inventory"]
+[ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="4_backpack"]
+
+[sub_resource type="BoxShape3D" id="FloorShape"]
+size = Vector3(80, 1, 80)
+
+[node name="PhysicsPushTests" type="Node3D" node_paths=PackedStringArray("PlayerBody", "Floor")]
+script = ExtResource("1_tests")
+PlayerBody = NodePath("Player")
+Floor = NodePath("Floor")
+
+[node name="Floor" type="StaticBody3D" parent="."]
+
+[node name="Shape" type="CollisionShape3D" parent="Floor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+shape = SubResource("FloorShape")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+
+[node name="Inventory" type="Node" parent="Player"]
+script = ExtResource("3_inventory")
+Backpack = ExtResource("4_backpack")
+StartingItemPaths = PackedStringArray()
+AutoPackOnStart = false

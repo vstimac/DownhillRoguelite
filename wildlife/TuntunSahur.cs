@@ -67,6 +67,8 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
 
     [ExportGroup("Body")]
     [Export] public float BodyRadius { get; set; } = 0.3f;
+    /// <summary>His weight (kg) when bumping the carrier.</summary>
+    [Export] public float Mass { get; set; } = 60.0f;
     [Export] public float BodyHeight { get; set; } = 1.9f;
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
 
@@ -119,6 +121,7 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
         _gravity = ProjectSettings.GetSetting("physics/3d/default_gravity").AsSingle();
         CollisionLayer = 0;
         CollisionMask = GroundMask;
+        CharacterSpacing.Register(this, BodyRadius, Mass);
         FloorSnapLength = 0.5f;
         AddChild(new CollisionShape3D
         {
@@ -144,6 +147,7 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
 
     public override void _ExitTree()
     {
+        CharacterSpacing.Unregister(this);
         GameEvents.LocomotionUpdated -= OnLocomotion;
     }
 
@@ -255,6 +259,7 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
         Pose(lean, dt);
         Velocity = velocity;
         MoveAndSlide();
+        CharacterSpacing.Separate(this, dt);
 
         if (_phase == Phase.Strike)
         {

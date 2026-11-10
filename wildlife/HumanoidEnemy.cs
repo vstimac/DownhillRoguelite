@@ -54,6 +54,11 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     /// <summary>Playback speed limits for the walk and run clips.</summary>
     [Export] public Vector2 GaitSpeedRange { get; set; } = new(0.6f, 1.6f);
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
+    /// <summary>Loose props (crates, logs) it bumps into and shoves aside.</summary>
+    [Export(PropertyHint.Layers3DPhysics)] public uint PropMask { get; set; } = 16;
+    /// <summary>Share of its walking speed (after the weights) a shoved crate or cart is pushed up to (0 to 1), and the most one step may change its speed (m/s).</summary>
+    [Export] public float PushStrength { get; set; } = 0.9f;
+    [Export] public float MaxPushSpeedChange { get; set; } = 0.5f;
     /// <summary>The carrier's radius when its blows reach for them, in m.</summary>
     [Export] public float CarrierRadius { get; set; } = 0.3f;
     /// <summary>It stops this share of its reach short of the carrier to swing.</summary>
@@ -131,7 +136,8 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         MaxHealth = Health;
         _gravity = ProjectSettings.GetSetting("physics/3d/default_gravity").AsSingle();
         CollisionLayer = 0;
-        CollisionMask = GroundMask;
+        CollisionMask = GroundMask | PropMask;
+        CharacterSpacing.Register(this, Species.BodyRadius, Species.Mass);
         FloorSnapLength = 0.5f;
         FloorMaxAngle = Mathf.DegToRad(60.0f);
         AddChild(new CollisionShape3D
@@ -162,6 +168,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
 
     public override void _ExitTree()
     {
+        CharacterSpacing.Unregister(this);
         GameEvents.LocomotionUpdated -= OnLocomotion;
         GameEvents.MeleeSwung -= OnMeleeSwung;
     }
@@ -437,6 +444,8 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         Velocity = velocity;
         Vector3 before = GlobalPosition;
         MoveAndSlide();
+        BodyPush.Push(this, Species!.Mass, velocity, PushStrength, MaxPushSpeedChange);
+        CharacterSpacing.Separate(this, dt);
         TrackStuck(wanted, before, dt);
     }
 

@@ -13,7 +13,7 @@ namespace DownhillRoguelite.Inventory;
 /// front leg and stays parked.
 /// Local frame: origin at the axle, handles toward -Z, up +Y.
 /// </summary>
-public partial class HandCart : RigidBody3D, IInteractable
+public partial class HandCart : RigidBody3D, IInteractable, IPushable
 {
     [ExportGroup("Build")]
     /// <summary>Wheel radius, in m; the axle sits this high above the ground.</summary>
@@ -66,6 +66,8 @@ public partial class HandCart : RigidBody3D, IInteractable
     [Export] public float TakeGrace { get; set; } = 1.0f;
     /// <summary>Ground the cart rolls on and is set down on (terrain).</summary>
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
+    /// <summary>Loose and fixed camp props (crates, logs, the stall) the cart bumps into.</summary>
+    [Export(PropertyHint.Layers3DPhysics)] public uint PropMask { get; set; } = 16;
 
     [ExportGroup("Cargo")]
     /// <summary>Dropped things this close above the bed (m, beyond its edges by Margin) go on as cargo.</summary>
@@ -113,7 +115,7 @@ public partial class HandCart : RigidBody3D, IInteractable
         AddToGroup(IInteractable.Group);
         Mass = BaseMass;
         CollisionLayer = 1;
-        CollisionMask = GroundMask;
+        CollisionMask = GroundMask | PropMask;
         // The wheels slide freely; rolling and grip are applied by hand in _IntegrateForces.
         SetGrip(ParkFriction);
         ContactMonitor = true;
@@ -204,6 +206,19 @@ public partial class HandCart : RigidBody3D, IInteractable
         SetGrip(ParkFriction);
         GameEvents.PublishTow(0.0f);
         UpdatePrompt();
+    }
+
+    /// <summary>Walked into while parked: it rolls off (on its brake) and settles again.</summary>
+    public bool WakeForPush()
+    {
+        if (Towing || !_onGround)
+        {
+            return false;
+        }
+        Freeze = false;
+        _settleTimer = SettleSeconds;
+        _settled = 0.0f;
+        return true;
     }
 
     public override void _PhysicsProcess(double delta)

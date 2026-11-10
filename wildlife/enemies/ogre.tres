@@ -10,6 +10,7 @@ ModelPath = "res://art/characters/enemies/brute/brute.fbx"
 ModelHeight = 0.91
 Height = 2.2
 BodyRadius = 0.45
+Mass = 160.0
 WalkSpeed = 1.3
 RunSpeed = 3.6
 SprintSpeed = 5.0
