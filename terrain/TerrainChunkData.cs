@@ -26,12 +26,12 @@ public sealed class TerrainChunkData
     public float[] Heights { get; }
     public Vector3[] Vertices { get; set; } = System.Array.Empty<Vector3>();
     public Vector3[] Normals { get; set; } = System.Array.Empty<Vector3>();
-    /// <summary>Shared-grid triangle corners for smooth meshes; flat shading remains unindexed.</summary>
+    /// <summary>Read-only shared grid topology; callers must not modify it. Flat meshes are unindexed.</summary>
     public int[] Indices { get; set; } = System.Array.Empty<int>();
     public Color[] Colors { get; set; } = System.Array.Empty<Color>();
     public List<ObstacleData> Obstacles { get; } = new();
     /// <summary>Trees, grass and flowers, by biome.</summary>
-    public List<PlantData> Plants { get; } = new();
+    public PlantBuffer Plants { get; } = new();
     /// <summary>Time spent generating on the background thread, in ms.</summary>
     public double BuildMilliseconds { get; set; }
 }

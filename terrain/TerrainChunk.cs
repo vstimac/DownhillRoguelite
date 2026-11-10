@@ -103,6 +103,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             ulong start = Time.GetTicksUsec();
             bool profile = _profilePlants == true;
             int collections = 0;
+            int middleCollections = 0;
             int minorCollections = 0;
             long allocated = 0;
             double pause = 0;
@@ -111,6 +112,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             if (profile)
             {
                 collections = System.GC.CollectionCount(2);
+                middleCollections = System.GC.CollectionCount(1);
                 minorCollections = System.GC.CollectionCount(0);
                 allocated = System.GC.GetAllocatedBytesForCurrentThread();
                 pause = System.GC.GetTotalPauseDuration().TotalMilliseconds;
@@ -139,7 +141,8 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
                 GD.Print("Plant streaming step " + Coord + " " + _plantPhase + ": " + spent.ToString("0.00")
                     + " ms; largest slice " + worstPhase + " " + worstSlice.ToString("0.00")
                     + " ms; managed allocation " + (System.GC.GetAllocatedBytesForCurrentThread() - allocated)
-                    + " B; GC " + (System.GC.CollectionCount(0) - minorCollections) + "/" + (System.GC.CollectionCount(2) - collections)
+                    + " B; GC counters 0/1/2 " + (System.GC.CollectionCount(0) - minorCollections) + "/"
+                    + (System.GC.CollectionCount(1) - middleCollections) + "/" + (System.GC.CollectionCount(2) - collections)
                     + "; GC pause delta " + (System.GC.GetTotalPauseDuration().TotalMilliseconds - pause).ToString("0.00") + " ms");
             }
             MaxPlantMilliseconds = Mathf.Max(MaxPlantMilliseconds, spent);

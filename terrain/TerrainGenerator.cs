@@ -62,6 +62,10 @@ public sealed class TerrainGenerator
     private readonly float _summitCapTangent;
     private readonly float _startHeight;
     private readonly object _stationLock = new();
+    private readonly object _indexLock = new();
+    private int _indexCells = -1;
+    // Triangle topology is identical for every chunk of this grid size. Treat as read-only.
+    private int[] _smoothIndices = System.Array.Empty<int>();
     // Replaced, never modified, so readers on other threads can use it without the lock.
     private volatile Vector3[] _stations = System.Array.Empty<Vector3>();
     // Branches of stage s (ending at station s + 1) at index s; replaced together with _stations.
@@ -598,22 +602,7 @@ public sealed class TerrainGenerator
                         Mathf.RadToDeg(normal.AngleTo(Vector3.Up)), surfaceColors);
                 }
             }
-            int[] indices = new int[triangles * 3];
-            int cornerIndex = 0;
-            for (int j = 0; j < cells; j++)
-            {
-                for (int i = 0; i < cells; i++)
-                {
-                    int a = i + j * points;
-                    int b = a + 1;
-                    int c = a + points;
-                    int d = c + 1;
-                    // Exactly the same diagonal, corner order and winding as the flat path.
-                    indices[cornerIndex++] = a; indices[cornerIndex++] = b; indices[cornerIndex++] = d;
-                    indices[cornerIndex++] = a; indices[cornerIndex++] = d; indices[cornerIndex++] = c;
-                }
-            }
-            data.Indices = indices;
+            data.Indices = SmoothIndices(cells);
             data.Normals = smoothNormals;
             data.Colors = smoothColors;
         }
@@ -649,6 +638,33 @@ public sealed class TerrainGenerator
         PlacePebbles(data, coord, corner);
         data.BuildMilliseconds = timer.Elapsed.TotalMilliseconds;
         return data;
+    }
+
+    private int[] SmoothIndices(int cells)
+    {
+        lock (_indexLock)
+        {
+            if (_indexCells == cells) { return _smoothIndices; }
+            int points = cells + 1;
+            int[] indices = new int[cells * cells * 6];
+            int corner = 0;
+            for (int j = 0; j < cells; j++)
+            {
+                for (int i = 0; i < cells; i++)
+                {
+                    int a = i + j * points;
+                    int b = a + 1;
+                    int c = a + points;
+                    int d = c + 1;
+                    // Same diagonal, corner order and winding as the unindexed flat path.
+                    indices[corner++] = a; indices[corner++] = b; indices[corner++] = d;
+                    indices[corner++] = a; indices[corner++] = d; indices[corner++] = c;
+                }
+            }
+            _smoothIndices = indices;
+            _indexCells = cells;
+            return indices;
+        }
     }
 
     private int AddTriangle(Vector3[] vertices, Vector3[] normals, Color[] colors, int v,

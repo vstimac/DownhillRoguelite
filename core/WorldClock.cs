@@ -10,6 +10,7 @@ namespace DownhillRoguelite.Core;
 /// </summary>
 public partial class WorldClock : Node
 {
+    private static readonly NodePath RunStatePath = new("/root/RunState");
     public const float HoursPerDay = 24.0f;
 
     /// <summary>Hour of the day a run begins.</summary>
@@ -97,7 +98,7 @@ public partial class WorldClock : Node
                 return 0.0f;
             }
             float minutes = 36.0f;
-            RunState? run = GetNodeOrNull<RunState>("/root/RunState");
+            RunState? run = GetNodeOrNull<RunState>(RunStatePath);
             if (run != null)
             {
                 minutes = run.DifficultySettings.DayLengthMinutes;

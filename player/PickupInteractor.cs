@@ -10,6 +10,7 @@ namespace DownhillRoguelite.Player;
 public partial class PickupInteractor : Node
 {
     private static readonly StringName ActionInteract = "interact";
+    private static readonly StringName InteractableGroup = IInteractable.Group;
 
     [Export] public PlayerController? Body { get; set; }
     /// <summary>Horizontal reach, in m.</summary>
@@ -68,7 +69,10 @@ public partial class PickupInteractor : Node
         IInteractable? best = null;
         float bestDistance = float.MaxValue;
 
-        foreach (Node node in GetTree().GetNodesInGroup(IInteractable.Group))
+        Godot.Collections.Array<Node> candidates = GetTree().GetNodesInGroup(InteractableGroup);
+        // The typed wrapper exposes the same owned array through this cast, without copying it.
+        using Godot.Collections.Array ownedCandidates = (Godot.Collections.Array)candidates;
+        foreach (Node node in candidates)
         {
             if (node is not IInteractable candidate || !IsInstanceValid(node))
             {

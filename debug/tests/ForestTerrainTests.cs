@@ -46,11 +46,29 @@ public partial class ForestTerrainTests : Node3D
         Check("smooth normals remain finite, unit length and upward-facing", finite);
         TerrainChunkData again = smooth.BuildChunk(chunk.Coord, _palette, 0);
         Check("forest and detail placements are deterministic", Equal(chunk.Plants, again.Plants));
+        Check("smooth chunks reuse the same read-only triangle topology",
+            ReferenceEquals(chunk.Indices, again.Indices) && ReferenceEquals(chunk.Indices,
+                smooth.BuildChunk(chunk.Coord + Vector2I.Right, _palette, 0).Indices));
+        CheckTopologyResize();
         CheckScaleAndAssets(chunk);
         CheckTextures();
         CheckGrounding(smooth, chunk);
         await CheckRenderingNodes(smooth, chunk);
         await CheckCancellation(smooth, chunk);
+    }
+
+    private void CheckTopologyResize()
+    {
+        TerrainSettings settings = new() { ChunkCells = 4, Biomes = Array.Empty<Biome>(), PebbleDensity = 0 };
+        TerrainGenerator generator = new(settings, 1);
+        TerrainChunkData first = generator.BuildChunk(Vector2I.Zero, _palette, 0);
+        int[] snapshot = (int[])first.Indices.Clone();
+        settings.ChunkCells = 8;
+        TerrainChunkData resized = generator.BuildChunk(Vector2I.Zero, _palette, 0);
+        Check("resizing a grid builds valid topology without changing earlier chunks",
+            first.Indices.Length == 4 * 4 * 6 && resized.Indices.Length == 8 * 8 * 6
+            && !ReferenceEquals(first.Indices, resized.Indices) && Equal(first.Indices, snapshot)
+            && Array.TrueForAll(resized.Indices, index => index >= 0 && index < resized.Vertices.Length));
     }
 
     private void CheckTextures()

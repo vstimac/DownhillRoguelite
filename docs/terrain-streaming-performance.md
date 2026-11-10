@@ -81,7 +81,20 @@ The actual forest was rendered and inspected (`plant-indexed-forest-view.log`, f
 capture in `plant-indexed-forest-view/20261109-231930-779-25864`). Ground surfaces and foliage
 render correctly; the existing debug scene's crowded HUD/prototype artwork remains separate.
 
-## Files
+## Clean-checkout follow-up (2026-11-10)
+
+The earlier 53-scene pass did not reproduce reliably in an isolated checkout: its plant peak
+reached 29.8 ms. Further investigation found large numbers of finalizable per-frame Godot
+bindings in animation and physics queries. The follow-up caches those parameter/key objects,
+reuses owned queries and disposes temporary results. It also shares the remaining triangle
+topology per generator and stores plant records in small blocks.
+
+The corrected isolated candidate passes **54 scenes / 730 checks** with the same 16 ms limits.
+Its plant peak is 12.5 ms, chunk upload 6.5 ms and shared forest construction 3.9 ms. See
+[gc-frame-allocation-audit.md](gc-frame-allocation-audit.md) for evidence, exact ownership rules,
+allocation regression results and remaining performance limits.
+
+## Implementation files
 
 Implementation: `terrain/TerrainChunk.cs`, `TerrainChunkData.cs`, `TerrainGenerator.cs` and
 `TerrainSettings.cs`. Regression coverage: `debug/tests/ForestTerrainTests.cs`. This guide records
