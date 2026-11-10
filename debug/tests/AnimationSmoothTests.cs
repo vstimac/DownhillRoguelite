@@ -69,6 +69,7 @@ public partial class AnimationSmoothTests : Node3D
         _body.DirectionOverride = Vector3.Zero;
         await Frames(120);
         Check("stopped gait settles to idle without treadmill motion", _animator.Tree!.Get("parameters/to_walk/blend_amount").AsSingle() == 0 && _animator.SmoothedSpeed < 0.01f);
+        _body.RagdollJump = false;
         Input.ActionPress("player_jump");
         await Frames(4);
         Input.ActionRelease("player_jump");

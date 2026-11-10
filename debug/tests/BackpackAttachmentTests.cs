@@ -60,6 +60,7 @@ public partial class BackpackAttachmentTests : Node3D
                 Check(id + " samples an actual sprint", sprinted);
                 player.Teleport(new Vector3(-10, 0.1f, 12), 0);
                 await Frames(15);
+                player.RagdollJump = false;
                 Input.ActionPress("player_jump");
                 await Frames(2);
                 Input.ActionRelease("player_jump");
@@ -67,6 +68,7 @@ public partial class BackpackAttachmentTests : Node3D
                 await Frames(90);
                 Check(id + " samples a physics jump and landing", jumped && player.IsOnFloor());
                 Dive dive = player.GetNode<Dive>("Dive");
+                dive.RagdollDive = false;
                 bool dived = dive.TryDive();
                 for (int i = 0; i < 240 && dive.Diving; i++) { await Frames(1); }
                 await Frames(30);

@@ -16,7 +16,7 @@ namespace DownhillRoguelite.Player;
 /// the ground) tightens as the ground comes up; Space in the window primes a roll
 /// (GameEvents.RollPrimed): the controller then reports the landing as a soft one (no knockdown, no
 /// damage) and the carrier rolls out. A mistimed Space spends the chance.
-/// RagdollDive (off by default) throws him as a ragdoll instead.
+/// RagdollDive (on by default) throws him as a ragdoll instead: physics carries him and he gets up.
 /// </summary>
 public partial class Dive : Node3D
 {
@@ -77,7 +77,7 @@ public partial class Dive : Node3D
 
     [ExportGroup("Ragdoll dive")]
     /// <summary>Ctrl throws the carrier as a ragdoll instead of the animated dive.</summary>
-    [Export] public bool RagdollDive { get; set; }
+    [Export] public bool RagdollDive { get; set; } = true;
     /// <summary>The ragdoll dive's push forward and up (added to how he was moving), in m/s.</summary>
     [Export] public float RagdollForwardSpeed { get; set; } = 5.0f;
     [Export] public float RagdollUpSpeed { get; set; } = 3.2f;

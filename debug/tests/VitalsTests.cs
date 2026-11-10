@@ -72,6 +72,8 @@ public partial class VitalsTests : Node3D
         await WaitSeconds(SettleTime);
 
         await TestSprint(PlayerBody, _stamina);
+        // The jump height model (the ragdoll jump uses the same speed); measured on the animated jump.
+        PlayerBody.RagdollJump = false;
         await TestJump(PlayerBody, Loads);
         await TestDrops(PlayerBody, Course, Loads);
         await TestDeath(PlayerBody, _health);

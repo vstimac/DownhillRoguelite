@@ -462,6 +462,15 @@ public partial class PlayerController : CharacterBody3D
         return current.Rotated(Vector3.Up, Mathf.Clamp(angle, -maxTurn, maxTurn));
     }
 
+    /// <summary>Space throws the whole body as a ragdoll (physics, then he gets up) instead of the animated jump.</summary>
+    [Export] public bool RagdollJump { get; set; } = true;
+    /// <summary>The ragdoll jump's upward speed as a share of the normal jump's, its push forward and the upper body's lean (m/s).</summary>
+    [Export] public float RagdollJumpLift { get; set; } = 1.0f;
+    [Export] public float RagdollJumpForward { get; set; } = 1.2f;
+    [Export] public float RagdollJumpLean { get; set; } = 0.5f;
+    /// <summary>Ragdoll jumps made (tests).</summary>
+    public int Jumps { get; private set; }
+
     /// <summary>Jumps if the button was just pressed and there is stamina for it; a heavier load jumps lower.</summary>
     private void TryJump()
     {
@@ -477,6 +486,20 @@ public partial class PlayerController : CharacterBody3D
 
         float loadFraction = Mathf.Clamp(CarriedLoad.Mass / Settings.JumpLoadForMinimum, 0.0f, 1.0f);
         float speed = Settings.JumpSpeed * Mathf.Lerp(1.0f, Settings.MinJumpFactor, loadFraction);
+        if (RagdollJump)
+        {
+            // Physics takes the whole body: up and on the way he was going, the upper body a little ahead.
+            Vector3 forward = -GlobalBasis.Z;
+            forward.Y = 0.0f;
+            if (forward.LengthSquared() > 0.0001f)
+            {
+                forward = forward.Normalized();
+            }
+            Vector3 launch = new Vector3(Velocity.X, speed * RagdollJumpLift, Velocity.Z) + forward * RagdollJumpForward;
+            Jumps++;
+            GameEvents.RequestRagdollLaunch(launch, forward * RagdollJumpLean, "jump");
+            return;
+        }
         Velocity = new Vector3(Velocity.X, speed, Velocity.Z);
     }
 

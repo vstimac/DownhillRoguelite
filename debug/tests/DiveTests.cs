@@ -36,6 +36,9 @@ public partial class DiveTests : Node3D
             GetTree().Quit(1);
             return;
         }
+        // The animated dive and roll (RagdollDive off); the ragdoll throws are checked at the end.
+        dive.RagdollDive = false;
+        PlayerBody.RagdollJump = false;
         await Place(PlayerBody, Streamer.SpawnPoint);
         await TestDive(PlayerBody, dive);
         await Place(PlayerBody, Streamer.SpawnPoint);
@@ -48,6 +51,10 @@ public partial class DiveTests : Node3D
         await TestRoll(PlayerBody, dive, false);
         await Place(PlayerBody, Streamer.SpawnPoint);
         await TestBufferedPress(PlayerBody, dive);
+        await Place(PlayerBody, Streamer.SpawnPoint);
+        await TestRagdollDive(PlayerBody, dive);
+        await Place(PlayerBody, Streamer.SpawnPoint);
+        await TestRagdollJump(PlayerBody);
 
         if (_failures.Count == 0)
         {
@@ -264,6 +271,65 @@ public partial class DiveTests : Node3D
             return at.Y - ((Vector3)hit["position"]).Y;
         }
         return 80.0f;
+    }
+
+    /// <summary>Ctrl (the default): physics throws him forward as a ragdoll, and he gets up by himself.</summary>
+    private async Task TestRagdollDive(PlayerController player, Dive dive)
+    {
+        dive.RagdollDive = true;
+        PlayerRagdoll ragdoll = player.GetNode<PlayerRagdoll>("Ragdoll");
+        Vector3 start = player.GlobalPosition;
+        Vector3 forward = -player.GlobalBasis.Z;
+        forward.Y = 0.0f;
+        forward = forward.Normalized();
+        bool started = dive.TryDive();
+        bool downed = false;
+        for (int i = 0; i < 30; i++)
+        {
+            await Frame();
+            downed |= ragdoll.Downed;
+        }
+        float seconds = 0.0f;
+        while (ragdoll.Downed && seconds < 8.0f)
+        {
+            await Frame();
+            seconds += 1.0f / Engine.PhysicsTicksPerSecond;
+        }
+        await WaitSeconds(0.5f);
+        Vector3 moved = player.GlobalPosition - start;
+        float along = new Vector3(moved.X, 0.0f, moved.Z).Dot(forward);
+        Check(started && downed && !ragdoll.Downed && along > 1.0f,
+            $"Ctrl throws him forward as a ragdoll ({along:0.0} m) and he gets up after {seconds:0.0} s",
+            $"started {started}, downed {downed}, still down {ragdoll.Downed}, {along:0.0} m forward, {seconds:0.0} s");
+        dive.RagdollDive = false;
+    }
+
+    /// <summary>Space (the default): a ragdoll hop up, and he is back on his feet soon after.</summary>
+    private async Task TestRagdollJump(PlayerController player)
+    {
+        player.RagdollJump = true;
+        PlayerRagdoll ragdoll = player.GetNode<PlayerRagdoll>("Ragdoll");
+        int jumps = player.Jumps;
+        Input.ActionPress("player_jump");
+        await Frame();
+        await Frame();
+        Input.ActionRelease("player_jump");
+        bool downed = false;
+        for (int i = 0; i < 40; i++)
+        {
+            await Frame();
+            downed |= ragdoll.Downed;
+        }
+        float seconds = 0.0f;
+        while (ragdoll.Downed && seconds < 6.0f)
+        {
+            await Frame();
+            seconds += 1.0f / Engine.PhysicsTicksPerSecond;
+        }
+        Check(player.Jumps == jumps + 1 && downed && !ragdoll.Downed && seconds < 4.0f,
+            $"Space throws him up as a ragdoll and he is up again {seconds:0.0} s later",
+            $"jumps {player.Jumps - jumps}, downed {downed}, still down {ragdoll.Downed}, {seconds:0.0} s");
+        player.RagdollJump = false;
     }
 
     private async Task Place(PlayerController player, Vector3 position)

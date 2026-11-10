@@ -80,6 +80,8 @@ public partial class PlayerRagdoll : Node
 
     [ExportGroup("Getting up")]
     [Export] public float MinDownTime { get; set; } = 1.5f;
+    /// <summary>After a throw on purpose (the dive, the jump) he may get up this soon once settled.</summary>
+    [Export] public float LaunchMinDownTime { get; set; } = 0.6f;
     [Export] public float MaxDownTime { get; set; } = 6.0f;
     /// <summary>The ragdoll counts as settled when every bone is slower than this, in m/s.</summary>
     [Export] public float SettleSpeed { get; set; } = 0.35f;
@@ -380,6 +382,7 @@ public partial class PlayerRagdoll : Node
         }
 
         Downed = true;
+        _launched = false;
         _gettingUp = false;
         _downTime = 0.0f;
         _settledTime = 0.0f;
@@ -457,7 +460,14 @@ public partial class PlayerRagdoll : Node
         }
 
         bool dead = Health != null && Health.Dead;
-        bool settled = _downTime >= MinDownTime && _settledTime >= SettleTime;
+        float minDown = MinDownTime;
+        float settleNeeded = SettleTime;
+        if (_launched)
+        {
+            minDown = LaunchMinDownTime;
+            settleNeeded = SettleTime * 0.5f;
+        }
+        bool settled = _downTime >= minDown && _settledTime >= settleNeeded;
         if (!dead && (settled || _downTime >= MaxDownTime))
         {
             _gettingUp = true;
@@ -584,7 +594,11 @@ public partial class PlayerRagdoll : Node
     private void OnRagdollLaunchRequested(Vector3 velocity, Vector3 upperPush, string cause)
     {
         GoDown(velocity, upperPush);
+        _launched = Downed;
     }
+
+    /// <summary>True while down from a throw on purpose (dive, jump), which gets up sooner.</summary>
+    private bool _launched;
 
     private void OnLanded(float downwardSpeed)
     {
