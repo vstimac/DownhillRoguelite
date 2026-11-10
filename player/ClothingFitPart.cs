@@ -48,6 +48,11 @@ public sealed class ClothingFitPart
         {
             return;
         }
+        if (_attachment is BackpackAttachment backpack)
+        {
+            backpack.ApplyAdjustment(local);
+            return;
+        }
         foreach (Node child in _attachment.GetChildren())
         {
             if (child is Node3D node)

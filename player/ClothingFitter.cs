@@ -79,6 +79,13 @@ public static class ClothingFitter
                 continue;
             }
             Transform3D rest = skeleton.GetBoneGlobalRest(bone);
+            if (attachment is BackpackAttachment backpack)
+            {
+                string packKey = key;
+                if (many) { packKey += "-" + attachment.BoneName; }
+                parts.Add(new ClothingFitPart(packKey, backpack.FitAnchor, backpack, rest));
+                continue;
+            }
             Aabb box = new(rest.Origin, Vector3.Zero);
             bool any = false;
             foreach (Node child in attachment.GetChildren())

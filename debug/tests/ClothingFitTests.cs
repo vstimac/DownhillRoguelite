@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using DownhillRoguelite.Core;
 using DownhillRoguelite.Inventory;
 using DownhillRoguelite.Player;
@@ -87,8 +88,144 @@ public partial class ClothingFitTests : Node3D
             && packHandle.Position.IsEqualApprox(new Vector3(0.0f, 0.0f, 0.1f))
             && Mathf.Abs((fittedPack.GlobalPosition - packBefore).Length() - 0.1f) < 0.01f, "");
 
+        try
+        {
+            await TestBackpackIntegration(fitting);
+        }
+        catch (System.Exception error)
+        {
+            Check("combined backpack fitting workflow completes", false, error.ToString());
+        }
         ClothingFit.Reload();
         GetTree().Quit(System.Math.Min(_failures, 1));
+    }
+
+    private async Task TestBackpackIntegration(ClothingFitting fitting)
+    {
+        ClothingVisualController clothing = fitting.GetNode<ClothingVisualController>("Preview/ClothingVisuals");
+        CarrierWornGear worn = fitting.GetNode<CarrierWornGear>("Preview/WornGear");
+        BackpackAttachment? previewPack = clothing.BackpackMount;
+        Node3D? previewHat = Piece(worn, "wool_hat-Head");
+        GearSnapshot liveGear = GameEvents.CurrentGear;
+        GameEvents.PublishGear(GearSnapshot.None);
+        await Frame();
+        Check("live equipment changes do not replace the fitting preview's backpack",
+            previewPack != null && clothing.BackpackMount == previewPack && !previewPack.IsQueuedForDeletion()
+            && clothing.Visuals.ContainsKey(EquipSlot.Back), "");
+        Check("live equipment changes do not remove the fitting preview's legacy hat",
+            previewHat != null && Piece(worn, "wool_hat-Head") == previewHat && !previewHat.IsQueuedForDeletion(), "");
+        GameEvents.PublishGear(liveGear);
+
+        ClothingFit saved = new();
+        saved.Set("modular", "trail_backpack", new Vector3(0.015f, 0.03f, 0.08f),
+            new Vector3(9, -12, 5), new Vector3(1.08f, 0.93f, 1.04f), 0.0005f);
+        saved.Set("modular", "base_pack", new Vector3(0, 0, 0.04f), Vector3.Zero, Vector3.One, 0.0005f);
+        const string savePath = "user://clothing-fit-roundtrip-tests.tres";
+        Error saveError = ResourceSaver.Save(saved, savePath);
+        ClothingFit? restored = null;
+        if (saveError == Error.Ok)
+        {
+            restored = ResourceLoader.Load<ClothingFit>(savePath, "", ResourceLoader.CacheMode.Ignore);
+        }
+        Check("fit resources round-trip character, piece, rotation and scale through an isolated save",
+            restored?.Entries.Count == 2
+            && restored.Find("modular", "trail_backpack")?.Local.IsEqualApprox(saved.Find("modular", "trail_backpack")!.Local) == true
+            && restored.Find("modular", "base_pack")?.Offset.IsEqualApprox(new Vector3(0, 0, 0.04f)) == true
+            && restored.Find("vucic", "trail_backpack") == null, saveError.ToString());
+        if (restored == null) { return; }
+
+        ClothingFit.Use(restored);
+        fitting.Rebuild();
+        await Frame();
+        clothing = fitting.GetNode<ClothingVisualController>("Preview/ClothingVisuals");
+        BackpackAttachment mount = clothing.BackpackMount!;
+        Transform3D fitted = mount.Pivot.Transform;
+        Transform3D authored = mount.Model.Transform;
+        Vector3 originalOffset = mount.LocalOffset;
+        bool stable = true;
+        for (int i = 0; i < 6; i++)
+        {
+            stable &= mount.Refit() && mount.Pivot.Transform.IsEqualApprox(fitted);
+        }
+        Check("automatic refitting preserves a rotated and scaled saved hand fit without drift", stable, "");
+        mount.LocalOffset += new Vector3(0, 0.025f, 0.02f);
+        bool changed = mount.Refit() && !mount.Pivot.Transform.IsEqualApprox(fitted);
+        mount.LocalOffset = originalOffset;
+        Check("changing automatic placement and restoring it also restores the same hand fit",
+            changed && mount.Refit() && mount.Pivot.Transform.IsEqualApprox(fitted), "");
+        for (int i = 0; i < 6; i++)
+        {
+            ClothingFitter.Fit(clothing.Skeleton, "modular", "trail_backpack", mount);
+        }
+        Check("reapplying saved fitting does not accumulate transforms or alter the authored model root",
+            mount.Pivot.Transform.IsEqualApprox(fitted) && mount.Model.Transform.IsEqualApprox(authored), "");
+        Transform3D singular = new(Basis.FromScale(Vector3.Zero), Vector3.Zero);
+        Check("an invalid hand fit leaves the current valid fit intact",
+            !mount.ApplyAdjustment(singular) && mount.Pivot.Transform.IsEqualApprox(fitted), "");
+
+        fitting.Outfit = System.Array.Empty<string>();
+        ClothingFit.Use(new ClothingFit());
+        fitting.Rebuild();
+        await Frame();
+        clothing = fitting.GetNode<ClothingVisualController>("Preview/ClothingVisuals");
+        Vector3 basePosition = clothing.BackpackMount!.Pivot.Position;
+        Check("an empty outfit exposes exactly one selectable base pack in the isolated preview",
+            Handles(fitting).ContainsKey("base_pack") && CountPacks(clothing.Skeleton!) == 1
+            && clothing.BackpackMount!.EquippedItemId.Length == 0, "");
+        ClothingFit.Use(restored);
+        fitting.Rebuild();
+        await Frame();
+        clothing = fitting.GetNode<ClothingVisualController>("Preview/ClothingVisuals");
+        Transform3D fittedBase = clothing.BackpackMount!.Pivot.Transform;
+        Check("a saved base-pack fit is applied when the cosmetic pack is created",
+            Mathf.Abs(clothing.BackpackMount!.Pivot.Position.DistanceTo(basePosition) - 0.04f) < 0.001f, "");
+        ItemDefinition trailPack = GD.Load<ItemDefinition>("res://inventory/items/trail_backpack.tres");
+        WornPiece[] slots = new WornPiece[EquipmentSlots.Count];
+        slots[(int)EquipSlot.Back] = new WornPiece(trailPack.ItemId, trailPack.DisplayName, trailPack.MaxDurability, trailPack.MaxDurability, trailPack);
+        GearSnapshot equipped = GearSnapshot.None with { Slots = slots };
+        bool restoredOnce = true;
+        for (int i = 0; i < 4; i++)
+        {
+            clothing.ShowGear(equipped);
+            restoredOnce &= clothing.BackpackMount?.EquippedItemId == trailPack.ItemId && CountPacks(clothing.Skeleton!) == 1;
+            clothing.ShowGear(GearSnapshot.None);
+            restoredOnce &= clothing.BackpackMount?.Pivot.Transform.IsEqualApprox(fittedBase) == true && CountPacks(clothing.Skeleton!) == 1;
+        }
+        Check("removing equipped packs repeatedly restores one base pack with its own saved fit", restoredOnce, "");
+
+        CarrierCharacter? other = CarrierRoster.Load()?.Pick("vucic");
+        if (other?.Id == "vucic")
+        {
+            fitting.CharacterId = "vucic";
+            ClothingFit.Use(new ClothingFit());
+            fitting.Rebuild();
+            await Frame();
+            clothing = fitting.GetNode<ClothingVisualController>("Preview/ClothingVisuals");
+            Transform3D otherOriginal = clothing.BackpackMount!.Pivot.Transform;
+            ClothingFit.Use(restored);
+            fitting.Rebuild();
+            await Frame();
+            clothing = fitting.GetNode<ClothingVisualController>("Preview/ClothingVisuals");
+            Check("another character never inherits the modular character's backpack fit",
+                clothing.BackpackMount!.Pivot.Transform.IsEqualApprox(otherOriginal)
+                && Handles(fitting)["base_pack"].Transform.IsEqualApprox(Transform3D.Identity), "");
+        }
+        else { GD.Print("SKIP  cross-character fit check: vucic model is not installed"); }
+    }
+
+    private async Task Frame() => await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+    private static Node3D? Piece(CarrierWornGear worn, string key)
+    {
+        foreach ((string pieceKey, Node3D node) in worn.Pieces()) { if (pieceKey == key) { return node; } }
+        return null;
+    }
+
+    private static int CountPacks(Skeleton3D skeleton)
+    {
+        int count = 0;
+        foreach (Node child in skeleton.GetChildren()) { if (child is BackpackAttachment && !child.IsQueuedForDeletion()) { count++; } }
+        return count;
     }
 
     private static Dictionary<string, Marker3D> Handles(ClothingFitting fitting)

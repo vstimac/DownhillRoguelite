@@ -37,11 +37,12 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
         Name = $"Chunk_{data.Coord.X}_{data.Coord.Y}";
         Position = generator.ChunkCorner(data.Coord);
 
-        Godot.Collections.Array arrays = new();
+        using Godot.Collections.Array arrays = new();
         arrays.Resize((int)Mesh.ArrayType.Max);
         arrays[(int)Mesh.ArrayType.Vertex] = data.Vertices;
         arrays[(int)Mesh.ArrayType.Normal] = data.Normals;
         arrays[(int)Mesh.ArrayType.Color] = data.Colors;
+        if (data.Indices.Length > 0) { arrays[(int)Mesh.ArrayType.Index] = data.Indices; }
         ArrayMesh mesh = new();
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
         AddChild(new MeshInstance3D { Name = "Ground", Mesh = mesh, MaterialOverride = groundMaterial });
@@ -63,21 +64,25 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             AddObstacle(obstacle, boulderMaterial, trunkMaterial, boulderSurface, trunkSurface);
         }
         // Plants follow on the next frame, so the ground and the plants never land in the same frame.
-        _pendingPlants = data;
+        // Upload has copied the render/collision arrays. Foliage only needs the plant plan;
+        // do not promote all of the source mesh buffers while incremental work is pending.
+        _pendingPlants = data.Plants;
         _pendingTrunkSurface = trunkSurface;
         SetProcess(true);
     }
 
-    private TerrainChunkData? _pendingPlants;
+    private System.Collections.Generic.IReadOnlyList<PlantData>? _pendingPlants;
     private SurfaceType? _pendingTrunkSurface;
     private System.Collections.Generic.IEnumerator<bool>? _plantBuild;
     private static ulong _plantFrame;
     private static double _plantFrameSpent;
     private string _plantPhase = "";
+    private static bool? _profilePlants;
     public static double MaxPlantFrameMilliseconds { get; private set; }
 
     public override void _Ready()
     {
+        _profilePlants ??= System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--profile-plants") >= 0;
         if (_pendingPlants == null)
         {
             SetProcess(false);
@@ -98,14 +103,33 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             budget = Mathf.Max(budget, 0.5);
             if (_plantFrameSpent >= budget) { return; }
             ulong start = Time.GetTicksUsec();
-            int collections = System.GC.CollectionCount(2);
-            int minorCollections = System.GC.CollectionCount(0);
+            bool profile = _profilePlants == true;
+            int collections = 0;
+            int middleCollections = 0;
+            int minorCollections = 0;
+            long allocated = 0;
+            double pause = 0;
+            double worstSlice = 0;
+            string worstPhase = "";
+            if (profile)
+            {
+                collections = System.GC.CollectionCount(2);
+                middleCollections = System.GC.CollectionCount(1);
+                minorCollections = System.GC.CollectionCount(0);
+                allocated = System.GC.GetAllocatedBytesForCurrentThread();
+                pause = System.GC.GetTotalPauseDuration().TotalMilliseconds;
+            }
             _plantBuild ??= AddPlants(_pendingPlants, _pendingTrunkSurface).GetEnumerator();
             bool more = true;
             while (more)
             {
+                ulong sliceStart = 0;
+                if (profile) { sliceStart = Time.GetTicksUsec(); }
                 more = _plantBuild.MoveNext();
-                if (_plantFrameSpent + (Time.GetTicksUsec() - start) / 1000.0 >= budget) { break; }
+                ulong now = Time.GetTicksUsec();
+                if (profile && (now - sliceStart) / 1000.0 > worstSlice)
+                { worstSlice = (now - sliceStart) / 1000.0; worstPhase = _plantPhase; }
+                if (_plantFrameSpent + (now - start) / 1000.0 >= budget) { break; }
             }
             if (!more)
             {
@@ -114,10 +138,14 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
                 _pendingPlants = null;
             }
             double spent = (Time.GetTicksUsec() - start) / 1000.0;
-            if (spent > budget * 2 && System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--profile-plants") >= 0)
+            if (spent > budget * 2 && profile)
             {
                 GD.Print("Plant streaming step " + Coord + " " + _plantPhase + ": " + spent.ToString("0.00")
-                    + " ms; GC " + (System.GC.CollectionCount(0) - minorCollections) + "/" + (System.GC.CollectionCount(2) - collections));
+                    + " ms; largest slice " + worstPhase + " " + worstSlice.ToString("0.00")
+                    + " ms; managed allocation " + (System.GC.GetAllocatedBytesForCurrentThread() - allocated)
+                    + " B; GC counters 0/1/2 " + (System.GC.CollectionCount(0) - minorCollections) + "/"
+                    + (System.GC.CollectionCount(1) - middleCollections) + "/" + (System.GC.CollectionCount(2) - collections)
+                    + "; GC pause delta " + (System.GC.GetTotalPauseDuration().TotalMilliseconds - pause).ToString("0.00") + " ms");
             }
             MaxPlantMilliseconds = Mathf.Max(MaxPlantMilliseconds, spent);
             _plantFrameSpent += spent;
@@ -129,6 +157,8 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
     public override void _ExitTree()
     {
         _plantBuild?.Dispose();
+        _plantBuild = null;
+        _pendingPlants = null;
         if (_treeBody != null && IsInstanceValid(_treeBody) && _treeBody.GetParent() == null) { _treeBody.Free(); }
     }
 
@@ -139,17 +169,21 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
     public bool PlantsPending => _pendingPlants != null;
 
     /// <summary>Trees as bodies the carrier bumps into; grass and flowers batched per model.</summary>
-    private System.Collections.Generic.IEnumerable<bool> AddPlants(TerrainChunkData data, SurfaceType? trunkSurface)
+    private System.Collections.Generic.IEnumerable<bool> AddPlants(System.Collections.Generic.IReadOnlyList<PlantData> source, SurfaceType? trunkSurface)
     {
-        if (data.Plants.Count == 0)
+        if (source.Count == 0)
         {
             yield break;
         }
-        System.Collections.Generic.Dictionary<(string, PlantKind, int, int), System.Collections.Generic.List<PlantData>> batches = new();
+        // Keep indices instead of copying the sizeable PlantData struct into every growing batch.
+        // The source stays alive until this iterator completes, so transforms retain their order.
+        System.Collections.Generic.Dictionary<(string, PlantKind, int, int), System.Collections.Generic.List<int>> batches = new();
         Vector3 chunkOrigin = Position;
         int grouped = 0;
-        foreach (PlantData plant in data.Plants)
+        int quantum = Mathf.Max(_generator!.Settings.PlantWorkItemsPerSlice, 1);
+        for (int plantIndex = 0; plantIndex < source.Count; plantIndex++)
         {
+            PlantData plant = source[plantIndex];
             if (plant.Kind == PlantKind.Tree)
             {
                 if (ModelFit.FirstMesh(plant.Model, out _) == null) { continue; }
@@ -162,14 +196,14 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             _plantPhase = "grouping detail";
             Vector3 at = plant.Position - chunkOrigin;
             var key = (plant.Model, plant.Kind, Mathf.FloorToInt(at.X / batchSize), Mathf.FloorToInt(at.Z / batchSize));
-            if (!batches.TryGetValue(key, out System.Collections.Generic.List<PlantData>? list))
+            if (!batches.TryGetValue(key, out System.Collections.Generic.List<int>? list))
             {
-                list = new System.Collections.Generic.List<PlantData>();
+                list = new System.Collections.Generic.List<int>();
                 batches[key] = list;
             }
-            list.Add(plant);
+            list.Add(plantIndex);
             grouped++;
-            if (grouped % 128 == 0) { yield return true; }
+            if (grouped % quantum == 0) { yield return true; }
         }
         if (_treeBody != null)
         {
@@ -197,21 +231,23 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
         {
             string model = entry.Key.Item1;
             PlantKind kind = entry.Key.Item2;
-            System.Collections.Generic.List<PlantData> plants = entry.Value;
+            System.Collections.Generic.List<int> plants = entry.Value;
             Mesh? mesh = ModelFit.FirstMesh(model, out Transform3D local);
             if (mesh == null)
             {
                 continue;
             }
+            _plantPhase = "multimesh allocation";
             MultiMesh batch = new() { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = plants.Count };
-            _plantPhase = kind + " buffer: " + model.GetFile();
+            yield return true;
+            _plantPhase = "transform buffer";
             Aabb meshBounds = mesh.GetAabb();
             // One buffer for all instances (12 floats each: the basis by rows, then the origin) instead
             // of a call per tuft, which made adding a chunk hitch.
             float[] buffer = new float[plants.Count * 12];
             for (int i = 0; i < plants.Count; i++)
             {
-                PlantData plant = plants[i];
+                PlantData plant = source[plants[i]];
                 Transform3D t = FitPlant(plant, meshBounds, local, chunkOrigin);
                 int o = i * 12;
                 buffer[o] = t.Basis.X.X;
@@ -226,8 +262,13 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
                 buffer[o + 9] = t.Basis.Y.Z;
                 buffer[o + 10] = t.Basis.Z.Z;
                 buffer[o + 11] = t.Origin.Z;
+                if ((i + 1) % quantum == 0) { yield return true; }
             }
+            yield return true;
+            _plantPhase = "multimesh upload";
             batch.Buffer = buffer;
+            yield return true;
+            _plantPhase = "scene insertion";
             Material? material = null;
             if (kind == PlantKind.Grass)
             {

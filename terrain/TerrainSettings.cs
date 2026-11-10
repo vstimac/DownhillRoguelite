@@ -177,7 +177,10 @@ public partial class TerrainSettings : Resource
 
     [ExportGroup("Forest detail")]
     [Export] public float PlantBatchSize { get; set; } = 16.0f;
-    [Export] public double PlantBuildBudgetMilliseconds { get; set; } = 3.0;
+    /// <summary>Shared runtime foliage budget, leaving room for physics, rendering and collection pauses.</summary>
+    [Export] public double PlantBuildBudgetMilliseconds { get; set; } = 1.0;
+    /// <summary>Maximum grouping/transform work before the shared plant time budget is checked again.</summary>
+    [Export(PropertyHint.Range, "1,512,1")] public int PlantWorkItemsPerSlice { get; set; } = 128;
     /// <summary>The same budget behind the loading screen, where a long frame doesn't matter.</summary>
     [Export] public double LoadingPlantBudgetMilliseconds { get; set; } = 40.0;
     [Export] public float TreeViewDistance { get; set; } = 220.0f;

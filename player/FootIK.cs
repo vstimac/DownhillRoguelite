@@ -13,6 +13,10 @@ namespace DownhillRoguelite.Player;
 /// </summary>
 public partial class FootIK : Node3D
 {
+    // Dictionary string keys otherwise create a finalizable native Variant for every ray.
+    // Cached Variants are borrowed by the lookup and must never be disposed per call.
+    private static readonly Variant PositionKey = "position";
+    private static readonly Variant NormalKey = "normal";
     [Export] public PlayerController? Body { get; set; }
     [Export] public Skeleton3D? Skeleton { get; set; }
 
@@ -65,7 +69,8 @@ public partial class FootIK : Node3D
     private int _hipsIndex = -1;
     private Vector3 _lastOrigin;
     private bool _hasLastOrigin;
-    private Godot.Collections.Array<Rid> _rayExclude = new();
+    private Godot.Collections.Array<Rid>? _rayExclude;
+    private PhysicsRayQueryParameters3D? _groundQuery;
 
     public override void _Ready()
     {
@@ -76,6 +81,7 @@ public partial class FootIK : Node3D
         }
 
         _rayExclude = new Godot.Collections.Array<Rid> { Body.GetRid() };
+        _groundQuery = new PhysicsRayQueryParameters3D { CollisionMask = GroundMask, Exclude = _rayExclude };
         _hipsIndex = Skeleton.FindBone(HipsBone);
         _feet.Add(new FootState("L", LeftThighBone, LeftShinBone, LeftFootBone));
         _feet.Add(new FootState("R", RightThighBone, RightShinBone, RightFootBone));
@@ -86,6 +92,14 @@ public partial class FootIK : Node3D
             BuildLeg(Skeleton, foot);
         }
         Skeleton.AddChild(new FootAlignModifier { Name = "FootAlign", Rig = this });
+    }
+
+    public override void _ExitTree()
+    {
+        _groundQuery?.Dispose();
+        _groundQuery = null;
+        if (_rayExclude != null) { ((Godot.Collections.Array)_rayExclude).Dispose(); }
+        _rayExclude = null;
     }
 
     private void BuildLeg(Skeleton3D skeleton, FootState foot)
@@ -341,7 +355,17 @@ public partial class FootIK : Node3D
     {
         Vector3 from = new(at.X, originY + RayAbove, at.Z);
         Vector3 to = new(at.X, originY - RayBelow, at.Z);
-        Godot.Collections.Dictionary hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(from, to, GroundMask, _rayExclude));
+        PhysicsRayQueryParameters3D? query = _groundQuery;
+        if (query == null)
+        {
+            point = to;
+            normal = Vector3.Up;
+            return false;
+        }
+        query.From = from;
+        query.To = to;
+        query.CollisionMask = GroundMask;
+        using Godot.Collections.Dictionary hit = space.IntersectRay(query);
         if (hit.Count == 0)
         {
             point = to;
@@ -349,8 +373,10 @@ public partial class FootIK : Node3D
             return false;
         }
 
-        point = hit["position"].AsVector3();
-        normal = hit["normal"].AsVector3();
+        using Variant positionValue = hit[PositionKey];
+        using Variant normalValue = hit[NormalKey];
+        point = positionValue.AsVector3();
+        normal = normalValue.AsVector3();
         return true;
     }
 

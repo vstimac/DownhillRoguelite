@@ -15,6 +15,8 @@ namespace DownhillRoguelite.Player;
 /// </summary>
 public partial class CarrierWornGear : Node
 {
+    /// <summary>Disable before adding a fitting preview to the tree.</summary>
+    public bool ListenToGear { get; set; } = true;
     public Skeleton3D? Skeleton { get; set; }
     /// <summary>The character (CarrierCharacter.Id) wearing it, for the hand-made fits (ClothingFit).</summary>
     public string CharacterId { get; set; } = "";
@@ -53,7 +55,7 @@ public partial class CarrierWornGear : Node
 
     public override void _Ready()
     {
-        Setup(true);
+        Setup(ListenToGear);
     }
 
     /// <summary>

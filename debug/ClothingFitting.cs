@@ -141,11 +141,11 @@ public partial class ClothingFitting : Node3D
             vest.Visible = gear.In(EquipSlot.Torso).ItemId == VestItem;
         }
 
-        CarrierWornGear worn = new() { Name = "WornGear", Skeleton = skeleton, CharacterId = character.Id, Vest = vest, HelmetItem = helmetItem, VestItem = vestItem };
+        CarrierWornGear worn = new() { Name = "WornGear", ListenToGear = false, Skeleton = skeleton, CharacterId = character.Id, Vest = vest, HelmetItem = helmetItem, VestItem = vestItem };
         _preview.AddChild(worn);
         worn.Setup(false);
         worn.ShowGear(gear);
-        ClothingVisualController clothing = new() { Name = "ClothingVisuals", Skeleton = skeleton, CharacterId = character.Id };
+        ClothingVisualController clothing = new() { Name = "ClothingVisuals", ListenToGear = false, Skeleton = skeleton, CharacterId = character.Id };
         _preview.AddChild(clothing);
         clothing.Setup(false);
         clothing.ShowGear(gear);

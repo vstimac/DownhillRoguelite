@@ -10,6 +10,7 @@ namespace DownhillRoguelite.Player;
 /// </summary>
 public partial class HurtVignette : CanvasLayer
 {
+    private static readonly StringName StrengthParameter = new("strength");
     [Export] public Color TintColor { get; set; } = new(0.6f, 0.0f, 0.0f);
     /// <summary>Health fraction below which the edge stays red.</summary>
     [Export] public float LowHealthFraction { get; set; } = 0.4f;
@@ -81,6 +82,6 @@ void fragment() {
     public override void _Process(double delta)
     {
         _flash = Mathf.MoveToward(_flash, 0.0f, FlashFade * (float)delta);
-        _material?.SetShaderParameter("strength", Mathf.Max(_flash, _lowHealth));
+        _material?.SetShaderParameter(StrengthParameter, Mathf.Max(_flash, _lowHealth));
     }
 }

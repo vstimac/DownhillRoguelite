@@ -95,8 +95,55 @@ public partial class AnimationSmoothTests : Node3D
         _body.Teleport(new Vector3(-8, 0.1f, 10), 0);
         await Frames(1);
         Check("teleport clears old presentation offsets and transitions", _animator.Visual!.Position.Length() < 0.001f && _animator.LandingWeight == 0 && _animator.TakeoffWeight == 0);
+        await Frames(30);
+        CheckAnimatorAllocations();
         GetTree().Quit(Math.Min(_failures, 1));
     }
+
+    private void CheckAnimatorAllocations()
+    {
+        AnimationTree? tree = _animator.Tree;
+        if (tree == null || !tree.Active || !_body.Velocity.IsZeroApprox())
+        {
+            Check("allocation regression uses an active tree and a stationary real player", false);
+            return;
+        }
+        StringName[] parameters = {
+            "parameters/air_blend/blend_amount", "parameters/to_walk/blend_amount",
+            "parameters/to_jog/blend_amount", "parameters/to_sprint/blend_amount",
+            "parameters/brake_move/blend_amount", "parameters/brake/blend_amount",
+            "parameters/takeoff_blend/blend_amount", "parameters/landing_blend/blend_amount",
+            "parameters/walk_rate/scale", "parameters/jog_rate/scale",
+            "parameters/sprint_rate/scale", "parameters/brake_walk_rate/scale" };
+        // Warm the actual native parameter writes and the authored landing clip queries before measuring.
+        GameEvents.PublishLanded(3);
+        for (int i = 0; i < 60; i++) { _animator._Process(1.0 / 60); }
+        bool valid = FiniteParameters(tree, parameters);
+        GameEvents.PublishLanded(3);
+        const int updates = 600;
+        const long budget = updates * 512L + 16 * 1024;
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < updates; i++) { _animator._Process(1.0 / 60); }
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        valid &= FiniteParameters(tree, parameters) && float.IsFinite(_animator.Cadence)
+            && float.IsFinite(_animator.TakeoffWeight) && float.IsFinite(_animator.LandingWeight);
+        Check($"stationary animator updates retain finite blends/rates within the allocation budget ({allocated / (double)updates:0.0} bytes/update, {allocated} total)",
+            valid && allocated <= budget);
+        foreach (StringName parameter in parameters) { parameter.Dispose(); }
+    }
+
+    private static bool FiniteParameters(AnimationTree tree, StringName[] parameters)
+    {
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            Variant parameter = tree.Get(parameters[i]);
+            if (parameter.VariantType != Variant.Type.Float) { return false; }
+            float value = parameter.AsSingle();
+            if (!float.IsFinite(value) || value < 0 || (i < 8 && value > 1)) { return false; }
+        }
+        return true;
+    }
+
     private float Phase(string node)
     {
         float length = _animator.Tree!.Get($"parameters/{node}/current_length").AsSingle();

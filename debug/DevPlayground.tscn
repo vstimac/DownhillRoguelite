@@ -1,0 +1,145 @@
+[gd_scene format=3]
+[ext_resource type="Script" path="res://debug/DevPlayground.cs" id="1_root"]
+[ext_resource type="Script" path="res://debug/playground/DevPlaygroundEntry.cs" id="2_entry"]
+
+[sub_resource type="Resource" id="Sandbox"]
+script = ExtResource("2_entry")
+Id = "sandbox"
+Title = "Glavni poligon"
+Category = "Kretanje"
+ScenePath = "res://debug/playground/DevSandbox.tscn"
+Description = "Nagibi 10/20/30/40 stupnjeva, stepenice, razlicite podloge, kamenje i tornjevi za padove. Pravi igrac, inventory, oprema, stamina i vrijeme. U Alatima odaberi checkpoint ili dodaj predmet."
+Controls = "WASD hodanje | Shift trcanje | C kocenje | Space skok/kolut | Ctrl zaron | I inventory | Tab 3D pakiranje | F1 slobodna kamera | F3 dijagnostika | F4 vrijeme | Alati: checkpoint/reset"
+[sub_resource type="Resource" id="Clothing"]
+script = ExtResource("2_entry")
+Id = "clothing"
+Title = "Odjeca i oprema"
+Category = "Lik"
+ScenePath = "res://debug/TestClothing.tscn"
+Description = "Radionica odjece: oblacenje/skidanje, zamjena lika, boja, mokro/prljavo, trosenje te izriciti save/load tereta. Geometrija nekih komada jos je prototip."
+Controls = "Gumbi radionice | WASD kretanje | Esc oslobodi mis | F10 ovaj izbornik"
+[sub_resource type="Resource" id="Abilities"]
+script = ExtResource("2_entry")
+Id = "abilities"
+Title = "Likovi, statovi i sposobnosti"
+Category = "Lik"
+ScenePath = "res://debug/TestCharacterAbilities.tscn"
+Description = "Usporedi dostupne likove, kapacitete health/stamina, potrosnju i aktivne sposobnosti. Debug odabir mijenja profil samo za trenutnu probu."
+Controls = "Gumbi za likove i potrosnju stamine | H sposobnost"
+[sub_resource type="Resource" id="BackpackFit"]
+script = ExtResource("2_entry")
+Id = "backpack_fit"
+Title = "Ruksak: polozaj i animacije"
+Category = "Lik"
+ScenePath = "res://debug/TestBackpackAttachment.tscn"
+Description = "Jedan ruksak na gornjoj kraljeznici. Odaberi lika, oblaci/skidaj pack te namjesti pomak, rotaciju i velicinu. Prilagodbe odjece spremas u editoru kroz debug/ClothingFitting.tscn."
+Controls = "Gumbi i scroll lijevo | WASD | Shift | C | Space | Ctrl | F3 debug | F10 ovaj izbornik"
+[sub_resource type="Resource" id="Animation"]
+script = ExtResource("2_entry")
+Id = "animation"
+Title = "Animacije i locomotion demo"
+Category = "Kretanje"
+ScenePath = "res://debug/TestSmoothLocomotion.tscn"
+Description = "Postojeci demo hodanja, trcanja, okretanja, zaustavljanja i skoka sa stvarnim likom. Usporedi automatski demo i rucno upravljanje."
+Controls = "Replay full demo / Manual | WASD | Shift | C | Space"
+[sub_resource type="Resource" id="Locomotion"]
+script = ExtResource("2_entry")
+Id = "locomotion"
+Title = "Cisti test kretanja i IK"
+Category = "Kretanje"
+ScenePath = "res://debug/TestLocomotion.tscn"
+Description = "Poligon bez inventara za provjeru kontrolera, stopala, stepenica, nagiba i doskoka. F3 prikazuje postojece debug prikaze."
+Controls = "WASD | C | Space | Ctrl | F1 kamera | F3 debug | Alati: checkpoint/reset"
+[sub_resource type="Resource" id="Balance"]
+script = ExtResource("2_entry")
+Id = "balance"
+Title = "Balans i raspored tereta"
+Category = "Teret"
+ScenePath = "res://debug/TestBalance.tscn"
+Description = "Postojeci poligon s presetima opterecenja. Provjeri teziste, stabilnost na nagibu i razliku visokog/niskog tereta."
+Controls = "L mijenja preset tereta | F3 debug | WASD | C | Alati: checkpoint/reset"
+[sub_resource type="Resource" id="Packing"]
+script = ExtResource("2_entry")
+Id = "packing"
+Title = "3D pakiranje"
+Category = "Teret"
+ScenePath = "res://debug/TestPacking.tscn"
+Description = "Postojeca 3D mreza ruksaka i pravi predmeti. Postavi, rotiraj i provjeri utjecaj rasporeda na teziste. Ova scena dopusta pakiranje bilo gdje."
+Controls = "Tab otvori/zatvori pakiranje | mis i kontrole prikazane u pakiranju | F3 debug"
+[sub_resource type="Resource" id="Forest"]
+script = ExtResource("2_entry")
+Id = "forest"
+Title = "Suma i teren"
+Category = "Svijet"
+ScenePath = "res://debug/TestForestDescent.tscn"
+Description = "Suma u ljudskim mjerama, teksture tla, streaming, debla i oznacene prepreke. Odaberi New Run. F7 vodi na tri checkpointa."
+Controls = "New Run | F7 checkpoint | F3 teren/performance | F4 vrijeme | I inventory"
+[sub_resource type="Resource" id="Recovery"]
+script = ExtResource("2_entry")
+Id = "recovery"
+Title = "Spasavanje pumpe i dostava"
+Category = "Zadaci"
+ScenePath = "res://debug/TestRecoveryExpedition.tscn"
+Description = "Pronadi radionicu izvan staze, preuzmi pumpu i dostavi je prvoj stanici. Provjera tezine, stanja tereta, nagrade i zaliha vode."
+Controls = "New Run | E interakcija | M karta | J journal | I inventory"
+[sub_resource type="Resource" id="Purpose"]
+script = ExtResource("2_entry")
+Id = "purpose"
+Title = "Ciljevi i istrazivanje"
+Category = "Zadaci"
+ScenePath = "res://debug/TestPurpose.tscn"
+Description = "Fokusirani svijet za ciljeve, nalazišta uz stazu, putnike i poslove. Journal Now prikazuje aktivne i zavrsene ciljeve."
+Controls = "E pokupi/razgovaraj | J journal | M karta | F3 debug"
+[sub_resource type="Resource" id="Npcs"]
+script = ExtResource("2_entry")
+Id = "npcs"
+Title = "NPC modeli i animacije"
+Category = "NPC"
+ScenePath = "res://debug/TestNpcModels.tscn"
+Description = "Pregled NPC modela, sjedenja i razgovora, ukljucujuci Mr. Hollisa. Koristi ovu scenu za provjeru importa NPC-a."
+Controls = "Kontrole prikazane u NPC radionici | F10 izbornik"
+[sub_resource type="Resource" id="President"]
+script = ExtResource("2_entry")
+Id = "president"
+Title = "Predsjednik: dijalozi i glas"
+Category = "NPC"
+ScenePath = "res://debug/TestPresident.tscn"
+Description = "Pregled svake dijaloske linije i glasovnih varijanti. Za stvarne questove koristi Cijelu igru; u Alatima mozes otici do prve stanice."
+Controls = "Gore/dolje linija | Enter govor | V varijanta glasa | R idle"
+[sub_resource type="Resource" id="Beasts"]
+script = ExtResource("2_entry")
+Id = "beasts"
+Title = "Nocne zvijeri: pregled"
+Category = "Opasnosti"
+ScenePath = "res://debug/TestBeasts.tscn"
+Description = "Pregled modela nocnih zvijeri. Za stvarni lov otvori Sumu ili Cijelu igru, postavi noc u Alatima i ubrzaj dolazak zvijeri."
+Controls = "Pregled scene | F10 izbornik"
+[sub_resource type="Resource" id="Wildlife"]
+script = ExtResource("2_entry")
+Id = "wildlife"
+Title = "Zivotinje"
+Category = "Opasnosti"
+ScenePath = "res://debug/TestWildlife.tscn"
+Description = "Pregled postojecih zivotinja i njihovog ponasanja. Pridi velikoj zivotinji i provjeri reakciju na guranje."
+Controls = "WASD | C | Space | F10 izbornik"
+[sub_resource type="Resource" id="Game"]
+script = ExtResource("2_entry")
+Id = "game"
+Title = "Cijela igra"
+Category = "Integracija"
+ScenePath = "res://debug/TestTerrain.tscn"
+Description = "Glavna igra sa svim trenutno povezanim sustavima: stanice, questovi, predsjednik, zivotinje, nocni lov, vrijeme, inventory i karta. New Run pokrece igru. Ovdje vrijede normalna pravila i spremanje profila."
+Controls = "New Run | E interakcija | I inventory | J journal | M karta | H sposobnost | Esc postavke"
+[sub_resource type="Resource" id="Learning"]
+script = ExtResource("2_entry")
+Id = "learning"
+Title = "Jednostavna scena za ucenje"
+Category = "Editor"
+ScenePath = "res://debug/LearnGodot.tscn"
+Description = "Obican pod i blokovi koje mozes micati u editoru. Dobar pocetak za vlastite prepreke i eksperimentiranje s Inspectorom."
+Controls = "WASD | Shift | C | Space | Ctrl | F10 izbornik"
+
+[node name="DevPlayground" type="Node"]
+script = ExtResource("1_root")
+Labs = Array[Resource]([SubResource("Sandbox"), SubResource("Clothing"), SubResource("BackpackFit"), SubResource("Abilities"), SubResource("Animation"), SubResource("Locomotion"), SubResource("Balance"), SubResource("Packing"), SubResource("Forest"), SubResource("Recovery"), SubResource("Purpose"), SubResource("Npcs"), SubResource("President"), SubResource("Beasts"), SubResource("Wildlife"), SubResource("Game"), SubResource("Learning")])
+Seed = 1

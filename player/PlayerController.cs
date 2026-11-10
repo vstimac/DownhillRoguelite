@@ -74,6 +74,11 @@ public partial class PlayerController : CharacterBody3D
     private Vector3 _lurchDirection;
 
     private RunState? _run;
+    // These queries own their result objects; reuse them instead of creating finalizable
+    // Godot bindings for every ground/step check on every physics tick.
+    private KinematicCollision3D? _groundProbe;
+    private KinematicCollision3D? _stepBlocker;
+    private KinematicCollision3D? _stepGround;
 
     public override void _Ready()
     {
@@ -93,6 +98,9 @@ public partial class PlayerController : CharacterBody3D
     {
         GameEvents.BalanceUpdated -= OnBalanceUpdated;
         GameEvents.LaunchRequested -= OnLaunchRequested;
+        _groundProbe?.Dispose(); _groundProbe = null;
+        _stepBlocker?.Dispose(); _stepBlocker = null;
+        _stepGround?.Dispose(); _stepGround = null;
     }
 
     private Vector3? _launch;
@@ -379,7 +387,7 @@ public partial class PlayerController : CharacterBody3D
         // Floor snapping often moves the body without a slide collision, so probe the floor directly.
         if (IsOnFloor())
         {
-            KinematicCollision3D probe = new();
+            KinematicCollision3D probe = _groundProbe ??= new();
             if (TestMove(GlobalTransform, Vector3.Down * Settings.FloorSnapLength, probe))
             {
                 collider = probe.GetCollider();
@@ -588,7 +596,7 @@ public partial class PlayerController : CharacterBody3D
 
         Transform3D start = GlobalTransform;
         Vector3 motion = horizontal * dt;
-        KinematicCollision3D blocker = new();
+        KinematicCollision3D blocker = _stepBlocker ??= new();
         if (!TestMove(start, motion, blocker) || IsWalkable(blocker.GetNormal()))
         {
             return;
@@ -608,7 +616,7 @@ public partial class PlayerController : CharacterBody3D
         }
 
         Transform3D advanced = new(raised.Basis, raised.Origin + forward);
-        KinematicCollision3D ground = new();
+        KinematicCollision3D ground = _stepGround ??= new();
         if (!TestMove(advanced, -up, ground) || !IsWalkable(ground.GetNormal()))
         {
             return;

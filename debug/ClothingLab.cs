@@ -10,6 +10,7 @@ namespace DownhillRoguelite.Debug;
 public partial class ClothingLab : Node3D
 {
     [Export] public string SavePath { get; set; } = "user://clothing-lab.json";
+    [Export] public bool WearPrototypeShirtOnStart { get; set; } = true;
     [Export] public string[] ItemPaths { get; set; } = {
         "res://inventory/items/trail_shirt.tres", "res://inventory/items/trail_backpack.tres",
         "res://inventory/items/oilskin_coat.tres", "res://inventory/items/wool_trousers.tres",
@@ -19,6 +20,7 @@ public partial class ClothingLab : Node3D
     private Label? _status;
     private string _message = "Prototype clothing • walk, sprint, jump and inspect the bones in Remote.";
     private float _refresh;
+    protected VBoxContainer ControlList { get; private set; } = null!;
 
     public override void _Ready()
     {
@@ -26,8 +28,8 @@ public partial class ClothingLab : Node3D
         _look = player.GetNode<CarrierModel>("CarrierModel");
         _inventory = new CarrierInventory { Name = "Inventory", Backpack = GD.Load<BackpackDefinition>("res://inventory/default_backpack.tres"), StartingItemPaths = ItemPaths };
         player.AddChild(_inventory);
-        _inventory.Equipment!.Wear("trail_shirt");
-        _inventory.Equipment.Wear("trail_backpack");
+        if (WearPrototypeShirtOnStart) { _inventory.Equipment!.Wear("trail_shirt"); }
+        _inventory.Equipment!.Wear("trail_backpack");
         CanvasLayer layer = new() { Name = "ClothingControls" };
         AddChild(layer);
         ParchmentPanel sheet = new() { Title = "Clothing workshop", Position = new Vector2(20, 70), Size = new Vector2(310, 520) };
@@ -35,6 +37,7 @@ public partial class ClothingLab : Node3D
         ScrollContainer scroll = new() { Position = new Vector2(20, 60), Size = new Vector2(270, 440) };
         sheet.AddChild(scroll);
         VBoxContainer buttons = new() { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        ControlList = buttons;
         scroll.AddChild(buttons);
         foreach (string path in ItemPaths)
         {

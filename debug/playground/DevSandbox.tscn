@@ -1,0 +1,27 @@
+[gd_scene format=3]
+[ext_resource type="PackedScene" path="res://debug/TestPacking.tscn" id="1_world"]
+[ext_resource type="Script" path="res://ui/Hud.cs" id="2_hud"]
+[ext_resource type="Script" path="res://environment/weather/WeatherSystem.cs" id="3_weather"]
+[ext_resource type="Script" path="res://environment/DayNightCycle.cs" id="4_day"]
+[ext_resource type="Script" path="res://environment/weather/WeatherParticles.cs" id="5_particles"]
+[ext_resource type="Script" path="res://player/LocomotionSettings.cs" id="6_movement"]
+
+[sub_resource type="Resource" id="LocalMovement"]
+resource_local_to_scene = true
+script = ExtResource("6_movement")
+
+[node name="DevSandbox" instance=ExtResource("1_world")]
+[node name="Player" parent="."]
+Settings = SubResource("LocalMovement")
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("2_hud")
+[node name="Weather" type="Node" parent="."]
+script = ExtResource("3_weather")
+[node name="WeatherParticles" type="Node3D" parent="."]
+script = ExtResource("5_particles")
+[node name="DayNight" type="Node" parent="." node_paths=PackedStringArray("Sun", "World")]
+script = ExtResource("4_day")
+Sun = NodePath("../Sun")
+World = NodePath("../WorldEnvironment")
+[node name="DebugControls" parent="." node_paths=PackedStringArray("Weather")]
+Weather = NodePath("../Weather")

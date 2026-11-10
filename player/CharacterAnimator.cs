@@ -83,6 +83,23 @@ public partial class CharacterAnimator : Node
     private const string LandingNode = "landing";
     private const string ActionNode = "action";
 
+    // These finite paths belong to the fixed graph below. Keep their native names for the
+    // application's lifetime instead of creating finalizable StringName wrappers every frame.
+    private static readonly StringName AirBlendParameter = new("parameters/" + AirBlendNode + "/blend_amount");
+    private static readonly StringName ToWalkParameter = new("parameters/" + ToWalkNode + "/blend_amount");
+    private static readonly StringName ToJogParameter = new("parameters/" + ToJogNode + "/blend_amount");
+    private static readonly StringName ToSprintParameter = new("parameters/" + ToSprintNode + "/blend_amount");
+    private static readonly StringName BrakeMoveParameter = new("parameters/" + BrakeMoveNode + "/blend_amount");
+    private static readonly StringName BrakeParameter = new("parameters/" + BrakeNode + "/blend_amount");
+    private static readonly StringName TakeoffBlendParameter = new("parameters/" + TakeoffNode + "_blend/blend_amount");
+    private static readonly StringName LandingBlendParameter = new("parameters/" + LandingNode + "_blend/blend_amount");
+    private static readonly StringName WalkRateParameter = new("parameters/" + WalkNode + RateSuffix + "/scale");
+    private static readonly StringName JogRateParameter = new("parameters/" + JogNode + RateSuffix + "/scale");
+    private static readonly StringName SprintRateParameter = new("parameters/" + SprintNode + RateSuffix + "/scale");
+    private static readonly StringName BrakeWalkRateParameter = new("parameters/" + BrakeWalkNode + RateSuffix + "/scale");
+    private static readonly StringName TakeoffSeekParameter = new("parameters/" + TakeoffNode + "_seek/seek_request");
+    private static readonly StringName LandingSeekParameter = new("parameters/" + LandingNode + "_seek/seek_request");
+
     private AnimationTree? _tree;
     public AnimationTree? Tree => _tree;
     public float SmoothedSpeed => _speed;
@@ -200,7 +217,7 @@ public partial class CharacterAnimator : Node
             airTarget = 1.0f;
         }
         _airWeight = Mathf.Lerp(_airWeight, airTarget, 1.0f - Mathf.Exp(-AirBlendSharpness * dt));
-        SetBlend(AirBlendNode, _airWeight);
+        SetBlend(AirBlendParameter, _airWeight);
 
         float targetBrake = 0.0f;
         if (Body.State == LocomotionState.Braking || Body.State == LocomotionState.Sliding)
@@ -209,11 +226,11 @@ public partial class CharacterAnimator : Node
         }
         _brakeWeight = Mathf.Lerp(_brakeWeight, targetBrake, 1.0f - Mathf.Exp(-BrakeBlendSharpness * dt));
 
-        SetBlend(ToWalkNode, Band(_speed, IdleToWalk));
-        SetBlend(ToJogNode, Band(_speed, WalkToJog));
-        SetBlend(ToSprintNode, Band(_speed, JogToSprint));
-        SetBlend(BrakeMoveNode, Band(_speed, IdleToWalk));
-        SetBlend(BrakeNode, _brakeWeight * BrakeCrouchAmount);
+        SetBlend(ToWalkParameter, Band(_speed, IdleToWalk));
+        SetBlend(ToJogParameter, Band(_speed, WalkToJog));
+        SetBlend(ToSprintParameter, Band(_speed, JogToSprint));
+        SetBlend(BrakeMoveParameter, Band(_speed, IdleToWalk));
+        SetBlend(BrakeParameter, _brakeWeight * BrakeCrouchAmount);
 
         UpdateCadence(targetSpeed);
         UpdateAirTransitions(dt);
@@ -298,13 +315,13 @@ public partial class CharacterAnimator : Node
         {
             Cadence = Mathf.Clamp(groundSpeed / Mathf.Max(stride, 0.001f), MinPlaybackRate / length, MaxPlaybackRate / length);
         }
-        SetCadence(WalkNode);
-        SetCadence(JogNode);
-        SetCadence(SprintNode);
-        SetCadence(BrakeWalkNode);
+        SetCadence(WalkRateParameter);
+        SetCadence(JogRateParameter);
+        SetCadence(SprintRateParameter);
+        SetCadence(BrakeWalkRateParameter);
     }
 
-    private void SetCadence(string node) { _tree!.Set($"parameters/{node}{RateSuffix}/scale", Cadence); }
+    private void SetCadence(StringName parameter) { _tree!.Set(parameter, Cadence); }
 
     private void UpdateAirTransitions(float dt)
     {
@@ -324,19 +341,19 @@ public partial class CharacterAnimator : Node
         }
         _landingPending = false;
         _wasAirborne = airborne;
-        TakeoffWeight = SampleTransition(TakeoffNode, TakeoffClip, TakeoffTime, ref _takeoffLeft, dt);
-        LandingWeight = SampleTransition(LandingNode, LandingClip, LandingTime, ref _landingLeft, dt);
+        TakeoffWeight = SampleTransition(TakeoffSeekParameter, TakeoffClip, TakeoffTime, ref _takeoffLeft, dt);
+        LandingWeight = SampleTransition(LandingSeekParameter, LandingClip, LandingTime, ref _landingLeft, dt);
         LandingWeight *= Mathf.Lerp(1, MovingLandingWeight, Band(_speed, WalkToJog));
-        SetBlend(TakeoffNode + "_blend", TakeoffWeight);
-        SetBlend(LandingNode + "_blend", LandingWeight);
+        SetBlend(TakeoffBlendParameter, TakeoffWeight);
+        SetBlend(LandingBlendParameter, LandingWeight);
     }
 
-    private float SampleTransition(string node, StringName clip, float duration, ref float left, float dt)
+    private float SampleTransition(StringName parameter, StringName clip, float duration, ref float left, float dt)
     {
         if (left <= 0 || duration <= 0 || Animations?.HasAnimation(clip) != true) { return 0; }
         left = Mathf.Max(0, left - dt);
         float elapsed = duration - left;
-        _tree!.Set($"parameters/{node}_seek/seek_request", Mathf.Clamp(elapsed / duration * Length(clip), 0, Length(clip)));
+        _tree!.Set(parameter, Mathf.Clamp(elapsed / duration * Length(clip), 0, Length(clip)));
         return Mathf.SmoothStep(0, TransitionFadeTime, elapsed) * Mathf.SmoothStep(0, TransitionFadeTime, left);
     }
 
@@ -394,9 +411,9 @@ public partial class CharacterAnimator : Node
         tree.ConnectNode(name, 1, to);
     }
 
-    private void SetBlend(string node, float amount)
+    private void SetBlend(StringName parameter, float amount)
     {
-        _tree?.Set($"parameters/{node}/blend_amount", amount);
+        _tree?.Set(parameter, amount);
     }
 
     /// <summary>0 below band.X, 1 above band.Y, smooth in between.</summary>

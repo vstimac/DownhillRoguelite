@@ -62,6 +62,10 @@ public sealed class TerrainGenerator
     private readonly float _summitCapTangent;
     private readonly float _startHeight;
     private readonly object _stationLock = new();
+    private readonly object _indexLock = new();
+    private int _indexCells = -1;
+    // Triangle topology is identical for every chunk of this grid size. Treat as read-only.
+    private int[] _smoothIndices = System.Array.Empty<int>();
     // Replaced, never modified, so readers on other threads can use it without the lock.
     private volatile Vector3[] _stations = System.Array.Empty<Vector3>();
     // Branches of stage s (ending at station s + 1) at index s; replaced together with _stations.
@@ -576,6 +580,9 @@ public sealed class TerrainGenerator
         Color[] smoothColors = System.Array.Empty<Color>();
         if (_settings.SmoothShading)
         {
+            // Adjacent triangles have identical smooth normals/colours at a grid point.
+            // Share those vertices instead of allocating three large duplicate attribute arrays.
+            data.Vertices = new Vector3[points * points];
             smoothNormals = new Vector3[points * points];
             smoothColors = new Color[points * points];
             for (int j = 0; j < points; j++)
@@ -584,6 +591,7 @@ public sealed class TerrainGenerator
                 {
                     float x = corner.X + i * cell;
                     float z = corner.Z + j * cell;
+                    data.Vertices[i + j * points] = new Vector3(i * cell, data.Heights[i + j * points], j * cell);
                     float left = GridOrWorld(data, i - 1, j, corner);
                     float right = GridOrWorld(data, i + 1, j, corner);
                     float back = GridOrWorld(data, i, j - 1, corner);
@@ -594,36 +602,69 @@ public sealed class TerrainGenerator
                         Mathf.RadToDeg(normal.AngleTo(Vector3.Up)), surfaceColors);
                 }
             }
+            data.Indices = SmoothIndices(cells);
+            data.Normals = smoothNormals;
+            data.Colors = smoothColors;
         }
-        Vector3[] vertices = new Vector3[triangles * 3];
-        Vector3[] normals = new Vector3[triangles * 3];
-        Color[] colors = new Color[triangles * 3];
-        SplitMix64 jitter = new(SplitMix64.Mix(Seed, ChunkSalt(coord)));
-        int v = 0;
-        for (int j = 0; j < cells; j++)
+        else
         {
-            for (int i = 0; i < cells; i++)
+            Vector3[] vertices = new Vector3[triangles * 3];
+            Vector3[] normals = new Vector3[triangles * 3];
+            Color[] colors = new Color[triangles * 3];
+            SplitMix64 jitter = new(SplitMix64.Mix(Seed, ChunkSalt(coord)));
+            int v = 0;
+            for (int j = 0; j < cells; j++)
             {
-                Vector3 a = new(i * cell, data.Heights[i + j * points], j * cell);
-                Vector3 b = new((i + 1) * cell, data.Heights[i + 1 + j * points], j * cell);
-                Vector3 c = new(i * cell, data.Heights[i + (j + 1) * points], (j + 1) * cell);
-                Vector3 d = new((i + 1) * cell, data.Heights[i + 1 + (j + 1) * points], (j + 1) * cell);
-                // Clockwise seen from above, which Godot treats as the front face.
-                v = AddTriangle(vertices, normals, colors, v, a, b, d, corner, surfaceColors, jitter,
-                    smoothNormals, smoothColors, new Vector3I(i + j * points, i + 1 + j * points, i + 1 + (j + 1) * points));
-                v = AddTriangle(vertices, normals, colors, v, a, d, c, corner, surfaceColors, jitter,
-                    smoothNormals, smoothColors, new Vector3I(i + j * points, i + 1 + (j + 1) * points, i + (j + 1) * points));
+                for (int i = 0; i < cells; i++)
+                {
+                    Vector3 a = new(i * cell, data.Heights[i + j * points], j * cell);
+                    Vector3 b = new((i + 1) * cell, data.Heights[i + 1 + j * points], j * cell);
+                    Vector3 c = new(i * cell, data.Heights[i + (j + 1) * points], (j + 1) * cell);
+                    Vector3 d = new((i + 1) * cell, data.Heights[i + 1 + (j + 1) * points], (j + 1) * cell);
+                    // Clockwise seen from above, which Godot treats as the front face.
+                    v = AddTriangle(vertices, normals, colors, v, a, b, d, corner, surfaceColors, jitter,
+                        smoothNormals, smoothColors, new Vector3I(i + j * points, i + 1 + j * points, i + 1 + (j + 1) * points));
+                    v = AddTriangle(vertices, normals, colors, v, a, d, c, corner, surfaceColors, jitter,
+                        smoothNormals, smoothColors, new Vector3I(i + j * points, i + 1 + (j + 1) * points, i + (j + 1) * points));
+                }
             }
+            data.Vertices = vertices;
+            data.Normals = normals;
+            data.Colors = colors;
         }
-        data.Vertices = vertices;
-        data.Normals = normals;
-        data.Colors = colors;
 
         PlaceObstacles(data, coord, corner);
         PlacePlants(data, coord, corner);
         PlacePebbles(data, coord, corner);
         data.BuildMilliseconds = timer.Elapsed.TotalMilliseconds;
         return data;
+    }
+
+    private int[] SmoothIndices(int cells)
+    {
+        lock (_indexLock)
+        {
+            if (_indexCells == cells) { return _smoothIndices; }
+            int points = cells + 1;
+            int[] indices = new int[cells * cells * 6];
+            int corner = 0;
+            for (int j = 0; j < cells; j++)
+            {
+                for (int i = 0; i < cells; i++)
+                {
+                    int a = i + j * points;
+                    int b = a + 1;
+                    int c = a + points;
+                    int d = c + 1;
+                    // Same diagonal, corner order and winding as the unindexed flat path.
+                    indices[corner++] = a; indices[corner++] = b; indices[corner++] = d;
+                    indices[corner++] = a; indices[corner++] = d; indices[corner++] = c;
+                }
+            }
+            _smoothIndices = indices;
+            _indexCells = cells;
+            return indices;
+        }
     }
 
     private int AddTriangle(Vector3[] vertices, Vector3[] normals, Color[] colors, int v,

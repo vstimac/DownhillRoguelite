@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using DownhillRoguelite.Core;
 using Godot;
@@ -37,6 +38,8 @@ public partial class SetPiecePlacer : Node3D
     [Export] public float LoadDistance { get; set; } = 320.0f;
     [Export] public float LandmarkLoadDistance { get; set; } = 650.0f;
     [Export] public float GroundSink { get; set; } = 0.08f;
+    /// <summary>Print the exact source before instantiation when diagnosing native import errors.</summary>
+    [Export] public bool TraceModelInstantiation { get; set; }
 
     public readonly record struct Placement(SetPiece Piece, int Stage, Vector3 Centre, float Yaw);
 
@@ -44,6 +47,11 @@ public partial class SetPiecePlacer : Node3D
     public IReadOnlyDictionary<int, SetPieceNode> Built => _built;
 
     private List<SetPiece>? _pieces;
+    // Only paths from this placer's finite, validated catalog can enter the cache. Keep wrappers
+    // across streaming/new runs, rather than reloading them as earlier wrappers are finalized.
+    private readonly HashSet<string> _modelPaths = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, PackedScene?> _modelScenes = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _modelProblems = new(StringComparer.Ordinal);
     private readonly Dictionary<int, List<Placement>> _plan = new();
     private readonly Dictionary<int, SetPieceNode> _built = new();
     private int _planned = -1;
@@ -63,6 +71,8 @@ public partial class SetPiecePlacer : Node3D
     {
         GameEvents.LocomotionUpdated -= OnLocomotion;
         GameEvents.RespawnRequested -= OnRespawn;
+        _modelScenes.Clear();
+        _modelProblems.Clear();
     }
 
     private void OnLocomotion(LocomotionSnapshot snapshot)
@@ -99,6 +109,7 @@ public partial class SetPiecePlacer : Node3D
                 if (piece.Problem().Length == 0)
                 {
                     _pieces.Add(piece);
+                    foreach (SetPiecePart part in piece.Parts) { _modelPaths.Add(part.Model); }
                 }
                 else
                 {
@@ -113,6 +124,40 @@ public partial class SetPiecePlacer : Node3D
     private static int CompareIds(SetPiece a, SetPiece b)
     {
         return string.CompareOrdinal(a.Id, b.Id);
+    }
+
+    private Node3D? CreateModel(string path)
+    {
+        if (!_modelPaths.Contains(path))
+        {
+            ReportModel(path, "model is outside the loaded set-piece catalog");
+            return null;
+        }
+        if (!_modelScenes.TryGetValue(path, out PackedScene? scene))
+        {
+            if (ResourceLoader.Exists(path)) { scene = ResourceLoader.Load(path) as PackedScene; }
+            if (scene == null || !scene.CanInstantiate())
+            {
+                ReportModel(path, "missing or non-instantiable scene");
+                scene = null;
+            }
+            _modelScenes[path] = scene;
+        }
+        if (scene == null) { return null; }
+        if (TraceModelInstantiation) { GD.Print($"SetPiecePlacer: instantiating {path}"); }
+        // Native instantiation errors remain visible to the engine/smoke runner. Do not convert
+        // a native error into a successful build by swallowing it here.
+        Node instance = scene.Instantiate();
+        if (instance is Node3D model) { return model; }
+        instance.Free();
+        _modelScenes[path] = null;
+        ReportModel(path, "scene root is not Node3D");
+        return null;
+    }
+
+    private void ReportModel(string path, string problem)
+    {
+        if (_modelProblems.Add(path)) { GD.PushWarning($"SetPiecePlacer: {path}: {problem}."); }
     }
 
     /// <summary>Drops the plan and every built piece (a new run, or a new mountain).</summary>
@@ -341,7 +386,7 @@ public partial class SetPiecePlacer : Node3D
                 }
                 SetPieceNode node = new();
                 AddChild(node);
-                node.Build(placement.Piece, placement.Centre, placement.Yaw, route, GroundSink);
+                node.Build(placement.Piece, placement.Centre, placement.Yaw, route, GroundSink, CreateModel);
                 _built[key] = node;
             }
         }
