@@ -73,6 +73,10 @@ public partial class EnemySpecies : Resource
     [Export] public float ShoveDrag { get; set; } = 6.0f;
     /// <summary>Recoil when the carrier's shield stops its blow (m/s back).</summary>
     [Export] public float BlockedRecoil { get; set; } = 3.0f;
+    /// <summary>A blow the shield stops throws it off balance this long (it can't guard or dodge meanwhile), in s.</summary>
+    [Export] public float ParriedStaggerSeconds { get; set; } = 0.9f;
+    /// <summary>...and it can't swing again for this long after that: the opening to strike back, in s.</summary>
+    [Export] public float ParriedOpening { get; set; } = 1.0f;
     /// <summary>How long it lies after dying before it sinks away.</summary>
     [Export] public float CorpseSeconds { get; set; } = 6.0f;
 

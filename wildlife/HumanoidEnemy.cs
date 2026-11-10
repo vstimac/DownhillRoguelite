@@ -97,6 +97,8 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     private float _gravity;
     private float _scale = 1.0f;
     private bool _counter;
+    /// <summary>Time left in the opening after a parry: it neither swings nor guards nor dodges.</summary>
+    private float _opening;
 
     /// <summary>A new enemy of this kind (add it to the tree, then place it).</summary>
     public static HumanoidEnemy Create(EnemySpecies species)
@@ -229,7 +231,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     /// <summary>The carrier swings or kicks: if it's in front of them and close, it may guard or roll aside.</summary>
     private void OnMeleeSwung(Vector3 feet, Vector3 facing, string kind)
     {
-        if (Species == null || State == Phase.Dead || State == Phase.Stagger || State == Phase.Dodge || State == Phase.Guard)
+        if (Species == null || State == Phase.Dead || State == Phase.Stagger || State == Phase.Dodge || State == Phase.Guard || _opening > 0.0f)
         {
             return;
         }
@@ -272,6 +274,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         float dt = (float)delta;
         _phaseTime += dt;
         _cooldown = Mathf.Max(0.0f, _cooldown - dt);
+        _opening = Mathf.Max(0.0f, _opening - dt);
         Vector3 toCarrier = _carrier - GlobalPosition;
         toCarrier.Y = 0.0f;
         float distance = toCarrier.Length();
@@ -509,7 +512,11 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
             HitsBlocked++;
             Say(Species!.GuardSounds);
             _shove = -away * Species.BlockedRecoil;
-            Reel(Species.StaggerSeconds);
+            // Parried: it reels, and the next swing waits, so the carrier can strike back safely.
+            Reel(Species.ParriedStaggerSeconds);
+            _cooldown = Species.ParriedStaggerSeconds + Species.ParriedOpening;
+            _opening = _cooldown;
+            _counter = false;
             return;
         }
         HitsLanded++;
