@@ -70,6 +70,13 @@ public partial class RigFollower : SkeletonModifier3D
     /// </summary>
     public void UseRigOf(Skeleton3D skeleton)
     {
+        if (skeleton.FindBone("Hip") >= 0 && skeleton.FindBone("L_Upperarm") >= 0)
+        {
+            BonePairs = TripoPairs();
+            HipsBone = "Hip";
+            AlignBones = new[] { "L_Upperarm", "L_Forearm", "R_Upperarm", "R_Forearm", "L_Thigh", "L_Calf", "R_Thigh", "R_Calf" };
+            return;
+        }
         if (skeleton.FindBone("pelvis") < 0 || skeleton.FindBone("spine_01") < 0)
         {
             return;
@@ -101,6 +108,40 @@ public partial class RigFollower : SkeletonModifier3D
                 {
                     pairs.Add($"{finger}_0{k}_{s}");
                     pairs.Add($"{f}.0{k}.{side}");
+                }
+            }
+        }
+        for (int i = 1; i < pairs.Count; i += 2)
+        {
+            pairs[i] = "DEF-" + pairs[i];
+        }
+        return pairs.ToArray();
+    }
+
+    /// <summary>
+    /// Tripo auto-rig bones (Hip, Waist, Spine01, L_Upperarm, L_Thigh...) and the mannequin bones they
+    /// follow. Twist and share bones aren't followed: they keep their rest under their parents.
+    /// </summary>
+    public static string[] TripoPairs()
+    {
+        List<string> pairs = new()
+        {
+            "Hip", "hips", "Waist", "spine.001", "Spine01", "spine.002", "Spine02", "spine.003",
+            "NeckTwist01", "neck", "Head", "head",
+        };
+        foreach (string s in new[] { "L", "R" })
+        {
+            pairs.AddRange(new[]
+            {
+                $"{s}_Clavicle", $"shoulder.{s}", $"{s}_Upperarm", $"upper_arm.{s}", $"{s}_Forearm", $"forearm.{s}", $"{s}_Hand", $"hand.{s}",
+                $"{s}_Thigh", $"thigh.{s}", $"{s}_Calf", $"shin.{s}", $"{s}_Foot", $"foot.{s}", $"{s}_ToeBase", $"toe.{s}",
+            });
+            foreach ((string finger, string f) in new[] { ("Index", "f_index"), ("Mid", "f_middle"), ("Ring", "f_ring"), ("Pinky", "f_pinky"), ("Thumb", "thumb") })
+            {
+                for (int k = 1; k <= 3; k++)
+                {
+                    pairs.Add($"{s}_{finger}{k}");
+                    pairs.Add($"{f}.0{k}.{s}");
                 }
             }
         }

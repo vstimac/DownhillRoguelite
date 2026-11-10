@@ -36,6 +36,7 @@ public partial class CarrierHealth : Node
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.Slept += OnSlept;
         GameEvents.KillRequested += OnKillRequested;
+        GameEvents.DamageRequested += TakeDamage;
     }
 
     public override void _ExitTree()
@@ -43,6 +44,7 @@ public partial class CarrierHealth : Node
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.Slept -= OnSlept;
         GameEvents.KillRequested -= OnKillRequested;
+        GameEvents.DamageRequested -= TakeDamage;
         if (_run != null) { _run.CharacterChanged -= OnCharacterChanged; }
     }
 

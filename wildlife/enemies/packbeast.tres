@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="EnemySpecies" format=3]
+
+[ext_resource type="Script" path="res://wildlife/EnemySpecies.cs" id="1_species"]
+
+[resource]
+script = ExtResource("1_species")
+Id = "packbeast"
+DisplayName = "the pack fiend"
+ModelPath = "res://art/characters/enemies/packbeast/packbeast.fbx"
+ModelHeight = 0.98
+Height = 1.9
+BodyRadius = 0.38
+WalkSpeed = 1.5
+RunSpeed = 4.4
+SprintSpeed = 6.5
+SprintBeyond = 12.0
+Acceleration = 10.0
+TurnSpeed = 360.0
+SightRange = 30.0
+Reach = 1.5
+ReachAngle = 60.0
+Attacks = PackedStringArray("Punch_Jab", "Punch_Cross", "Sword_Attack")
+AttackDamage = PackedFloat32Array(7, 10, 16)
+AttackPush = PackedFloat32Array(2.5, 3, 6)
+AttackSpeed = PackedFloat32Array(1.15, 1.1, 1.0)
+AttackWindow = Array[Vector2]([Vector2(0.25, 0.55), Vector2(0.3, 0.6), Vector2(0.35, 0.6)])
+KnockdownPush = 5.5
+AttackCooldown = 1.0
+Health = 100.0
+GuardChance = 0.25
+DodgeChance = 0.35
+GuardSeconds = 0.9
+GuardedDamage = 0.15
+DodgeSpeed = 5.5
+StaggerSeconds = 0.5
+HeavyHit = 30.0
+HeavyStaggerSeconds = 0.9
+BlockedRecoil = 3.5
+CallSounds = PackedStringArray("res://audio/creatures/leopard_snarl_0.wav", "res://audio/creatures/leopard_snarl_1.wav")
+HurtSounds = PackedStringArray("res://audio/creatures/leopard_growl_0.wav", "res://audio/creatures/leopard_growl_1.wav")
+VolumeDb = 2.0
+VoicePitch = 0.9

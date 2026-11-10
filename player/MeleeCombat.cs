@@ -580,6 +580,7 @@ public partial class MeleeCombat : Node
         _haveTip = false;
         _animator?.Play(Combo[ComboIndex], ClipBlend, Pick(ComboSpeed, ComboIndex, 1.0f));
         SayOne(SwingSounds);
+        PublishSwing("swing");
         return true;
     }
 
@@ -596,7 +597,24 @@ public partial class MeleeCombat : Node
         State = Stance.Kicking;
         _struck.Clear();
         _animator?.Play("kick", ClipBlend, KickSpeed);
+        PublishSwing("kick");
         return true;
+    }
+
+    /// <summary>Tells enemies a blow is coming (they may guard or jump back).</summary>
+    private void PublishSwing(string kind)
+    {
+        if (Body == null)
+        {
+            return;
+        }
+        Vector3 facing = -Body.GlobalBasis.Z;
+        facing.Y = 0.0f;
+        if (facing.LengthSquared() < 0.0001f)
+        {
+            facing = Vector3.Forward;
+        }
+        GameEvents.PublishMeleeSwung(Body.GlobalPosition, facing.Normalized(), kind);
     }
 
     /// <summary>Holds the shield up (or lowers it); also for tests and automation.</summary>

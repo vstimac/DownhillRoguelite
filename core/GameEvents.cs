@@ -219,6 +219,19 @@ public static partial class GameEvents
 
     public static void RequestCameraShake(float strength) => CameraShakeRequested?.Invoke(strength);
 
+    /// <summary>
+    /// The carrier starts a blow (a sword swing or a kick): (their feet, the way they face, "swing" or
+    /// "kick"). Lets enemies that see it coming raise a guard or jump back.
+    /// </summary>
+    public static event Action<Godot.Vector3, Godot.Vector3, string>? MeleeSwung;
+
+    public static void PublishMeleeSwung(Godot.Vector3 feet, Godot.Vector3 facing, string kind) => MeleeSwung?.Invoke(feet, facing, kind);
+
+    /// <summary>Asks for the carrier to lose health from a blow (amount, who did it); CarrierHealth takes it.</summary>
+    public static event Action<float, string>? DamageRequested;
+
+    public static void RequestDamage(float amount, string cause) => DamageRequested?.Invoke(amount, cause);
+
     /// <summary>Weight of the cart the carrier is pulling, in kg (0 when not pulling one).</summary>
     public static float TowMass { get; private set; }
 

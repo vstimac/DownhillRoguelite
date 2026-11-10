@@ -28,12 +28,15 @@ public partial class SwordFittingTests : Node
 		Check("the scene sets up with the sword in the hand", fitting.IsSetUp && combat != null && combat.SwordInHand && combat.Sword != null,
 			$"set up {fitting.IsSetUp}, in hand {combat?.SwordInHand}");
 
+		// Measured from the fit it starts with (the saved one), not from zero.
+		Vector3 startPos = fitting.CurrentFit.HandPosition;
+		Vector3 startRot = fitting.CurrentFit.HandRotation;
 		await Press(Key.Up);
 		await Press(Key.Up);
 		await Press(Key.Right, shift: true);
 		Vector3 handPos = fitting.CurrentFit.HandPosition;
 		Vector3 handRot = fitting.CurrentFit.HandRotation;
-		Check("arrows shift and Shift turns the sword in the hand", Mathf.IsEqualApprox(handPos.Y, 0.02f) && Mathf.IsEqualApprox(handRot.Y, 5.0f),
+		Check("arrows shift and Shift turns the sword in the hand", Mathf.IsEqualApprox(handPos.Y - startPos.Y, 0.02f) && Mathf.IsEqualApprox(handRot.Y - startRot.Y, 5.0f),
 			$"shift {handPos}, turn {handRot}");
 
 		foreach (Key pose in new[] { Key.Key2, Key.Key3, Key.Key6, Key.Key7, Key.Key1 })
