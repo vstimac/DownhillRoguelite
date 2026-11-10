@@ -123,6 +123,11 @@ public static class GameOptions
         ConfigFile file = new();
         if (file.Load(_path) != Error.Ok)
         {
+            // First launch: on integrated graphics start on Low (Options can raise it).
+            if (RenderingServer.GetVideoAdapterType() == RenderingDevice.DeviceType.IntegratedGpu)
+            {
+                Quality = GraphicsQuality.Low;
+            }
             return;
         }
         PauseWhileOpen = (bool)file.GetValue(Section, "pause_while_open", PauseWhileOpen);
