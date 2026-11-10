@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://j7ctiq77h7j5"
-path="res://.godot/imported/vucic_Vucic_Albedo.jpg-3189f8f7c6bfed07598cedebe6d83f2d.ctex"
+uid="uid://c4t52hd2hqnwh"
+path="res://.godot/imported/vucic_tripo_image_f26044c2-3cdd-45cf-88be-45124c92697c_0_Metallic.jpg-a4bc229cfbac2950ad408136abcf3d62.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "f62b0275d93f0df2bd887b6850efc6b1"
+"md5": "78dd91c324f70a670f0541bc6195bb46"
 }
 
 [deps]
 
-source_file="res://art/characters/vucic/vucic_Vucic_Albedo.jpg"
-dest_files=["res://.godot/imported/vucic_Vucic_Albedo.jpg-3189f8f7c6bfed07598cedebe6d83f2d.ctex"]
+source_file="res://art/characters/vucic/vucic_tripo_image_f26044c2-3cdd-45cf-88be-45124c92697c_0_Metallic.jpg"
+dest_files=["res://.godot/imported/vucic_tripo_image_f26044c2-3cdd-45cf-88be-45124c92697c_0_Metallic.jpg-a4bc229cfbac2950ad408136abcf3d62.ctex"]
 
 [params]
 
