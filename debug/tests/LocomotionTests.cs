@@ -20,6 +20,8 @@ public partial class LocomotionTests : Node3D
     [Export] public TestCourseBuilder? Course { get; set; }
 
     [ExportGroup("Durations (s)")]
+    /// <summary>What counts as ground when measuring foot contact (the world, not the ragdoll's own bodies).</summary>
+    [Export(PropertyHint.Layers3DPhysics)] public uint GroundLayer { get; set; } = 1;
     [Export] public float SettleTime { get; set; } = 0.3f;
     [Export] public float StairWalkTime { get; set; } = 4.0f;
     [Export] public float SlopeHoldTime { get; set; } = 2.0f;
@@ -444,9 +446,9 @@ public partial class LocomotionTests : Node3D
     }
 
     /// <summary>Distance from a point to the ground below it, along the ground's normal; NaN if no ground.</summary>
-    private static float HeightAboveGround(PhysicsDirectSpaceState3D space, Godot.Collections.Array<Rid> exclude, Vector3 point)
+    private float HeightAboveGround(PhysicsDirectSpaceState3D space, Godot.Collections.Array<Rid> exclude, Vector3 point)
     {
-        PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(point + Vector3.Up * 0.5f, point + Vector3.Down * 0.5f, uint.MaxValue, exclude);
+        PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(point + Vector3.Up * 0.5f, point + Vector3.Down * 0.5f, GroundLayer, exclude);
         Godot.Collections.Dictionary hit = space.IntersectRay(query);
         if (hit.Count == 0)
         {

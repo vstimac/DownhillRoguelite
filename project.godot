@@ -258,6 +258,8 @@ debug_cycle_weather={
 
 3d/physics_engine="Jolt Physics"
 common/physics_interpolation=true
+jolt_physics_3d/simulation/velocity_steps=12
+jolt_physics_3d/simulation/position_steps=4
 
 [audio]
 
