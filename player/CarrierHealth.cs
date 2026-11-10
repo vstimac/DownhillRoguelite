@@ -106,6 +106,13 @@ public partial class CarrierHealth : Node
         }
     }
 
+    /// <summary>Continue: the health a saved run had (alive; at least one point).</summary>
+    public void Restore(float current)
+    {
+        Dead = false;
+        Current = Mathf.Clamp(current, 1.0f, EffectiveMax);
+    }
+
     public void Refill()
     {
         Current = EffectiveMax;

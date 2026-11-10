@@ -353,6 +353,16 @@ public static partial class GameEvents
 
     public static void PublishPagesFrozen(bool frozen) => PagesFrozen = frozen;
 
+    /// <summary>Asks for the run to be saved now (quitting from the pause menu).</summary>
+    public static event Action? SaveRequested;
+
+    /// <summary>A run was begun from the start screen: true when it continues the saved run (RunKeeper), false for New Run.</summary>
+    public static event Action<bool>? RunBegun;
+
+    public static void PublishRunBegun(bool continuing) => RunBegun?.Invoke(continuing);
+
+    public static void RequestSave() => SaveRequested?.Invoke();
+
     /// <summary>The map opens with the pencil in hand (opened by using paper or a pencil): a plain drag draws.</summary>
     public static bool MapPencilWanted { get; private set; }
 

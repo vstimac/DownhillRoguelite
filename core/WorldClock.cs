@@ -125,6 +125,14 @@ public partial class WorldClock : Node
         TotalHours = 0.0;
     }
 
+    /// <summary>Continue: back to a saved day and hour.</summary>
+    public void Restore(int day, float hour)
+    {
+        Day = System.Math.Max(day, 1);
+        TimeOfDay = Mathf.PosMod(hour, HoursPerDay);
+        TotalHours = (Day - 1) * HoursPerDay + TimeOfDay - StartHour;
+    }
+
     /// <summary>Jumps to an hour of the current day (debug and tests).</summary>
     public void SetTimeOfDay(float hour)
     {

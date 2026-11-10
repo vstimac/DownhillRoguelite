@@ -183,6 +183,48 @@ public partial class RunState : Node
 
     public void BeginCharacterRun(string? id = null) { ConfigureCharacter(id, true); }
 
+    /// <summary>The run's own numbers for a save (the rest of the world is saved by RunKeeper).</summary>
+    public void CaptureInto(RunSave save)
+    {
+        save.Seed = Seed;
+        save.RunNumber = RunNumber;
+        save.Depth = Depth;
+        save.Stage = Stage;
+        save.Character = Character.Id;
+        save.Boons = new System.Collections.Generic.List<string>(Boons);
+        save.Modifiers.Clear();
+        foreach (System.Reflection.PropertyInfo property in typeof(RunModifiers).GetProperties())
+        {
+            if (property.PropertyType == typeof(float) && property.CanRead && property.CanWrite)
+            {
+                save.Modifiers[property.Name] = (float)property.GetValue(Modifiers)!;
+            }
+        }
+    }
+
+    /// <summary>Continue: puts back a saved run's numbers, character and boons (after StartNewRun(save.Seed) rebuilt its mountain).</summary>
+    public void RestoreFrom(RunSave save)
+    {
+        RunOver = false;
+        _overTimer = 0.0f;
+        RunNumber = System.Math.Max(save.RunNumber, 1);
+        Stage = save.Stage;
+        Depth = save.Depth;
+        if (save.Character.Length > 0)
+        {
+            ConfigureCharacter(save.Character, true);
+        }
+        Boons.Clear();
+        Boons.AddRange(save.Boons);
+        foreach (System.Reflection.PropertyInfo property in typeof(RunModifiers).GetProperties())
+        {
+            if (property.PropertyType == typeof(float) && property.CanWrite && save.Modifiers.TryGetValue(property.Name, out float value) && float.IsFinite(value))
+            {
+                property.SetValue(Modifiers, value);
+            }
+        }
+    }
+
     public bool TryUseCharacterAbility()
     {
         if (RunOver || GetTree().Paused || GameEvents.IsDowned || GameEvents.IsPacking || GameEvents.IsConversing || !Character.Activate()) { return false; }

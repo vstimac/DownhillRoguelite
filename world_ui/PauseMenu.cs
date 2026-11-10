@@ -219,7 +219,11 @@ public partial class PauseMenu : CanvasLayer
         _column.AddChild(_menu);
         AddItem("Resume", Resume);
         AddItem("Options", ShowOptions);
-        AddItem("Quit", () => GetTree().Quit());
+        AddItem("Save and quit", () =>
+        {
+            GameEvents.RequestSave();
+            GetTree().Quit();
+        });
         _tips = UiStyle.MakeLabel(TipsText, UiStyle.SmallSize, false, UiStyle.PaperDark);
         _tips.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _tips.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.7f));

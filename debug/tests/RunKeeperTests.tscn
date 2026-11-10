@@ -1,0 +1,37 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/RunKeeperTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://terrain/TerrainStreamer.cs" id="2_streamer"]
+[ext_resource type="Resource" path="res://terrain/default_terrain.tres" id="3_terrain_settings"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="4_player"]
+[ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="5_inventory"]
+[ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="6_backpack"]
+[ext_resource type="Script" path="res://debug/DebugSceneControls.cs" id="7_controls"]
+[ext_resource type="Script" path="res://progression/RunKeeper.cs" id="8_keeper"]
+
+[node name="RunKeeperTests" type="Node3D" node_paths=PackedStringArray("PlayerBody", "Keeper")]
+script = ExtResource("1_tests")
+PlayerBody = NodePath("Player")
+Keeper = NodePath("Keeper")
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_streamer")
+Settings = ExtResource("3_terrain_settings")
+
+[node name="Player" parent="." instance=ExtResource("4_player")]
+
+[node name="Inventory" type="Node" parent="Player"]
+script = ExtResource("5_inventory")
+Backpack = ExtResource("6_backpack")
+StartingItemPaths = PackedStringArray()
+AutoPackOnStart = false
+
+[node name="Keeper" type="Node" parent="." node_paths=PackedStringArray("PlayerBody")]
+script = ExtResource("8_keeper")
+PlayerBody = NodePath("../Player")
+
+[node name="Controls" type="Node" parent="." node_paths=PackedStringArray("PlayerBody", "Streamer")]
+script = ExtResource("7_controls")
+KillHeight = -1e+09
+PlayerBody = NodePath("../Player")
+Streamer = NodePath("../Terrain")

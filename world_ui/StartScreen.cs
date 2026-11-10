@@ -221,6 +221,10 @@ public partial class StartScreen : CanvasLayer
         _menu = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         _menu.AddThemeConstantOverride("separation", 4);
         _column.AddChild(_menu);
+        if (RunSave.Exists)
+        {
+            AddItem("Continue", "Carry on the descent you left.", ContinueRun);
+        }
         AddItem("New Run", "Start on the summit of a new mountain.", StartRun);
         if (CharacterPage.Roster(RosterPath).Count > 1)
         {
@@ -562,12 +566,24 @@ public partial class StartScreen : CanvasLayer
     /// <summary>New Run: the menu fades, the camera flies into the run's camera, the world wakes and the sound fades in.</summary>
     public void StartRun()
     {
+        BeginRun(false);
+    }
+
+    /// <summary>Continue: as New Run, but RunKeeper puts the saved run back.</summary>
+    public void ContinueRun()
+    {
+        BeginRun(true);
+    }
+
+    private void BeginRun(bool continuing)
+    {
         if (Started)
         {
             return;
         }
         Started = true;
         GetNodeOrNull<RunState>("/root/RunState")?.BeginCharacterRun();
+        GameEvents.PublishRunBegun(continuing);
         Current = Page.Starting;
         _warmup = 0.0f;
         GetViewport().GuiReleaseFocus();

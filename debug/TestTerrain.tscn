@@ -89,6 +89,7 @@
 [ext_resource type="Script" path="res://wildlife/BeastDirector.cs" id="61_beasts"]
 [ext_resource type="Resource" path="res://wildlife/default_beasts.tres" id="62_beast_roster"]
 [ext_resource type="Script" path="res://narrative/president/PresidentDirector.cs" id="63_president"]
+[ext_resource type="Script" path="res://progression/RunKeeper.cs" id="102_run_keeper"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
@@ -435,3 +436,8 @@ script = ExtResource("93_fcat")
 [node name="GroundFog" type="Node3D" parent="." unique_id=1907733501]
 script = ExtResource("100_ground_fog")
 Settings = ExtResource("101_ground_fog_settings")
+
+[node name="RunKeeper" type="Node" parent="." unique_id=1907733502 node_paths=PackedStringArray("PlayerBody", "Supplies")]
+script = ExtResource("102_run_keeper")
+PlayerBody = NodePath("../Player")
+Supplies = NodePath("../Supplies")

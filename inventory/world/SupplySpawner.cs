@@ -35,6 +35,8 @@ public partial class SupplySpawner : Node3D
     public readonly record struct Slot(int Entry, float X, float Z, string Key);
 
     public int SpawnedCount => _items.Count;
+    /// <summary>Slot keys of the supplies taken this run (saved with the run).</summary>
+    public IReadOnlyCollection<string> Taken => _taken;
     public IEnumerable<WorldItem> SpawnedItems => _items.Values;
 
     private readonly Dictionary<Vector2I, List<string>> _cells = new();
@@ -73,6 +75,19 @@ public partial class SupplySpawner : Node3D
     {
         _taken.Clear();
         ReloadCells();
+    }
+
+    /// <summary>Continue: these supplies were already taken this run; any lying out now go.</summary>
+    public void MarkTaken(IEnumerable<string> keys)
+    {
+        foreach (string key in keys)
+        {
+            _taken.Add(key);
+            if (_items.Remove(key, out WorldItem? item))
+            {
+                item.QueueFree();
+            }
+        }
     }
 
     /// <summary>Frees every spawned item and regenerates cells; taken items stay taken.</summary>
