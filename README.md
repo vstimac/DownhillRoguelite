@@ -12,9 +12,13 @@ A dark survival adventure about descending a mountain that never ends — toward
 
 **Godot 4.7 .NET · C# · Windows and Linux playtests · In active development**
 
-[**Download Windows Beta 2.5**](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-beta-2.5-windows.zip) · [All releases](https://github.com/vstimac/DownhillRoguelite/releases) · [Report feedback](https://github.com/vstimac/DownhillRoguelite/issues/new/choose) · [**Join our Discord**](https://discord.gg/vhPkSvPk2)
+## ⬇ Download the game (free)
 
-[![Join the Downhill Roguelite Discord](https://img.shields.io/badge/Discord-Join%20the%20descent-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/vhPkSvPk2)
+[![Download for Windows — Beta 2.5, 390 MB](https://img.shields.io/badge/Download%20for%20Windows-Beta%202.5%20%7C%20390%20MB-2ea44f?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-beta-2.5-windows.zip)
+
+[![Download for Linux (experimental)](https://img.shields.io/badge/Linux-experimental-555555?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-linux-beta.tar.gz) [![Join the Downhill Roguelite Discord](https://img.shields.io/badge/Discord-Join%20the%20descent-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/vhPkSvPk2)
+
+**Click the green button → right-click the ZIP → Extract All → run `DownhillRoguelite.exe`.** [How to install](#download-and-play) · [All releases](https://github.com/vstimac/DownhillRoguelite/releases) · [Report feedback](https://github.com/vstimac/DownhillRoguelite/issues/new/choose)
 
 </div>
 
@@ -38,11 +42,9 @@ A dark survival adventure about descending a mountain that never ends — toward
 | **Sound** | | Headphones (directional voices) |
 | **Heart** | <img src="docs/media/u-ram.jpg" width="150" alt="Framed meme: pa onda stavi me u ram, da znam da tebi pripadam"> | |
 
-## Play the game
+## Download and play
 
 **Latest published Windows build: [v0.2.5-beta](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.2.5-beta)** (10 November 2026).
-
-0. **Join our [Discord](https://discord.gg/vhPkSvPk2)** for news, help and new builds.
 
 1. Download [`DownhillRoguelite-beta-2.5-windows.zip`](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-beta-2.5-windows.zip) (~390 MB).
 2. Right-click the ZIP and choose **Extract All**. **Don't run the game from inside the ZIP**: Windows then copies only the `.exe` out and the game closes straight away.
