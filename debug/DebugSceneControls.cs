@@ -330,6 +330,11 @@ public partial class DebugSceneControls : Node
                 else
                 {
                     hud.Toggle(hud.Inventory);
+                    // `--page=inventory:0` also selects that slot (render checks of the item text).
+                    if (page.StartsWith("inventory:") && int.TryParse(page.Substring("inventory:".Length), out int slot))
+                    {
+                        hud.Inventory?.Select(slot);
+                    }
                 }
             }
         }

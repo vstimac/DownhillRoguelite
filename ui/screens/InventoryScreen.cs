@@ -27,6 +27,9 @@ public partial class InventoryScreen : ParchmentPanel
     private ItemSlot? _detailIcon;
     private Label? _detailTitle;
     private Label? _detailBody;
+    private ScrollContainer? _detailScroll;
+    /// <summary>The description ends this far down the page, above the Use and Drop buttons.</summary>
+    private const float DetailBottom = 440.0f;
     private InkButton? _use;
     private InkButton? _drop;
     private WeightScale? _weight;
@@ -170,14 +173,26 @@ public partial class InventoryScreen : ParchmentPanel
         float detailX = 24 + Columns * (cell + 6) + 12;
         _detailIcon = new ItemSlot { Position = new Vector2(detailX, 64), Size = new Vector2(96, 96), Index = 99 };
         AddChild(_detailIcon);
-        _detailTitle = UiStyle.MakeLabel("", 26, true);
-        _detailTitle.Position = new Vector2(detailX, 168);
+        float detailWidth = StatsX - detailX - 16;
+        // A long name wraps onto a second line instead of running into the stats.
+        _detailTitle = UiStyle.MakeLabel("", 22, true);
+        _detailTitle.Position = new Vector2(detailX, 164);
+        _detailTitle.Size = new Vector2(detailWidth, 58);
+        _detailTitle.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _detailTitle.ClipText = true;
         AddChild(_detailTitle);
+        // The description scrolls (wheel or drag) when it's longer than the space above the buttons.
+        _detailScroll = new ScrollContainer
+        {
+            Position = new Vector2(detailX, 224),
+            Size = new Vector2(detailWidth, DetailBottom - 224),
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        AddChild(_detailScroll);
         _detailBody = UiStyle.MakeLabel("Choose something to read about it.", UiStyle.SmallSize);
-        _detailBody.Position = new Vector2(detailX, 204);
-        _detailBody.Size = new Vector2(StatsX - detailX - 16, 230);
+        _detailBody.CustomMinimumSize = new Vector2(detailWidth - 14, 0);
         _detailBody.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        AddChild(_detailBody);
+        _detailScroll.AddChild(_detailBody);
         _use = new InkButton { Text = "Eat", Paper = true, Position = new Vector2(detailX, 448), Size = new Vector2(110, 40), Visible = false };
         _use.Pressed += UseSelected;
         AddChild(_use);
@@ -325,6 +340,10 @@ public partial class InventoryScreen : ParchmentPanel
         _detailIcon.SetItem(item, _counts.GetValueOrDefault(item.ItemId));
         _detailTitle.Text = item.DisplayName;
         _detailBody.Text = ItemText.Describe(item) + "\n" + ItemText.Properties(item) + "\n\n" + ItemText.HowToUse(item);
+        if (_detailScroll != null)
+        {
+            _detailScroll.ScrollVertical = 0;
+        }
         _use.Visible = item.Category is ItemCategory.Food or ItemCategory.Water or ItemCategory.Clothing or ItemCategory.Material || ItemText.OpensMap(item) || item.UsableAlone;
         _use.Text = "Eat";
         if (item.UsableAlone && item.Category != ItemCategory.Food && item.Category != ItemCategory.Water)
