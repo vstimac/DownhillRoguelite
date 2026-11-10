@@ -22,6 +22,8 @@ A dark survival adventure about descending a mountain that never ends — toward
 
 **Latest published Windows build: [v0.2.5-beta](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.2.5-beta)** (10 November 2026).
 
+0. Join discord: https://discord.gg/vhPkSvPk2
+
 1. Download [`DownhillRoguelite-beta-2.5-windows.zip`](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-beta-2.5-windows.zip) (~390 MB).
 2. Right-click the ZIP and choose **Extract All**. **Don't run the game from inside the ZIP**: Windows then copies only the `.exe` out and the game closes straight away.
 3. Open the extracted folder and run **`DownhillRoguelite.exe`**. Keep the files in that folder together.
