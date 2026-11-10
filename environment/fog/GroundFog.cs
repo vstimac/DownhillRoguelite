@@ -81,10 +81,12 @@ public partial class GroundFog : Node3D
 
     private void OnOptions()
     {
-        if (OffOnLowQuality)
+        bool wanted = GameOptions.GroundFog;
+        if (OffOnLowQuality && GameOptions.Quality == GraphicsQuality.Low)
         {
-            SetFogEnabled(GameOptions.Quality != GraphicsQuality.Low);
+            wanted = false;
         }
+        SetFogEnabled(wanted);
     }
 
     /// <summary>(Re)makes the simulation, sampler and renderer from the settings (after the grid's size changes).</summary>

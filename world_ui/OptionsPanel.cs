@@ -354,6 +354,8 @@ public partial class OptionsPanel : ParchmentPanel
             Selected = (int)GameOptions.Quality,
             Changed = i => GameOptions.SetQuality((GraphicsQuality)i),
         });
+        Add(video, ChoiceRow.Toggle("Ground fog", GameOptions.GroundFog, GameOptions.SetGroundFog,
+            "The low mist that flows downhill and parts around you. Off saves a little speed; Low quality turns it off too."));
         Add(video, ChoiceRow.Toggle("Vertical sync", GameOptions.VSync, GameOptions.SetVSync,
             "Matches frames to the screen's refresh: no tearing, a touch more input delay."));
         FrameCapRow(video);

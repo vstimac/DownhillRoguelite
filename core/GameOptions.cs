@@ -42,6 +42,8 @@ public static class GameOptions
     /// <summary>Window size when windowed; (0, 0) keeps the project's default size.</summary>
     public static Vector2I WindowSize { get; private set; } = Vector2I.Zero;
     public static bool VSync { get; private set; } = true;
+    /// <summary>The low fog that flows over the ground (Low quality turns it off regardless).</summary>
+    public static bool GroundFog { get; private set; } = true;
     /// <summary>Graphics preset: Low, Medium or High (OptionsApplier and the terrain read it).</summary>
     public static GraphicsQuality Quality { get; private set; } = GraphicsQuality.High;
     /// <summary>Frame-rate cap; 0 = none.</summary>
@@ -98,6 +100,7 @@ public static class GameOptions
         Display = DisplayMode.Windowed;
         WindowSize = Vector2I.Zero;
         VSync = true;
+        GroundFog = true;
         Quality = GraphicsQuality.High;
         MaxFps = 0;
         LookSensitivity = 1.0f;
@@ -148,6 +151,7 @@ public static class GameOptions
         Display = (DisplayMode)Mathf.Clamp((int)file.GetValue(Section, "display", (int)Display), 0, 2);
         WindowSize = new Vector2I(Mathf.Max(0, (int)file.GetValue(Section, "window_width", 0)), Mathf.Max(0, (int)file.GetValue(Section, "window_height", 0)));
         VSync = (bool)file.GetValue(Section, "vsync", VSync);
+        GroundFog = (bool)file.GetValue(Section, "ground_fog", GroundFog);
         Quality = (GraphicsQuality)Mathf.Clamp((int)file.GetValue(Section, "graphics_quality", (int)Quality), 0, 2);
         MaxFps = Mathf.Max(0, (int)file.GetValue(Section, "max_fps", MaxFps));
         LookSensitivity = Mathf.Clamp((float)file.GetValue(Section, "look_sensitivity", LookSensitivity), 0.25f, 3.0f);
@@ -178,6 +182,7 @@ public static class GameOptions
     public static void SetDisplay(DisplayMode mode) => Set(() => Display = mode);
     public static void SetWindowSize(Vector2I size) => Set(() => WindowSize = new Vector2I(Mathf.Max(0, size.X), Mathf.Max(0, size.Y)));
     public static void SetVSync(bool on) => Set(() => VSync = on);
+    public static void SetGroundFog(bool on) => Set(() => GroundFog = on);
     public static void SetQuality(GraphicsQuality quality) => Set(() => Quality = quality);
     public static void SetMaxFps(int fps) => Set(() => MaxFps = Mathf.Max(0, fps));
     public static void SetLookSensitivity(float multiplier) => Set(() => LookSensitivity = Mathf.Clamp(multiplier, 0.25f, 3.0f));
@@ -236,6 +241,7 @@ public static class GameOptions
         file.SetValue(Section, "window_width", WindowSize.X);
         file.SetValue(Section, "window_height", WindowSize.Y);
         file.SetValue(Section, "vsync", VSync);
+        file.SetValue(Section, "ground_fog", GroundFog);
         file.SetValue(Section, "graphics_quality", (int)Quality);
         file.SetValue(Section, "max_fps", MaxFps);
         file.SetValue(Section, "look_sensitivity", LookSensitivity);
