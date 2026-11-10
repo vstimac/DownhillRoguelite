@@ -24,7 +24,7 @@ mkdir -p "$out/stage"
 "$godot_bin" --headless --path . --export-release "Linux" "$out/stage/$name.x86_64"
 [ -f "$out/stage/$name.x86_64" ] || { fail "Export produced no binary (are the Linux export templates installed?)"; exit 1; }
 chmod +x "$out/stage/$name.x86_64"
-cp docs/LINUX.md "$out/stage/README-LINUX.md"
+cp ../docs/LINUX.md "$out/stage/README-LINUX.md"
 cp -r export/playtest/Wallpaper "$out/stage/Wallpaper"   # thank-you wallpapers for beta testers
 mkdir -p "$out/stage/Models"
 cat > "$out/stage/Models/PUT-THE-MODEL-HERE.txt" <<EOF

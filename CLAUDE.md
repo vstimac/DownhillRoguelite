@@ -6,11 +6,12 @@ Current milestone: M8 weather built (fronts per circle, grip, wind on balance, c
 This folder (`downhill-roguelite-(copy)`) is the active project; `D:\Game dev\DownhillRoguelite` is the older copy without the addon.
 
 ## Build and run
+- The Godot project (project.godot, the .csproj, every code and asset folder, scripts/ and tools/) lives in `game/`; run the commands below from there. The repository root holds only README, LICENSE, RIGHTS, docs/ and .github/.
 - Build C#: `dotnet build`
 - Run the game: `godot --path .` (Godot .NET binary must be on PATH as `godot`)
 - Headless smoke test: `godot --headless --path . --quit-after 300` — check the output for errors
 - Build and smoke-test after major changes only (new systems, scene or project-settings changes, anything touching several files), not after every small edit; report errors with file and line
-- All of the above in one go: `bash .claude/skills/smoke-test/smoke.sh` (the `smoke-test` skill) — run it before committing a major change
+- All of the above in one go, from the repository root: `bash .claude/skills/smoke-test/smoke.sh` (the `smoke-test` skill) — run it before committing a major change
 - Visual check (headless can't render): `godot --path . --resolution 1280x720 --write-movie <scratch dir>/frame.png --quit-after 30`, then look at the last frame
 - Hand-written `.tscn` `Transform3D(...)` lists the basis row by row (x.x, y.x, z.x, x.y, ...), not as column vectors. Verify any orientation with a visual check.
 
@@ -21,7 +22,7 @@ This folder (`downhill-roguelite-(copy)`) is the active project; `D:\Game dev\Do
 - Tunable values go in `[Export]` fields or Resource files, never magic numbers in logic.
 
 ## Architecture rules
-- Folders: core/, player/, balance/, inventory/, terrain/, map/, progression/, world_ui/, ui/, narrative/, environment/, wildlife/, debug/, art/, audio/
+- Folders (in game/): core/, player/, balance/, inventory/, terrain/, map/, progression/, world_ui/, ui/, narrative/, environment/, wildlife/, debug/, art/, audio/
 - Systems communicate through C# events / signals and the RunState autoload — no direct cross-system references.
 - Every gameplay system gets a debug scene in debug/ and a debug overlay (COM, foot targets, forces).
 - UI: the director's journal UI (Don't Starve-inspired, hand-drawn parchment) lives in ui/: HUD (survival dials, descent note, compass, equipment, hotbar, tooltip, notes) and pages (inventory I, map M, journal J). In-world labels (cairns, signs, boons) stay 3D. UI is presentation only: it reads GameEvents/RunState and asks for actions through events.

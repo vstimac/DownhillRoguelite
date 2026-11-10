@@ -62,7 +62,7 @@ fi
 [ -f addons/nobodywho/nobodywho.gdextension ] && ok "nobodywho.gdextension" || { fail "addons/nobodywho/nobodywho.gdextension missing (it is in git; restore it)"; failed=1; }
 
 # --- Companion model (optional) ---
-model="../Models/$MODEL_FILE"
+model="../../Models/$MODEL_FILE"
 if [ -f "$model" ]; then
     size="$(wc -c < "$model" | tr -d ' ')"
     if [ "$size" = "$MODEL_SIZE_BYTES" ]; then

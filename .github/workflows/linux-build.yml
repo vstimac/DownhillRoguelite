@@ -17,7 +17,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      GODOT: ${{ github.workspace }}/.ci/godot/godot
+      GODOT: ${{ github.workspace }}/game/.ci/godot/godot
+    # The Godot project lives in game/.
+    defaults:
+      run:
+        working-directory: game
     steps:
       - uses: actions/checkout@v4
 
@@ -38,7 +42,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            .ci/godot
+            game/.ci/godot
             ~/.local/share/godot/export_templates/${{ steps.v.outputs.templates }}
           key: godot-mono-${{ steps.v.outputs.godot }}-linux
 
@@ -70,7 +74,7 @@ jobs:
         id: nw-cache
         uses: actions/cache@v4
         with:
-          path: addons/nobodywho/libnobodywho-godot-x86_64-unknown-linux-gnu-release.so
+          path: game/addons/nobodywho/libnobodywho-godot-x86_64-unknown-linux-gnu-release.so
           key: nobodywho-${{ steps.v.outputs.nobodywho }}-linux
 
       - name: Fetch NobodyWho
@@ -112,5 +116,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: DownhillRoguelite-linux-x86_64
-          path: build/linux/DownhillRoguelite-linux-x86_64.tar.gz
+          path: game/build/linux/DownhillRoguelite-linux-x86_64.tar.gz
           retention-days: 14

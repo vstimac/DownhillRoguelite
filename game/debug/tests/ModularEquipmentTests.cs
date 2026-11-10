@@ -46,7 +46,7 @@ public partial class ModularEquipmentTests : Node3D
         inventory.TryAdd(pack, 70, false);
         gear.Wear(shirt.ItemId); gear.Wear(pack.ItemId);
         float mass = CarriedLoad.Mass;
-        string savePath = "res://../math-audit-artifacts/equipment-regression.json";
+        string savePath = "res://../../math-audit-artifacts/equipment-regression.json";
         Check("equipment and carried storage save with validated resource identities", EquipmentPersistence.Save(inventory, savePath, out _));
         gear.TakeOff(EquipSlot.InnerTorso); gear.TakeOff(EquipSlot.Back); inventory.Clear();
         Check("load restores worn slots, condition and appearance", EquipmentPersistence.Load(inventory, savePath, out _)

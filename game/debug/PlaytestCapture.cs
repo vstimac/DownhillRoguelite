@@ -19,7 +19,7 @@ public partial class PlaytestCapture : Node
     [Export] public int MaxImages { get; set; } = 600;
     [Export] public float Quality { get; set; } = 0.88f;
     [Export] public float ChangeThreshold { get; set; } = 0.06f;
-    [Export] public string OutputDirectory { get; set; } = "res://../math-audit-artifacts/live-capture";
+    [Export] public string OutputDirectory { get; set; } = "res://../../math-audit-artifacts/live-capture";
     public string SessionDirectory { get; private set; } = "";
     private long _frame;
     private long _sequence;

@@ -69,7 +69,7 @@ def main():
               font=load_font(18), fill=(208, 54, 49, 255))
     image.save(target, optimize=True)
 
-    readme_path = Path("README.md")
+    readme_path = Path("../README.md")
     readme = readme_path.read_text(encoding="utf-8")
     readme = readme.replace("art/characters/the-descent-character-pack.png",
                             "art/characters/downhillroguelite-character-pack.png")

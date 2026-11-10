@@ -2,7 +2,7 @@
 # Optional: downloads the companion's language model (Qwen2.5 3B Instruct, Q4_K_M GGUF, 2.1 GB) and
 # checks its SHA-256. Without it the game runs normally; the companion just doesn't talk back.
 #
-#   scripts/fetch_model.sh                 # into ../Models/ next to the project (where the editor looks)
+#   scripts/fetch_model.sh                 # into ../../Models/ next to the repository (where the editor looks)
 #   scripts/fetch_model.sh /path/to/Game   # into /path/to/Game/Models/ (next to an exported game)
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/versions.sh"
@@ -10,7 +10,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/versions.sh"
 if [ $# -ge 1 ]; then
     dir="$1/Models"
 else
-    dir="$PROJECT_ROOT/../Models"
+    dir="$PROJECT_ROOT/../../Models"
 fi
 mkdir -p "$dir"
 file="$dir/$MODEL_FILE"

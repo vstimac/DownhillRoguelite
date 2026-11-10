@@ -11,7 +11,7 @@ public partial class CharacterCustomizationTests : Node3D
     private int _failures;
     public override async void _Ready()
     {
-        string path = "res://../math-audit-artifacts/character-customization-options.cfg";
+        string path = "res://../../math-audit-artifacts/character-customization-options.cfg";
         GameOptions.UseFile(path);
         GameOptions.SetCharacter("modular");
         CarrierModel look = GetNode<CarrierModel>("World/Player/CarrierModel");

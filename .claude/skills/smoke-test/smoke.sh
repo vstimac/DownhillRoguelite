@@ -6,7 +6,7 @@
 set -u
 
 FRAMES="${1:-300}"
-PROJECT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+PROJECT_DIR="$(cd "$(dirname "$0")/../../../game" && pwd)"
 LOG_DIR="$(mktemp -d)"
 FAILED=0
 

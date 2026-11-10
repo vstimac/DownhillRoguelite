@@ -16,21 +16,21 @@ obj/
 
 # NobodyWho prebuilt libraries (~140 MB each, over GitHub's 100 MB file limit).
 # Reinstall the addon to restore them; see addons/README.md.
-addons/nobodywho/*.dll
-addons/nobodywho/*.pdb
-addons/nobodywho/*.so
-addons/nobodywho/*.dylib
+game/addons/nobodywho/*.dll
+game/addons/nobodywho/*.pdb
+game/addons/nobodywho/*.so
+game/addons/nobodywho/*.dylib
 # Leftover copies Windows makes of locked DLLs
-addons/**/~*
-tools/launcher/bin/
-tools/launcher/obj/
-tools/launcher/out/
+game/addons/**/~*
+game/tools/launcher/bin/
+game/tools/launcher/obj/
+game/tools/launcher/out/
 
-# Mixamo character and animations: free to use in the game, not to redistribute as files (see art/characters/mixamo/README.md)
-art/characters/mixamo/*.fbx
-art/characters/mixamo/*.fbx.import
-art/characters/mixamo/*.png
-art/characters/mixamo/*.png.import
+# Mixamo character and animations: free to use in the game, not to redistribute as files (see game/art/characters/mixamo/README.md)
+game/art/characters/mixamo/*.fbx
+game/art/characters/mixamo/*.fbx.import
+game/art/characters/mixamo/*.png
+game/art/characters/mixamo/*.png.import
 
 # Linux export output (scripts/build_linux.sh)
 build/

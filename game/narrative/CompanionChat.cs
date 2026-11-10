@@ -22,7 +22,7 @@ public partial class CompanionChat : Node
     /// <summary>Optional development feature. Core builds never search for or load a language model.</summary>
     [Export] public bool EnableLanguageModel { get; set; }
     /// <summary>The model file: absolute, or relative to the project folder (or the exported game's folder).</summary>
-    [Export] public string ModelPath { get; set; } = "../Models/qwen2.5-3b-instruct-q4_k_m.gguf";
+    [Export] public string ModelPath { get; set; } = "../../Models/qwen2.5-3b-instruct-q4_k_m.gguf";
     [Export(PropertyHint.File, "*.txt")] public string PromptPath { get; set; } = "res://narrative/data/companion_prompt.txt";
     /// <summary>Replies are cut off after this many tokens (keeps them short and quick).</summary>
     [Export] public int MaxReplyTokens { get; set; } = 90;

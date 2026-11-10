@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="art/brand/discord_icon_512.png" width="108" alt="Downhill Roguelite emblem">
+<img src="game/art/brand/discord_icon_512.png" width="108" alt="Downhill Roguelite emblem">
 
 # Downhill Roguelite
 
@@ -69,7 +69,7 @@ You don't need to be a professional: help with a single model, animation, bug re
 
 **Come and talk to us on [Discord](https://discord.gg/vhPkSvPk2)**: playtest news, builds, feedback and a place to say hello before you help.
 
-**[I want to help →](https://github.com/vstimac/DownhillRoguelite/issues/new?template=help-wanted.md)** · [Join the Discord](https://discord.gg/vhPkSvPk2) · [Contribution guidelines](CONTRIBUTING.md) · [Open issues](https://github.com/vstimac/DownhillRoguelite/issues)
+**[I want to help →](https://github.com/vstimac/DownhillRoguelite/issues/new?template=help-wanted.md)** · [Join the Discord](https://discord.gg/vhPkSvPk2) · [Contribution guidelines](.github/CONTRIBUTING.md) · [Open issues](https://github.com/vstimac/DownhillRoguelite/issues)
 
 *Open collaboration; no paid position is being advertised. Project code uses MIT, while art, music, voices and other assets have separate rights; read [RIGHTS.md](RIGHTS.md) before uploading files.*
 
@@ -114,7 +114,7 @@ Features may vary by released build and development branch.
 
 ## Character concept gallery
 
-![DownhillRoguelite character concept board — fictional and satirical NPC ideas](art/characters/downhillroguelite-character-pack.png)
+![DownhillRoguelite character concept board — fictional and satirical NPC ideas](game/art/characters/downhillroguelite-character-pack.png)
 
 *Visual concept board, not a gameplay screenshot or proof of game-ready 3D models. Depicted characters and props are concepts until implemented and validated in-game.*
 
@@ -155,11 +155,11 @@ Use **Godot 4.7.2 .NET/Mono**, **.NET SDK 8+**, and the optional/additional depe
 
 ```bash
 git clone https://github.com/vstimac/DownhillRoguelite.git
-cd DownhillRoguelite
+cd DownhillRoguelite/game
 dotnet build
 ```
 
-Open `project.godot` with the **.NET edition** of Godot. Some libraries and licensed character source assets are intentionally not stored in the repository. Follow [docs/BUILDING.md](docs/BUILDING.md) and [addons/README.md](addons/README.md) before troubleshooting a fresh clone.
+The game lives in the `game/` folder. Open `game/project.godot` with the **.NET edition** of Godot. Some libraries and licensed character source assets are intentionally not stored in the repository. Follow [docs/BUILDING.md](docs/BUILDING.md) and [addons/README.md](game/addons/README.md) before troubleshooting a fresh clone.
 
 ## Feedback and project documentation
 
@@ -168,13 +168,13 @@ Found a bug or had an idea? [Open a GitHub issue](https://github.com/vstimac/Dow
 - [Playtest guide and full controls](docs/playtest-1-release.md)
 - [Build instructions](docs/BUILDING.md) · [Linux guide](docs/LINUX.md)
 - [Survival design](docs/survival-loop.md) · [Inventory design](docs/inventory-design.md) · [Narrative](docs/narrative.md)
-- [Art credits and third-party asset notices](art/CREDITS.md)
+- [Art credits and third-party asset notices](game/art/CREDITS.md)
 
 ## Credits and rights
 
-Art, audio, character models and third-party materials have **different rights and terms**. See [art/CREDITS.md](art/CREDITS.md) and each asset pack's license file. The concept gallery is not a downloadable 3D character pack. Mixamo sources and some optional model files are not included in Git.
+Art, audio, character models and third-party materials have **different rights and terms**. See [art/CREDITS.md](game/art/CREDITS.md) and each asset pack's license file. The concept gallery is not a downloadable 3D character pack. Mixamo sources and some optional model files are not included in Git.
 
-**Original project source code:** [MIT License](LICENSE) — permits reuse with the required copyright and license notice. **Game assets, character art, logo, music, voice recordings, narrative and third-party libraries are not automatically MIT.** Read [RIGHTS.md](RIGHTS.md), check [art/CREDITS.md](art/CREDITS.md) and obtain permissions where necessary. MIT's warranty disclaimer does not protect against unlicensed third-party content or all legal claims.
+**Original project source code:** [MIT License](LICENSE) — permits reuse with the required copyright and license notice. **Game assets, character art, logo, music, voice recordings, narrative and third-party libraries are not automatically MIT.** Read [RIGHTS.md](RIGHTS.md), check [art/CREDITS.md](game/art/CREDITS.md) and obtain permissions where necessary. MIT's warranty disclaimer does not protect against unlicensed third-party content or all legal claims.
 
 ---
 

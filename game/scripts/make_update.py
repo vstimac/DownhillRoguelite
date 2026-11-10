@@ -6,7 +6,7 @@ Builds a small update for players who already have the full game, instead of a w
 base_dir  the full game folder exactly as released (its DownhillRoguelite.pck and data folder are
           the reference; keep it untouched after a full release)
 version   the new version shown to players, e.g. 2.5.1
-out_dir   where to write the update zip (default: ../Builds)
+out_dir   where to write the update zip (default: Builds next to the repository)
 
 What it does:
 1. Exports the current project with the "Windows Desktop" preset to a scratch folder (full build).
@@ -82,7 +82,7 @@ def main():
         sys.exit(2)
     base_dir = os.path.abspath(sys.argv[1])
     version = sys.argv[2]
-    out_dir = os.path.abspath(sys.argv[3] if len(sys.argv) > 3 else os.path.join(ROOT, "..", "Builds"))
+    out_dir = os.path.abspath(sys.argv[3] if len(sys.argv) > 3 else os.path.join(ROOT, "..", "..", "Builds"))
     base_pck = os.path.join(base_dir, PCK)
     if not os.path.isfile(base_pck):
         fail(f"no {PCK} in {base_dir}: the base must be a full release exported with embed_pck=false")

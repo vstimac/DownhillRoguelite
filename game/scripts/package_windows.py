@@ -39,8 +39,8 @@ def fail(message):
 
 
 def main():
-    export_dir = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "..", "Builds", TOP))
-    zip_path = os.path.abspath(sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "..", "Builds", TOP + "-windows.zip"))
+    export_dir = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "..", "..", "Builds", TOP))
+    zip_path = os.path.abspath(sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "..", "..", "Builds", TOP + "-windows.zip"))
 
     exe = os.path.join(export_dir, EXE)
     if not os.path.isfile(exe):

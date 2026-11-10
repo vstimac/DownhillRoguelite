@@ -12,7 +12,9 @@ For developers building from source. Players want [LINUX.md](LINUX.md) or the re
 | NobodyWho | 13.0.0 | Local language-model addon; its libraries aren't in git (see below). |
 | curl, unzip | any | Used by the setup scripts. |
 
-All pinned versions and checksums live in [`scripts/versions.sh`](../scripts/versions.sh).
+All pinned versions and checksums live in [`scripts/versions.sh`](../game/scripts/versions.sh).
+
+The Godot project lives in the `game/` folder: run every command below from there (`cd game`).
 
 ## Linux: quick start
 
@@ -53,7 +55,7 @@ downloads and verifies it. Without it the companion stays silent; nothing else c
 `art/characters/mixamo/carrier.fbx` (and the vault animation) are Mixamo assets. Adobe's terms allow
 them inside the shipped game but not as raw files, so they are ignored by git and must not be
 committed or uploaded anywhere. Without them the carrier falls back to the Quaternius mannequin
-and everything else works. To get them, follow [art/characters/mixamo/README.md](../art/characters/mixamo/README.md)
+and everything else works. To get them, follow [art/characters/mixamo/README.md](../game/art/characters/mixamo/README.md)
 (download from mixamo.com with your own Adobe account, FBX Binary, With Skin).
 
 ## Text-to-speech on Linux
