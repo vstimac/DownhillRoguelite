@@ -9,8 +9,8 @@ namespace DownhillRoguelite.Core;
 [GlobalClass]
 public partial class CircleTable : Resource
 {
-    /// <summary>Metres of descent per circle (3 stations at the default 600 m).</summary>
-    [Export] public float DepthPerCircle { get; set; } = 1800.0f;
+    /// <summary>Metres of descent per circle (3 stations at the default 350 m).</summary>
+    [Export] public float DepthPerCircle { get; set; } = 1050.0f;
     [Export] public string[] Names { get; set; } =
         { "Limbo", "Lust", "Gluttony", "Greed", "Wrath", "Heresy", "Violence", "Fraud", "Treachery" };
     [Export] public string BeyondName { get; set; } = "Beyond the circles";

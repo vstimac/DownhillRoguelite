@@ -26,7 +26,7 @@ Added from the director's follow-up: stamina is the resource that decides whethe
 
 ## Stations and nights (built in M7)
 
-- A **station** stands on the route every 600 m of descent (tunable), on a gently tilted terrace with a fire, a lean-to, a bedroll and a light beacon visible from far away. Inside its shelter (9 m) you can pack (Tab) and, from 16:00 or at night, sleep (E on the bedroll).
+- A **station** stands on the route every 350 m of descent (tunable), on a gently tilted terrace with a fire, a lean-to, a bedroll and a light beacon visible from far away. Inside its shelter (9 m) you can pack (Tab) and, from 16:00 or at night, sleep (E on the bedroll).
 - **Sleeping** skips to dawn of the next day: 40% of maximum health back, full stamina, and hunger and thirst drain at a third of the waking rate for the hours slept.
 - **Night** (20:00–06:00, an hour of twilight each side): the light fades to faint moonlight and fog closes in. Outside a shelter the cold drains health and halves stamina recovery, scaled by darkness and the difficulty's night harshness.
 - Debug: T skips an hour.
