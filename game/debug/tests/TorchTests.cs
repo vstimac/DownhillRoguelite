@@ -9,7 +9,8 @@ namespace DownhillRoguelite.Debug;
 
 /// <summary>
 /// The torch: one from the pack catches in the left hand, lights the ground round the carrier, burns
-/// its time and goes out; the fire it carries is made of flames, sparks and smoke.
+/// its time and goes out; the fire it carries is made of flames, sparks and smoke. X puts it away at
+/// the belt (snuffed, keeping its time) and lights it again.
 /// </summary>
 public partial class TorchTests : Node3D
 {
@@ -73,6 +74,26 @@ public partial class TorchTests : Node3D
         await Frames(2);
         Check("another torch adds its time", torch.Left > 55.0f, $"{torch.Left:0} s");
 
+        // X puts it away: snuffed at the belt, keeping its time; X again lights it.
+        float kept = torch.Left;
+        PressStow();
+        await Seconds(1.0f);
+        Vector3 belt = torch.GlobalPosition - Player.GlobalPosition;
+        Check("X puts it away: snuffed, dark, keeping its time", torch.Stowed && !torch.Lit && !GameEvents.CarrierTorchLit
+            && fire?.Light?.Visible == false && Mathf.Abs(torch.Left - kept) < 0.2f,
+            $"stowed {torch.Stowed}, left {torch.Left:0} s of {kept:0}");
+        Check("put away, it hangs at the belt", belt.Y > 0.5f && belt.Y < 1.3f && new Vector2(belt.X, belt.Z).Length() < 0.6f,
+            $"{belt.Y:0.00} m up, {new Vector2(belt.X, belt.Z).Length():0.00} m out");
+        PressStow();
+        await Frames(5);
+        Check("X again lights it in the hand", !torch.Stowed && torch.Lit && GameEvents.CarrierTorchLit && fire?.Light?.Visible == true,
+            $"lit {torch.Lit}");
+        PressStow();
+        await Frames(2);
+        GameEvents.RequestTorch(30.0f);
+        await Frames(2);
+        Check("a new torch from the pack takes the put-away one out", !torch.Stowed && torch.Lit, $"lit {torch.Lit}, left {torch.Left:0} s");
+
         if (_failures.Count == 0)
         {
             GD.Print("TORCH TESTS: PASS");
@@ -83,6 +104,13 @@ public partial class TorchTests : Node3D
             GD.Print($"TORCH TESTS: FAIL ({_failures.Count})");
             GetTree().Quit(1);
         }
+    }
+
+    private void PressStow()
+    {
+        InputEventKey key = new() { PhysicalKeycode = Key.X, Keycode = Key.X, Pressed = true };
+        Input.ParseInputEvent(key);
+        Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = Key.X, Keycode = Key.X, Pressed = false });
     }
 
     private async System.Threading.Tasks.Task Frames(int count)

@@ -599,6 +599,7 @@ public partial class OptionsPanel : ParchmentPanel
             ("Brace (lean both ways)", "Both mouse buttons"),
             ("Pick up, use, sleep at a bedroll", InputGlyphs.Both("interact")),
             ("Draw / put away the sword", "Z"),
+            ("Put away / light the torch", "X"),
             ("Sword: swing (again to chain)", "Left mouse"),
             ("Sword: shield up / kick", "Right mouse (hold)  |  Middle mouse"),
             ("Lock on to an enemy / let go", "Tab"),
