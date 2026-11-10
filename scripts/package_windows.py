@@ -7,8 +7,9 @@ Defaults: export_dir = ../Builds/DownhillRoguelite-playtest1 (the "Windows Deskt
 export path), zip_path = ../Builds/DownhillRoguelite-playtest1-windows.zip.
 
 What it does, and why:
-- Checks the export is whole: the .exe (with .NET embedded, export preset
-  dotnet/embed_build_outputs=true, so the exe still runs when copied out on its own).
+- Checks the export is whole: the .exe, its DownhillRoguelite.pck and the data_ folder with the
+  game's code beside it (not embedded, so later small updates can replace just what changed:
+  scripts/make_update.py). Pass the release's tag as version to mark the folder as an update base.
 - Adds the player README, the race launcher and the beta testers' Wallpaper folder from export/playtest/.
 - Puts the Microsoft Visual C++ runtime DLLs next to the companion library
   (libnobodywho...dll needs them; a freshly installed Windows doesn't have them). Microsoft
