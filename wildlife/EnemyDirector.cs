@@ -26,6 +26,9 @@ public partial class EnemyDirector : Node3D
     /// <summary>With no tree near, this far ahead of the carrier (m).</summary>
     [Export] public float NoTreeDistance { get; set; } = 8.0f;
     [Export] public string WakeHint { get; set; } = "Something wakes among the trees...";
+    /// <summary>An ambush (GameEvents.AmbushRequested) puts its enemies this far around the spot (m), and says this.</summary>
+    [Export] public float AmbushRadius { get; set; } = 4.0f;
+    [Export] public string AmbushHint { get; set; } = "Two shapes step out of the trees. Someone was watching over her.";
     /// <summary>Seconds before the first arrive, and between arrivals.</summary>
     [Export] public Vector2 FirstDelay { get; set; } = new(90.0f, 150.0f);
     [Export] public Vector2 Interval { get; set; } = new(120.0f, 240.0f);
@@ -81,6 +84,7 @@ public partial class EnemyDirector : Node3D
         GameEvents.LocomotionUpdated += OnLocomotion;
         GameEvents.NewMountain += OnNewMountain;
         GameEvents.WakeRequested += OnWake;
+        GameEvents.AmbushRequested += OnAmbush;
     }
 
     public override void _ExitTree()
@@ -88,6 +92,7 @@ public partial class EnemyDirector : Node3D
         GameEvents.LocomotionUpdated -= OnLocomotion;
         GameEvents.NewMountain -= OnNewMountain;
         GameEvents.WakeRequested -= OnWake;
+        GameEvents.AmbushRequested -= OnAmbush;
     }
 
     private void OnLocomotion(LocomotionSnapshot snapshot)
@@ -113,6 +118,48 @@ public partial class EnemyDirector : Node3D
             return;
         }
         Wake(species);
+    }
+
+    private void OnAmbush(Vector3 at, int count, string cause) => Ambush(at, count);
+
+    /// <summary>
+    /// Brings <paramref name="count"/> enemies (kinds that arrive, picked at random) in a ring around
+    /// <paramref name="at"/> and sets them on the carrier at once (the newspaper seller, struck).
+    /// </summary>
+    public List<HumanoidEnemy> Ambush(Vector3 at, int count)
+    {
+        List<HumanoidEnemy> brought = new();
+        List<EnemySpecies> kinds = new();
+        foreach (EnemySpecies kind in Species)
+        {
+            if (kind != null)
+            {
+                kinds.Add(kind);
+            }
+        }
+        if (kinds.Count == 0 || count <= 0)
+        {
+            return brought;
+        }
+        float start = _random.RandfRange(0.0f, Mathf.Tau);
+        for (int i = 0; i < count; i++)
+        {
+            float angle = start + Mathf.Tau * i / count;
+            Vector3 spot = Ground(at + new Vector3(Mathf.Sin(angle), 0.0f, Mathf.Cos(angle)) * AmbushRadius);
+            HumanoidEnemy enemy = Bring(kinds[_random.RandiRange(0, kinds.Count - 1)], spot);
+            Vector3 carrier = at;
+            if (_hasCarrier)
+            {
+                carrier = _carrier.Position;
+            }
+            enemy.Alert(carrier);
+            brought.Add(enemy);
+        }
+        if (AmbushHint.Length > 0)
+        {
+            GameEvents.PublishHint(AmbushHint);
+        }
+        return brought;
     }
 
     /// <summary>Brings this kind beside the tree nearest the carrier (or ahead if there's none) and sets it on them.</summary>
