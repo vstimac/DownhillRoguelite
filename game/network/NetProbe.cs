@@ -10,7 +10,9 @@ namespace DownhillRoguelite.Network;
 /// seconds it prints one "[NetProbe]" line with what this machine sees (role, seed, players,
 /// remote carriers, states received, supplies taken) and quits. With `--net-grab-at=unix seconds` it
 /// also reaches, at that moment by the computer's clock, for the same shared supply every probe picks (the first by key), so a run
-/// with several probes reaching at once shows that only one player ever gets it. The harness reads the lines.
+/// with several probes reaching at once shows that only one player ever gets it. With
+/// `--net-die-at=unix seconds` its carrier falls then: it should watch a teammate, the others should
+/// see it fallen, and it should come back. The harness reads the lines.
 /// </summary>
 public partial class NetProbe : Node
 {
@@ -20,6 +22,8 @@ public partial class NetProbe : Node
     /// <summary>It stays this long after reporting before it quits (a host stays while its clients report).</summary>
     [Export] public float Linger { get; set; }
     [Export] public float GrabFor { get; set; } = 3.0f;
+    /// <summary>When its carrier falls, by the computer's clock (Unix seconds; negative: never).</summary>
+    [Export] public double DieAtUnix { get; set; } = -1.0;
 
     public NetSession? Session { get; set; }
 
@@ -30,6 +34,11 @@ public partial class NetProbe : Node
     private bool _done;
     private double _nextTry;
     private double _grabEnd;
+    private bool _killed;
+    private bool _fell;
+    private string _watched = "none";
+    private bool _back;
+    private bool _sawFallen;
 
     public override void _Ready()
     {
@@ -82,6 +91,31 @@ public partial class NetProbe : Node
                 item.Interact(player);
             }
         }
+        if (DieAtUnix >= 0.0 && !_killed && Session.Joined && Time.GetUnixTimeFromSystem() >= DieAtUnix)
+        {
+            _killed = true;
+            GD.Print("[NetProbe] falling");
+            GameEvents.PublishKill("a test");
+        }
+        if (Session.LocalDead)
+        {
+            _fell = true;
+            if (Session.Watching != null)
+            {
+                _watched = Session.Watching.PlayerName;
+            }
+        }
+        else if (_fell)
+        {
+            _back = true;
+        }
+        foreach (RemoteCarrier remote in Session.Remotes.Values)
+        {
+            if (remote.Dead)
+            {
+                _sawFallen = true;
+            }
+        }
         if (_clock >= Seconds)
         {
             _done = true;
@@ -104,7 +138,8 @@ public partial class NetProbe : Node
         ulong seed = GetNodeOrNull<RunState>("/root/RunState")?.Seed ?? 0;
         GD.Print($"[NetProbe] role={session.Mode} name={session.LocalName} joined={session.Joined} seed={seed} session_seed={session.SessionSeed} "
             + $"peers={session.Peers.Count} remotes={session.Remotes.Count} min_states={fewest} target={_target} got={_got} "
-            + $"taken={session.TakenSupplies.Count} granted={session.ClaimsGranted} refused={session.ClaimsRefused} status=\"{session.Status}\"");
+            + $"taken={session.TakenSupplies.Count} granted={session.ClaimsGranted} refused={session.ClaimsRefused} fell={_fell} watched={_watched} back={_back} "
+            + $"saw_fallen={_sawFallen} status=\"{session.Status}\"");
     }
 
     private WorldItem? FirstSupply()

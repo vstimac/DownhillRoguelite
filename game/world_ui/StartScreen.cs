@@ -7,7 +7,7 @@ namespace DownhillRoguelite.WorldUi;
 
 /// <summary>
 /// The front end: the real mountain behind the menu (MenuCamera drifts past the carrier), the title,
-/// and a menu of New Run, Character, Options, Achievements, About and Quit. Pages (character, options, about) are
+/// and a menu of New Run, Character, Co-op, Options, Achievements, About and Quit. Pages (character, options, about) are
 /// parchment sheets that unfold over the scene. The world runs a moment so the carrier and camera
 /// settle, then waits paused and silent; New Run fades the menu away, flies the camera into the run's
 /// own camera and fades the sound in. Mouse, keyboard and controller all work; the footer shows the
@@ -23,6 +23,7 @@ public partial class StartScreen : CanvasLayer
         Options,
         About,
         Achievements,
+        Coop,
         Starting,
     }
 
@@ -57,6 +58,7 @@ public partial class StartScreen : CanvasLayer
     public CharacterPage? Characters => _characters;
     public CreditsPage? About => _about;
     public AchievementsPage? Achievements => _achievements;
+    public CoopPage? Coop => _coop;
     public MenuCamera? Camera => _camera;
     public Label? TitleLabel => _title;
     public Label? FooterKeys => _keys;
@@ -79,6 +81,7 @@ public partial class StartScreen : CanvasLayer
     private CharacterPage? _characters;
     private CreditsPage? _about;
     private AchievementsPage? _achievements;
+    private CoopPage? _coop;
     private MenuCamera? _camera;
     private MenuItem? _characterItem;
     private MenuItem? _lastFocus;
@@ -234,6 +237,7 @@ public partial class StartScreen : CanvasLayer
             _characterItem = AddItem("Character", "", () => ShowPage(Page.Character));
         }
         AddItem("Options", "Gameplay, video, audio, accessibility and controls.", () => ShowPage(Page.Options));
+        AddItem("Co-op (beta)", "Host a descent, or join a friend's: up to four carriers.", () => ShowPage(Page.Coop));
         AddItem("Achievements", "What you've done on the mountain, ticked off.", () => ShowPage(Page.Achievements));
         AddItem("About", "What this is, and whose work it stands on.", () => ShowPage(Page.About));
         AddItem("Quit", "Back to the desktop.", () => GetTree().Quit());
@@ -268,6 +272,24 @@ public partial class StartScreen : CanvasLayer
         _achievements.BackPressed += () => ClosePage(_achievements);
         _root.AddChild(_achievements);
         _achievements.SetOpenNow(false);
+        _coop = new CoopPage { Name = "Coop" };
+        _coop.BackPressed += () =>
+        {
+            // Backing out while still connecting gives up the attempt.
+            Network.NetSession? session = Network.NetSession.Instance;
+            if (session != null && session.Active && !session.Joined)
+            {
+                session.Leave();
+            }
+            ClosePage(_coop);
+        };
+        _coop.RunReady += () =>
+        {
+            ClosePage(_coop);
+            StartRun();
+        };
+        _root.AddChild(_coop);
+        _coop.SetOpenNow(false);
 
         _curtain = new ColorRect { Color = Colors.Black, MouseFilter = Control.MouseFilterEnum.Ignore };
         _curtain.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -417,6 +439,7 @@ public partial class StartScreen : CanvasLayer
         _options?.FitInto(full);
         _about?.FitInto(full);
         _achievements?.FitInto(full);
+        _coop?.FitInto(full);
         _characters?.FitInto(new Rect2(screen.X * 0.5f, margin * 0.6f, screen.X * 0.5f - margin * 0.6f, screen.Y - margin * 1.2f));
     }
 
@@ -481,6 +504,10 @@ public partial class StartScreen : CanvasLayer
             else if (arg == "--menu-page=achievements")
             {
                 ShowPage(Page.Achievements);
+            }
+            else if (arg == "--menu-page=coop")
+            {
+                ShowPage(Page.Coop);
             }
         }
     }
@@ -553,6 +580,10 @@ public partial class StartScreen : CanvasLayer
         else if (page == Page.Achievements)
         {
             _achievements?.OpenSheet();
+        }
+        else if (page == Page.Coop)
+        {
+            _coop?.OpenSheet();
         }
         else
         {

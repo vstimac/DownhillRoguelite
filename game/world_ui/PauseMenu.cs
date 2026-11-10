@@ -35,6 +35,7 @@ public partial class PauseMenu : CanvasLayer
     private Label? _tips;
     private OptionsPanel? _options;
     private AchievementsPage? _achievements;
+    private MenuItem? _leaveCoop;
     private AudioStreamPlayer? _click;
     private AudioStream? _openSound;
     private AudioStream? _closeSound;
@@ -162,6 +163,11 @@ public partial class PauseMenu : CanvasLayer
             _options.SetOpenNow(false);
         }
         _achievements?.SetOpenNow(false);
+        if (_leaveCoop != null)
+        {
+            // Only while in a co-op session.
+            _leaveCoop.Visible = Network.NetSession.Instance?.Active == true;
+        }
         SetMenuFocusable(true);
         if (_column != null)
         {
@@ -237,6 +243,11 @@ public partial class PauseMenu : CanvasLayer
         AddItem("Resume", Resume);
         AddItem("Options", ShowOptions);
         AddItem("Achievements", ShowAchievements);
+        _leaveCoop = AddItem("Leave co-op", () =>
+        {
+            Network.NetSession.Instance?.Leave();
+            Resume();
+        });
         AddItem("Save and quit", () =>
         {
             GameEvents.RequestSave();
@@ -257,12 +268,13 @@ public partial class PauseMenu : CanvasLayer
         _achievements.SetOpenNow(false);
     }
 
-    private void AddItem(string text, System.Action action)
+    private MenuItem AddItem(string text, System.Action action)
     {
         MenuItem item = new() { Text = text };
         item.Pressed += () => action();
         _menu?.AddChild(item);
         _items.Add(item);
+        return item;
     }
 
     private void Relayout()

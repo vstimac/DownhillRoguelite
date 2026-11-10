@@ -172,7 +172,12 @@ public partial class NetSession : Node
             else if (arg.StartsWith("--net-probe=", StringComparison.Ordinal) && float.TryParse(arg["--net-probe=".Length..],
                 System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float seconds))
             {
-                AddChild(new NetProbe { Name = "NetProbe", Session = this, Seconds = seconds, GrabAtUnix = ProbeNumber("--net-grab-at="), Linger = (float)ProbeNumber("--net-linger=") });
+                AddChild(new NetProbe { Name = "NetProbe", Session = this, Seconds = seconds, GrabAtUnix = ProbeNumber("--net-grab-at="), DieAtUnix = ProbeNumber("--net-die-at="), Linger = (float)ProbeNumber("--net-linger=") });
+                double respawn = ProbeNumber("--net-respawn=");
+                if (respawn > 0.0)
+                {
+                    RespawnSeconds = (float)respawn;
+                }
             }
         }
         if (hostPort > 0)
