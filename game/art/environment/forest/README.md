@@ -10,12 +10,18 @@ Regenerate from the project root with Godot .NET:
 godot --headless --path . --script res://tools/forest/generate_forest.gd
 ```
 
-Pines have tapered trunks, drooping branch whorls, irregular needle sprays and baked index LODs
-(5660 / 2300 / 1820 triangles). A shared material uses opaque vertex colours; no alpha cards.
+Pines have tapered trunks with a flared, rooted foot, drooping two-part branch whorls (darker and
+older low down, fresh growth and a leader spike on top), irregular needle sprays shaded from base to
+tip, a green of their own per variant (blue spruce, plain pine, sunny yellow-green) and baked index
+LODs (9264 / 3648 / 2368 triangles). They use the wind material (terrain/foliage_tree.gdshader):
+opaque vertex colours, no alpha cards, with each vertex's flex in UV.x (0 trunk, 1 twig tip) and a
+per-branch phase in UV.y, so the trunk sways and the branches flutter.
 Trunks are centred at the scene origin and 12 m reference height; runtime fitting sets actual
 10–18 m mature heights or 2.5–5 m saplings and matching trunk collision radii. The symmetric custom bounds preserve trunk
-alignment despite asymmetric crowns. Grass tufts have 21 / 27 / 33 triangles and are fitted to
-0.12–0.4 m heights. The meshes are baked once; they are not regenerated during streaming.
+alignment despite asymmetric crowns. Grass tufts have 10 / 13 / 16 curved, tapering blades
+(50 / 65 / 80 triangles), dark at the root and light at the tip with a little yellow or blue per
+blade, fitted to 0.12–0.4 m heights; the shared grass material (terrain/forest_grass.gdshader) bends
+them in the wind's rolling gusts and parts them round the carrier. See debug/FoliageLab.tscn. The meshes are baked once; they are not regenerated during streaming.
 
 Generation uses fixed seeds. Further tree species, saplings and a production foliage pass remain
 art work, and must be reviewed from ground level as well as distant silhouettes.
