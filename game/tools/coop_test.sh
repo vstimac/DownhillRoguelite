@@ -57,6 +57,8 @@ dupes=$(grep -ho "got=[^ ]*" "$LOGS"/*.log | grep -v "got=none" | sort | uniq -d
 check "no supply was picked up by two players ($dupes duplicates)" "$([ "$dupes" -eq 0 ]; echo $?)"
 refused=$(grep -ho "refused=[1-9]" "$LOGS"/*.log | wc -l)
 check "players reaching for a taken supply were refused ($refused refused)" "$([ "$refused" -ge 1 ]; echo $?)"
+looks=$(grep -h "\[NetProbe\] role" "$LOGS"/*.log | grep -c "looks=.*:.*:[0-9a-f]\{6\}")
+check "everyone sees the others' nickname, character and colours ($looks of $players)" "$([ "$looks" -eq "$players" ]; echo $?)"
 fell=$(grep -h "name=Client1 " "$LOGS"/client1.log | grep -c "fell=True watched=[A-Za-z]")
 check "a fallen player watches a living teammate" "$([ "$fell" -eq 1 ]; echo $?)"
 back=$(grep -h "name=Client1 " "$LOGS"/client1.log | grep -c "back=True")

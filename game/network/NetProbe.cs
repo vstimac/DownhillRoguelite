@@ -139,7 +139,19 @@ public partial class NetProbe : Node
         GD.Print($"[NetProbe] role={session.Mode} name={session.LocalName} joined={session.Joined} seed={seed} session_seed={session.SessionSeed} "
             + $"peers={session.Peers.Count} remotes={session.Remotes.Count} min_states={fewest} target={_target} got={_got} "
             + $"taken={session.TakenSupplies.Count} granted={session.ClaimsGranted} refused={session.ClaimsRefused} fell={_fell} watched={_watched} back={_back} "
-            + $"saw_fallen={_sawFallen} status=\"{session.Status}\"");
+            + $"saw_fallen={_sawFallen} looks={Looks(session)} status=\"{session.Status}\"");
+    }
+
+    /// <summary>Each remote carrier's name, character and shirt colour, as shown here.</summary>
+    private static string Looks(NetSession session)
+    {
+        List<string> looks = new();
+        foreach (RemoteCarrier remote in session.Remotes.Values)
+        {
+            looks.Add($"{remote.PlayerName}:{remote.Character}:{remote.Shirt.ToHtml(false)}");
+        }
+        looks.Sort(System.StringComparer.Ordinal);
+        return string.Join(",", looks);
     }
 
     private WorldItem? FirstSupply()

@@ -82,6 +82,7 @@ public partial class StartScreen : CanvasLayer
     private CreditsPage? _about;
     private AchievementsPage? _achievements;
     private CoopPage? _coop;
+    private bool _characterForCoop;
     private MenuCamera? _camera;
     private MenuItem? _characterItem;
     private MenuItem? _lastFocus;
@@ -260,7 +261,16 @@ public partial class StartScreen : CanvasLayer
         _root.AddChild(_options);
         _options.SetOpenNow(false);
         _characters = new CharacterPage { Name = "Characters", RosterPath = RosterPath };
-        _characters.BackPressed += () => ClosePage(_characters);
+        _characters.BackPressed += () =>
+        {
+            ClosePage(_characters);
+            // Opened from the Co-op page: back there, with the new look.
+            if (_characterForCoop)
+            {
+                _characterForCoop = false;
+                ShowPage(Page.Coop);
+            }
+        };
         _characters.PreviewTurnRequested += degrees => _camera?.TurnPortrait(degrees);
         _root.AddChild(_characters);
         _characters.SetOpenNow(false);
@@ -282,6 +292,13 @@ public partial class StartScreen : CanvasLayer
                 session.Leave();
             }
             ClosePage(_coop);
+        };
+        _coop.CharacterRequested += () =>
+        {
+            _coop.Close();
+            _characterForCoop = true;
+            Current = Page.Main;
+            ShowPage(Page.Character);
         };
         _coop.RunReady += () =>
         {

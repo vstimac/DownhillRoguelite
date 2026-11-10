@@ -41,6 +41,8 @@ public partial class CarrierModel : Node3D
     public bool Remote { get; set; }
     public string RemoteCharacter { get; set; } = "";
     private GearSnapshot _remoteGear = GearSnapshot.None;
+    private Color? _remoteShirt;
+    private Color? _remotePack;
 
     private MeshInstance3D? _helmet;
     private MeshInstance3D? _hair;
@@ -106,6 +108,14 @@ public partial class CarrierModel : Node3D
         _worn?.ShowGear(gear);
         Clothing?.ShowGear(gear);
         OnGear(gear);
+    }
+
+    /// <summary>A remote carrier wears its player's shirt and pack colours.</summary>
+    public void ShowRemoteColours(Color shirt, Color pack)
+    {
+        _remoteShirt = shirt;
+        _remotePack = pack;
+        Clothing?.ShowColours(shirt, pack);
     }
 
     /// <summary>The worn-gear layer of the shown character (null with the mannequin).</summary>
@@ -214,6 +224,10 @@ public partial class CarrierModel : Node3D
         AddChild(Clothing);
         if (Remote)
         {
+            if (_remoteShirt is Color shirt && _remotePack is Color pack)
+            {
+                Clothing.ShowColours(shirt, pack);
+            }
             ShowRemoteGear(_remoteGear);
             return;
         }

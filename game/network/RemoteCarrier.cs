@@ -30,6 +30,8 @@ public partial class RemoteCarrier : CharacterBody3D
     public long PeerId { get; set; }
     public string PlayerName { get; set; } = "";
     public string Character { get; set; } = "";
+    public Color Shirt { get; private set; } = Colors.White;
+    public Color Pack { get; private set; } = Colors.White;
     public bool Dead { get; private set; }
     public string Clip { get; private set; } = "";
     /// <summary>States received (tests).</summary>
@@ -150,11 +152,14 @@ public partial class RemoteCarrier : CharacterBody3D
         }
     }
 
-    /// <summary>They changed character or clothes.</summary>
-    public void ShowLook(string character, string[] worn)
+    /// <summary>They changed character, colours or clothes.</summary>
+    public void ShowLook(string character, string[] worn, Color shirt, Color pack)
     {
         Character = character;
+        Shirt = shirt;
+        Pack = pack;
         _look?.ShowRemoteCharacter(character);
+        _look?.ShowRemoteColours(shirt, pack);
         _look?.ShowRemoteGear(Gear(worn));
     }
 

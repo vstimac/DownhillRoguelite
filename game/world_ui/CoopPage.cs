@@ -1,4 +1,5 @@
 using System;
+using DownhillRoguelite.Core;
 using DownhillRoguelite.Network;
 using DownhillRoguelite.Ui;
 using Godot;
@@ -6,8 +7,10 @@ using Godot;
 namespace DownhillRoguelite.WorldUi;
 
 /// <summary>
-/// The main menu's Co-op page (beta): your name, then either Host (others join this computer on the
-/// port) or Join (the host's address and port). Hosting starts the run at once; joining waits for
+/// The main menu's Co-op page (beta): your nickname (remembered; others see it over your head) and
+/// your carrier (Character… opens the character creator: preset and outfit colours, which the others
+/// see too), then either Host (others join this computer on the port) or Join (the host's address
+/// and port). Hosting starts the run at once; joining waits for
 /// the host to let you in, then starts on the host's mountain. The status line follows the session
 /// (connecting, refused, no answer). Back, Esc or B returns.
 /// </summary>
@@ -23,6 +26,8 @@ public partial class CoopPage : ParchmentPanel
     public event Action? BackPressed;
     /// <summary>The session started (hosting) or the host let this player in: the run can begin.</summary>
     public event Action? RunReady;
+    /// <summary>Character… was pressed: the start screen opens the character creator (and comes back here).</summary>
+    public event Action? CharacterRequested;
 
     public LineEdit? NameField => _name;
     public LineEdit? AddressField => _address;
@@ -38,6 +43,10 @@ public partial class CoopPage : ParchmentPanel
     private InkButton? _host;
     private InkButton? _join;
     private InkButton? _back;
+    private InkButton? _character;
+    private Label? _playingAs;
+    private ColorRect? _shirtSwatch;
+    private ColorRect? _packSwatch;
     private NetSession? _session;
 
     public CoopPage()
@@ -55,7 +64,28 @@ public partial class CoopPage : ParchmentPanel
         _explainer = UiStyle.MakeLabel(Explainer, UiStyle.TextSize - 2, false, new Color(UiStyle.Ink, 0.85f));
         _explainer.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _column.AddChild(_explainer);
-        _name = Field("Your name", "Carrier");
+        _name = Field("Nickname (the others see it over your head)", GameOptions.NetName);
+        _name.PlaceholderText = "Your nickname";
+        _name.MaxLength = 20;
+        HBoxContainer look = new();
+        look.AddThemeConstantOverride("separation", 10);
+        _playingAs = UiStyle.MakeLabel("", UiStyle.TextSize, false, UiStyle.Ink);
+        _playingAs.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        _playingAs.VerticalAlignment = VerticalAlignment.Center;
+        look.AddChild(_playingAs);
+        _shirtSwatch = Swatch();
+        look.AddChild(_shirtSwatch);
+        _packSwatch = Swatch();
+        look.AddChild(_packSwatch);
+        _character = Button("Character…");
+        _character.CustomMinimumSize = new Vector2(160.0f, 42.0f);
+        _character.Pressed += () =>
+        {
+            SaveName();
+            CharacterRequested?.Invoke();
+        };
+        look.AddChild(_character);
+        _column.AddChild(look);
         _address = Field("Host's address (to join)", DefaultAddress);
         _port = Field("Port", "7777");
         HBoxContainer buttons = new() { Alignment = BoxContainer.AlignmentMode.Center };
@@ -107,6 +137,55 @@ public partial class CoopPage : ParchmentPanel
         return field;
     }
 
+    private static ColorRect Swatch()
+    {
+        return new ColorRect { CustomMinimumSize = new Vector2(26.0f, 26.0f), SizeFlagsVertical = SizeFlags.ShrinkCenter, MouseFilter = MouseFilterEnum.Ignore };
+    }
+
+    /// <summary>Shows the chosen carrier and colours (after the creator, or on opening).</summary>
+    private void ShowLook()
+    {
+        string name = CarrierRoster.Load()?.Pick(GameOptions.Character)?.DisplayName ?? GameOptions.Character;
+        if (_playingAs != null)
+        {
+            _playingAs.Text = $"Playing as {name}";
+        }
+        if (_shirtSwatch != null)
+        {
+            _shirtSwatch.Color = GameOptions.BaseShirtColour;
+        }
+        if (_packSwatch != null)
+        {
+            _packSwatch.Color = GameOptions.BasePackColour;
+        }
+    }
+
+    /// <summary>The nickname typed, remembered for next time; empty (and a word in the status line) if none.</summary>
+    private string Nickname()
+    {
+        string name = (_name?.Text ?? "").Trim();
+        if (name.Length == 0)
+        {
+            if (_status != null)
+            {
+                _status.Text = "Choose a nickname first: the others see it over your head.";
+            }
+            _name?.GrabFocus();
+            return "";
+        }
+        SaveName();
+        return name;
+    }
+
+    private void SaveName()
+    {
+        string name = (_name?.Text ?? "").Trim();
+        if (name.Length > 0 && name != GameOptions.NetName)
+        {
+            GameOptions.SetNetName(name);
+        }
+    }
+
     private static InkButton Button(string text)
     {
         return new InkButton { Text = text, Paper = true, Focusable = true, FontSize = UiStyle.TextSize + 2, CustomMinimumSize = new Vector2(130.0f, 42.0f) };
@@ -127,7 +206,12 @@ public partial class CoopPage : ParchmentPanel
         {
             return;
         }
-        if (_session.Host(_name?.Text ?? "", Port()))
+        string name = Nickname();
+        if (name.Length == 0)
+        {
+            return;
+        }
+        if (_session.Host(name, Port()))
         {
             RunReady?.Invoke();
         }
@@ -135,7 +219,12 @@ public partial class CoopPage : ParchmentPanel
 
     private void OnJoin()
     {
-        _session?.Join(_name?.Text ?? "", _address?.Text ?? DefaultAddress, Port());
+        string name = Nickname();
+        if (name.Length == 0)
+        {
+            return;
+        }
+        _session?.Join(name, _address?.Text ?? DefaultAddress, Port());
     }
 
     private void OnWelcomed(ulong seed)
@@ -182,6 +271,7 @@ public partial class CoopPage : ParchmentPanel
     public void OpenSheet()
     {
         ShowStatus();
+        ShowLook();
         Open();
         _name?.GrabFocus();
     }

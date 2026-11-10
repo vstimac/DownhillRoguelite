@@ -39,7 +39,7 @@ public partial class NetSession : Node
     }
 
     /// <summary>Peers must speak the same protocol (a join from another version is turned away).</summary>
-    public const string ProtocolVersion = "downhill-coop-1";
+    public const string ProtocolVersion = "downhill-coop-2";
 
     [Export] public int DefaultPort { get; set; } = 7777;
     [Export] public int MaxPlayers { get; set; } = 4;
@@ -124,6 +124,7 @@ public partial class NetSession : Node
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.StationReached += OnStationReached;
         GameEvents.SupplyPickedUp += OnSupplyPickedUp;
+        GameOptions.Changed += OnOptionsChanged;
         _hud = new NetHud { Name = "NetHud", Session = this };
         AddChild(_hud);
         CallDeferred(MethodName.ReadCommandLine);
@@ -136,6 +137,7 @@ public partial class NetSession : Node
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.StationReached -= OnStationReached;
         GameEvents.SupplyPickedUp -= OnSupplyPickedUp;
+        GameOptions.Changed -= OnOptionsChanged;
         if (Active)
         {
             Leave();
@@ -390,7 +392,7 @@ public partial class NetSession : Node
         LocalId = Multiplayer.GetUniqueId();
         SetStatus("Connected. Waiting for the host to let you in...");
         Log($"connected as peer {LocalId}, saying hello");
-        RpcId(1, MethodName.Hello, LocalName, LocalCharacter(), LocalWorn(), ProtocolVersion);
+        RpcId(1, MethodName.Hello, LocalName, LocalCharacter(), LocalWorn(), GameOptions.BaseShirtColour, GameOptions.BasePackColour, ProtocolVersion);
     }
 
     private void OnConnectionFailed()
@@ -409,7 +411,7 @@ public partial class NetSession : Node
     // --- Messages: client -> host ---
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void Hello(string name, string character, string[] worn, string version)
+    private void Hello(string name, string character, string[] worn, Color shirt, Color pack, string version)
     {
         if (Mode != Role.Host)
         {
@@ -435,19 +437,19 @@ public partial class NetSession : Node
             DisconnectLater(sender);
             return;
         }
-        NetPeer peer = new() { Id = sender, Name = UniqueName(CleanName(name)), Character = CleanCharacter(character), Worn = CleanWorn(worn) };
+        NetPeer peer = new() { Id = sender, Name = UniqueName(CleanName(name)), Character = CleanCharacter(character), Worn = CleanWorn(worn), Shirt = CleanColour(shirt), Pack = CleanColour(pack) };
         _peers[sender] = peer;
         Log($"{peer.Name} ({sender}) joined as {peer.Character}, wearing {peer.Worn.Length} pieces");
         // The newcomer gets the mountain, what's been taken, the host, and everyone already here.
         string[] taken = new string[_taken.Count];
         _taken.CopyTo(taken);
-        RpcId(sender, MethodName.Welcome, (long)SessionSeed, taken, LocalName, LocalCharacter(), LocalWorn(), peer.Name);
+        RpcId(sender, MethodName.Welcome, (long)SessionSeed, taken, LocalName, LocalCharacter(), LocalWorn(), GameOptions.BaseShirtColour, GameOptions.BasePackColour, peer.Name);
         foreach (NetPeer other in _peers.Values)
         {
             if (other.Id != sender)
             {
-                RpcId(sender, MethodName.PeerJoined, other.Id, other.Name, other.Character, other.Worn);
-                RpcId(other.Id, MethodName.PeerJoined, sender, peer.Name, peer.Character, peer.Worn);
+                RpcId(sender, MethodName.PeerJoined, other.Id, other.Name, other.Character, other.Worn, other.Shirt, other.Pack);
+                RpcId(other.Id, MethodName.PeerJoined, sender, peer.Name, peer.Character, peer.Worn, peer.Shirt, peer.Pack);
             }
         }
         SpawnRemote(peer);
@@ -489,7 +491,7 @@ public partial class NetSession : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void Look(string character, string[] worn)
+    private void Look(string character, string[] worn, Color shirt, Color pack)
     {
         if (Mode != Role.Host)
         {
@@ -502,15 +504,17 @@ public partial class NetSession : Node
         }
         peer.Character = CleanCharacter(character);
         peer.Worn = CleanWorn(worn);
+        peer.Shirt = CleanColour(shirt);
+        peer.Pack = CleanColour(pack);
         if (_remotes.TryGetValue(sender, out RemoteCarrier? remote))
         {
-            remote.ShowLook(peer.Character, peer.Worn);
+            remote.ShowLook(peer.Character, peer.Worn, peer.Shirt, peer.Pack);
         }
         foreach (long other in _peers.Keys)
         {
             if (other != sender)
             {
-                RpcId(other, MethodName.PeerLook, sender, peer.Character, peer.Worn);
+                RpcId(other, MethodName.PeerLook, sender, peer.Character, peer.Worn, peer.Shirt, peer.Pack);
             }
         }
     }
@@ -558,7 +562,7 @@ public partial class NetSession : Node
     // --- Messages: host -> clients (only the host may send these) ---
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void Welcome(long seed, string[] taken, string hostName, string hostCharacter, string[] hostWorn, string yourName)
+    private void Welcome(long seed, string[] taken, string hostName, string hostCharacter, string[] hostWorn, Color hostShirt, Color hostPack, string yourName)
     {
         if (Mode != Role.Client)
         {
@@ -572,7 +576,7 @@ public partial class NetSession : Node
         {
             _taken.Add(key);
         }
-        NetPeer host = new() { Id = 1, Name = hostName, Character = hostCharacter, Worn = hostWorn };
+        NetPeer host = new() { Id = 1, Name = hostName, Character = hostCharacter, Worn = hostWorn, Shirt = hostShirt, Pack = hostPack };
         _peers[1] = host;
         SpawnRemote(host);
         // The host's mountain: built from its seed here too.
@@ -593,13 +597,13 @@ public partial class NetSession : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void PeerJoined(long id, string name, string character, string[] worn)
+    private void PeerJoined(long id, string name, string character, string[] worn, Color shirt, Color pack)
     {
         if (Mode != Role.Client || id == LocalId)
         {
             return;
         }
-        NetPeer peer = new() { Id = id, Name = name, Character = character, Worn = worn };
+        NetPeer peer = new() { Id = id, Name = name, Character = character, Worn = worn, Shirt = shirt, Pack = pack };
         _peers[id] = peer;
         SpawnRemote(peer);
         Log($"{name} ({id}) is here");
@@ -640,7 +644,7 @@ public partial class NetSession : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void PeerLook(long id, string character, string[] worn)
+    private void PeerLook(long id, string character, string[] worn, Color shirt, Color pack)
     {
         if (Mode != Role.Client || !_peers.TryGetValue(id, out NetPeer? peer))
         {
@@ -648,9 +652,11 @@ public partial class NetSession : Node
         }
         peer.Character = character;
         peer.Worn = worn;
+        peer.Shirt = shirt;
+        peer.Pack = pack;
         if (_remotes.TryGetValue(id, out RemoteCarrier? remote))
         {
-            remote.ShowLook(character, worn);
+            remote.ShowLook(character, worn, shirt, pack);
         }
     }
 
@@ -915,18 +921,35 @@ public partial class NetSession : Node
         }
     }
 
+    /// <summary>A new character or colours in the creator during a session: the others see it too.</summary>
+    private void OnOptionsChanged()
+    {
+        string look = $"{LocalCharacter()}|{GameOptions.BaseShirtColour}|{GameOptions.BasePackColour}";
+        if (look == _sentLook)
+        {
+            return;
+        }
+        if (Active && Joined)
+        {
+            SendLook();
+        }
+    }
+
+    private string _sentLook = "";
+
     private void SendLook()
     {
+        _sentLook = $"{LocalCharacter()}|{GameOptions.BaseShirtColour}|{GameOptions.BasePackColour}";
         if (Mode == Role.Host)
         {
             foreach (long id in _peers.Keys)
             {
-                RpcId(id, MethodName.PeerLook, 1L, LocalCharacter(), LocalWorn());
+                RpcId(id, MethodName.PeerLook, 1L, LocalCharacter(), LocalWorn(), GameOptions.BaseShirtColour, GameOptions.BasePackColour);
             }
         }
         else if (Mode == Role.Client && Joined)
         {
-            RpcId(1, MethodName.Look, LocalCharacter(), LocalWorn());
+            RpcId(1, MethodName.Look, LocalCharacter(), LocalWorn(), GameOptions.BaseShirtColour, GameOptions.BasePackColour);
         }
     }
 
@@ -1052,7 +1075,7 @@ public partial class NetSession : Node
             remote.UseModelPlacement(model.Transform);
         }
         world.AddChild(remote);
-        remote.ShowLook(peer.Character, peer.Worn);
+        remote.ShowLook(peer.Character, peer.Worn, peer.Shirt, peer.Pack);
         _remotes[peer.Id] = remote;
     }
 
@@ -1187,6 +1210,10 @@ public partial class NetSession : Node
         string clean = name.Trim().Replace("\n", " ").Replace("[", "(").Replace("]", ")");
         if (clean.Length == 0)
         {
+            clean = GameOptions.NetName.Trim();
+        }
+        if (clean.Length == 0)
+        {
             clean = "Carrier";
         }
         if (clean.Length > MaxNameLength)
@@ -1240,6 +1267,16 @@ public partial class NetSession : Node
             }
         }
         return clean.ToArray();
+    }
+
+    /// <summary>A colour as sent: opaque, each channel 0–1 (anything else is turned into the default grey).</summary>
+    private static Color CleanColour(Color colour)
+    {
+        if (!Mathf.IsFinite(colour.R) || !Mathf.IsFinite(colour.G) || !Mathf.IsFinite(colour.B))
+        {
+            return new Color(0.5f, 0.5f, 0.5f);
+        }
+        return new Color(Mathf.Clamp(colour.R, 0.0f, 1.0f), Mathf.Clamp(colour.G, 0.0f, 1.0f), Mathf.Clamp(colour.B, 0.0f, 1.0f));
     }
 
     private static string Clip(string clip)

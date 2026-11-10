@@ -80,7 +80,7 @@ public partial class ClothingVisualController : Node
             _nativeShirtMaterial = (BaseMaterial3D)native.Duplicate();
             _nativeShirt.MaterialOverride = _nativeShirtMaterial;
         }
-        _packMaterial = Material(GameOptions.BasePackColour);
+        _packMaterial = Material(PackColour);
         ClothingFitter.Fit(Skeleton, CharacterId, BaseShirtKey(), _baseShirt);
         ClothingFitter.Fit(Skeleton, CharacterId, "body_trousers", _bodyTrousers);
         ClothingFitter.Fit(Skeleton, CharacterId, "body_boots", _bodyBoots);
@@ -97,6 +97,19 @@ public partial class ClothingVisualController : Node
     {
         OnGear(gear);
     }
+
+    /// <summary>Another player's shirt and pack colours (co-op), in place of this player's options.</summary>
+    public void ShowColours(Color shirt, Color pack)
+    {
+        _shirtColour = shirt;
+        _packColour = pack;
+        ApplyBaseAppearance();
+    }
+
+    private Color? _shirtColour;
+    private Color? _packColour;
+    private Color ShirtColour => _shirtColour ?? GameOptions.BaseShirtColour;
+    private Color PackColour => _packColour ?? GameOptions.BasePackColour;
 
     /// <summary>The body as drawn now: whole, or without the skin under modelled clothes (null if it has none).</summary>
     public MeshInstance3D? ShownBody
@@ -188,9 +201,9 @@ public partial class ClothingVisualController : Node
     private void ApplyBaseAppearance()
     {
         if (!IsInsideTree()) { return; }
-        if (_baseShirt?.MaterialOverride is ShaderMaterial shirt) { shirt.SetShaderParameter("cloth_colour", GameOptions.BaseShirtColour); }
-        if (_nativeShirtMaterial != null) { _nativeShirtMaterial.AlbedoColor = GameOptions.BaseShirtColour; }
-        _packMaterial?.SetShaderParameter("cloth_colour", GameOptions.BasePackColour);
+        if (_baseShirt?.MaterialOverride is ShaderMaterial shirt) { shirt.SetShaderParameter("cloth_colour", ShirtColour); }
+        if (_nativeShirtMaterial != null) { _nativeShirtMaterial.AlbedoColor = ShirtColour; }
+        _packMaterial?.SetShaderParameter("cloth_colour", PackColour);
     }
 
     private void OnGear(GearSnapshot gear)
