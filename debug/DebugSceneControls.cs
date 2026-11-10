@@ -28,6 +28,11 @@ public partial class DebugSceneControls : Node
 
     /// <summary>Respawn when the player falls below this height, in m.</summary>
     [Export] public float KillHeight { get; set; } = -30.0f;
+    /// <summary>`--at-radio`: how far in front of the summit bench the carrier stands, and how far to its side, in m.</summary>
+    [Export] public float RadioViewDistance { get; set; } = 4.0f;
+    [Export] public float RadioViewSide { get; set; } = 1.5f;
+    /// <summary>Turns the player that far off the bench, so the car isn't hidden behind him.</summary>
+    [Export] public float RadioViewYawDegrees { get; set; } = 24.0f;
 
     private Vector3 _spawnPosition;
     private float _spawnYaw;
@@ -134,6 +139,11 @@ public partial class DebugSceneControls : Node
             if (arg == "--at-president")
             {
                 GetTree().CreateTimer(1.2).Timeout += GoToPresident;
+            }
+            // `--at-radio` stands the carrier before the summit's Reno 4, facing it, with the radio on (screenshots).
+            if (arg == "--at-radio")
+            {
+                GetTree().CreateTimer(1.2).Timeout += GoToRadio;
             }
         }
         // `--weather=rain` (or fog, snow, wind, heat, clear) forces a front; `--hour=22` sets the clock.
@@ -371,6 +381,31 @@ public partial class DebugSceneControls : Node
         }
         Vector3 at = npc.GlobalPosition + new Vector3(0.0f, 0.0f, 5.0f);
         PlayerBody.Teleport(new Vector3(at.X, route.GroundHeight(at.X, at.Z) + 0.3f, at.Z), 0.0f);
+    }
+
+    private void GoToRadio()
+    {
+        SummitRadio? radio = null;
+        foreach (Node node in GetTree().GetNodesInGroup(IInteractable.Group))
+        {
+            if (node is SummitRadio found)
+            {
+                radio = found;
+            }
+        }
+        IRouteQuery? route = GetNodeOrNull<RunState>("/root/RunState")?.Route;
+        if (radio?.Bench == null || route == null || PlayerBody == null)
+        {
+            GD.Print("--at-radio: no summit car placed");
+            return;
+        }
+        // A few metres in front of the bench (it faces the start), looking back at the skeleton and the car.
+        Vector3 bench = radio.Bench.GlobalPosition;
+        Vector3 facing = radio.Bench.GlobalBasis.Z.Normalized();
+        Vector3 at = bench + facing * RadioViewDistance + radio.Bench.GlobalBasis.X.Normalized() * RadioViewSide;
+        Vector3 look = bench - at;
+        PlayerBody.Teleport(new Vector3(at.X, route.GroundHeight(at.X, at.Z) + 0.3f, at.Z), Mathf.Atan2(-look.X, -look.Z) + Mathf.DegToRad(RadioViewYawDegrees));
+        GameEvents.RequestRadioSong(radio.SongName);
     }
 
     private static Narrative.PresidentNpc? FindPresident(Node node)

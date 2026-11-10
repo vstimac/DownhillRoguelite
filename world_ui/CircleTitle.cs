@@ -108,6 +108,8 @@ public partial class CircleTitle : Node3D
             GlobalPosition = camera.GlobalPosition - camera.GlobalBasis.Z * Distance + camera.GlobalBasis.Y * Height;
         }
 
+        // Clean screenshots (`-- --promo`) leave the air empty.
+        Visible = !Debug.DebugDraw3D.HideHud;
         _timer += dt;
         float total = FadeSeconds * 2.0f + HoldSeconds;
         float alpha = Mathf.Min(Mathf.Clamp(_timer / FadeSeconds, 0.0f, 1.0f), Mathf.Clamp((total - _timer) / FadeSeconds, 0.0f, 1.0f));

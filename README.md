@@ -20,6 +20,23 @@ A dark survival adventure about descending a mountain that never ends — toward
 
 ---
 
+## Gameplay
+
+*Real, unedited in-game capture from the current development build.*
+
+![The summit: the skeleton with the rose on his bench beside the old Reno 4](docs/media/summit-radio.jpg)
+
+**Carry everything you own down a mountain that never ends.** Pack a backpack cell by cell, feel its weight pull at your balance, read the weather and reach the next station's fire before dark. Every run is a new procedural mountain; every death is final. Each run starts beside an old Reno 4 on the summit: press **E** on the car and the skeleton with the rose plays you a song, **K** opens the music player.
+
+### System requirements
+
+| | Minimum | Recommended |
+| --- | --- | --- |
+| **OS** | 64-bit Windows 10 / 11 (Linux experimental) | 64-bit Windows 11 |
+| **Graphics** | Vulkan-capable GPU with up-to-date drivers (integrated graphics start on Low quality) | Dedicated NVIDIA / AMD GPU |
+| **Storage** | ~1 GB free | ~3.5 GB with the optional AI companion model |
+| **Sound** | | Headphones (directional voices) |
+
 ## Play the game
 
 **Latest published Windows build: [v0.2.5-beta](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.2.5-beta)** (10 November 2026).
@@ -100,7 +117,7 @@ Features may vary by released build and development branch.
 
 *Visual concept board, not a gameplay screenshot or proof of game-ready 3D models. Depicted characters and props are concepts until implemented and validated in-game.*
 
-**Gameplay screenshots / GIF:** Not yet included in the repository. Only actual captured gameplay will be presented as gameplay; concept renders and AI artwork are labelled separately. See the [capture and publishing guide](docs/MEDIA_CAPTURE.md).
+**Gameplay screenshots:** see [Gameplay](#gameplay) above — real in-game captures only; concept renders and AI artwork are labelled separately. See the [capture and publishing guide](docs/MEDIA_CAPTURE.md).
 
 ## Optional: local AI companion
 

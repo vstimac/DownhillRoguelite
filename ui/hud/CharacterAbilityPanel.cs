@@ -25,6 +25,8 @@ public partial class CharacterAbilityPanel : CanvasLayer
         _refresh -= (float)delta;
         if (_run == null || _button == null || _refresh > 0) { return; }
         _refresh = 0.1f;
+        // Clean screenshots (`-- --promo`) hide it with the rest of the HUD.
+        _button.Visible = !Debug.DebugDraw3D.HideHud;
         CharacterRun character = _run.Character;
         float scale = GameOptions.UiScale;
         Vector2 screen = GetViewport().GetVisibleRect().Size;
