@@ -45,6 +45,8 @@ public partial class WorldItem : Node3D, IInteractable, IDescribed
 
     /// <summary>Spawner bookkeeping: which generated slot this item came from.</summary>
     public string SlotKey { get; set; } = "";
+    /// <summary>Shown while the co-op host is asked whether this one is still free.</summary>
+    [Export] public string ClaimingText { get; set; } = "Reaching for it...";
 
     public Vector3 InteractionPoint => GlobalPosition;
     /// <summary>The group the field map reads for supply dots, and the meta key holding each one's colour.</summary>
@@ -160,6 +162,17 @@ public partial class WorldItem : Node3D, IInteractable, IDescribed
         {
             return false;
         }
+        // In co-op the host says who gets a shared supply (the label waits while it's asked).
+        if (!GameEvents.MayPickUp(SlotKey))
+        {
+            if (_label != null)
+            {
+                _label.Text = ClaimingText;
+                _label.Visible = true;
+                _noRoomTimer = NoRoomMessageTime;
+            }
+            return false;
+        }
         CarrierInventory? inventory = interactor.GetNodeOrNull<CarrierInventory>("Inventory");
         if (inventory == null || !inventory.TryAdd(Definition, Durability, true, Appearance, InstanceId))
         {
@@ -172,6 +185,10 @@ public partial class WorldItem : Node3D, IInteractable, IDescribed
             return false;
         }
 
+        if (SlotKey.Length > 0)
+        {
+            GameEvents.PublishSupplyPickedUp(SlotKey);
+        }
         Taken?.Invoke(this);
         RemoveFromGroup(IInteractable.Group);
         QueueFree();

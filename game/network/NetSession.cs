@@ -1,0 +1,1270 @@
+using System;
+using System.Collections.Generic;
+using DownhillRoguelite.Core;
+using DownhillRoguelite.Inventory;
+using DownhillRoguelite.Player;
+using Godot;
+
+namespace DownhillRoguelite.Network;
+
+/// <summary>
+/// Co-op: up to four players descend the same mountain together, Minecraft-style. One plays and
+/// hosts (a listen server over ENet); the others join by address and port, on a LAN or through a
+/// forwarded port, at the start or in the middle of a run. The host is the authority:
+/// - It hands out the mountain's seed, so every machine builds the same mountain.
+/// - It decides who gets each shared supply: a client asks first, and only one player ever gets it.
+/// - It checks every message's sender and relays each player's state to the others.
+///
+/// Each machine simulates its own carrier and sends where it is, which way it faces and what its
+/// animator plays about fifteen times a second, plus its character and worn clothes when they
+/// change. The others show it as a RemoteCarrier.
+///
+/// A fallen player watches a living teammate (Tab or a click switches) and comes back after
+/// RespawnSeconds at the last station they reached. The mountain is not reset, and the pack starts
+/// over as after any death.
+///
+/// If the host leaves, the session ends: the others keep playing alone on the same mountain.
+/// Singleplayer never touches any of this (no session, no gate, no messages).
+///
+/// Everything it does goes to the log as "[Net] ...". Command line (after --):
+/// --host[=port], --join=address[:port], --net-name=Name.
+/// </summary>
+public partial class NetSession : Node
+{
+    public enum Role
+    {
+        None,
+        Host,
+        Client,
+    }
+
+    /// <summary>Peers must speak the same protocol (a join from another version is turned away).</summary>
+    public const string ProtocolVersion = "downhill-coop-1";
+
+    [Export] public int DefaultPort { get; set; } = 7777;
+    [Export] public int MaxPlayers { get; set; } = 4;
+    /// <summary>States sent per second.</summary>
+    [Export] public float SendRate { get; set; } = 15.0f;
+    /// <summary>A fallen player is back this many seconds later.</summary>
+    [Export] public float RespawnSeconds { get; set; } = 12.0f;
+    /// <summary>Joining gives up after this many seconds without an answer.</summary>
+    [Export] public float ConnectTimeout { get; set; } = 10.0f;
+    /// <summary>A client that hasn't said hello this long after connecting is let go.</summary>
+    [Export] public float HelloTimeout { get; set; } = 6.0f;
+    /// <summary>A promised supply that isn't picked up within this many seconds is free again.</summary>
+    [Export] public float ClaimSeconds { get; set; } = 5.0f;
+    /// <summary>A respawned player comes back this far beside the last station's fire (m).</summary>
+    [Export] public float RespawnBesideFire { get; set; } = 4.0f;
+    /// <summary>States further than this from the world's centre are nonsense and dropped (m).</summary>
+    [Export] public float WorldLimit { get; set; } = 200000.0f;
+    [Export] public int MaxNameLength { get; set; } = 20;
+    [Export] public int MaxWornPieces { get; set; } = 16;
+    [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
+
+    public static NetSession? Instance { get; private set; }
+
+    public Role Mode { get; private set; } = Role.None;
+    public bool Active => Mode != Role.None;
+    /// <summary>A client is "in" once the host welcomed it (it has the seed); the host is in at once.</summary>
+    public bool Joined { get; private set; }
+    public string Status { get; private set; } = "Not connected";
+    public string LocalName { get; private set; } = "Carrier";
+    public long LocalId { get; private set; } = 1;
+    public int Port { get; private set; }
+    public ulong SessionSeed { get; private set; }
+    public IReadOnlyDictionary<long, NetPeer> Peers => _peers;
+    public IReadOnlyDictionary<long, RemoteCarrier> Remotes => _remotes;
+    /// <summary>Shared supplies taken this session (by anyone).</summary>
+    public IReadOnlyCollection<string> TakenSupplies => _taken;
+    /// <summary>Who is being watched while fallen (null: alive, or nobody left to watch).</summary>
+    public RemoteCarrier? Watching { get; private set; }
+    public bool LocalDead { get; private set; }
+    public float RespawnIn { get; private set; }
+    /// <summary>Supplies this client was promised and picked up / was refused (tests).</summary>
+    public int ClaimsGranted { get; private set; }
+    public int ClaimsRefused { get; private set; }
+
+    /// <summary>Something changed the UI should show (status, players).</summary>
+    public event Action? Changed;
+    /// <summary>A client got the host's seed and mountain: the run can begin.</summary>
+    public event Action<ulong>? Welcomed;
+
+    private ENetMultiplayerPeer? _peer;
+    private readonly Dictionary<long, NetPeer> _peers = new();
+    private readonly Dictionary<long, RemoteCarrier> _remotes = new();
+    private readonly Dictionary<long, double> _waitingHello = new();
+    private readonly HashSet<string> _taken = new();
+    private readonly Dictionary<string, (long Peer, double Until)> _promised = new();
+    private readonly HashSet<string> _granted = new();
+    private readonly HashSet<string> _asking = new();
+    private double _sendTimer;
+    private double _connectTimer;
+    private double _clock;
+    private int _lastStation;
+    private bool _savedNewMountain = true;
+    private float _savedSummaryDelay = 7.0f;
+    private bool _teleportNext;
+    private NetHud? _hud;
+
+    public override void _EnterTree()
+    {
+        Instance = this;
+    }
+
+    public override void _Ready()
+    {
+        ProcessMode = ProcessModeEnum.Always;
+        Multiplayer.PeerConnected += OnPeerConnected;
+        Multiplayer.PeerDisconnected += OnPeerDisconnected;
+        Multiplayer.ConnectedToServer += OnConnected;
+        Multiplayer.ConnectionFailed += OnConnectionFailed;
+        Multiplayer.ServerDisconnected += OnServerDisconnected;
+        GameEvents.GearChanged += OnGearChanged;
+        GameEvents.CarrierDied += OnCarrierDied;
+        GameEvents.RespawnRequested += OnRespawnRequested;
+        GameEvents.StationReached += OnStationReached;
+        GameEvents.SupplyPickedUp += OnSupplyPickedUp;
+        _hud = new NetHud { Name = "NetHud", Session = this };
+        AddChild(_hud);
+        CallDeferred(MethodName.ReadCommandLine);
+    }
+
+    public override void _ExitTree()
+    {
+        GameEvents.GearChanged -= OnGearChanged;
+        GameEvents.CarrierDied -= OnCarrierDied;
+        GameEvents.RespawnRequested -= OnRespawnRequested;
+        GameEvents.StationReached -= OnStationReached;
+        GameEvents.SupplyPickedUp -= OnSupplyPickedUp;
+        if (Active)
+        {
+            Leave();
+        }
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+    }
+
+    private void ReadCommandLine()
+    {
+        string name = "";
+        string join = "";
+        int hostPort = -1;
+        foreach (string arg in OS.GetCmdlineUserArgs())
+        {
+            if (arg.StartsWith("--net-name=", StringComparison.Ordinal))
+            {
+                name = arg["--net-name=".Length..];
+            }
+            else if (arg == "--host")
+            {
+                hostPort = DefaultPort;
+            }
+            else if (arg.StartsWith("--host=", StringComparison.Ordinal) && int.TryParse(arg["--host=".Length..], out int port))
+            {
+                hostPort = port;
+            }
+            else if (arg.StartsWith("--join=", StringComparison.Ordinal))
+            {
+                join = arg["--join=".Length..];
+            }
+            else if (arg.StartsWith("--net-probe=", StringComparison.Ordinal) && float.TryParse(arg["--net-probe=".Length..],
+                System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float seconds))
+            {
+                AddChild(new NetProbe { Name = "NetProbe", Session = this, Seconds = seconds, GrabAtUnix = ProbeNumber("--net-grab-at="), Linger = (float)ProbeNumber("--net-linger=") });
+            }
+        }
+        if (hostPort > 0)
+        {
+            Host(name, hostPort);
+        }
+        else if (join.Length > 0)
+        {
+            string address = join;
+            int port = DefaultPort;
+            int colon = join.LastIndexOf(':');
+            if (colon > 0 && int.TryParse(join[(colon + 1)..], out int given))
+            {
+                address = join[..colon];
+                port = given;
+            }
+            Join(name, address, port);
+        }
+    }
+
+    /// <summary>A number after a probe argument (`--net-grab-at=unix seconds`, `--net-linger=seconds`), or -1.</summary>
+    private static double ProbeNumber(string prefix)
+    {
+        foreach (string arg in OS.GetCmdlineUserArgs())
+        {
+            if (arg.StartsWith(prefix, StringComparison.Ordinal) && double.TryParse(arg[prefix.Length..],
+                System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double value))
+            {
+                return value;
+            }
+        }
+        return -1.0;
+    }
+
+    // --- Starting and ending a session ---
+
+    /// <summary>Hosts a session on this port; false (and Status says why) if the port can't be opened.</summary>
+    public bool Host(string name, int port)
+    {
+        if (Active)
+        {
+            Leave();
+        }
+        LocalName = CleanName(name);
+        _peer = new ENetMultiplayerPeer();
+        Error error = _peer.CreateServer(port, Mathf.Max(MaxPlayers - 1, 1));
+        if (error != Error.Ok)
+        {
+            SetStatus($"Couldn't host on port {port} ({error}). Is another game using it?");
+            Log($"host failed on port {port}: {error}");
+            _peer = null;
+            return false;
+        }
+        Multiplayer.MultiplayerPeer = _peer;
+        Mode = Role.Host;
+        Port = port;
+        LocalId = 1;
+        Joined = true;
+        RunState? run = Run();
+        SessionSeed = run?.Seed ?? 0;
+        BeginSession();
+        SetStatus($"Hosting on port {port}. Others join with this computer's address.");
+        Log($"hosting on port {port}, seed {SessionSeed}, up to {MaxPlayers} players");
+        return true;
+    }
+
+    /// <summary>Joins a host; Status follows the attempt and Welcomed fires once the host lets this player in.</summary>
+    public bool Join(string name, string address, int port)
+    {
+        if (Active)
+        {
+            Leave();
+        }
+        LocalName = CleanName(name);
+        string host = address.Trim();
+        if (host.Length == 0)
+        {
+            host = "127.0.0.1";
+        }
+        _peer = new ENetMultiplayerPeer();
+        Error error = _peer.CreateClient(host, port);
+        if (error != Error.Ok)
+        {
+            SetStatus($"Couldn't reach {host}:{port} ({error}).");
+            Log($"join failed to start for {host}:{port}: {error}");
+            _peer = null;
+            return false;
+        }
+        Multiplayer.MultiplayerPeer = _peer;
+        Mode = Role.Client;
+        Port = port;
+        Joined = false;
+        _connectTimer = 0.0;
+        SetStatus($"Connecting to {host}:{port}...");
+        Log($"connecting to {host}:{port} as {LocalName}");
+        return true;
+    }
+
+    /// <summary>Leaves the session (a host ends it for everyone); this player keeps playing alone.</summary>
+    public void Leave()
+    {
+        if (!Active)
+        {
+            return;
+        }
+        Log("leaving the session");
+        EndSession("You left the co-op session. The mountain is yours alone again.");
+    }
+
+    private void BeginSession()
+    {
+        RunState? run = Run();
+        if (run != null)
+        {
+            // Together, a fall isn't the end of the mountain: you come back at the last station.
+            _savedNewMountain = run.NewMountainOnDeath;
+            _savedSummaryDelay = run.SummaryDelay;
+            run.NewMountainOnDeath = false;
+            run.SummaryDelay = RespawnSeconds;
+        }
+        GameEvents.PickupGate = Gate;
+        _lastStation = 0;
+        LocalDead = false;
+        Changed?.Invoke();
+    }
+
+    private void EndSession(string hint)
+    {
+        bool wasActive = Active;
+        if (_peer != null)
+        {
+            _peer.Close();
+        }
+        _peer = null;
+        Multiplayer.MultiplayerPeer = new OfflineMultiplayerPeer();
+        foreach (RemoteCarrier remote in _remotes.Values)
+        {
+            if (IsInstanceValid(remote))
+            {
+                remote.QueueFree();
+            }
+        }
+        _remotes.Clear();
+        _peers.Clear();
+        _waitingHello.Clear();
+        _taken.Clear();
+        _promised.Clear();
+        _granted.Clear();
+        _asking.Clear();
+        GameEvents.PickupGate = null;
+        RunState? run = Run();
+        if (run != null && wasActive)
+        {
+            run.NewMountainOnDeath = _savedNewMountain;
+            run.SummaryDelay = _savedSummaryDelay;
+        }
+        StopWatching();
+        Mode = Role.None;
+        Joined = false;
+        SetStatus("Not connected");
+        if (wasActive && hint.Length > 0)
+        {
+            GameEvents.PublishHint(hint);
+        }
+    }
+
+    // --- Connection events ---
+
+    private void OnPeerConnected(long id)
+    {
+        if (Mode == Role.Host)
+        {
+            _waitingHello[id] = _clock;
+            Log($"peer {id} connected, waiting for hello");
+        }
+    }
+
+    private void OnPeerDisconnected(long id)
+    {
+        _waitingHello.Remove(id);
+        if (!_peers.Remove(id, out NetPeer? peer))
+        {
+            return;
+        }
+        RemoveRemote(id);
+        Log($"{peer.Name} ({id}) left");
+        GameEvents.PublishHint($"{peer.Name} left the descent.");
+        if (Mode == Role.Host)
+        {
+            // Supplies promised to them and never taken are free again.
+            List<string> free = new();
+            foreach (KeyValuePair<string, (long Peer, double Until)> promise in _promised)
+            {
+                if (promise.Value.Peer == id)
+                {
+                    free.Add(promise.Key);
+                }
+            }
+            foreach (string key in free)
+            {
+                _promised.Remove(key);
+            }
+            Rpc(MethodName.PeerLeft, id);
+        }
+        Changed?.Invoke();
+    }
+
+    private void OnConnected()
+    {
+        LocalId = Multiplayer.GetUniqueId();
+        SetStatus("Connected. Waiting for the host to let you in...");
+        Log($"connected as peer {LocalId}, saying hello");
+        RpcId(1, MethodName.Hello, LocalName, LocalCharacter(), LocalWorn(), ProtocolVersion);
+    }
+
+    private void OnConnectionFailed()
+    {
+        Log("connection failed");
+        EndSession("");
+        SetStatus("Couldn't connect. Check the address, the port, and that the host is running and reachable.");
+    }
+
+    private void OnServerDisconnected()
+    {
+        Log("the host closed the session");
+        EndSession("The host has left. You carry on alone on the same mountain.");
+    }
+
+    // --- Messages: client -> host ---
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void Hello(string name, string character, string[] worn, string version)
+    {
+        if (Mode != Role.Host)
+        {
+            return;
+        }
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (_peers.ContainsKey(sender))
+        {
+            return;
+        }
+        _waitingHello.Remove(sender);
+        if (version != ProtocolVersion)
+        {
+            Log($"turned away peer {sender}: version {version}, ours {ProtocolVersion}");
+            RpcId(sender, MethodName.Rejected, $"The host runs another version of the game ({ProtocolVersion}). Update both to the same version.");
+            DisconnectLater(sender);
+            return;
+        }
+        if (_peers.Count + 1 >= MaxPlayers)
+        {
+            Log($"turned away peer {sender}: the session is full");
+            RpcId(sender, MethodName.Rejected, $"The session is full ({MaxPlayers} players).");
+            DisconnectLater(sender);
+            return;
+        }
+        NetPeer peer = new() { Id = sender, Name = UniqueName(CleanName(name)), Character = CleanCharacter(character), Worn = CleanWorn(worn) };
+        _peers[sender] = peer;
+        Log($"{peer.Name} ({sender}) joined as {peer.Character}, wearing {peer.Worn.Length} pieces");
+        // The newcomer gets the mountain, what's been taken, the host, and everyone already here.
+        string[] taken = new string[_taken.Count];
+        _taken.CopyTo(taken);
+        RpcId(sender, MethodName.Welcome, (long)SessionSeed, taken, LocalName, LocalCharacter(), LocalWorn(), peer.Name);
+        foreach (NetPeer other in _peers.Values)
+        {
+            if (other.Id != sender)
+            {
+                RpcId(sender, MethodName.PeerJoined, other.Id, other.Name, other.Character, other.Worn);
+                RpcId(other.Id, MethodName.PeerJoined, sender, peer.Name, peer.Character, peer.Worn);
+            }
+        }
+        SpawnRemote(peer);
+        GameEvents.PublishHint($"{peer.Name} joined the descent.");
+        Changed?.Invoke();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered, TransferChannel = 1)]
+    private void State(Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead)
+    {
+        if (Mode != Role.Host)
+        {
+            return;
+        }
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (!_peers.TryGetValue(sender, out NetPeer? peer) || !Sane(position, yaw, clipPosition, clipSpeed))
+        {
+            return;
+        }
+        string safeClip = Clip(clip);
+        peer.Position = position;
+        peer.Silent = 0.0;
+        if (peer.Dead != dead)
+        {
+            peer.Dead = dead;
+            Changed?.Invoke();
+        }
+        if (_remotes.TryGetValue(sender, out RemoteCarrier? remote))
+        {
+            remote.Receive(position, yaw, safeClip, clipPosition, clipSpeed, dead);
+        }
+        foreach (long other in _peers.Keys)
+        {
+            if (other != sender)
+            {
+                RpcId(other, MethodName.PeerState, sender, position, yaw, safeClip, clipPosition, clipSpeed, dead);
+            }
+        }
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void Look(string character, string[] worn)
+    {
+        if (Mode != Role.Host)
+        {
+            return;
+        }
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (!_peers.TryGetValue(sender, out NetPeer? peer))
+        {
+            return;
+        }
+        peer.Character = CleanCharacter(character);
+        peer.Worn = CleanWorn(worn);
+        if (_remotes.TryGetValue(sender, out RemoteCarrier? remote))
+        {
+            remote.ShowLook(peer.Character, peer.Worn);
+        }
+        foreach (long other in _peers.Keys)
+        {
+            if (other != sender)
+            {
+                RpcId(other, MethodName.PeerLook, sender, peer.Character, peer.Worn);
+            }
+        }
+    }
+
+    /// <summary>A client asks for a shared supply: the first to ask gets it; it is theirs for ClaimSeconds.</summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void Claim(string key)
+    {
+        if (Mode != Role.Host)
+        {
+            return;
+        }
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (!_peers.ContainsKey(sender) || key.Length == 0 || key.Length > 64)
+        {
+            return;
+        }
+        bool free = !_taken.Contains(key) && (!_promised.TryGetValue(key, out (long Peer, double Until) promise) || promise.Peer == sender);
+        if (free)
+        {
+            _promised[key] = (sender, _clock + ClaimSeconds);
+        }
+        Log($"{NameOf(sender)} asks for {key}: {(free ? "yes" : "already taken")}");
+        RpcId(sender, MethodName.ClaimAnswer, key, free);
+    }
+
+    /// <summary>A client picked up what it was promised: it's gone for everyone.</summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void Took(string key)
+    {
+        if (Mode != Role.Host)
+        {
+            return;
+        }
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (!_promised.TryGetValue(key, out (long Peer, double Until) promise) || promise.Peer != sender)
+        {
+            Log($"{NameOf(sender)} says it took {key} without a promise; ignored");
+            return;
+        }
+        _promised.Remove(key);
+        MarkTaken(key, sender);
+    }
+
+    // --- Messages: host -> clients (only the host may send these) ---
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void Welcome(long seed, string[] taken, string hostName, string hostCharacter, string[] hostWorn, string yourName)
+    {
+        if (Mode != Role.Client)
+        {
+            return;
+        }
+        SessionSeed = (ulong)seed;
+        LocalName = yourName;
+        Joined = true;
+        BeginSession();
+        foreach (string key in taken)
+        {
+            _taken.Add(key);
+        }
+        NetPeer host = new() { Id = 1, Name = hostName, Character = hostCharacter, Worn = hostWorn };
+        _peers[1] = host;
+        SpawnRemote(host);
+        // The host's mountain: built from its seed here too.
+        Run()?.StartNewRun(SessionSeed);
+        CallDeferred(MethodName.RemoveTakenSupplies);
+        SetStatus($"In {hostName}'s descent.");
+        Log($"welcomed by {hostName}: seed {SessionSeed}, {taken.Length} supplies already taken, named {yourName}");
+        Welcomed?.Invoke(SessionSeed);
+        SendLook();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void Rejected(string reason)
+    {
+        Log($"the host turned us away: {reason}");
+        EndSession("");
+        SetStatus(reason);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void PeerJoined(long id, string name, string character, string[] worn)
+    {
+        if (Mode != Role.Client || id == LocalId)
+        {
+            return;
+        }
+        NetPeer peer = new() { Id = id, Name = name, Character = character, Worn = worn };
+        _peers[id] = peer;
+        SpawnRemote(peer);
+        Log($"{name} ({id}) is here");
+        GameEvents.PublishHint($"{name} joined the descent.");
+        Changed?.Invoke();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void PeerLeft(long id)
+    {
+        if (Mode != Role.Client || !_peers.Remove(id, out NetPeer? peer))
+        {
+            return;
+        }
+        RemoveRemote(id);
+        Log($"{peer.Name} ({id}) left");
+        GameEvents.PublishHint($"{peer.Name} left the descent.");
+        Changed?.Invoke();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered, TransferChannel = 1)]
+    private void PeerState(long id, Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead)
+    {
+        if (Mode != Role.Client || id == LocalId || !_peers.TryGetValue(id, out NetPeer? peer))
+        {
+            return;
+        }
+        peer.Position = position;
+        if (peer.Dead != dead)
+        {
+            peer.Dead = dead;
+            Changed?.Invoke();
+        }
+        if (_remotes.TryGetValue(id, out RemoteCarrier? remote))
+        {
+            remote.Receive(position, yaw, clip, clipPosition, clipSpeed, dead);
+        }
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void PeerLook(long id, string character, string[] worn)
+    {
+        if (Mode != Role.Client || !_peers.TryGetValue(id, out NetPeer? peer))
+        {
+            return;
+        }
+        peer.Character = character;
+        peer.Worn = worn;
+        if (_remotes.TryGetValue(id, out RemoteCarrier? remote))
+        {
+            remote.ShowLook(character, worn);
+        }
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ClaimAnswer(string key, bool granted)
+    {
+        if (Mode != Role.Client)
+        {
+            return;
+        }
+        _asking.Remove(key);
+        if (!granted)
+        {
+            ClaimsRefused++;
+            Log($"{key}: someone else got it first");
+            RemoveSupply(key);
+            return;
+        }
+        ClaimsGranted++;
+        _granted.Add(key);
+        // Now take it for real (the gate lets it through once).
+        WorldItem? item = FindSupply(key);
+        PlayerController? player = LocalPlayer();
+        if (item == null || player == null || !item.Interact(player))
+        {
+            _granted.Remove(key);
+            Log($"{key}: promised, but not picked up (no room, or gone)");
+        }
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void Taken(string key, long by)
+    {
+        if (Mode != Role.Client)
+        {
+            return;
+        }
+        _taken.Add(key);
+        if (by != LocalId)
+        {
+            RemoveSupply(key);
+        }
+    }
+
+    // --- Shared supplies ---
+
+    /// <summary>The pickup gate (GameEvents.PickupGate): may this machine take this supply now?</summary>
+    private bool Gate(string key)
+    {
+        if (!Joined)
+        {
+            return true;
+        }
+        if (Mode == Role.Host)
+        {
+            if (_taken.Contains(key))
+            {
+                return false;
+            }
+            return !_promised.ContainsKey(key);
+        }
+        if (_granted.Remove(key))
+        {
+            return true;
+        }
+        if (_taken.Contains(key))
+        {
+            RemoveSupply(key);
+            return false;
+        }
+        if (_asking.Add(key))
+        {
+            RpcId(1, MethodName.Claim, key);
+        }
+        return false;
+    }
+
+    private void OnSupplyPickedUp(string key)
+    {
+        if (!Active || !Joined)
+        {
+            return;
+        }
+        if (Mode == Role.Host)
+        {
+            MarkTaken(key, 1);
+            return;
+        }
+        _taken.Add(key);
+        RpcId(1, MethodName.Took, key);
+    }
+
+    /// <summary>Host: a supply is gone; everyone removes it.</summary>
+    private void MarkTaken(string key, long by)
+    {
+        _taken.Add(key);
+        if (by != 1)
+        {
+            RemoveSupply(key);
+        }
+        Log($"{key} taken by {NameOf(by)}");
+        Rpc(MethodName.Taken, key, by);
+    }
+
+    private void RemoveTakenSupplies()
+    {
+        SupplySpawner? spawner = Spawner();
+        if (spawner != null && _taken.Count > 0)
+        {
+            spawner.MarkTaken(_taken);
+        }
+    }
+
+    private void RemoveSupply(string key)
+    {
+        Spawner()?.MarkTaken(new[] { key });
+    }
+
+    private WorldItem? FindSupply(string key)
+    {
+        foreach (Node node in GetTree().GetNodesInGroup(IInteractable.Group))
+        {
+            if (node is WorldItem item && item.SlotKey == key && !item.IsQueuedForDeletion())
+            {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    // --- The local carrier: state out, death, respawn ---
+
+    public override void _Process(double delta)
+    {
+        _clock += delta;
+        if (!Active)
+        {
+            return;
+        }
+        if (Mode == Role.Client && !Joined)
+        {
+            _connectTimer += delta;
+            if (_connectTimer > ConnectTimeout)
+            {
+                Log("no answer from the host; giving up");
+                EndSession("");
+                SetStatus("No answer from the host. Check the address and port, and the host's firewall.");
+            }
+            return;
+        }
+        if (Mode == Role.Host)
+        {
+            Housekeeping(delta);
+        }
+        _sendTimer += delta;
+        if (_sendTimer >= 1.0 / Mathf.Max(SendRate, 1.0f))
+        {
+            _sendTimer = 0.0;
+            SendState();
+        }
+        if (LocalDead)
+        {
+            RespawnIn = Mathf.Max(0.0f, RespawnIn - (float)delta);
+            if (Watching == null || !IsInstanceValid(Watching) || Watching.Dead)
+            {
+                WatchNext();
+            }
+        }
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (!LocalDead || !Active)
+        {
+            return;
+        }
+        bool next = @event is InputEventKey key && key.Pressed && !key.Echo && key.Keycode == Key.Tab;
+        if (@event is InputEventMouseButton button && button.Pressed && button.ButtonIndex == MouseButton.Left)
+        {
+            next = true;
+        }
+        if (next)
+        {
+            WatchNext();
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
+    private void Housekeeping(double delta)
+    {
+        // Hellos that never came, and promises nobody kept.
+        List<long> silent = new();
+        foreach (KeyValuePair<long, double> waiting in _waitingHello)
+        {
+            if (_clock - waiting.Value > HelloTimeout)
+            {
+                silent.Add(waiting.Key);
+            }
+        }
+        foreach (long id in silent)
+        {
+            Log($"peer {id} never said hello; let go");
+            _waitingHello.Remove(id);
+            _peer?.DisconnectPeer((int)id);
+        }
+        List<string> expired = new();
+        foreach (KeyValuePair<string, (long Peer, double Until)> promise in _promised)
+        {
+            if (_clock > promise.Value.Until)
+            {
+                expired.Add(promise.Key);
+            }
+        }
+        foreach (string key in expired)
+        {
+            _promised.Remove(key);
+        }
+    }
+
+    private void SendState()
+    {
+        PlayerController? player = LocalPlayer();
+        if (player == null)
+        {
+            return;
+        }
+        Vector3 position = player.GlobalPosition;
+        float yaw = player.GlobalRotation.Y;
+        Node3D? model = player.GetNodeOrNull<Node3D>("Model");
+        if (model != null)
+        {
+            yaw = model.GlobalRotation.Y;
+        }
+        string clip = "";
+        float clipPosition = 0.0f;
+        float clipSpeed = 1.0f;
+        AnimationPlayer? animation = player.GetNodeOrNull<AnimationPlayer>("Model/AnimationPlayer");
+        if (animation != null && animation.IsPlaying())
+        {
+            clip = animation.CurrentAnimation;
+            clipPosition = (float)animation.CurrentAnimationPosition;
+            clipSpeed = animation.GetPlayingSpeed();
+        }
+        if (Mode == Role.Host)
+        {
+            foreach (long id in _peers.Keys)
+            {
+                RpcId(id, MethodName.PeerState, 1L, position, yaw, clip, clipPosition, clipSpeed, LocalDead);
+            }
+        }
+        else
+        {
+            RpcId(1, MethodName.State, position, yaw, clip, clipPosition, clipSpeed, LocalDead);
+        }
+    }
+
+    private void OnGearChanged(GearSnapshot gear)
+    {
+        if (Active && Joined)
+        {
+            SendLook();
+        }
+    }
+
+    private void SendLook()
+    {
+        if (Mode == Role.Host)
+        {
+            foreach (long id in _peers.Keys)
+            {
+                RpcId(id, MethodName.PeerLook, 1L, LocalCharacter(), LocalWorn());
+            }
+        }
+        else if (Mode == Role.Client && Joined)
+        {
+            RpcId(1, MethodName.Look, LocalCharacter(), LocalWorn());
+        }
+    }
+
+    private void OnStationReached(int station)
+    {
+        _lastStation = Mathf.Max(_lastStation, station);
+    }
+
+    private void OnCarrierDied(string cause)
+    {
+        if (!Active || !Joined)
+        {
+            return;
+        }
+        LocalDead = true;
+        RespawnIn = RespawnSeconds;
+        Log($"we fell ({cause}); back at station {_lastStation} in {RespawnSeconds:0} s");
+        WatchNext();
+        SendState();
+        Changed?.Invoke();
+    }
+
+    private void OnRespawnRequested()
+    {
+        if (!Active || !Joined)
+        {
+            return;
+        }
+        // A new run (joining) builds the mountain again: what's been taken stays taken.
+        CallDeferred(MethodName.RemoveTakenSupplies);
+        if (!LocalDead)
+        {
+            return;
+        }
+        LocalDead = false;
+        StopWatching();
+        _teleportNext = true;
+        // After every system has put the carrier back on the summit, bring them to the last station.
+        GetTree().CreateTimer(0.3, true).Timeout += BackAtStation;
+        Changed?.Invoke();
+    }
+
+    private void BackAtStation()
+    {
+        if (!_teleportNext)
+        {
+            return;
+        }
+        _teleportNext = false;
+        RunState? run = Run();
+        PlayerController? player = LocalPlayer();
+        if (run?.Route == null || player == null || _lastStation <= 0)
+        {
+            Log("back at the summit (no station reached yet)");
+            return;
+        }
+        Vector3 fire = run.Route.Station(_lastStation);
+        Vector3 at = fire + Vector3.Right * RespawnBesideFire;
+        PhysicsDirectSpaceState3D space = player.GetWorld3D().DirectSpaceState;
+        Godot.Collections.Dictionary hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(at + Vector3.Up * 50.0f, at + Vector3.Down * 100.0f, GroundMask));
+        if (hit.Count > 0)
+        {
+            at = (Vector3)hit["position"];
+        }
+        player.Teleport(at + Vector3.Up * 0.2f, player.GlobalRotation.Y);
+        GameEvents.PublishHint($"You're back at station {_lastStation}'s fire.");
+        Log($"back at station {_lastStation} ({at})");
+    }
+
+    // --- Watching a teammate while fallen ---
+
+    private void WatchNext()
+    {
+        List<RemoteCarrier> living = new();
+        foreach (RemoteCarrier remote in _remotes.Values)
+        {
+            if (IsInstanceValid(remote) && !remote.Dead)
+            {
+                living.Add(remote);
+            }
+        }
+        ChaseCamera? camera = Camera();
+        if (living.Count == 0 || camera == null)
+        {
+            StopWatching();
+            return;
+        }
+        int index = 0;
+        if (Watching != null)
+        {
+            index = (living.IndexOf(Watching) + 1) % living.Count;
+        }
+        Watching = living[index];
+        camera.Target = Watching;
+        Changed?.Invoke();
+    }
+
+    private void StopWatching()
+    {
+        Watching = null;
+        ChaseCamera? camera = Camera();
+        PlayerController? player = LocalPlayer();
+        if (camera != null && player != null && camera.Target != player)
+        {
+            camera.Target = player;
+        }
+    }
+
+    // --- Remote carriers ---
+
+    private void SpawnRemote(NetPeer peer)
+    {
+        RemoveRemote(peer.Id);
+        Node? world = GetTree().CurrentScene;
+        if (world == null)
+        {
+            return;
+        }
+        RemoteCarrier remote = new() { Name = $"Remote_{peer.Id}", PeerId = peer.Id, PlayerName = peer.Name, Character = peer.Character };
+        Node3D? model = LocalPlayer()?.GetNodeOrNull<Node3D>("Model");
+        if (model != null)
+        {
+            remote.UseModelPlacement(model.Transform);
+        }
+        world.AddChild(remote);
+        remote.ShowLook(peer.Character, peer.Worn);
+        _remotes[peer.Id] = remote;
+    }
+
+    private void RemoveRemote(long id)
+    {
+        if (_remotes.Remove(id, out RemoteCarrier? remote) && IsInstanceValid(remote))
+        {
+            if (Watching == remote)
+            {
+                Watching = null;
+                if (LocalDead)
+                {
+                    WatchNext();
+                }
+                else
+                {
+                    StopWatching();
+                }
+            }
+            remote.QueueFree();
+        }
+    }
+
+    // --- Helpers ---
+
+    private RunState? Run()
+    {
+        return GetNodeOrNull<RunState>("/root/RunState");
+    }
+
+    private PlayerController? _player;
+    private ChaseCamera? _camera;
+    private SupplySpawner? _spawner;
+
+    public PlayerController? LocalPlayer()
+    {
+        if (_player != null && IsInstanceValid(_player) && _player.IsInsideTree())
+        {
+            return _player;
+        }
+        _player = Find<PlayerController>(GetTree().CurrentScene);
+        return _player;
+    }
+
+    private ChaseCamera? Camera()
+    {
+        if (_camera != null && IsInstanceValid(_camera) && _camera.IsInsideTree())
+        {
+            return _camera;
+        }
+        _camera = Find<ChaseCamera>(GetTree().CurrentScene);
+        return _camera;
+    }
+
+    private SupplySpawner? Spawner()
+    {
+        if (_spawner != null && IsInstanceValid(_spawner) && _spawner.IsInsideTree())
+        {
+            return _spawner;
+        }
+        _spawner = Find<SupplySpawner>(GetTree().CurrentScene);
+        return _spawner;
+    }
+
+    private static T? Find<T>(Node? root) where T : class
+    {
+        if (root == null)
+        {
+            return null;
+        }
+        if (root is T found && root is not RemoteCarrier)
+        {
+            return found;
+        }
+        foreach (Node child in root.GetChildren())
+        {
+            if (child is RemoteCarrier)
+            {
+                continue;
+            }
+            T? inner = Find<T>(child);
+            if (inner != null)
+            {
+                return inner;
+            }
+        }
+        return null;
+    }
+
+    private string LocalCharacter()
+    {
+        string? id = Run()?.Character.Definition?.Id;
+        if (id != null && id.Length > 0)
+        {
+            return id;
+        }
+        return GameOptions.Character;
+    }
+
+    private static string[] LocalWorn()
+    {
+        List<string> worn = new();
+        GearSnapshot gear = GameEvents.CurrentGear;
+        if (gear.Slots != null)
+        {
+            foreach (WornPiece piece in gear.Slots)
+            {
+                if (!piece.Empty && !worn.Contains(piece.ItemId))
+                {
+                    worn.Add(piece.ItemId);
+                }
+            }
+        }
+        return worn.ToArray();
+    }
+
+    private string NameOf(long id)
+    {
+        if (id == 1 && Mode == Role.Host)
+        {
+            return LocalName;
+        }
+        if (_peers.TryGetValue(id, out NetPeer? peer))
+        {
+            return peer.Name;
+        }
+        return $"peer {id}";
+    }
+
+    private string CleanName(string name)
+    {
+        string clean = name.Trim().Replace("\n", " ").Replace("[", "(").Replace("]", ")");
+        if (clean.Length == 0)
+        {
+            clean = "Carrier";
+        }
+        if (clean.Length > MaxNameLength)
+        {
+            clean = clean[..MaxNameLength];
+        }
+        return clean;
+    }
+
+    private string UniqueName(string name)
+    {
+        string unique = name;
+        int n = 2;
+        while (unique == LocalName || Taken(unique))
+        {
+            unique = $"{name} {n}";
+            n++;
+        }
+        return unique;
+    }
+
+    private bool Taken(string name)
+    {
+        foreach (NetPeer peer in _peers.Values)
+        {
+            if (peer.Name == name)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static string CleanCharacter(string character)
+    {
+        if (CarrierRoster.Load()?.Pick(character) is CarrierCharacter picked)
+        {
+            return picked.Id;
+        }
+        return "";
+    }
+
+    private string[] CleanWorn(string[] worn)
+    {
+        List<string> clean = new();
+        foreach (string id in worn)
+        {
+            if (clean.Count < MaxWornPieces && ItemText.Find(id) != null && !clean.Contains(id))
+            {
+                clean.Add(id);
+            }
+        }
+        return clean.ToArray();
+    }
+
+    private static string Clip(string clip)
+    {
+        if (clip.Length > 64)
+        {
+            return "";
+        }
+        return clip;
+    }
+
+    private bool Sane(Vector3 position, float yaw, float clipPosition, float clipSpeed)
+    {
+        return position.IsFinite() && position.Length() < WorldLimit && Mathf.IsFinite(yaw) && Mathf.IsFinite(clipPosition)
+            && Mathf.IsFinite(clipSpeed) && Mathf.Abs(clipSpeed) < 10.0f;
+    }
+
+    private void DisconnectLater(long id)
+    {
+        GetTree().CreateTimer(0.5, true).Timeout += () => _peer?.DisconnectPeer((int)id);
+    }
+
+    private void SetStatus(string status)
+    {
+        Status = status;
+        Changed?.Invoke();
+    }
+
+    private static void Log(string text)
+    {
+        GD.Print($"[Net] {text}");
+    }
+}

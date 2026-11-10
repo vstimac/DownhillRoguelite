@@ -34,6 +34,13 @@ public partial class CarrierModel : Node3D
     public ClothingVisualController? Clothing { get; private set; }
     /// <summary>The id of the character shown ("" while it's the mannequin).</summary>
     public string CharacterId { get; private set; } = "";
+    /// <summary>
+    /// Another player's carrier (network/RemoteCarrier): shows RemoteCharacter and the gear it is
+    /// given (ShowRemoteGear) instead of following this machine's choice, options and worn gear.
+    /// </summary>
+    public bool Remote { get; set; }
+    public string RemoteCharacter { get; set; } = "";
+    private GearSnapshot _remoteGear = GearSnapshot.None;
 
     private MeshInstance3D? _helmet;
     private MeshInstance3D? _hair;
@@ -44,6 +51,11 @@ public partial class CarrierModel : Node3D
 
     public override void _Ready()
     {
+        if (Remote)
+        {
+            Show(CarrierRoster.Load(RosterPath)?.Pick(RemoteCharacter));
+            return;
+        }
         GameOptions.Load();
         GameEvents.GearChanged += OnGear;
         GameOptions.Changed += OnOptions;
@@ -54,6 +66,10 @@ public partial class CarrierModel : Node3D
 
     public override void _ExitTree()
     {
+        if (Remote)
+        {
+            return;
+        }
         GameEvents.GearChanged -= OnGear;
         GameOptions.Changed -= OnOptions;
         RunState? run = GetNodeOrNull<RunState>("/root/RunState");
@@ -70,6 +86,26 @@ public partial class CarrierModel : Node3D
         }
         Show(character);
         return Model != null;
+    }
+
+    /// <summary>A remote carrier switches to another character (their choice changed).</summary>
+    public void ShowRemoteCharacter(string id)
+    {
+        if (!Remote || id == CharacterId)
+        {
+            return;
+        }
+        RemoteCharacter = id;
+        Show(CarrierRoster.Load(RosterPath)?.Pick(id));
+    }
+
+    /// <summary>A remote carrier puts on what its player wears.</summary>
+    public void ShowRemoteGear(GearSnapshot gear)
+    {
+        _remoteGear = gear;
+        _worn?.ShowGear(gear);
+        Clothing?.ShowGear(gear);
+        OnGear(gear);
     }
 
     /// <summary>The worn-gear layer of the shown character (null with the mannequin).</summary>
@@ -172,17 +208,22 @@ public partial class CarrierModel : Node3D
         {
             vestItem = VestItem;
         }
-        _worn = new CarrierWornGear { Name = "WornGear", Skeleton = skeleton, CharacterId = character.FitId, Vest = _vest, HelmetItem = helmetItem, VestItem = vestItem };
+        _worn = new CarrierWornGear { Name = "WornGear", ListenToGear = !Remote, Skeleton = skeleton, CharacterId = character.FitId, Vest = _vest, HelmetItem = helmetItem, VestItem = vestItem };
         AddChild(_worn);
-        Clothing = new ClothingVisualController { Name = "ClothingVisuals", Skeleton = skeleton, CharacterId = character.FitId };
+        Clothing = new ClothingVisualController { Name = "ClothingVisuals", ListenToGear = !Remote, Skeleton = skeleton, CharacterId = character.FitId };
         AddChild(Clothing);
+        if (Remote)
+        {
+            ShowRemoteGear(_remoteGear);
+            return;
+        }
         OnGear(GameEvents.CurrentGear);
     }
 
     private void UseFallbackOutfit()
     {
         if (Driver == null) { return; }
-        Clothing = new ClothingVisualController { Name = "ClothingVisuals", Skeleton = Driver, CharacterId = "mannequin" };
+        Clothing = new ClothingVisualController { Name = "ClothingVisuals", ListenToGear = !Remote, Skeleton = Driver, CharacterId = "mannequin" };
         AddChild(Clothing);
     }
 
