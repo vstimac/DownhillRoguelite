@@ -9,7 +9,7 @@ namespace DownhillRoguelite.Ui;
 /// lines, the carrier, an arrow to the next station) on an unfolding parchment sheet, a compass in
 /// its corner and a legend beside it. M opens and closes it through the field map (which slows the
 /// carrier as before). Drag to move the map (Valheim style), click to set a waypoint, right-click
-/// removes one, the wheel zooms, Shift+drag draws with paper and pencil, C or the Centre button
+/// removes one, the wheel zooms, B (or Shift+drag) draws with paper and pencil, C or the Centre button
 /// goes back to the carrier. The grip in the bottom-right corner resizes the page.
 /// </summary>
 public partial class MapScreen : ParchmentPanel
@@ -26,6 +26,8 @@ public partial class MapScreen : ParchmentPanel
     private InkButton? _centre;
     private Control? _grip;
     private bool _resizing;
+    /// <summary>A plain drag draws instead of moving the map (B toggles; opening the map from paper or a pencil turns it on).</summary>
+    private bool _pencil;
     private Vector2 _resizeFrom;
     private Vector2 _sizeFrom;
 
@@ -51,7 +53,7 @@ public partial class MapScreen : ParchmentPanel
         _centre = new InkButton { Text = "Centre", Paper = true, Size = new Vector2(100, 36) };
         _centre.Pressed += () => Map?.Recentre();
         AddChild(_centre);
-        _help = UiStyle.MakeLabel("drag  move   ·   click  waypoint   ·   right-click  remove   ·   wheel  zoom   ·   Shift+drag  draw   ·   C  centre", 15);
+        _help = UiStyle.MakeLabel("drag  move   ·   click  waypoint   ·   right-click  remove   ·   wheel  zoom   ·   B  pencil   ·   C  centre", 15);
         AddChild(_help);
         _grip = new ResizeGrip { Size = new Vector2(26, 26), MouseFilter = MouseFilterEnum.Stop, MouseDefaultCursorShape = CursorShape.Fdiagsize };
         _grip.GuiInput += OnGripInput;
@@ -129,6 +131,12 @@ public partial class MapScreen : ParchmentPanel
         {
             return;
         }
+        if (key.PhysicalKeycode == Key.B)
+        {
+            SetPencil(!_pencil);
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (key.PhysicalKeycode == Key.C)
         {
             Map?.Recentre();
@@ -136,10 +144,33 @@ public partial class MapScreen : ParchmentPanel
         }
     }
 
+    private void SetPencil(bool on)
+    {
+        _pencil = on;
+        if (_help == null)
+        {
+            return;
+        }
+        string tool = "B  pencil";
+        string drag = "drag  move";
+        if (_pencil)
+        {
+            tool = "B  stop drawing";
+            drag = "drag  draw";
+            if (Map != null && !Map.CanDraw)
+            {
+                drag = "drawing needs paper and a pencil";
+            }
+        }
+        _help.Text = drag + "   ·   click  waypoint   ·   right-click  remove   ·   wheel  zoom   ·   " + tool + "   ·   C  centre";
+    }
+
     private void OnMapOpened(bool open)
     {
         if (open)
         {
+            SetPencil(GameEvents.MapPencilWanted);
+            GameEvents.RequestMapPencil(false);
             if (_chart != null && Map != null)
             {
                 _chart.Texture = Map.SheetTexture;
@@ -185,7 +216,7 @@ public partial class MapScreen : ParchmentPanel
             {
                 if (button.Pressed)
                 {
-                    Map.DrawMode = button.ShiftPressed;
+                    Map.DrawMode = button.ShiftPressed || _pencil;
                     Map.PressAt(ToPixel(button.Position));
                 }
                 else

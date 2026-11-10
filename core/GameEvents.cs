@@ -353,6 +353,11 @@ public static partial class GameEvents
 
     public static void PublishPagesFrozen(bool frozen) => PagesFrozen = frozen;
 
+    /// <summary>The map opens with the pencil in hand (opened by using paper or a pencil): a plain drag draws.</summary>
+    public static bool MapPencilWanted { get; private set; }
+
+    public static void RequestMapPencil(bool wanted) => MapPencilWanted = wanted;
+
     public static void PublishMapOpen(bool open)
     {
         IsMapOpen = open;

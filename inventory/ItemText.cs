@@ -24,7 +24,7 @@ public static class ItemText
         };
         if (OpensMap(item))
         {
-            use = "Right-click or V opens the map (M) to draw on: paper and pencil let you mark it.";
+            use = "Right-click or V opens the map ready to draw: drag to mark it (B switches between drawing and moving the map).";
         }
         else if (item.UsableAlone)
         {
@@ -39,9 +39,10 @@ public static class ItemText
         return item != null && (item.ItemId == "paper" || item.ItemId == "pencil");
     }
 
-    /// <summary>Opens (or closes) the map as if M were pressed.</summary>
+    /// <summary>Opens (or closes) the map as if M were pressed; from paper or a pencil it opens ready to draw.</summary>
     public static void ToggleMap()
     {
+        GameEvents.RequestMapPencil(!GameEvents.IsMapOpen);
         Input.ParseInputEvent(new InputEventAction { Action = "map_toggle", Pressed = true });
         Input.ParseInputEvent(new InputEventAction { Action = "map_toggle", Pressed = false });
     }
