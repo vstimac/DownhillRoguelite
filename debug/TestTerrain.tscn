@@ -63,6 +63,8 @@
 [ext_resource type="Resource" path="res://wildlife/enemies/ogre.tres" id="97_ogre"]
 [ext_resource type="Resource" path="res://wildlife/enemies/packbeast.tres" id="98_packbeast"]
 [ext_resource type="Resource" path="res://wildlife/enemies/jade_glutton.tres" id="99_jade_glutton"]
+[ext_resource type="Script" path="res://environment/fog/GroundFog.cs" id="100_ground_fog"]
+[ext_resource type="Resource" path="res://environment/fog/default_ground_fog.tres" id="101_ground_fog_settings"]
 [ext_resource type="Script" uid="uid://fvuoqxhimvmk" path="res://environment/FootTrail.cs" id="49_trail"]
 [ext_resource type="Script" uid="uid://lnmaamvwxdaf" path="res://progression/contracts/ContractDirector.cs" id="50_contracts"]
 [ext_resource type="Resource" path="res://progression/contracts/resources/courier_sealed_parcel.tres" id="51_courier_parcel"]
@@ -429,3 +431,7 @@ Wakeable = Array[Object]([ExtResource("99_jade_glutton")])
 
 [node name="Fcat" type="CanvasLayer" parent="." unique_id=1907733412]
 script = ExtResource("93_fcat")
+
+[node name="GroundFog" type="Node3D" parent="." unique_id=1907733501]
+script = ExtResource("100_ground_fog")
+Settings = ExtResource("101_ground_fog_settings")

@@ -1,0 +1,49 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/GroundFogLab.cs" id="1_lab"]
+[ext_resource type="Script" path="res://environment/fog/GroundFog.cs" id="2_fog"]
+[ext_resource type="Resource" path="res://environment/fog/default_ground_fog.tres" id="3_settings"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_material"]
+sky_top_color = Color(0.42, 0.5, 0.62, 1)
+sky_horizon_color = Color(0.7, 0.74, 0.78, 1)
+ground_horizon_color = Color(0.7, 0.74, 0.78, 1)
+
+[sub_resource type="Sky" id="Sky_lab"]
+sky_material = SubResource("Sky_material")
+
+[sub_resource type="Environment" id="Environment_lab"]
+background_mode = 2
+sky = SubResource("Sky_lab")
+ambient_light_source = 3
+reflected_light_source = 2
+tonemap_mode = 2
+ssao_enabled = true
+fog_enabled = true
+fog_light_color = Color(0.5, 0.51, 0.53, 1)
+fog_density = 0.012
+fog_aerial_perspective = 0.55
+fog_sky_affect = 0.6
+
+[node name="GroundFogLab" type="Node3D" node_paths=PackedStringArray("Fog", "Camera")]
+script = ExtResource("1_lab")
+Fog = NodePath("GroundFog")
+Camera = NodePath("Camera")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_lab")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.187303, 0.463592, 0, 0.927184, 0.374607, -0.5, -0.324419, 0.802965, 0, 100, 0)
+light_color = Color(0.86, 0.88, 0.95, 1)
+light_energy = 0.9
+shadow_enabled = true
+directional_shadow_max_distance = 70.0
+
+[node name="Camera" type="Camera3D" parent="."]
+current = true
+fov = 70.0
+
+[node name="GroundFog" type="Node3D" parent="."]
+script = ExtResource("2_fog")
+Settings = ExtResource("3_settings")
