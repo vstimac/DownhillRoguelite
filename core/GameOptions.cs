@@ -16,6 +16,13 @@ public static class GameOptions
     /// <summary>Raised after any option changes (and once after loading).</summary>
     public static event Action? Changed;
 
+    static GameOptions()
+    {
+        // Whoever asks first gets the saved options: a system reading Quality in its _Ready before
+        // anyone had loaded them used to see the defaults (High, so the fog came back on Low).
+        Load();
+    }
+
     /// <summary>Single player: the world stops while the inventory page or the pack is open.</summary>
     public static bool PauseWhileOpen { get; private set; } = true;
     /// <summary>The flashing list of low stats in the top-left corner.</summary>
