@@ -61,6 +61,8 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
     [Export] public float MaxPushSpeedChange { get; set; } = 0.5f;
     /// <summary>The carrier's radius when its blows reach for them, in m.</summary>
     [Export] public float CarrierRadius { get; set; } = 0.3f;
+    /// <summary>Co-op: the current target counts as this much nearer, so it doesn't flit between players.</summary>
+    [Export] public float TargetLoyalty { get; set; } = 0.75f;
     /// <summary>It stops this share of its reach short of the carrier to swing.</summary>
     [Export] public float StandOffShare { get; set; } = 0.75f;
     /// <summary>How far from the carrier a swing makes it react (beyond its own reach), in m.</summary>
@@ -105,6 +107,9 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
     public int Dodges { get; private set; }
     public int Wounds { get; private set; }
     public bool Aware => _aware;
+    /// <summary>Whose carrier it's after: 0 this machine's, else that player's (co-op; tests).</summary>
+    public long TargetPeer => _targetPeer;
+    public Vector3 TargetFeet => _carrier;
     public string Cause => Species?.DisplayName ?? "an enemy";
 
     private readonly RandomNumberGenerator _random = new();
@@ -113,6 +118,11 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
     private AudioStreamPlayer3D? _voice;
     private Vector3 _carrier;
     private bool _carrierKnown;
+    /// <summary>This machine's carrier; in co-op the target may be another player's (_targetPeer, 0 here).</summary>
+    private Vector3 _localCarrier;
+    private bool _localKnown;
+    private long _targetPeer;
+    private bool _targetDown;
     private bool _aware;
     private float _phaseTime;
     private float _cooldown;
@@ -311,8 +321,88 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
     /// <summary>Tells it where the carrier is (their feet), as the locomotion events do.</summary>
     public void Track(Vector3 carrierFeet)
     {
-        _carrier = carrierFeet;
-        _carrierKnown = true;
+        _localCarrier = carrierFeet;
+        _localKnown = true;
+        if (_targetPeer == 0)
+        {
+            _carrier = carrierFeet;
+            _carrierKnown = true;
+        }
+    }
+
+    /// <summary>The player who is now the target: the nearest one standing (co-op: any player's carrier), keeping the current one unless another is clearly nearer.</summary>
+    private void PickTarget(bool keep)
+    {
+        NetCarrier[] others = GameEvents.OtherCarriers;
+        if (keep && _targetPeer != 0)
+        {
+            // Mid-blow: no switching, but follow where that player is now.
+            foreach (NetCarrier other in others)
+            {
+                if (other.Peer == _targetPeer)
+                {
+                    _carrier = other.Feet;
+                    _targetDown = other.Down;
+                    return;
+                }
+            }
+            _targetDown = true;
+            return;
+        }
+        if (keep)
+        {
+            return;
+        }
+        if (others.Length == 0)
+        {
+            _targetPeer = 0;
+            _targetDown = GameEvents.IsDowned;
+            if (_localKnown)
+            {
+                _carrier = _localCarrier;
+            }
+            return;
+        }
+        float best = float.MaxValue;
+        long peer = _targetPeer;
+        Vector3 feet = _carrier;
+        bool down = true;
+        if (_localKnown && !GameEvents.IsDowned)
+        {
+            best = Score(_localCarrier, 0);
+            peer = 0;
+            feet = _localCarrier;
+            down = false;
+        }
+        foreach (NetCarrier other in others)
+        {
+            if (other.Down)
+            {
+                continue;
+            }
+            float score = Score(other.Feet, other.Peer);
+            if (score < best)
+            {
+                best = score;
+                peer = other.Peer;
+                feet = other.Feet;
+                down = false;
+            }
+        }
+        _targetPeer = peer;
+        _carrier = feet;
+        _targetDown = down;
+        _carrierKnown = _localKnown || best < float.MaxValue;
+    }
+
+    private float Score(Vector3 feet, long peer)
+    {
+        float distance = new Vector2(feet.X - GlobalPosition.X, feet.Z - GlobalPosition.Z).Length();
+        if (peer == _targetPeer)
+        {
+            distance *= TargetLoyalty;
+        }
+        return distance;
     }
 
     private void OnLocomotion(LocomotionSnapshot snapshot)
@@ -377,6 +467,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
         _phaseTime += dt;
         _cooldown = Mathf.Max(0.0f, _cooldown - dt);
         _opening = Mathf.Max(0.0f, _opening - dt);
+        PickTarget(State == Phase.Attack);
         Vector3 toCarrier = _carrier - GlobalPosition;
         toCarrier.Y = 0.0f;
         float distance = toCarrier.Length();
@@ -618,7 +709,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
         {
             bool inReach = distance <= Species.Reach + CarrierRadius;
             bool inFront = (-GlobalBasis.Z).Dot(direction) >= Mathf.Cos(Mathf.DegToRad(Species.ReachAngle));
-            if (_carrierKnown && inReach && inFront && !GameEvents.IsDowned)
+            if (_carrierKnown && inReach && inFront && !_targetDown)
             {
                 _struck = true;
                 Land(direction);
@@ -637,6 +728,16 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
         if (away.LengthSquared() < 0.0001f)
         {
             away = -GlobalBasis.Z;
+        }
+        if (_targetPeer != 0)
+        {
+            // Another player's carrier: their machine takes the blow (their shield may stop it).
+            HitsLanded++;
+            Say(Species!.HitSounds);
+            float theirPush = Species.Push(_attack);
+            GameEvents.PublishNetStrike(new NetStrike(_targetPeer, Species.Damage(_attack), away.Normalized(), theirPush,
+                theirPush >= Species.KnockdownPush, Species.LiftShare, Species.StaggerHeight, Cause));
+            return;
         }
         if (GameEvents.TryBlock(away, Cause))
         {

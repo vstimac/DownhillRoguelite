@@ -30,6 +30,9 @@ public partial class NetProbe : Node
     [Export] public double DieAtUnix { get; set; } = -1.0;
     [Export] public double SpawnAtUnix { get; set; } = -1.0;
     [Export] public double StrikeAtUnix { get; set; } = -1.0;
+    /// <summary>`--net-step-away-at=unix seconds`: this carrier walks off (is moved StepAway metres), leaving its enemy to the others.</summary>
+    [Export] public double StepAwayAtUnix { get; set; } = -1.0;
+    [Export] public Vector3 StepAway { get; set; } = new(-35.0f, 4.0f, 0.0f);
     [Export] public float StrikeDamage { get; set; } = 500.0f;
     /// <summary>The host moves its clock on this many hours early in the run (`--net-advance=hours`), so the clients must follow.</summary>
     [Export] public float AdvanceHours { get; set; }
@@ -50,6 +53,8 @@ public partial class NetProbe : Node
     private bool _sawFallen;
     private bool _spawned;
     private bool _struck;
+    private bool _steppedAway;
+    private double _nextEnemyNote;
     private int _sawPuppets;
     private double _clockAtGrab = -1.0;
     private bool _advanced;
@@ -124,6 +129,27 @@ public partial class NetProbe : Node
             _spawned = true;
             SpawnEnemy();
         }
+        if (_steppedAway && _clock >= _nextEnemyNote)
+        {
+            _nextEnemyNote = _clock + 1.0;
+            foreach (Node node in GetTree().GetNodesInGroup(IMeleeTarget.Group))
+            {
+                if (node is HumanoidEnemy enemy && !enemy.Puppet)
+                {
+                    GD.Print($"[NetProbe] enemy {enemy.State} aware={enemy.Aware} target={enemy.TargetPeer} at {enemy.GlobalPosition:0.0} feet {enemy.TargetFeet:0.0} hits={enemy.HitsLanded} others={GameEvents.OtherCarriers.Length}");
+                }
+            }
+        }
+        if (StepAwayAtUnix >= 0.0 && !_steppedAway && Session.Joined && now >= StepAwayAtUnix)
+        {
+            _steppedAway = true;
+            Node3D? me = Session.LocalPlayer();
+            if (me != null)
+            {
+                me.GlobalPosition += StepAway;
+                GD.Print("[NetProbe] stepped away");
+            }
+        }
         if (StrikeAtUnix >= 0.0 && !_struck && Session.Joined && now >= StrikeAtUnix)
         {
             _struck = true;
@@ -177,7 +203,7 @@ public partial class NetProbe : Node
             + $"taken={session.TakenSupplies.Count} granted={session.ClaimsGranted} refused={session.ClaimsRefused} fell={_fell} watched={_watched} back={_back} "
             + $"saw_fallen={_sawFallen} looks={Looks(session)} owned={session.Mobs?.OwnedCount ?? 0} saw_puppets={_sawPuppets} "
             + $"hits_sent={session.Mobs?.HitsSent ?? 0} hits_applied={session.Mobs?.HitsApplied ?? 0} loot_shared={session.Mobs?.LootShared ?? 0} "
-            + $"loot_received={session.Mobs?.LootReceived ?? 0} clock_at_grab={_clockAtGrab:0.000} status=\"{session.Status}\"");
+            + $"loot_received={session.Mobs?.LootReceived ?? 0} clock_at_grab={_clockAtGrab:0.000} strikes_sent={session.Mobs?.StrikesSent ?? 0} strikes_taken={session.Mobs?.StrikesTaken ?? 0} status=\"{session.Status}\"");
     }
 
     /// <summary>Each remote carrier's name, character and shirt colour, as shown here.</summary>

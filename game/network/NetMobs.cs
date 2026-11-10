@@ -46,6 +46,9 @@ public partial class NetMobs : Node
     /// <summary>Blows sent to other owners, and blows from others applied here (tests).</summary>
     public int HitsSent { get; private set; }
     public int HitsApplied { get; private set; }
+    /// <summary>Blows this machine's creatures dealt other players, and blows from theirs taken here (tests).</summary>
+    public int StrikesSent { get; private set; }
+    public int StrikesTaken { get; private set; }
     public int LootShared { get; private set; }
     public int LootReceived { get; private set; }
     public IEnumerable<Node3D> Puppets
@@ -80,12 +83,14 @@ public partial class NetMobs : Node
         ProcessMode = ProcessModeEnum.Always;
         GameEvents.NetMobHit += OnPuppetHit;
         GameEvents.LootDropped += OnLootDropped;
+        GameEvents.NetCarrierStruck += OnStrike;
     }
 
     public override void _ExitTree()
     {
         GameEvents.NetMobHit -= OnPuppetHit;
         GameEvents.LootDropped -= OnLootDropped;
+        GameEvents.NetCarrierStruck -= OnStrike;
     }
 
     private bool Live => Session != null && Session.Active && Session.Joined;
@@ -478,6 +483,71 @@ public partial class NetMobs : Node
         {
             target.TakeHit(damage, push, source);
         }
+    }
+
+    // --- Creatures striking other players ---
+
+    /// <summary>One of this machine's creatures struck another player's carrier: the blow goes to them (through the host).</summary>
+    private void OnStrike(NetStrike strike)
+    {
+        if (!Live || strike.Peer == Session!.LocalId)
+        {
+            return;
+        }
+        StrikesSent++;
+        if (Session.Mode == NetSession.Role.Host)
+        {
+            RpcId(strike.Peer, MethodName.StruckYou, strike.Damage, strike.Away, strike.Push, strike.Knockdown, strike.Lift, strike.StaggerHeight, strike.Cause);
+        }
+        else
+        {
+            RpcId(1, MethodName.Strike, strike.Peer, strike.Damage, strike.Away, strike.Push, strike.Knockdown, strike.Lift, strike.StaggerHeight, strike.Cause);
+        }
+    }
+
+    private static bool SaneStrike(float damage, Vector3 away, float push, float lift, float stagger, string cause)
+    {
+        return Mathf.IsFinite(damage) && damage >= 0.0f && damage <= 200.0f && away.IsFinite() && away.Length() <= 1.5f
+            && Mathf.IsFinite(push) && push >= 0.0f && push <= 40.0f && Mathf.IsFinite(lift) && Mathf.Abs(lift) <= 4.0f
+            && Mathf.IsFinite(stagger) && stagger >= 0.0f && stagger <= 4.0f && cause.Length <= 48;
+    }
+
+    /// <summary>Host: a client's creature struck someone: to them, or here if it's the host.</summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void Strike(long target, float damage, Vector3 away, float push, bool knockdown, float lift, float stagger, string cause)
+    {
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (!FromPeer(sender) || target == sender || !SaneStrike(damage, away, push, lift, stagger, cause))
+        {
+            return;
+        }
+        if (target == 1)
+        {
+            TakeStrike(damage, away, push, knockdown, lift, stagger, cause);
+        }
+        else if (Session!.Peers.ContainsKey(target))
+        {
+            RpcId(target, MethodName.StruckYou, damage, away, push, knockdown, lift, stagger, cause);
+        }
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void StruckYou(float damage, Vector3 away, float push, bool knockdown, float lift, float stagger, string cause)
+    {
+        if (Session?.Mode == NetSession.Role.Client && SaneStrike(damage, away, push, lift, stagger, cause))
+        {
+            TakeStrike(damage, away, push, knockdown, lift, stagger, cause);
+        }
+    }
+
+    private void TakeStrike(float damage, Vector3 away, float push, bool knockdown, float lift, float stagger, string cause)
+    {
+        if (Session == null || Session.LocalDead)
+        {
+            return;
+        }
+        StrikesTaken++;
+        GameEvents.TakeNetStrike(new NetStrike(Session.LocalId, damage, away, push, knockdown, lift, stagger, cause));
     }
 
     // --- Kill loot ---

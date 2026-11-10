@@ -19,11 +19,13 @@ HOST_SECONDS=$((LEAD + CLIENT_SECONDS - 4))
 # Client 1 falls just after the grab and comes back RESPAWN seconds later, before anyone reports.
 DIE=$((GRAB + 2))
 RESPAWN=4
-# The host brings an enemy; client 2 strikes it (as a puppet on its machine) a few seconds later.
+# The host brings an enemy and walks off, leaving it to the clients (it goes for them: its blows reach
+# their machines); client 2 strikes it (as a puppet on its machine) a few seconds later.
 SPAWN=$((GRAB + 5))
-STRIKE=$((GRAB + 9))
+AWAY=$((GRAB + 6))
+STRIKE=$((GRAB + 13))
 
-"$GODOT" --headless --path . -- --host="$PORT" --net-name=Host --net-probe="$HOST_SECONDS" --net-linger=20 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" --net-spawn-at="$SPAWN" --net-advance=8 > "$LOGS/host.log" 2>&1 &
+"$GODOT" --headless --path . -- --host="$PORT" --net-name=Host --net-probe="$HOST_SECONDS" --net-linger=20 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" --net-spawn-at="$SPAWN" --net-step-away-at="$AWAY" --net-advance=8 > "$LOGS/host.log" 2>&1 &
 PIDS="$!"
 sleep "$LEAD"
 for i in $(seq 1 "$CLIENTS"); do
@@ -84,6 +86,13 @@ if [ "$CLIENTS" -ge 2 ]; then
     applied=$(num "$LOGS/host.log" hits_applied)
     check "a client's blow on it reached the host ($sent sent, $applied applied)" "$([ "${sent:-0}" -ge 1 ] && [ "${applied:-0}" -ge 1 ]; echo $?)"
 fi
+dealt=$(num "$LOGS/host.log" strikes_sent)
+taken=0
+for i in $(seq 1 "$CLIENTS"); do
+    t=$(num "$LOGS/client$i.log" strikes_taken)
+    taken=$((taken + ${t:-0}))
+done
+check "the host's enemy went for the clients and its blows landed on them ($dealt dealt, $taken taken)" "$([ "${dealt:-0}" -ge 1 ] && [ "$taken" -ge 1 ]; echo $?)"
 shared=$(num "$LOGS/host.log" loot_shared)
 same=0
 for i in $(seq 1 "$CLIENTS"); do

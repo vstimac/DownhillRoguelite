@@ -190,6 +190,7 @@ public partial class NetSession : Node
             {
                 AddChild(new NetProbe { Name = "NetProbe", Session = this, Seconds = seconds, GrabAtUnix = ProbeNumber("--net-grab-at="), DieAtUnix = ProbeNumber("--net-die-at="),
                     SpawnAtUnix = ProbeNumber("--net-spawn-at="), StrikeAtUnix = ProbeNumber("--net-strike-at="),
+                    StepAwayAtUnix = ProbeNumber("--net-step-away-at="),
                     AdvanceHours = Mathf.Max((float)ProbeNumber("--net-advance="), 0.0f), Linger = (float)ProbeNumber("--net-linger=") });
                 double respawn = ProbeNumber("--net-respawn=");
                 if (respawn > 0.0)
@@ -341,6 +342,7 @@ public partial class NetSession : Node
         _remotes.Clear();
         _peers.Clear();
         _mobs?.Clear();
+        GameEvents.PublishOtherCarriers(System.Array.Empty<NetCarrier>());
         _waitingHello.Clear();
         _taken.Clear();
         _promised.Clear();
@@ -858,6 +860,7 @@ public partial class NetSession : Node
             _sendTimer = 0.0;
             SendState();
         }
+        ShareCarriers();
         if (LocalDead)
         {
             RespawnIn = Mathf.Max(0.0f, RespawnIn - (float)delta);
@@ -866,6 +869,20 @@ public partial class NetSession : Node
                 WatchNext();
             }
         }
+    }
+
+    /// <summary>Where the other players' carriers stand here, so this machine's creatures can go for them too.</summary>
+    private void ShareCarriers()
+    {
+        List<NetCarrier> carriers = new(_remotes.Count);
+        foreach (RemoteCarrier remote in _remotes.Values)
+        {
+            if (IsInstanceValid(remote) && remote.States > 0)
+            {
+                carriers.Add(new NetCarrier(remote.PeerId, remote.GlobalPosition, remote.Dead));
+            }
+        }
+        GameEvents.PublishOtherCarriers(carriers.ToArray());
     }
 
     public override void _UnhandledInput(InputEvent @event)
