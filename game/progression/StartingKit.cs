@@ -22,6 +22,9 @@ public partial class StartingKit : Node
         "res://inventory/items/med_kit.tres",
     };
 
+    /// <summary>What every run starts with, whatever the best depth (a torch for the first night).</summary>
+    [Export] public string[] AlwaysItemPaths { get; set; } = { "res://inventory/items/torch.tres" };
+
     /// <summary>Where the preset's clothes (CarrierCharacter.StartingWear, by item id) are found.</summary>
     [Export] public string ItemFolder { get; set; } = "res://inventory/items/";
     /// <summary>Clothes the chosen preset put on at the start of this run (tests).</summary>
@@ -69,6 +72,13 @@ public partial class StartingKit : Node
             return;
         }
         List<string> items = Unlocked(_run.Records.BestDepth);
+        foreach (string path in AlwaysItemPaths)
+        {
+            if (ResourceLoader.Exists(path))
+            {
+                items.Insert(0, path);
+            }
+        }
         List<string> wear = new();
         foreach (string id in _run.Character.Definition?.StartingWear ?? System.Array.Empty<string>())
         {

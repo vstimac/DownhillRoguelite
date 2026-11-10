@@ -44,6 +44,8 @@ public partial class BeastDirector : Node3D
     /// <summary>Attacks come this much faster while the carrier carries food (it can be smelled).</summary>
     [Export] public float FoodHurry { get; set; } = 1.6f;
     /// <summary>Said when a megaphone blast throws off a beast.</summary>
+    /// <summary>With a torch lit, attacks come this much more slowly (their hurry is multiplied by it).</summary>
+    [Export] public float TorchHunger { get; set; } = 0.4f;
     [Export] public string MegaphoneHint { get; set; } = "The noise throws the beasts off for a moment. Then they know exactly where you are.";
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
     [Export(PropertyHint.Layers3DPhysics)] public uint BodyLayer { get; set; } = 8;
@@ -162,6 +164,11 @@ public partial class BeastDirector : Node3D
         }
         // Noticed (the podium, the megaphone's echo): attacks come that much sooner.
         hunger *= Mathf.Max(GameEvents.Detectability, 0.1f);
+        // A burning torch keeps them back: they circle longer before they dare to charge.
+        if (GameEvents.CarrierTorchLit)
+        {
+            hunger *= TorchHunger;
+        }
         bool someoneAttacking = false;
         foreach (NightBeast beast in _beasts)
         {

@@ -22,6 +22,8 @@ public partial class StationSite : Node3D
     [Export] public Color FireColor { get; set; } = new(1.0f, 0.55f, 0.2f);
     [Export] public float FireEnergy { get; set; } = 3.0f;
     [Export] public float FireRange { get; set; } = 16.0f;
+    /// <summary>The particle flames' size (1: about 0.8 m tall).</summary>
+    [Export] public float FlameSize { get; set; } = 1.0f;
     [Export] public float FlickerAmount { get; set; } = 0.25f;
     [Export] public float FlickerSpeed { get; set; } = 9.0f;
     [Export] public Color BeaconColor { get; set; } = new(1.0f, 0.75f, 0.4f, 0.35f);
@@ -111,6 +113,8 @@ public partial class StationSite : Node3D
             new StandardMaterial3D { AlbedoColor = FireColor, EmissionEnabled = true, Emission = FireColor, EmissionEnergyMultiplier = 3.0f });
         _fire = new OmniLight3D { LightColor = FireColor, LightEnergy = FireEnergy, OmniRange = FireRange, Position = new Vector3(0.0f, 0.8f, 0.0f), ShadowEnabled = true };
         AddChild(_fire);
+        // Flames, sparks and smoke over the embers (the light above already flickers).
+        AddChild(new ParticleFire { Name = "Flames", Size = FlameSize, WithLight = false, Position = new Vector3(0.0f, 0.12f, 0.0f) });
         AddFireSound();
         AddProps();
 

@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/TorchTests.cs" id="1_tests"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="2_player"]
+[ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="3_inventory"]
+[ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="4_backpack"]
+
+[sub_resource type="BoxShape3D" id="Ground"]
+size = Vector3(40, 1, 40)
+
+[node name="TorchTests" type="Node3D" node_paths=PackedStringArray("Player")]
+script = ExtResource("1_tests")
+Player = NodePath("Player")
+
+[node name="Ground" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Ground"]
+shape = SubResource("Ground")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+
+[node name="Inventory" type="Node" parent="Player"]
+script = ExtResource("3_inventory")
+Backpack = ExtResource("4_backpack")
+StartingItemPaths = PackedStringArray()
+AutoPackOnStart = false

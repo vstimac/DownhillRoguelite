@@ -32,8 +32,11 @@ public partial class ItemDefinition : Resource
     [Export(PropertyHint.Range, "0,1")] public float UseWakeChance { get; set; }
     [Export] public string UseWakes { get; set; } = "";
 
-    /// <summary>Used up on its own for an effect (stamina, or what it wakes), like food is eaten.</summary>
-    public bool UsableAlone => UseStamina > 0.0f || (UseWakes.Length > 0 && UseWakeChance > 0.0f);
+    /// <summary>Lit when used: a torch burning in the carrier's hand this many seconds (0: not a light).</summary>
+    [Export] public float UseLightSeconds { get; set; }
+
+    /// <summary>Used up on its own for an effect (stamina, light, or what it wakes), like food is eaten.</summary>
+    public bool UsableAlone => UseStamina > 0.0f || UseLightSeconds > 0.0f || (UseWakes.Length > 0 && UseWakeChance > 0.0f);
 
     /// <summary>Whether a use with this roll (0..1) wakes its enemy rather than giving the stamina.</summary>
     public bool Wakes(float roll) => UseWakes.Length > 0 && roll < UseWakeChance;

@@ -17,7 +17,7 @@ public partial class KillLoot : Resource
     [Export] public string[] Common { get; set; } =
     {
         "ration", "dried_fruit", "water_flask", "med_kit", "leather_patch", "cord", "rope",
-        "fuel_canister", "mushrooms", "sewing_kit", "wild_berries", "ore_sample",
+        "fuel_canister", "mushrooms", "sewing_kit", "wild_berries", "ore_sample", "torch", "torch",
     };
     /// <summary>Better finds: clothes, a seal, a relic.</summary>
     [Export] public string[] Rare { get; set; } =

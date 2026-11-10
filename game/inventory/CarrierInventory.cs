@@ -751,6 +751,10 @@ public partial class CarrierInventory : Node
     /// <summary>An item used up for its effect: its stamina, or (by chance) what it wakes.</summary>
     private void UseUp(ItemDefinition item)
     {
+        if (item.UseLightSeconds > 0.0f)
+        {
+            GameEvents.RequestTorch(item.UseLightSeconds);
+        }
         if (item.Wakes(_useRoll.Randf()))
         {
             GameEvents.RequestWake(item.UseWakes, item.DisplayName);

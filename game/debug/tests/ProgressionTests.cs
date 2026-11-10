@@ -192,8 +192,8 @@ public partial class ProgressionTests : Node3D
         {
             names.Add(item.DisplayName);
         }
-        Check("the best depth ever unlocks gear the next run starts with",
-            emptyAtFirst && unlocked == 2 && inventory.AllItems.Count == 2 && _run.StartingKit.Count == 2,
+        Check("the best depth ever unlocks gear the next run starts with (besides the torch every run gets)",
+            emptyAtFirst && unlocked == 2 && inventory.AllItems.Count == 3 && _run.StartingKit.Count == 3 && _run.StartingKit.Contains("Torch"),
             $"none at 0 m {emptyAtFirst}, {unlocked} unlocked at 700 m, new run starts with [{string.Join(", ", names)}], kit [{string.Join(", ", _run.StartingKit)}]");
 
         // An outfit preset starts the run in its clothes.
