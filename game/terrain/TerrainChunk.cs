@@ -237,6 +237,12 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             {
                 continue;
             }
+            if (kind == PlantKind.Tree)
+            {
+                // Trees sway and their branches flutter in the wind (the grass has its own shared material).
+                _plantPhase = "tree wind material";
+                mesh = FoliageMaterials.WindReady(mesh);
+            }
             _plantPhase = "multimesh allocation";
             MultiMesh batch = new() { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = plants.Count };
             yield return true;

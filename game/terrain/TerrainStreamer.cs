@@ -176,6 +176,8 @@ public partial class TerrainStreamer : Node3D
     public override void _Ready()
     {
         LoadSurfaces();
+        // The wind the grass and trees feel, from the weather.
+        AddChild(new DownhillRoguelite.Environment.FoliageWind { Name = "FoliageWind" });
         _groundMaterial = MakeGroundMaterial();
         if (ResourceLoader.Exists(GrassShader) && ResourceLoader.Load(GrassShader) is Shader grassShader)
         {
