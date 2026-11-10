@@ -119,6 +119,31 @@ Features may vary by released build and development branch.
 
 *Visual concept board, not a gameplay screenshot or proof of game-ready 3D models. Depicted characters and props are concepts until implemented and validated in-game.*
 
+<details>
+<summary><strong>⚠️ Spoilers: who waits further down the mountain</strong> (click to open)</summary>
+
+<br>
+
+*Concept turnaround sheets for upcoming characters: concept art, not gameplay, and not in the game yet. Satire: the characters are fictional caricatures.*
+
+**Plenković — Finalni ministar** · the final boss
+
+![Plenković, the final boss: concept turnaround](docs/media/concepts/plenkovic-final-boss.webp)
+
+**Ruksak koji je pojeo vlasnika** · The Backpack That Ate Its Owner, an enemy
+
+![The Backpack That Ate Its Owner: concept turnaround](docs/media/concepts/backpack-that-ate-its-owner.webp)
+
+**Šalteruša — Čuvarica prolaza** · the bureaucratic gatekeeper, an NPC
+
+![Šalteruša, the gatekeeper of the pass: concept turnaround](docs/media/concepts/salterusa.webp)
+
+**HŽ — Vječni putnik** · the eternal railway traveller who sells tickets, an NPC
+
+![HŽ, the eternal traveller: concept turnaround](docs/media/concepts/hz-vjecni-putnik.webp)
+
+</details>
+
 **Gameplay screenshots:** see [Gameplay](#gameplay) above — real in-game captures only; concept renders and AI artwork are labelled separately. See the [capture and publishing guide](docs/MEDIA_CAPTURE.md).
 
 ## Optional: local AI companion
