@@ -11,9 +11,10 @@ namespace DownhillRoguelite.Wildlife;
 /// a capsule sized to the species walks on the ground with gravity, slides on what's too steep and
 /// bumps into rocks, other animals and the carrier; its model leans to the slope underfoot so legs
 /// and head don't sink in. Flyers float at their height above the ground. The spawner drives it
-/// through Tick so all animals together can be timed.
+/// through Tick so all animals together can be timed. The carrier's sword finds it (IMeleeTarget,
+/// on its bones): struck, it's knocked aside and bolts.
 /// </summary>
-public partial class WildlifeAnimal : CharacterBody3D
+public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget
 {
     public enum Mode
     {
@@ -28,6 +29,10 @@ public partial class WildlifeAnimal : CharacterBody3D
     public float PushTime { get; private set; }
     /// <summary>How many times this animal has shoved the carrier.</summary>
     public int Shoves { get; private set; }
+    /// <summary>Blows it has taken from the carrier's sword or boot.</summary>
+    public int Struck { get; private set; }
+    /// <summary>A knock dies away at this rate (m/s per s).</summary>
+    [Export] public float KnockDecay { get; set; } = 8.0f;
     /// <summary>The capsule's radius, in m.</summary>
     public float Radius { get; private set; }
 
@@ -53,6 +58,25 @@ public partial class WildlifeAnimal : CharacterBody3D
     private Transform3D _modelBase;
     private Quaternion _tilt = Quaternion.Identity;
     private float _gravity = 9.8f;
+    private Vector3 _knock;
+    private Skeleton3D? _skeleton;
+
+    // --- IMeleeTarget: the carrier's sword ---
+
+    public Vector3 HitBase => GlobalPosition;
+    public float HitHeight => Species?.BodySize.Y ?? 1.0f;
+    public float HitRadius => Radius;
+    public bool CanBeHit => Species != null;
+    public Skeleton3D? HitSkeleton => _skeleton;
+    public bool Lockable => false;
+
+    /// <summary>Struck: knocked the way of the blow, and it bolts away from the carrier.</summary>
+    public void TakeHit(float damage, Vector3 push, string source)
+    {
+        Struck++;
+        _knock = new Vector3(push.X, 0.0f, push.Z);
+        FleeFrom(GlobalPosition - _knock);
+    }
 
     public void Setup(WildlifeSpecies species, WildlifeTable table, ulong seed)
     {
@@ -87,7 +111,13 @@ public partial class WildlifeAnimal : CharacterBody3D
             AddChild(_model);
             _modelBase = _model.Transform;
             _animation = FindPlayer(_model);
+            foreach (Node node in _model.FindChildren("*", "Skeleton3D", true, false))
+            {
+                _skeleton = node as Skeleton3D;
+                break;
+            }
         }
+        AddToGroup(IMeleeTarget.Group);
         Rotation = new Vector3(0.0f, _random.RandfRange(0.0f, Mathf.Tau), 0.0f);
         _timer = _random.RandfRange(0.0f, table.WanderInterval.Y);
         Play(species.IdleClip, 1.0f, _random.Randf());
@@ -311,7 +341,8 @@ public partial class WildlifeAnimal : CharacterBody3D
         {
             vertical -= _gravity * dt;
         }
-        Velocity = new Vector3(walk.X, vertical, walk.Z);
+        Velocity = new Vector3(walk.X + _knock.X, vertical, walk.Z + _knock.Z);
+        _knock = _knock.MoveToward(Vector3.Zero, KnockDecay * dt);
         MoveAndSlide();
         if (Species.HoverHeight <= 0.0f)
         {

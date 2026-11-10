@@ -197,6 +197,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         Follower = new RigFollower { Name = "RigFollower", Driver = _driver };
         Follower.UseRigOf(skeleton);
         skeleton.AddChild(Follower);
+        HitSkeleton = skeleton;
     }
 
     // --- Where the carrier is, and what they do ---
@@ -558,6 +559,8 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     public float HitHeight => Species?.Height ?? 2.0f;
     public float HitRadius => Species?.BodyRadius ?? 0.4f;
     public bool CanBeHit => State != Phase.Dead && State != Phase.Dodge && Health > 0.0f;
+    /// <summary>The shown model's skeleton: blows land on its body (BoneHitboxes).</summary>
+    public Skeleton3D? HitSkeleton { get; private set; }
 
     /// <summary>
     /// A sword blow or kick. Into its raised guard from the front it takes only a sliver; otherwise it

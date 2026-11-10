@@ -108,6 +108,14 @@ public partial class MeleeCombat : Node
     [Export] public float ClipBlend { get; set; } = 0.15f;
     [Export] public float HitShake { get; set; } = 0.05f;
     [Export] public float BlockShake { get; set; } = 0.08f;
+    /// <summary>The blade glancing off a tree, rock or the ground: how hard the camera jolts.</summary>
+    [Export] public float GlanceShake { get; set; } = 0.07f;
+    /// <summary>What the blade glances off (the world's layer), and where along it (shares of its length) it's checked.</summary>
+    [Export(PropertyHint.Layers3DPhysics)] public uint WorldMask { get; set; } = 1;
+    [Export] public float[] BladeSamples { get; set; } = { 0.35f, 0.7f, 1.0f };
+    /// <summary>How far below and above his feet a body's part can be and still be reached (m).</summary>
+    [Export] public float ReachBelow { get; set; } = 0.5f;
+    [Export] public float ReachAbove { get; set; } = 2.0f;
 
     [ExportGroup("Sounds")]
     [Export] public string[] SwingSounds { get; set; } = { "res://audio/combat/sword_swing_0.wav", "res://audio/combat/sword_swing_1.wav", "res://audio/combat/sword_swing_2.wav" };
@@ -125,6 +133,9 @@ public partial class MeleeCombat : Node
     /// <summary>Blows landed, kicks landed and blows stopped by the shield (tests, stats).</summary>
     public int Landed { get; private set; }
     public int KicksLanded { get; private set; }
+    /// <summary>Swings stopped by the world (a trunk, a rock, the ground), and where the last one struck.</summary>
+    public int Glances { get; private set; }
+    public Vector3 LastGlance { get; private set; }
     public int BlocksMade { get; private set; }
     public bool SwordInHand { get; private set; }
     public SwordAnimator? Animator => _animator;
@@ -140,7 +151,8 @@ public partial class MeleeCombat : Node
     private Vector3? _swingFacing;
     private MixamoOverlay? _overlay;
     private Node3D? _sword;
-    private float _bladeLength = 0.8f;
+    /// <summary>The blade's tip in the sword model's own space (its far end along its longest side).</summary>
+    private Vector3 _bladeTip = Vector3.Up * 0.8f;
     /// <summary>
     /// Holders that follow the hand, hips and left forearm. Not attachments under the driver: the
     /// carrier model hides every mesh under the driver (its own body), and these must stay seen.
@@ -160,6 +172,7 @@ public partial class MeleeCombat : Node
     private bool _blockHeld;
     private readonly HashSet<ulong> _struck = new();
     private Vector3 _previousTip;
+    private Vector3 _previousBase;
     private bool _haveTip;
     private AudioStreamPlayer3D? _voice;
     private readonly RandomNumberGenerator _random = new();
@@ -302,7 +315,7 @@ public partial class MeleeCombat : Node
         _sword = scene.Instantiate<Node3D>();
         _sword.Name = "Sword";
         Aabb bounds = ModelFit.Bounds(_sword);
-        _bladeLength = Mathf.Max(0.2f, bounds.End.Y);
+        _bladeTip = BladeTipOf(bounds);
         float unscale = 1.0f / Mathf.Max(driver.GlobalBasis.Scale.X, 0.0001f);
 
         int hand = driver.FindBone("DEF-hand.R");
@@ -811,7 +824,37 @@ public partial class MeleeCombat : Node
         }
         Transform3D at = _sword.GlobalTransform;
         BladeBase = at.Origin;
-        BladeTip = at * (Vector3.Up * _bladeLength);
+        BladeTip = at * _bladeTip;
+    }
+
+    /// <summary>
+    /// Where the blade ends in the model's space: along its longest side, at the end further from the
+    /// grip (the model's origin). Models differ in which way the blade points.
+    /// </summary>
+    private static Vector3 BladeTipOf(Aabb bounds)
+    {
+        int axis = 0;
+        for (int i = 1; i < 3; i++)
+        {
+            if (bounds.Size[i] > bounds.Size[axis])
+            {
+                axis = i;
+            }
+        }
+        float low = bounds.Position[axis];
+        float high = bounds.End[axis];
+        float end = high;
+        if (Mathf.Abs(low) > Mathf.Abs(high))
+        {
+            end = low;
+        }
+        Vector3 tip = Vector3.Zero;
+        tip[axis] = end;
+        if (tip.Length() < 0.2f)
+        {
+            return Vector3.Up * 0.8f;
+        }
+        return tip;
     }
 
     // --- Hits ---
@@ -841,10 +884,20 @@ public partial class MeleeCombat : Node
             {
                 continue;
             }
-            bool hit = InFront(target, feet, facing, reach, cosLimit);
-            if (!hit && !kick)
+            bool hit;
+            BoneHitboxes? boxes = BoneHitboxes.For(target.HitSkeleton);
+            if (boxes != null)
             {
-                hit = BladeTouches(target);
+                // A body with bones: some part of it in the blow's reach, or the blade through it.
+                hit = boxes.InReach(feet, facing, reach, cosLimit, ReachBelow, ReachAbove) || (!kick && BladeTouches(boxes));
+            }
+            else
+            {
+                hit = InFront(target, feet, facing, reach, cosLimit);
+                if (!hit && !kick)
+                {
+                    hit = BladeTouches(target);
+                }
             }
             if (!hit)
             {
@@ -870,8 +923,71 @@ public partial class MeleeCombat : Node
             }
             GameEvents.RequestCameraShake(HitShake);
         }
+        // A swing that hasn't bitten into anything yet can be stopped by the world.
+        if (!kick && _struck.Count == 0 && _haveTip && GlancesOffWorld(out Vector3 where))
+        {
+            Glance(where);
+        }
         _previousTip = BladeTip;
+        _previousBase = BladeBase;
         _haveTip = true;
+    }
+
+    /// <summary>
+    /// Whether the blade, or the path its points took since the last frame, runs into the world
+    /// (a trunk, a rock, the ground); <paramref name="where"/> is the first spot.
+    /// </summary>
+    private bool GlancesOffWorld(out Vector3 where)
+    {
+        where = Vector3.Zero;
+        if (Body == null)
+        {
+            return false;
+        }
+        PhysicsDirectSpaceState3D space = Body.GetWorld3D().DirectSpaceState;
+        Godot.Collections.Array<Rid> skip = new() { Body.GetRid() };
+        if (Ray(space, BladeBase, BladeTip, skip, out where))
+        {
+            return true;
+        }
+        foreach (float share in BladeSamples)
+        {
+            Vector3 before = _previousBase.Lerp(_previousTip, share);
+            Vector3 now = BladeBase.Lerp(BladeTip, share);
+            if (Ray(space, before, now, skip, out where))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private bool Ray(PhysicsDirectSpaceState3D space, Vector3 from, Vector3 to, Godot.Collections.Array<Rid> skip, out Vector3 where)
+    {
+        where = Vector3.Zero;
+        if (from.DistanceSquaredTo(to) < 0.000001f)
+        {
+            return false;
+        }
+        Godot.Collections.Dictionary hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(from, to, WorldMask, skip));
+        if (hit.Count == 0 || hit["collider"].AsGodotObject() is IMeleeTarget)
+        {
+            return false;
+        }
+        where = (Vector3)hit["position"];
+        return true;
+    }
+
+    /// <summary>The blade bites into wood, rock or earth: the swing stops with a jolt and a clang.</summary>
+    private void Glance(Vector3 where)
+    {
+        Glances++;
+        LastGlance = where;
+        State = Stance.Staggered;
+        _chainQueued = false;
+        _animator?.Play("block_impact", 0.05f, ImpactSpeed);
+        SayOne(BlockSounds);
+        GameEvents.RequestCameraShake(GlanceShake);
     }
 
     private static bool InFront(IMeleeTarget target, Vector3 feet, Vector3 facing, float reach, float cosLimit)
@@ -889,6 +1005,22 @@ public partial class MeleeCombat : Node
             return true;
         }
         return (to / distance).Dot(facing) >= cosLimit;
+    }
+
+    /// <summary>The blade (and its tip's path since the last frame) through a body's bone boxes.</summary>
+    private bool BladeTouches(BoneHitboxes boxes)
+    {
+        if (boxes.Touches(BladeBase, BladeTip, BladeRadius))
+        {
+            return true;
+        }
+        if (!_haveTip)
+        {
+            return false;
+        }
+        Vector3 middle = BladeBase.Lerp(BladeTip, 0.6f);
+        Vector3 middleBefore = _previousBase.Lerp(_previousTip, 0.6f);
+        return boxes.Touches(_previousTip, BladeTip, BladeRadius) || boxes.Touches(middleBefore, middle, BladeRadius);
     }
 
     private bool BladeTouches(IMeleeTarget target)

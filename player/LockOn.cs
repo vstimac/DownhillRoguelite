@@ -147,7 +147,7 @@ public partial class LockOn : Node
         float bestScore = float.MaxValue;
         foreach (Node node in GetTree().GetNodesInGroup(IMeleeTarget.Group))
         {
-            if (node is not IMeleeTarget target || node is not Node3D body || !target.CanBeHit)
+            if (node is not IMeleeTarget target || node is not Node3D body || !target.CanBeHit || !target.Lockable)
             {
                 continue;
             }
