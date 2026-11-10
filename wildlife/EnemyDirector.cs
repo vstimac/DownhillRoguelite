@@ -44,6 +44,8 @@ public partial class EnemyDirector : Node3D
     [Export] public int SpawnAttempts { get; set; } = 8;
     /// <summary>Beyond this they are removed.</summary>
     [Export] public float GoneDistance { get; set; } = 90.0f;
+    /// <summary>An enemy this far below the carrier has fallen out of the world: it comes back like a stuck one (m).</summary>
+    [Export] public float FallenDistance { get; set; } = 40.0f;
     [Export] public float FireRadius { get; set; } = 25.0f;
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
     [Export] public Key SpawnKey { get; set; } = Key.N;
@@ -180,6 +182,11 @@ public partial class EnemyDirector : Node3D
             if (new Vector2(apart.X, apart.Z).Length() > GoneDistance)
             {
                 enemy.QueueFree();
+            }
+            else if ((enemy.Stuck || apart.Y < -FallenDistance) && enemy.Health > 0.0f && Spot(out Vector3 freeSpot))
+            {
+                // Wedged on a rock or trunk (or fallen through): it comes again from somewhere open.
+                enemy.PlaceAt(freeSpot + Vector3.Up * 0.2f);
             }
         }
         if (!Arrivals)

@@ -35,6 +35,7 @@ public partial class EnemyTests : Node3D
             await Species(GD.Load<EnemySpecies>($"res://wildlife/enemies/{id}.tres"));
         }
         await Director();
+        await StuckEnemy();
         await Wake();
 
         GameEvents.DamageRequested -= OnDamage;
@@ -175,6 +176,31 @@ public partial class EnemyTests : Node3D
         Check("the director brings enemies, more and tougher deeper down", director.Enemies.Count == 1 && director.MostEnemies() == 3 && Mathf.IsEqualApprox(brought.Health, 160.0f * 1.4f),
             $"{director.Enemies.Count} brought, at most {director.MostEnemies()} in circle 4, health {brought.Health:0}");
         director.QueueFree();
+        await Frames(2);
+    }
+
+    /// <summary>An enemy wedged against a wall (wanting to run at the carrier but going nowhere) is put somewhere open.</summary>
+    private async Task StuckEnemy()
+    {
+        StaticBody3D wall = new() { Name = "Wall", CollisionLayer = 1 };
+        wall.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(30.0f, 4.0f, 1.0f) }, Position = new Vector3(0.0f, 2.0f, -6.0f) });
+        AddChild(wall);
+        EnemyDirector director = new()
+        {
+            Species = new[] { GD.Load<EnemySpecies>("res://wildlife/enemies/ogre.tres") },
+            Arrivals = false,
+            CircleOverride = 0,
+        };
+        AddChild(director);
+        await Frames(2);
+        GameEvents.PublishLocomotion(default(LocomotionSnapshot));
+        HumanoidEnemy enemy = director.Bring(director.Species[0], new Vector3(0.0f, 0.0f, -7.0f));
+        await Track(enemy, Vector3.Zero, 60 * 8, () => enemy.Unstuck > 0);
+        float behindWall = enemy.GlobalPosition.Z;
+        Check("an enemy stuck on a wall comes back from somewhere open", IsInstanceValid(enemy) && enemy.Unstuck > 0 && enemy.Health > 0.0f,
+            $"moved {enemy.Unstuck} times, now at z {behindWall:0.0}");
+        director.QueueFree();
+        wall.QueueFree();
         await Frames(2);
     }
 

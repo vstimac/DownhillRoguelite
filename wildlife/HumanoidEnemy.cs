@@ -26,6 +26,17 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     [Export(PropertyHint.File, "*.glb")] public string DriverPath { get; set; } = "res://art/characters/quaternius_ual/UAL_Mannequin.glb";
     /// <summary>Height of the mannequin (m): its clips' strides are for this size.</summary>
     [Export] public float DriverHeight { get; set; } = 1.83f;
+    /// <summary>It counts as stuck when it wants to move at least this fast (m/s)...</summary>
+    [Export] public float StuckWantedSpeed { get; set; } = 0.8f;
+    /// <summary>...but makes less than this share of it...</summary>
+    [Export] public float StuckProgress { get; set; } = 0.15f;
+    /// <summary>...for this long in all (s); the director then puts it somewhere it can move.</summary>
+    [Export] public float StuckSeconds { get; set; } = 3.0f;
+
+    /// <summary>Wedged on a rock, a trunk or in a hollow: it has wanted to move but hasn't, for StuckSeconds.</summary>
+    public bool Stuck => _stuckTime >= StuckSeconds;
+    /// <summary>Times it was put somewhere else after getting stuck.</summary>
+    public int Unstuck { get; private set; }
     /// <summary>Ground speed of the mannequin's walk, jog and sprint clips at normal speed (m/s).</summary>
     [Export] public float WalkClipSpeed { get; set; } = 1.35f;
     [Export] public float JogClipSpeed { get; set; } = 3.3f;
@@ -97,6 +108,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     private float _gravity;
     private float _scale = 1.0f;
     private bool _counter;
+    private float _stuckTime;
     /// <summary>Time left in the opening after a parry: it neither swings nor guards nor dodges.</summary>
     private float _opening;
 
@@ -423,7 +435,34 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
             velocity.Y -= _gravity * dt;
         }
         Velocity = velocity;
+        Vector3 before = GlobalPosition;
         MoveAndSlide();
+        TrackStuck(wanted, before, dt);
+    }
+
+    private void TrackStuck(Vector3 wanted, Vector3 before, float dt)
+    {
+        float want = new Vector2(wanted.X, wanted.Z).Length();
+        Vector3 moved = GlobalPosition - before;
+        float made = new Vector2(moved.X, moved.Z).Length() / Mathf.Max(dt, 0.0001f);
+        if (want >= StuckWantedSpeed && made < want * StuckProgress)
+        {
+            _stuckTime += dt;
+        }
+        else
+        {
+            _stuckTime = Mathf.Max(0.0f, _stuckTime - dt * 2.0f);
+        }
+    }
+
+    /// <summary>Puts it on open ground at <paramref name="at"/> (it was stuck), its fight state kept.</summary>
+    public void PlaceAt(Vector3 at)
+    {
+        GlobalPosition = at;
+        Velocity = Vector3.Zero;
+        _shove = Vector3.Zero;
+        _stuckTime = 0.0f;
+        Unstuck++;
     }
 
     /// <summary>Idle, walk, jog or sprint by how fast it really moves, the clip sped up or slowed to match.</summary>
