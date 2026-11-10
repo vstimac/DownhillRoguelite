@@ -158,6 +158,22 @@ public partial class EnemyTests : Node3D
         bool dead = corpse.State == HumanoidEnemy.Phase.Dead && !corpse.CanBeHit && !corpse.IsInGroup(IMeleeTarget.Group) && corpse.Clip == "Death01";
         await Track(corpse, carrier, 200);
         Check($"{name}: at 0 health it dies and is later gone", dead && !IsInstanceValid(corpse), $"dead {dead}, gone {!IsInstanceValid(corpse)}");
+
+        // It falls as a ragdoll: its parts drop under the chest and are carried the way the blow went.
+        EnemySpecies falling = (EnemySpecies)species.Duplicate();
+        falling.CorpseSeconds = 30.0f;
+        HumanoidEnemy body = Spawn(falling, new Vector3(2.5f, 0, -3));
+        await Track(body, carrier, 10);
+        float standingTop = body.GlobalPosition.Y + falling.Height * 0.6f;
+        body.TakeHit(10000.0f, Vector3.Forward * 4.0f, "sword");
+        int parts = body.Ragdoll?.Parts ?? 0;
+        Vector3 corePosition = body.Ragdoll?.Core?.GlobalPosition ?? Vector3.Zero;
+        await Track(body, carrier, 150);
+        Vector3 coreNow = body.Ragdoll?.Core?.GlobalPosition ?? corePosition;
+        bool finite = coreNow.IsFinite();
+        Check($"{name}: it falls as a ragdoll, carried by the blow", parts >= 5 && finite && coreNow.Y < standingTop && (coreNow - corePosition).Dot(Vector3.Forward) > 0.1f,
+            $"{parts} parts, core from y {corePosition.Y:0.00} to {coreNow.Y:0.00} (standing chest {standingTop:0.00}), {(coreNow - corePosition).Dot(Vector3.Forward):0.00} m along the blow");
+        body.QueueFree();
         await Frames(2);
     }
 

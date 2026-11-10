@@ -67,6 +67,17 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     [Export] public float ReactMargin { get; set; } = 1.2f;
     /// <summary>Pause between wander legs, in s.</summary>
     [Export] public Vector2 WanderPause { get; set; } = new(1.5f, 4.0f);
+    /// <summary>
+    /// Death is physical: the body falls as a ragdoll (BodyRagdoll), carried on by the killing blow
+    /// (times DeathThrow, plus DeathLift up; the upper body DeathUpperPush more). Off: the death clip.
+    /// </summary>
+    [Export] public bool RagdollDeath { get; set; } = true;
+    [Export] public float DeathThrow { get; set; } = 0.8f;
+    [Export] public float DeathLift { get; set; } = 1.2f;
+    [Export] public float DeathUpperPush { get; set; } = 1.5f;
+    /// <summary>The ragdoll its body fell as (null while alive, or without bones).</summary>
+    public BodyRagdoll? Ragdoll { get; private set; }
+
     /// <summary>After dying it sinks this deep over SinkSeconds before it's removed.</summary>
     [Export] public float SinkDepth { get; set; } = 1.2f;
     [Export] public float SinkSeconds { get; set; } = 2.0f;
@@ -705,6 +716,18 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         }
         Enter(Phase.Dead);
         Play(DeathClip, ClipBlend * 0.5f, 1.0f, true);
+        if (RagdollDeath && HitSkeleton != null)
+        {
+            // Thrown the way the last blow went, the upper body a little further, so it topples.
+            Vector3 blow = new(_shove.X, 0.0f, _shove.Z);
+            Vector3 lean = Vector3.Zero;
+            if (blow.LengthSquared() > 0.0001f)
+            {
+                lean = blow.Normalized() * DeathUpperPush;
+            }
+            Ragdoll = BodyRagdoll.Throw(HitSkeleton, blow * DeathThrow + Vector3.Up * DeathLift, lean,
+                new BodyRagdoll { TotalMass = Species!.Mass });
+        }
         Velocity = Vector3.Zero;
         RemoveFromGroup(IMeleeTarget.Group);
     }
@@ -721,7 +744,15 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
             }
             return;
         }
-        if (_visual != null)
+        if (Ragdoll != null && IsInstanceValid(Ragdoll))
+        {
+            // The ragdoll goes limp into the ground.
+            if (!Ragdoll.Sinking)
+            {
+                Ragdoll.Sink();
+            }
+        }
+        else if (_visual != null)
         {
             _visual.Position += Vector3.Down * SinkDepth / Mathf.Max(SinkSeconds, 0.1f) * dt;
         }

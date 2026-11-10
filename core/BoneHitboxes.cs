@@ -315,6 +315,12 @@ public sealed class BoneHitboxes
         return false;
     }
 
+    /// <summary>The skeleton bone of box <paramref name="i"/> (0 to Count - 1).</summary>
+    public int BoneAt(int i) => _bones[i];
+    /// <summary>Box <paramref name="i"/> in its bone's own space (bind-pose units).</summary>
+    public Aabb BoxAt(int i) => _boxes[i];
+    public BodyZone ZoneAt(int i) => _zones[i];
+
     /// <summary>The middle of the boxes now (world space), e.g. to aim at.</summary>
     public Vector3 Centre()
     {
