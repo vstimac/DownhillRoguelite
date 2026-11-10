@@ -34,6 +34,7 @@ public partial class PauseMenu : CanvasLayer
     private VBoxContainer? _menu;
     private Label? _tips;
     private OptionsPanel? _options;
+    private AchievementsPage? _achievements;
     private AudioStreamPlayer? _click;
     private AudioStream? _openSound;
     private AudioStream? _closeSound;
@@ -144,6 +145,7 @@ public partial class PauseMenu : CanvasLayer
         Visible = false;
         // A sheet left open would keep taking Esc during the run.
         _options?.SetOpenNow(false);
+        _achievements?.SetOpenNow(false);
         GetViewport().GuiReleaseFocus();
         GetTree().Paused = false;
         if (!GameEvents.IsPacking)
@@ -159,6 +161,7 @@ public partial class PauseMenu : CanvasLayer
         {
             _options.SetOpenNow(false);
         }
+        _achievements?.SetOpenNow(false);
         SetMenuFocusable(true);
         if (_column != null)
         {
@@ -182,6 +185,20 @@ public partial class PauseMenu : CanvasLayer
         }
         SetMenuFocusable(false);
         _options.OpenSheet();
+    }
+
+    public void ShowAchievements()
+    {
+        if (_achievements == null)
+        {
+            return;
+        }
+        if (_column != null)
+        {
+            _column.Visible = false;
+        }
+        SetMenuFocusable(false);
+        _achievements.OpenSheet();
     }
 
     private void SetMenuFocusable(bool on)
@@ -219,6 +236,7 @@ public partial class PauseMenu : CanvasLayer
         _column.AddChild(_menu);
         AddItem("Resume", Resume);
         AddItem("Options", ShowOptions);
+        AddItem("Achievements", ShowAchievements);
         AddItem("Save and quit", () =>
         {
             GameEvents.RequestSave();
@@ -233,6 +251,10 @@ public partial class PauseMenu : CanvasLayer
         _options.BackPressed += ShowMenu;
         _root.AddChild(_options);
         _options.SetOpenNow(false);
+        _achievements = new AchievementsPage { Name = "Achievements" };
+        _achievements.BackPressed += ShowMenu;
+        _root.AddChild(_achievements);
+        _achievements.SetOpenNow(false);
     }
 
     private void AddItem(string text, System.Action action)
@@ -279,5 +301,6 @@ public partial class PauseMenu : CanvasLayer
         _tips.Position = new Vector2(4.0f, y);
         _tips.Size = new Vector2(width, tips.Y);
         _options?.FitInto(new Rect2(new Vector2(24.0f, 24.0f), screen - new Vector2(48.0f, 48.0f)));
+        _achievements?.FitInto(new Rect2(new Vector2(24.0f, 24.0f), screen - new Vector2(48.0f, 48.0f)));
     }
 }

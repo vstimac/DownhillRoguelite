@@ -32,6 +32,7 @@ public partial class Hud : CanvasLayer
     public LowStatAlerts? Alerts { get; private set; }
     public DescentPanel? Descent { get; private set; }
     public ObjectivePanel? Objectives { get; private set; }
+    public AchievementToast? Achievements { get; private set; }
     public ObjectiveBanner? Banner { get; private set; }
     public CompassDial? Compass { get; private set; }
     public EquipmentPanel? Equipment { get; private set; }
@@ -85,6 +86,8 @@ public partial class Hud : CanvasLayer
         _play.AddChild(Objectives);
         Banner = new ObjectiveBanner { Name = "ObjectiveBanner" };
         _play.AddChild(Banner);
+        Achievements = new AchievementToast { Name = "AchievementToast" };
+        _play.AddChild(Achievements);
         Equipment = new EquipmentPanel { Size = new Vector2(184, 320) };
         _play.AddChild(Equipment);
         Hotbar = new Hotbar();

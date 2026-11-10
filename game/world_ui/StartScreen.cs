@@ -7,7 +7,7 @@ namespace DownhillRoguelite.WorldUi;
 
 /// <summary>
 /// The front end: the real mountain behind the menu (MenuCamera drifts past the carrier), the title,
-/// and a menu of New Run, Character, Options, About and Quit. Pages (character, options, about) are
+/// and a menu of New Run, Character, Options, Achievements, About and Quit. Pages (character, options, about) are
 /// parchment sheets that unfold over the scene. The world runs a moment so the carrier and camera
 /// settle, then waits paused and silent; New Run fades the menu away, flies the camera into the run's
 /// own camera and fades the sound in. Mouse, keyboard and controller all work; the footer shows the
@@ -22,6 +22,7 @@ public partial class StartScreen : CanvasLayer
         Character,
         Options,
         About,
+        Achievements,
         Starting,
     }
 
@@ -55,6 +56,7 @@ public partial class StartScreen : CanvasLayer
     public OptionsPanel? Options => _options;
     public CharacterPage? Characters => _characters;
     public CreditsPage? About => _about;
+    public AchievementsPage? Achievements => _achievements;
     public MenuCamera? Camera => _camera;
     public Label? TitleLabel => _title;
     public Label? FooterKeys => _keys;
@@ -76,6 +78,7 @@ public partial class StartScreen : CanvasLayer
     private OptionsPanel? _options;
     private CharacterPage? _characters;
     private CreditsPage? _about;
+    private AchievementsPage? _achievements;
     private MenuCamera? _camera;
     private MenuItem? _characterItem;
     private MenuItem? _lastFocus;
@@ -231,6 +234,7 @@ public partial class StartScreen : CanvasLayer
             _characterItem = AddItem("Character", "", () => ShowPage(Page.Character));
         }
         AddItem("Options", "Gameplay, video, audio, accessibility and controls.", () => ShowPage(Page.Options));
+        AddItem("Achievements", "What you've done on the mountain, ticked off.", () => ShowPage(Page.Achievements));
         AddItem("About", "What this is, and whose work it stands on.", () => ShowPage(Page.About));
         AddItem("Quit", "Back to the desktop.", () => GetTree().Quit());
         UpdateCharacterHint();
@@ -260,6 +264,10 @@ public partial class StartScreen : CanvasLayer
         _about.BackPressed += () => ClosePage(_about);
         _root.AddChild(_about);
         _about.SetOpenNow(false);
+        _achievements = new AchievementsPage { Name = "Achievements" };
+        _achievements.BackPressed += () => ClosePage(_achievements);
+        _root.AddChild(_achievements);
+        _achievements.SetOpenNow(false);
 
         _curtain = new ColorRect { Color = Colors.Black, MouseFilter = Control.MouseFilterEnum.Ignore };
         _curtain.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -408,6 +416,7 @@ public partial class StartScreen : CanvasLayer
         Rect2 full = new(new Vector2(24.0f, 24.0f), screen - new Vector2(48.0f, 48.0f));
         _options?.FitInto(full);
         _about?.FitInto(full);
+        _achievements?.FitInto(full);
         _characters?.FitInto(new Rect2(screen.X * 0.5f, margin * 0.6f, screen.X * 0.5f - margin * 0.6f, screen.Y - margin * 1.2f));
     }
 
@@ -468,6 +477,10 @@ public partial class StartScreen : CanvasLayer
             else if (arg == "--menu-page=about")
             {
                 ShowPage(Page.About);
+            }
+            else if (arg == "--menu-page=achievements")
+            {
+                ShowPage(Page.Achievements);
             }
         }
     }
@@ -536,6 +549,10 @@ public partial class StartScreen : CanvasLayer
         else if (page == Page.About)
         {
             _about?.OpenSheet();
+        }
+        else if (page == Page.Achievements)
+        {
+            _achievements?.OpenSheet();
         }
         else
         {

@@ -740,6 +740,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         {
             name = "enemy";
         }
+        GameEvents.PublishEnemyKilled(name);
         Dropped = Loot.Scatter(this, GlobalPosition, name);
     }
 

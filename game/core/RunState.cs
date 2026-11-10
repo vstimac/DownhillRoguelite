@@ -67,6 +67,16 @@ public partial class RunState : Node
         }
     }
 
+    /// <summary>Achievements and their tallies, across runs (user://achievements.cfg).</summary>
+    public AchievementBook Achievements
+    {
+        get
+        {
+            _achievements ??= new AchievementBook(DisplayServer.GetName() != "headless");
+            return _achievements;
+        }
+    }
+
     /// <summary>Relics found, ever and this run (user://relics_seen.cfg).</summary>
     public LoreBook RelicsSeen
     {
@@ -136,6 +146,7 @@ public partial class RunState : Node
     private CircleTable? _circles;
     private RunRecords? _records;
     private LoreBook? _lore;
+    private AchievementBook? _achievements;
     private LoreBook? _relicsSeen;
     private LoreBook? _relicsStudied;
     private float _overTimer;
