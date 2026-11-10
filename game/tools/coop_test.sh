@@ -24,6 +24,8 @@ RESPAWN=4
 SPAWN=$((GRAB + 5))
 AWAY=$((GRAB + 6))
 STRIKE=$((GRAB + 13))
+# Client 3 drops something from its pack; everyone else should see it on the ground.
+DROPAT=$((GRAB + 3))
 
 "$GODOT" --headless --path . -- --host="$PORT" --net-name=Host --net-probe="$HOST_SECONDS" --net-linger=20 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" --net-spawn-at="$SPAWN" --net-step-away-at="$AWAY" --net-advance=8 > "$LOGS/host.log" 2>&1 &
 PIDS="$!"
@@ -32,6 +34,7 @@ for i in $(seq 1 "$CLIENTS"); do
     DIES=""
     if [ "$i" = "1" ]; then DIES="--net-die-at=$DIE"; fi
     if [ "$i" = "2" ]; then DIES="--net-strike-at=$STRIKE"; fi
+    if [ "$i" = "3" ]; then DIES="--net-drop-at=$DROPAT"; fi
     "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --net-name="Client$i" --net-probe="$CLIENT_SECONDS" --net-linger=6 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" $DIES > "$LOGS/client$i.log" 2>&1 &
     PIDS="$PIDS $!"
     sleep 1
@@ -93,10 +96,15 @@ for i in $(seq 1 "$CLIENTS"); do
     taken=$((taken + ${t:-0}))
 done
 check "the host's enemy went for the clients and its blows landed on them ($dealt dealt, $taken taken)" "$([ "${dealt:-0}" -ge 1 ] && [ "$taken" -ge 1 ]; echo $?)"
+if [ "$CLIENTS" -ge 3 ]; then
+    hostgot=$(num "$LOGS/host.log" loot_received)
+    dropped=$(grep -c "dropped=True" "$LOGS/client3.log")
+    check "a dropped item appears for the others (client 3 dropped one: $dropped; the host got $hostgot)" "$([ "$dropped" -ge 1 ] && [ "${hostgot:-0}" -ge 1 ]; echo $?)"
+fi
 shared=$(num "$LOGS/host.log" loot_shared)
 same=0
 for i in $(seq 1 "$CLIENTS"); do
-    if [ "$(num "$LOGS/client$i.log" loot_received)" = "$shared" ]; then same=$((same + 1)); fi
+    if [ "$(num "$LOGS/client$i.log" loot_received)" -ge "${shared:-0}" ] 2>/dev/null; then same=$((same + 1)); fi
 done
 check "its loot appeared for everyone ($shared items; $same of $CLIENTS clients got all)" "$([ "${shared:-0}" -ge 1 ] && [ "$same" -eq "$CLIENTS" ]; echo $?)"
 errors=$(grep -h "ERROR\|Unhandled exception" "$LOGS"/*.log | grep -v "ObjectDB\|leaked\|resources still in use" | sort -u | head -5)

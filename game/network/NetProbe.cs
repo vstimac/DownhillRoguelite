@@ -30,6 +30,8 @@ public partial class NetProbe : Node
     [Export] public double DieAtUnix { get; set; } = -1.0;
     [Export] public double SpawnAtUnix { get; set; } = -1.0;
     [Export] public double StrikeAtUnix { get; set; } = -1.0;
+    /// <summary>`--net-drop-at=unix seconds`: drops the first thing in the pack (the others should see it).</summary>
+    [Export] public double DropAtUnix { get; set; } = -1.0;
     /// <summary>`--net-step-away-at=unix seconds`: this carrier walks off (is moved StepAway metres), leaving its enemy to the others.</summary>
     [Export] public double StepAwayAtUnix { get; set; } = -1.0;
     [Export] public Vector3 StepAway { get; set; } = new(-35.0f, 4.0f, 0.0f);
@@ -54,6 +56,8 @@ public partial class NetProbe : Node
     private bool _spawned;
     private bool _struck;
     private bool _steppedAway;
+    private bool _dropped;
+    private string _droppedId = "";
     private double _nextEnemyNote;
     private int _sawPuppets;
     private double _clockAtGrab = -1.0;
@@ -129,6 +133,17 @@ public partial class NetProbe : Node
             _spawned = true;
             SpawnEnemy();
         }
+        if (DropAtUnix >= 0.0 && !_dropped && Session.Joined && now >= DropAtUnix)
+        {
+            _dropped = true;
+            CarrierInventory? pack = Session.LocalPlayer()?.GetNodeOrNull<CarrierInventory>("Inventory");
+            if (pack?.Grid != null && pack.Grid.Items.Count > 0)
+            {
+                _droppedId = pack.Grid.Items[0].Definition.ItemId;
+                GameEvents.RequestDrop(_droppedId);
+                GD.Print($"[NetProbe] dropped {_droppedId}");
+            }
+        }
         if (_steppedAway && _clock >= _nextEnemyNote)
         {
             _nextEnemyNote = _clock + 1.0;
@@ -203,7 +218,7 @@ public partial class NetProbe : Node
             + $"taken={session.TakenSupplies.Count} granted={session.ClaimsGranted} refused={session.ClaimsRefused} fell={_fell} watched={_watched} back={_back} "
             + $"saw_fallen={_sawFallen} looks={Looks(session)} owned={session.Mobs?.OwnedCount ?? 0} saw_puppets={_sawPuppets} "
             + $"hits_sent={session.Mobs?.HitsSent ?? 0} hits_applied={session.Mobs?.HitsApplied ?? 0} loot_shared={session.Mobs?.LootShared ?? 0} "
-            + $"loot_received={session.Mobs?.LootReceived ?? 0} clock_at_grab={_clockAtGrab:0.000} strikes_sent={session.Mobs?.StrikesSent ?? 0} strikes_taken={session.Mobs?.StrikesTaken ?? 0} status=\"{session.Status}\"");
+            + $"loot_received={session.Mobs?.LootReceived ?? 0} clock_at_grab={_clockAtGrab:0.000} strikes_sent={session.Mobs?.StrikesSent ?? 0} dropped={_droppedId.Length > 0} strikes_taken={session.Mobs?.StrikesTaken ?? 0} status=\"{session.Status}\"");
     }
 
     /// <summary>Each remote carrier's name, character and shirt colour, as shown here.</summary>

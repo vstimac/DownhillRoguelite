@@ -35,7 +35,7 @@ public static partial class GameEvents
 {
     /// <summary>A puppet creature (another machine's) took a blow here: its owner applies it. Damage, push (m/s, world), source.</summary>
     public static event Action<INetMob, float, Godot.Vector3, string>? NetMobHit;
-    /// <summary>A kill dropped an item here: the item node, its id, and where it lands (shared with the others in co-op).</summary>
+    /// <summary>A kill or the carrier dropped an item here: the item node, its id, and where it lands (shared with the others in co-op).</summary>
     public static event Action<Godot.Node3D, string, Godot.Vector3>? LootDropped;
 
     public static void PublishNetMobHit(INetMob mob, float damage, Godot.Vector3 push, string source) => NetMobHit?.Invoke(mob, damage, push, source);

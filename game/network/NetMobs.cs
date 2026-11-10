@@ -257,19 +257,19 @@ public partial class NetMobs : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void LootDrop(string key, string itemId, Vector3 at)
+    private void LootDrop(string key, string itemId, Vector3 at, float durability)
     {
         long sender = Multiplayer.GetRemoteSenderId();
-        if (!FromPeer(sender) || !key.StartsWith($"L{sender}.", System.StringComparison.Ordinal) || key.Length > 40 || !at.IsFinite())
+        if (!FromPeer(sender) || !key.StartsWith($"L{sender}.", System.StringComparison.Ordinal) || key.Length > 40 || !at.IsFinite() || !Mathf.IsFinite(durability))
         {
             return;
         }
-        PlaceLoot(key, itemId, at);
+        PlaceLoot(key, itemId, at, durability);
         foreach (long peer in Session!.Peers.Keys)
         {
             if (peer != sender)
             {
-                RpcId(peer, MethodName.PeerLootDrop, key, itemId, at);
+                RpcId(peer, MethodName.PeerLootDrop, key, itemId, at, durability);
             }
         }
     }
@@ -305,11 +305,11 @@ public partial class NetMobs : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void PeerLootDrop(string key, string itemId, Vector3 at)
+    private void PeerLootDrop(string key, string itemId, Vector3 at, float durability)
     {
-        if (Session?.Mode == NetSession.Role.Client)
+        if (Session?.Mode == NetSession.Role.Client && Mathf.IsFinite(durability))
         {
-            PlaceLoot(key, itemId, at);
+            PlaceLoot(key, itemId, at, durability);
         }
     }
 
@@ -562,20 +562,22 @@ public partial class NetMobs : Node
         string key = $"L{Session!.LocalId}.{_nextLoot++}";
         item.SlotKey = key;
         LootShared++;
+        // Its wear goes with it (a worn shirt handed over stays worn).
+        float durability = item.Durability;
         if (Session.Mode == NetSession.Role.Host)
         {
             foreach (long peer in Session.Peers.Keys)
             {
-                RpcId(peer, MethodName.PeerLootDrop, key, itemId, landing);
+                RpcId(peer, MethodName.PeerLootDrop, key, itemId, landing, durability);
             }
         }
         else
         {
-            RpcId(1, MethodName.LootDrop, key, itemId, landing);
+            RpcId(1, MethodName.LootDrop, key, itemId, landing, durability);
         }
     }
 
-    private void PlaceLoot(string key, string itemId, Vector3 at)
+    private void PlaceLoot(string key, string itemId, Vector3 at, float durability)
     {
         ItemDefinition? definition = ItemText.Find(itemId);
         Node? world = GetTree().CurrentScene;
@@ -584,6 +586,10 @@ public partial class NetMobs : Node
             return;
         }
         WorldItem loot = new() { Definition = definition, SlotKey = key, Name = $"Loot_{itemId}" };
+        if (durability >= 0.0f)
+        {
+            loot.Durability = Mathf.Min(durability, definition.MaxDurability);
+        }
         world.AddChild(loot);
         loot.GlobalPosition = at;
         LootReceived++;

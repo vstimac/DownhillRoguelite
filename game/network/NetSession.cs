@@ -39,7 +39,7 @@ public partial class NetSession : Node
     }
 
     /// <summary>Peers must speak the same protocol (a join from another version is turned away).</summary>
-    public const string ProtocolVersion = "downhill-coop-3";
+    public const string ProtocolVersion = "downhill-coop-4";
 
     [Export] public int DefaultPort { get; set; } = 7777;
     [Export] public int MaxPlayers { get; set; } = 4;
@@ -190,7 +190,7 @@ public partial class NetSession : Node
             {
                 AddChild(new NetProbe { Name = "NetProbe", Session = this, Seconds = seconds, GrabAtUnix = ProbeNumber("--net-grab-at="), DieAtUnix = ProbeNumber("--net-die-at="),
                     SpawnAtUnix = ProbeNumber("--net-spawn-at="), StrikeAtUnix = ProbeNumber("--net-strike-at="),
-                    StepAwayAtUnix = ProbeNumber("--net-step-away-at="),
+                    StepAwayAtUnix = ProbeNumber("--net-step-away-at="), DropAtUnix = ProbeNumber("--net-drop-at="),
                     AdvanceHours = Mathf.Max((float)ProbeNumber("--net-advance="), 0.0f), Linger = (float)ProbeNumber("--net-linger=") });
                 double respawn = ProbeNumber("--net-respawn=");
                 if (respawn > 0.0)

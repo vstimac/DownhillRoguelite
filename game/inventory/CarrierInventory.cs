@@ -622,6 +622,8 @@ public partial class CarrierInventory : Node
         }
         dropped.GlobalPosition = at;
         LastDropped = dropped;
+        // In co-op the others see it too (and only one of you can pick it up).
+        GameEvents.PublishLootDropped(dropped, item.ItemId, at);
         if (thrown)
         {
             // It flies there: from the hand, up in an arc, down where it lands.
