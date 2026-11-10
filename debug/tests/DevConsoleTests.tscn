@@ -1,0 +1,25 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/DevConsoleTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://terrain/TerrainStreamer.cs" id="2_streamer"]
+[ext_resource type="Resource" path="res://terrain/default_terrain.tres" id="3_terrain_settings"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="4_player"]
+[ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="5_inventory"]
+[ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="6_backpack"]
+
+[node name="DevConsoleTests" type="Node3D" node_paths=PackedStringArray("PlayerBody", "Streamer")]
+script = ExtResource("1_tests")
+PlayerBody = NodePath("Player")
+Streamer = NodePath("Terrain")
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_streamer")
+Settings = ExtResource("3_terrain_settings")
+
+[node name="Player" parent="." instance=ExtResource("4_player")]
+
+[node name="Inventory" type="Node" parent="Player"]
+script = ExtResource("5_inventory")
+Backpack = ExtResource("6_backpack")
+StartingItemPaths = PackedStringArray()
+AutoPackOnStart = false

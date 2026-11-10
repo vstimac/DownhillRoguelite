@@ -24,6 +24,7 @@ RunState="*res://core/RunState.cs"
 WorldClock="*res://core/WorldClock.cs"
 DebugDraw3D="*res://debug/DebugDraw3D.cs"
 PlaytestCapture="*res://debug/PlaytestCapture.tscn"
+DevConsole="*res://debug/DevConsole.cs"
 
 [dotnet]
 

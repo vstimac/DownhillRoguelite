@@ -253,6 +253,41 @@ public partial class EnemyDirector : Node3D
         Bring(species, Ground(_carrier.Position + ahead * DebugDistance));
     }
 
+    /// <summary>Every kind it knows (those that arrive and those that are woken).</summary>
+    public IEnumerable<EnemySpecies> Kinds
+    {
+        get
+        {
+            foreach (EnemySpecies kind in Species)
+            {
+                if (kind != null)
+                {
+                    yield return kind;
+                }
+            }
+            foreach (EnemySpecies kind in Wakeable)
+            {
+                if (kind != null)
+                {
+                    yield return kind;
+                }
+            }
+        }
+    }
+
+    /// <summary>Brings one of a kind (its Id) on the ground <paramref name="distance"/> m ahead of the carrier; null if unknown.</summary>
+    public HumanoidEnemy? SpawnAhead(string id, float distance)
+    {
+        foreach (EnemySpecies kind in Kinds)
+        {
+            if (kind.Id == id)
+            {
+                return Bring(kind, Ground(_carrier.Position + Ahead() * distance));
+            }
+        }
+        return null;
+    }
+
     /// <summary>Removes every enemy (a new mountain).</summary>
     public void Clear()
     {
