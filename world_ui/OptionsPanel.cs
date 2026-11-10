@@ -432,7 +432,8 @@ public partial class OptionsPanel : ParchmentPanel
             "No: the camera follows them like the desktop cursor.";
         if (OS.GetName() != "Windows")
         {
-            rawHint += " (Only Windows has desktop settings to follow; elsewhere both read the raw movement.)";
+            // Only Windows has desktop pointer settings to follow; elsewhere both choices read the raw movement.
+            rawHint = "Yes: the mouse's own movement. On this system the camera always reads the raw movement, so both feel the same.";
         }
         int raw = 0;
         if (GameOptions.RawInput)
