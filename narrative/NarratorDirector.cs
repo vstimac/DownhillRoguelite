@@ -25,14 +25,22 @@ public partial class NarratorDirector : Node
     /// <summary>How strongly the voice is panned toward the companion's side (0 centred, 1 fully).</summary>
     [Export] public float VoicePanning { get; set; } = 0.7f;
     [Export] public string SpeakerName { get; set; } = "Companion";
+    /// <summary>
+    /// How fast the lines are spoken (1 = as recorded): below 1 he speaks slower and every word comes
+    /// out clearer. With KeepPitch the voice keeps its own pitch (a pitch shift on his own bus, NarratorBus,
+    /// which feeds Bus); without it a slower line is also a deeper one.
+    /// </summary>
+    [Export(PropertyHint.Range, "0.6,1.2")] public float SpeechRate { get; set; } = 0.86f;
+    [Export] public bool KeepPitch { get; set; } = true;
+    [Export] public StringName NarratorBus { get; set; } = "Narrator";
 
     [ExportGroup("Pacing")]
     /// <summary>Seconds of quiet after a line before the next one.</summary>
-    [Export] public float MinGap { get; set; } = 10.0f;
+    [Export] public float MinGap { get; set; } = 30.0f;
     /// <summary>Seconds after the start before the first line.</summary>
     [Export] public float OpeningDelay { get; set; } = 4.0f;
     /// <summary>Seconds between ambient musings, random in this range.</summary>
-    [Export] public Vector2 AmbientInterval { get; set; } = new(70.0f, 140.0f);
+    [Export] public Vector2 AmbientInterval { get; set; } = new(160.0f, 300.0f);
     /// <summary>Chance an ambient musing is about godhood instead of the circle.</summary>
     [Export] public float GodhoodChance { get; set; } = 0.2f;
     /// <summary>A line may cut in on a playing one only if its priority is this much higher.</summary>
@@ -104,7 +112,8 @@ public partial class NarratorDirector : Node
         // panned in 3D, but not fading with distance.
         _player = new AudioStreamPlayer3D
         {
-            Bus = Bus,
+            Bus = SpeechBus(),
+            PitchScale = Mathf.Clamp(SpeechRate, 0.3f, 2.0f),
             VolumeDb = VolumeDb,
             AttenuationModel = AudioStreamPlayer3D.AttenuationModelEnum.Disabled,
             PanningStrength = VoicePanning,
@@ -268,7 +277,7 @@ public partial class NarratorDirector : Node
         }
         _currentPriority = chosen.Priority;
         CurrentLine = chosen.Id;
-        GameEvents.PublishSpeech(new SpeechLine(SpeakerName, chosen.Text, GameEvents.CompanionPosition, (float)stream.GetLength()));
+        GameEvents.PublishSpeech(new SpeechLine(SpeakerName, chosen.Text, GameEvents.CompanionPosition, SpokenLength(stream)));
         if (PlayAudio)
         {
             _player.Stream = stream;
@@ -277,11 +286,44 @@ public partial class NarratorDirector : Node
         }
         else
         {
-            _speakingUntil = _time + (float)stream.GetLength();
+            _speakingUntil = _time + SpokenLength(stream);
         }
         GD.Print($"Narrator [{trigger}] {chosen.Id}: {chosen.Text}");
         GameEvents.PublishNarrationStarted(chosen.Id, chosen.Text);
         return true;
+    }
+
+    /// <summary>How long a line takes at the speech rate, in s.</summary>
+    public float SpokenLength(AudioStream stream)
+    {
+        return (float)stream.GetLength() / Mathf.Clamp(SpeechRate, 0.3f, 2.0f);
+    }
+
+    /// <summary>
+    /// The bus his voice goes through: at the recorded rate the plain Bus; slowed down with KeepPitch,
+    /// his own bus (made once) whose pitch shift undoes the slower playback's deeper pitch.
+    /// </summary>
+    private StringName SpeechBus()
+    {
+        if (!KeepPitch || Mathf.IsEqualApprox(SpeechRate, 1.0f))
+        {
+            return Bus;
+        }
+        int index = AudioServer.GetBusIndex(NarratorBus);
+        if (index < 0)
+        {
+            AudioServer.AddBus();
+            index = AudioServer.BusCount - 1;
+            AudioServer.SetBusName(index, NarratorBus);
+            AudioServer.SetBusSend(index, Bus);
+            AudioServer.AddBusEffect(index, new AudioEffectPitchShift
+            {
+                PitchScale = 1.0f / Mathf.Clamp(SpeechRate, 0.3f, 2.0f),
+                Oversampling = 8,
+                FftSize = AudioEffectPitchShift.FftSizeEnum.Size2048,
+            });
+        }
+        return NarratorBus;
     }
 
     private bool Available(NarratorLine line)
