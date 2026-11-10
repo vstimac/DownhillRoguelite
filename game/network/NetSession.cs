@@ -39,7 +39,7 @@ public partial class NetSession : Node
     }
 
     /// <summary>Peers must speak the same protocol (a join from another version is turned away).</summary>
-    public const string ProtocolVersion = "downhill-coop-2";
+    public const string ProtocolVersion = "downhill-coop-3";
 
     [Export] public int DefaultPort { get; set; } = 7777;
     [Export] public int MaxPlayers { get; set; } = 4;
@@ -59,6 +59,9 @@ public partial class NetSession : Node
     [Export] public float WorldLimit { get; set; } = 200000.0f;
     [Export] public int MaxNameLength { get; set; } = 20;
     [Export] public int MaxWornPieces { get; set; } = 16;
+    /// <summary>The host sends its clock this often (s); a client more than ClockDrift hours off jumps to it.</summary>
+    [Export] public float ClockInterval { get; set; } = 2.0f;
+    [Export] public float ClockDrift { get; set; } = 0.05f;
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
 
     public static NetSession? Instance { get; private set; }
@@ -104,7 +107,13 @@ public partial class NetSession : Node
     private bool _savedNewMountain = true;
     private float _savedSummaryDelay = 7.0f;
     private bool _teleportNext;
+    private double _clockTimer;
+    private Difficulty _savedDifficulty = Difficulty.Normal;
+    private bool _difficultySaved;
     private NetHud? _hud;
+    private NetMobs? _mobs;
+    /// <summary>Shared creatures and kill loot.</summary>
+    public NetMobs? Mobs => _mobs;
 
     public override void _EnterTree()
     {
@@ -124,9 +133,13 @@ public partial class NetSession : Node
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.StationReached += OnStationReached;
         GameEvents.SupplyPickedUp += OnSupplyPickedUp;
+        GameEvents.Slept += OnSlept;
         GameOptions.Changed += OnOptionsChanged;
         _hud = new NetHud { Name = "NetHud", Session = this };
         AddChild(_hud);
+        // The same path on every machine (/root/NetSession/NetMobs), so its messages find it.
+        _mobs = new NetMobs { Name = "NetMobs", Session = this };
+        AddChild(_mobs);
         CallDeferred(MethodName.ReadCommandLine);
     }
 
@@ -137,6 +150,7 @@ public partial class NetSession : Node
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.StationReached -= OnStationReached;
         GameEvents.SupplyPickedUp -= OnSupplyPickedUp;
+        GameEvents.Slept -= OnSlept;
         GameOptions.Changed -= OnOptionsChanged;
         if (Active)
         {
@@ -174,7 +188,9 @@ public partial class NetSession : Node
             else if (arg.StartsWith("--net-probe=", StringComparison.Ordinal) && float.TryParse(arg["--net-probe=".Length..],
                 System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float seconds))
             {
-                AddChild(new NetProbe { Name = "NetProbe", Session = this, Seconds = seconds, GrabAtUnix = ProbeNumber("--net-grab-at="), DieAtUnix = ProbeNumber("--net-die-at="), Linger = (float)ProbeNumber("--net-linger=") });
+                AddChild(new NetProbe { Name = "NetProbe", Session = this, Seconds = seconds, GrabAtUnix = ProbeNumber("--net-grab-at="), DieAtUnix = ProbeNumber("--net-die-at="),
+                    SpawnAtUnix = ProbeNumber("--net-spawn-at="), StrikeAtUnix = ProbeNumber("--net-strike-at="),
+                    AdvanceHours = Mathf.Max((float)ProbeNumber("--net-advance="), 0.0f), Linger = (float)ProbeNumber("--net-linger=") });
                 double respawn = ProbeNumber("--net-respawn=");
                 if (respawn > 0.0)
                 {
@@ -324,6 +340,7 @@ public partial class NetSession : Node
         }
         _remotes.Clear();
         _peers.Clear();
+        _mobs?.Clear();
         _waitingHello.Clear();
         _taken.Clear();
         _promised.Clear();
@@ -335,6 +352,11 @@ public partial class NetSession : Node
         {
             run.NewMountainOnDeath = _savedNewMountain;
             run.SummaryDelay = _savedSummaryDelay;
+            if (_difficultySaved)
+            {
+                run.Difficulty = _savedDifficulty;
+                _difficultySaved = false;
+            }
         }
         StopWatching();
         Mode = Role.None;
@@ -365,6 +387,7 @@ public partial class NetSession : Node
             return;
         }
         RemoveRemote(id);
+        _mobs?.DropOwner(id);
         Log($"{peer.Name} ({id}) left");
         GameEvents.PublishHint($"{peer.Name} left the descent.");
         if (Mode == Role.Host)
@@ -443,7 +466,9 @@ public partial class NetSession : Node
         // The newcomer gets the mountain, what's been taken, the host, and everyone already here.
         string[] taken = new string[_taken.Count];
         _taken.CopyTo(taken);
-        RpcId(sender, MethodName.Welcome, (long)SessionSeed, taken, LocalName, LocalCharacter(), LocalWorn(), GameOptions.BaseShirtColour, GameOptions.BasePackColour, peer.Name);
+        RpcId(sender, MethodName.Welcome, (long)SessionSeed, taken, LocalName, LocalCharacter(), LocalWorn(), GameOptions.BaseShirtColour, GameOptions.BasePackColour, peer.Name,
+            (int)(Run()?.Difficulty ?? Difficulty.Normal));
+        SendClock(sender);
         foreach (NetPeer other in _peers.Values)
         {
             if (other.Id != sender)
@@ -458,7 +483,7 @@ public partial class NetSession : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered, TransferChannel = 1)]
-    private void State(Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead)
+    private void State(Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead, bool torch)
     {
         if (Mode != Role.Host)
         {
@@ -479,13 +504,13 @@ public partial class NetSession : Node
         }
         if (_remotes.TryGetValue(sender, out RemoteCarrier? remote))
         {
-            remote.Receive(position, yaw, safeClip, clipPosition, clipSpeed, dead);
+            remote.Receive(position, yaw, safeClip, clipPosition, clipSpeed, dead, torch);
         }
         foreach (long other in _peers.Keys)
         {
             if (other != sender)
             {
-                RpcId(other, MethodName.PeerState, sender, position, yaw, safeClip, clipPosition, clipSpeed, dead);
+                RpcId(other, MethodName.PeerState, sender, position, yaw, safeClip, clipPosition, clipSpeed, dead, torch);
             }
         }
     }
@@ -562,7 +587,7 @@ public partial class NetSession : Node
     // --- Messages: host -> clients (only the host may send these) ---
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void Welcome(long seed, string[] taken, string hostName, string hostCharacter, string[] hostWorn, Color hostShirt, Color hostPack, string yourName)
+    private void Welcome(long seed, string[] taken, string hostName, string hostCharacter, string[] hostWorn, Color hostShirt, Color hostPack, string yourName, int difficulty)
     {
         if (Mode != Role.Client)
         {
@@ -579,8 +604,15 @@ public partial class NetSession : Node
         NetPeer host = new() { Id = 1, Name = hostName, Character = hostCharacter, Worn = hostWorn, Shirt = hostShirt, Pack = hostPack };
         _peers[1] = host;
         SpawnRemote(host);
-        // The host's mountain: built from its seed here too.
-        Run()?.StartNewRun(SessionSeed);
+        // The host's mountain, at the host's difficulty (it sets how many supplies there are): built from its seed here too.
+        RunState? run = Run();
+        if (run != null && Enum.IsDefined(typeof(Difficulty), difficulty))
+        {
+            _savedDifficulty = run.Difficulty;
+            _difficultySaved = true;
+            run.Difficulty = (Difficulty)difficulty;
+        }
+        run?.StartNewRun(SessionSeed);
         CallDeferred(MethodName.RemoveTakenSupplies);
         SetStatus($"In {hostName}'s descent.");
         Log($"welcomed by {hostName}: seed {SessionSeed}, {taken.Length} supplies already taken, named {yourName}");
@@ -619,13 +651,14 @@ public partial class NetSession : Node
             return;
         }
         RemoveRemote(id);
+        _mobs?.DropOwner(id);
         Log($"{peer.Name} ({id}) left");
         GameEvents.PublishHint($"{peer.Name} left the descent.");
         Changed?.Invoke();
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered, TransferChannel = 1)]
-    private void PeerState(long id, Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead)
+    private void PeerState(long id, Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead, bool torch)
     {
         if (Mode != Role.Client || id == LocalId || !_peers.TryGetValue(id, out NetPeer? peer))
         {
@@ -639,7 +672,7 @@ public partial class NetSession : Node
         }
         if (_remotes.TryGetValue(id, out RemoteCarrier? remote))
         {
-            remote.Receive(position, yaw, clip, clipPosition, clipSpeed, dead);
+            remote.Receive(position, yaw, clip, clipPosition, clipSpeed, dead, torch);
         }
     }
 
@@ -773,6 +806,8 @@ public partial class NetSession : Node
     private void RemoveSupply(string key)
     {
         Spawner()?.MarkTaken(new[] { key });
+        // Kill loot isn't the spawner's: it goes by its key.
+        FindSupply(key)?.QueueFree();
     }
 
     private WorldItem? FindSupply(string key)
@@ -810,6 +845,12 @@ public partial class NetSession : Node
         if (Mode == Role.Host)
         {
             Housekeeping(delta);
+            _clockTimer += delta;
+            if (_clockTimer >= ClockInterval)
+            {
+                _clockTimer = 0.0;
+                SendClock(0);
+            }
         }
         _sendTimer += delta;
         if (_sendTimer >= 1.0 / Mathf.Max(SendRate, 1.0f))
@@ -876,6 +917,101 @@ public partial class NetSession : Node
         }
     }
 
+    // --- One clock for everyone (the weather follows it) ---
+
+    private WorldClock? Clock()
+    {
+        return GetNodeOrNull<WorldClock>("/root/WorldClock");
+    }
+
+    /// <summary>Host: its day and hour to one client (or everyone, 0).</summary>
+    private void SendClock(long to)
+    {
+        WorldClock? clock = Clock();
+        if (clock == null || Mode != Role.Host)
+        {
+            return;
+        }
+        if (to == 0)
+        {
+            foreach (long id in _peers.Keys)
+            {
+                RpcId(id, MethodName.ClockSync, clock.Day, clock.TimeOfDay);
+            }
+        }
+        else
+        {
+            RpcId(to, MethodName.ClockSync, clock.Day, clock.TimeOfDay);
+        }
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ClockSync(int day, float hour)
+    {
+        WorldClock? clock = Clock();
+        if (Mode != Role.Client || clock == null || day < 1 || !Mathf.IsFinite(hour))
+        {
+            return;
+        }
+        double theirs = (day - 1) * WorldClock.HoursPerDay + Mathf.PosMod(hour, WorldClock.HoursPerDay) - clock.StartHour;
+        double off = Math.Abs(theirs - clock.TotalHours);
+        if (off > ClockDrift)
+        {
+            if (off > 1.0)
+            {
+                Log($"clock set to the host's: day {day}, {hour:0.0} h");
+            }
+            clock.Restore(day, hour);
+        }
+    }
+
+    /// <summary>Someone slept by a fire: the night passes for everyone (the host's clock jumps, and everyone follows it).</summary>
+    private void OnSlept(float hours)
+    {
+        if (!Active || !Joined)
+        {
+            return;
+        }
+        if (Mode == Role.Host)
+        {
+            SendClock(0);
+            Rpc(MethodName.NightPassed, LocalName);
+            return;
+        }
+        RpcId(1, MethodName.Slept, hours);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void Slept(float hours)
+    {
+        long sender = Multiplayer.GetRemoteSenderId();
+        WorldClock? clock = Clock();
+        if (Mode != Role.Host || clock == null || !_peers.ContainsKey(sender) || !Mathf.IsFinite(hours) || hours <= 0.0f || hours > WorldClock.HoursPerDay)
+        {
+            return;
+        }
+        clock.AdvanceHours(hours);
+        Log($"{NameOf(sender)} slept {hours:0.0} h; the night passes for everyone");
+        GameEvents.PublishHint($"{NameOf(sender)} slept by a fire. The night passes.");
+        SendClock(0);
+        foreach (long id in _peers.Keys)
+        {
+            if (id != sender)
+            {
+                RpcId(id, MethodName.NightPassed, NameOf(sender));
+            }
+        }
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void NightPassed(string who)
+    {
+        if (Mode == Role.Client)
+        {
+            GameEvents.PublishHint($"{who} slept by a fire. The night passes.");
+        }
+    }
+
     private void SendState()
     {
         PlayerController? player = LocalPlayer();
@@ -904,12 +1040,12 @@ public partial class NetSession : Node
         {
             foreach (long id in _peers.Keys)
             {
-                RpcId(id, MethodName.PeerState, 1L, position, yaw, clip, clipPosition, clipSpeed, LocalDead);
+                RpcId(id, MethodName.PeerState, 1L, position, yaw, clip, clipPosition, clipSpeed, LocalDead, GameEvents.CarrierTorchLit);
             }
         }
         else
         {
-            RpcId(1, MethodName.State, position, yaw, clip, clipPosition, clipSpeed, LocalDead);
+            RpcId(1, MethodName.State, position, yaw, clip, clipPosition, clipSpeed, LocalDead, GameEvents.CarrierTorchLit);
         }
     }
 
@@ -1070,9 +1206,10 @@ public partial class NetSession : Node
         }
         RemoteCarrier remote = new() { Name = $"Remote_{peer.Id}", PeerId = peer.Id, PlayerName = peer.Name, Character = peer.Character };
         Node3D? model = LocalPlayer()?.GetNodeOrNull<Node3D>("Model");
+        Node3D? look = LocalPlayer()?.GetNodeOrNull<Node3D>("CarrierModel");
         if (model != null)
         {
-            remote.UseModelPlacement(model.Transform);
+            remote.UseModelPlacement(model.Transform, look?.Transform ?? model.Transform);
         }
         world.AddChild(remote);
         remote.ShowLook(peer.Character, peer.Worn, peer.Shirt, peer.Pack);

@@ -36,6 +36,8 @@ public partial class CarrierTorch : Node3D
     /// <summary>Seconds of burning left (0: not lit; tests may shorten it).</summary>
     public float Left { get; set; }
     public bool Lit => Left > 0.0f;
+    /// <summary>Another player's torch (co-op): lit and put out by SetRemoteLit only, never by this machine's pack.</summary>
+    public bool Remote { get; set; }
     public ParticleFire? Fire => _fire;
 
     private Node3D? _torch;
@@ -47,13 +49,17 @@ public partial class CarrierTorch : Node3D
     {
         TopLevel = true;
         BuildTorch();
-        GameEvents.TorchRequested += OnTorchRequested;
         _driver = GetNodeOrNull<Skeleton3D>(DriverPath);
         _hand = Hand(_driver);
         if (_driver != null)
         {
             _driver.SkeletonUpdated += Follow;
         }
+        if (Remote)
+        {
+            return;
+        }
+        GameEvents.TorchRequested += OnTorchRequested;
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             if (arg == "--torch")
@@ -70,10 +76,29 @@ public partial class CarrierTorch : Node3D
         {
             _driver.SkeletonUpdated -= Follow;
         }
-        if (Lit)
+        if (Lit && !Remote)
         {
             GameEvents.PublishTorch(false);
         }
+    }
+
+    /// <summary>Another player's torch burns or is out, as their machine says (co-op).</summary>
+    public void SetRemoteLit(bool lit)
+    {
+        if (lit == Lit)
+        {
+            return;
+        }
+        Left = 0.0f;
+        if (lit)
+        {
+            Left = float.MaxValue;
+        }
+        if (_torch != null)
+        {
+            _torch.Visible = lit;
+        }
+        _fire?.SetBurning(lit);
     }
 
     private void OnTorchRequested(float seconds)
@@ -94,7 +119,7 @@ public partial class CarrierTorch : Node3D
 
     public override void _Process(double delta)
     {
-        if (!Lit)
+        if (!Lit || Remote)
         {
             return;
         }

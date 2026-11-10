@@ -17,7 +17,7 @@ namespace DownhillRoguelite.Wildlife;
 /// at it (GameEvents.MeleeSwung) it may guard, taking almost nothing from the front, or roll aside, and
 /// then hits back. The carrier's sword finds it as an IMeleeTarget.
 /// </summary>
-public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
+public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
 {
     public enum Phase { Wander, Chase, Attack, Guard, Dodge, Stagger, Gloat, Dead }
 
@@ -132,6 +132,53 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     /// <summary>Time left in the opening after a parry: it neither swings nor guards nor dodges.</summary>
     private float _opening;
 
+    /// <summary>Another machine's enemy (co-op): moved and animated by NetMobs, its blows sent to its owner.</summary>
+    public bool Puppet { get; set; }
+
+    public int NetKind => 0;
+    public string NetSpecies => Species?.ResourcePath ?? "";
+    public bool NetPuppet => Puppet;
+    public float NetHealth => Health / Mathf.Max(MaxHealth, 0.01f);
+    public bool NetDown => State == Phase.Dead;
+    public string NetClip => Clip;
+    public float NetClipPosition
+    {
+        get
+        {
+            if (Animations != null && Animations.IsPlaying())
+            {
+                return (float)Animations.CurrentAnimationPosition;
+            }
+            return 0.0f;
+        }
+    }
+    public float NetClipSpeed => Animations?.SpeedScale ?? 1.0f;
+
+    /// <summary>A puppet plays what its owner plays, shows its health, and falls when it dies there.</summary>
+    public void NetShow(string clip, float clipPosition, float clipSpeed, float health, bool down)
+    {
+        if (!Puppet || Species == null || State == Phase.Dead)
+        {
+            return;
+        }
+        Health = Mathf.Clamp(health, 0.0f, 1.0f) * MaxHealth;
+        ShowHealth();
+        if (down)
+        {
+            Die();
+            return;
+        }
+        if (clip.Length > 0 && Animations != null && Animations.HasAnimation(clip))
+        {
+            Play(clip, ClipBlend, Mathf.Clamp(clipSpeed, 0.0f, 4.0f));
+            double length = Animations.CurrentAnimationLength;
+            if (length > 0.0 && clipPosition <= length && Mathf.Abs(Animations.CurrentAnimationPosition - clipPosition) > 0.3)
+            {
+                Animations.Seek(clipPosition, true);
+            }
+        }
+    }
+
     /// <summary>A new enemy of this kind (add it to the tree, then place it).</summary>
     public static HumanoidEnemy Create(EnemySpecies species)
     {
@@ -152,7 +199,14 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         _gravity = ProjectSettings.GetSetting("physics/3d/default_gravity").AsSingle();
         CollisionLayer = 0;
         CollisionMask = GroundMask | PropMask;
-        CharacterSpacing.Register(this, Species.BodyRadius, Species.Mass);
+        if (Puppet)
+        {
+            CollisionMask = 0;
+        }
+        else
+        {
+            CharacterSpacing.Register(this, Species.BodyRadius, Species.Mass);
+        }
         FloorSnapLength = 0.5f;
         FloorMaxAngle = Mathf.DegToRad(60.0f);
         AddChild(new CollisionShape3D
@@ -176,9 +230,13 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         _wanderTarget = _home;
         _wanderWait = _random.RandfRange(WanderPause.X, WanderPause.Y);
         AddToGroup(IMeleeTarget.Group);
+        Play(IdleClip, 0.0f, 1.0f);
+        if (Puppet)
+        {
+            return;
+        }
         GameEvents.LocomotionUpdated += OnLocomotion;
         GameEvents.MeleeSwung += OnMeleeSwung;
-        Play(IdleClip, 0.0f, 1.0f);
     }
 
     public override void _ExitTree()
@@ -306,6 +364,16 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
             return;
         }
         float dt = (float)delta;
+        if (Puppet)
+        {
+            // NetMobs moves it; it only lies and sinks once it's dead.
+            if (State == Phase.Dead)
+            {
+                _phaseTime += dt;
+                Sink(dt);
+            }
+            return;
+        }
         _phaseTime += dt;
         _cooldown = Mathf.Max(0.0f, _cooldown - dt);
         _opening = Mathf.Max(0.0f, _opening - dt);
@@ -643,6 +711,11 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         {
             return false;
         }
+        if (Puppet)
+        {
+            GameEvents.PublishNetMobHit(this, damage, Vector3.Zero, "bleeding");
+            return true;
+        }
         Health = Mathf.Max(0.0f, Health - damage);
         ShowHealth();
         if (Health <= 0.0f)
@@ -657,6 +730,13 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     {
         if (!CanBeHit || Species == null)
         {
+            return;
+        }
+        if (Puppet)
+        {
+            // Its owner decides what the blow does; here it only cries out.
+            Say(Species.HurtSounds);
+            GameEvents.PublishNetMobHit(this, damage, push, source);
             return;
         }
         _aware = true;
@@ -734,6 +814,11 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         }
         Velocity = Vector3.Zero;
         RemoveFromGroup(IMeleeTarget.Group);
+        if (Puppet)
+        {
+            // Its owner counts the kill and drops the loot (shared with everyone).
+            return;
+        }
         Loot ??= new KillLoot();
         string name = Species!.DisplayName;
         if (name.Length == 0)

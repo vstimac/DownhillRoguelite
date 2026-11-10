@@ -13,19 +13,23 @@ mkdir -p "$LOGS"
 # Clients start LEAD seconds after the host, a second apart; all reach for the supply at the same
 # moment (GRAB, by the computer's clock) and the host reports before the clients leave.
 LEAD=8
-CLIENT_SECONDS=30
+CLIENT_SECONDS=34
 GRAB=$(( $(date +%s) + LEAD + CLIENTS + 14 ))
 HOST_SECONDS=$((LEAD + CLIENT_SECONDS - 4))
 # Client 1 falls just after the grab and comes back RESPAWN seconds later, before anyone reports.
 DIE=$((GRAB + 2))
 RESPAWN=4
+# The host brings an enemy; client 2 strikes it (as a puppet on its machine) a few seconds later.
+SPAWN=$((GRAB + 5))
+STRIKE=$((GRAB + 9))
 
-"$GODOT" --headless --path . -- --host="$PORT" --net-name=Host --net-probe="$HOST_SECONDS" --net-linger=20 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" > "$LOGS/host.log" 2>&1 &
+"$GODOT" --headless --path . -- --host="$PORT" --net-name=Host --net-probe="$HOST_SECONDS" --net-linger=20 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" --net-spawn-at="$SPAWN" --net-advance=8 > "$LOGS/host.log" 2>&1 &
 PIDS="$!"
 sleep "$LEAD"
 for i in $(seq 1 "$CLIENTS"); do
     DIES=""
     if [ "$i" = "1" ]; then DIES="--net-die-at=$DIE"; fi
+    if [ "$i" = "2" ]; then DIES="--net-strike-at=$STRIKE"; fi
     "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --net-name="Client$i" --net-probe="$CLIENT_SECONDS" --net-linger=6 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" $DIES > "$LOGS/client$i.log" 2>&1 &
     PIDS="$PIDS $!"
     sleep 1
@@ -65,6 +69,27 @@ back=$(grep -h "name=Client1 " "$LOGS"/client1.log | grep -c "back=True")
 check "and comes back after the respawn time" "$([ "$back" -eq 1 ]; echo $?)"
 saw=$(grep -h "\[NetProbe\] role" "$LOGS"/host.log | grep -c "saw_fallen=True")
 check "the host saw them fallen" "$([ "$saw" -eq 1 ]; echo $?)"
+report() { grep -h "\[NetProbe\] role" "$1"; }
+num() { report "$1" | grep -o "$2=[-0-9.]*" | head -1 | cut -d= -f2; }
+spread=$(grep -ho "clock_at_grab=[-0-9.]*" "$LOGS"/*.log | cut -d= -f2 | sort -n | awk 'NR==1{lo=$1} {hi=$1} END{printf "%.3f", hi-lo}')
+hostclock=$(num "$LOGS/host.log" clock_at_grab)
+check "everyone's clock follows the host's (host moved it on to $hostclock h; spread $spread h)" "$(awk -v s="$spread" -v h="$hostclock" 'BEGIN{exit !(s < 0.1 && h >= 7.9)}'; echo $?)"
+puppets=0
+for i in $(seq 1 "$CLIENTS"); do
+    if [ "$(num "$LOGS/client$i.log" saw_puppets)" -ge 1 ] 2>/dev/null; then puppets=$((puppets + 1)); fi
+done
+check "every client saw the host's enemy ($puppets of $CLIENTS)" "$([ "$puppets" -eq "$CLIENTS" ]; echo $?)"
+if [ "$CLIENTS" -ge 2 ]; then
+    sent=$(num "$LOGS/client2.log" hits_sent)
+    applied=$(num "$LOGS/host.log" hits_applied)
+    check "a client's blow on it reached the host ($sent sent, $applied applied)" "$([ "${sent:-0}" -ge 1 ] && [ "${applied:-0}" -ge 1 ]; echo $?)"
+fi
+shared=$(num "$LOGS/host.log" loot_shared)
+same=0
+for i in $(seq 1 "$CLIENTS"); do
+    if [ "$(num "$LOGS/client$i.log" loot_received)" = "$shared" ]; then same=$((same + 1)); fi
+done
+check "its loot appeared for everyone ($shared items; $same of $CLIENTS clients got all)" "$([ "${shared:-0}" -ge 1 ] && [ "$same" -eq "$CLIENTS" ]; echo $?)"
 errors=$(grep -h "ERROR\|Unhandled exception" "$LOGS"/*.log | grep -v "ObjectDB\|leaked\|resources still in use" | sort -u | head -5)
 if [ -n "$errors" ]; then echo "Errors in the logs:"; echo "$errors"; fi
 echo "logs: $LOGS"

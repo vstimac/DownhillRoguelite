@@ -11,7 +11,7 @@ namespace DownhillRoguelite.Wildlife;
 /// she-wolf, tears food out of the pack. Afterwards it backs off and stalks again. Near fire, in a
 /// shelter or at dawn it leaves.
 /// </summary>
-public partial class NightBeast : CharacterBody3D, IMeleeTarget
+public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
 {
     public enum Mode
     {
@@ -38,6 +38,57 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget
     public int Hits { get; private set; }
     /// <summary>Health left against the carrier's sword; at 0 it runs off for the night.</summary>
     public float Health { get; private set; } = 1.0f;
+    /// <summary>Another machine's beast (co-op): moved and animated by NetMobs, its blows sent to its owner.</summary>
+    public bool Puppet { get; set; }
+
+    public int NetKind => 1;
+    /// <summary>Beasts are sub-resources of one roster: "beast:" and the species name.</summary>
+    public string NetSpecies => "beast:" + (Species?.DisplayName ?? "");
+    public bool NetPuppet => Puppet;
+    public float NetHealth => Health / Mathf.Max(Species?.Health ?? 1.0f, 0.01f);
+    public bool NetDown => State == Mode.Leave;
+    public string NetClip => _clip;
+    public float NetClipPosition
+    {
+        get
+        {
+            if (_animation != null && _animation.IsPlaying())
+            {
+                return (float)_animation.CurrentAnimationPosition;
+            }
+            return 0.0f;
+        }
+    }
+    public float NetClipSpeed => _animation?.SpeedScale ?? 1.0f;
+
+    /// <summary>A puppet plays what its owner plays and runs off when it's beaten there.</summary>
+    public void NetShow(string clip, float clipPosition, float clipSpeed, float health, bool down)
+    {
+        if (!Puppet || Species == null)
+        {
+            return;
+        }
+        Health = Mathf.Clamp(health, 0.0f, 1.0f) * Species.Health;
+        if (down && State != Mode.Leave)
+        {
+            State = Mode.Leave;
+        }
+        if (clip.Length > 0 && _animation != null && _animation.HasAnimation(clip))
+        {
+            if (_clip != clip)
+            {
+                _clip = clip;
+                _animation.GetAnimation(clip).LoopMode = Animation.LoopModeEnum.Linear;
+                _animation.Play(clip, 0.2f);
+            }
+            _animation.SpeedScale = Mathf.Clamp(clipSpeed, 0.0f, 4.0f);
+            double length = _animation.CurrentAnimationLength;
+            if (length > 0.0 && clipPosition <= length && Mathf.Abs(_animation.CurrentAnimationPosition - clipPosition) > 0.3)
+            {
+                _animation.Seek(clipPosition, true);
+            }
+        }
+    }
     /// <summary>Blows it has taken, and charges the carrier's shield stopped.</summary>
     public int Wounds { get; private set; }
     public int Blocked { get; private set; }
@@ -81,6 +132,11 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget
         _gravity = ProjectSettings.GetSetting("physics/3d/default_gravity").AsSingle();
         CollisionLayer = layer;
         CollisionMask = mask;
+        if (Puppet)
+        {
+            CollisionLayer = 0;
+            CollisionMask = 0;
+        }
         FloorSnapLength = 0.6f;
         FloorMaxAngle = Mathf.DegToRad(species.MaxSlope);
         Vector3 body = species.BodySize;
@@ -405,6 +461,11 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget
         {
             return false;
         }
+        if (Puppet)
+        {
+            GameEvents.PublishNetMobHit(this, damage, Vector3.Zero, "bleeding");
+            return true;
+        }
         Health = Mathf.Max(0.0f, Health - damage);
         if (Health <= 0.0f)
         {
@@ -435,6 +496,12 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget
             return;
         }
         BeastSpecies species = Species!;
+        if (Puppet)
+        {
+            Say(species.SnarlSounds);
+            GameEvents.PublishNetMobHit(this, damage, push, source);
+            return;
+        }
         Wounds++;
         Health = Mathf.Max(0.0f, Health - damage);
         _shove = new Vector3(push.X, 0.0f, push.Z);

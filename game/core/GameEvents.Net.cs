@@ -29,3 +29,16 @@ public static partial class GameEvents
 
     public static void PublishSupplyPickedUp(string slotKey) => SupplyPickedUp?.Invoke(slotKey);
 }
+
+/// <summary>Co-op creatures and kill loot (network/NetMobs).</summary>
+public static partial class GameEvents
+{
+    /// <summary>A puppet creature (another machine's) took a blow here: its owner applies it. Damage, push (m/s, world), source.</summary>
+    public static event Action<INetMob, float, Godot.Vector3, string>? NetMobHit;
+    /// <summary>A kill dropped an item here: the item node, its id, and where it lands (shared with the others in co-op).</summary>
+    public static event Action<Godot.Node3D, string, Godot.Vector3>? LootDropped;
+
+    public static void PublishNetMobHit(INetMob mob, float damage, Godot.Vector3 push, string source) => NetMobHit?.Invoke(mob, damage, push, source);
+
+    public static void PublishLootDropped(Godot.Node3D item, string itemId, Godot.Vector3 landing) => LootDropped?.Invoke(item, itemId, landing);
+}

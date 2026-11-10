@@ -33,6 +33,8 @@ public partial class RemoteCarrier : CharacterBody3D
     public Color Shirt { get; private set; } = Colors.White;
     public Color Pack { get; private set; } = Colors.White;
     public bool Dead { get; private set; }
+    /// <summary>Their torch burns (shown in their hand, lighting the ground round them).</summary>
+    public bool TorchLit => _torch?.Lit ?? false;
     public string Clip { get; private set; } = "";
     /// <summary>States received (tests).</summary>
     public int States { get; private set; }
@@ -47,15 +49,22 @@ public partial class RemoteCarrier : CharacterBody3D
     private AnimationPlayer? _animation;
     private CarrierModel? _look;
     private Label3D? _label;
+    private CarrierTorch? _torch;
     private Transform3D _modelRest = Transform3D.Identity;
-    private Vector3 _modelScale = Vector3.One;
+    private Transform3D _lookRest = Transform3D.Identity;
+    private float _restYaw;
     private double _clock;
 
-    /// <summary>Copies the local player's model placement, so remote carriers stand as this one does.</summary>
-    public void UseModelPlacement(Transform3D modelLocal)
+    /// <summary>
+    /// Copies the local player's model and character placement (both turned half round in Player.tscn),
+    /// so remote carriers stand as this one does. The whole body turns to face, as the local one does:
+    /// the follower maps the driver's bones in the space they had when it started, so the two must turn together.
+    /// </summary>
+    public void UseModelPlacement(Transform3D modelLocal, Transform3D lookLocal)
     {
         _modelRest = modelLocal;
-        _modelScale = modelLocal.Basis.Scale;
+        _lookRest = lookLocal;
+        _restYaw = modelLocal.Basis.GetEuler().Y;
     }
 
     public override void _Ready()
@@ -79,7 +88,13 @@ public partial class RemoteCarrier : CharacterBody3D
                 break;
             }
         }
-        _look = new CarrierModel { Name = "CarrierModel", Remote = true, RemoteCharacter = Character, Driver = _driver, DriverModel = _driverModel };
+        if (_driver != null)
+        {
+            // The driver is the same mannequin as the player's, so the torch finds its hand the same way (../Model/Rig/Skeleton3D).
+            _torch = new CarrierTorch { Name = "Torch", Remote = true };
+            AddChild(_torch);
+        }
+        _look = new CarrierModel { Name = "CarrierModel", Remote = true, RemoteCharacter = Character, Driver = _driver, DriverModel = _driverModel, Transform = _lookRest };
         AddChild(_look);
         _label = new Label3D
         {
@@ -97,9 +112,10 @@ public partial class RemoteCarrier : CharacterBody3D
     }
 
     /// <summary>A new state from their machine: where they stand, which way they face, what they do.</summary>
-    public void Receive(Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead)
+    public void Receive(Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead, bool torch)
     {
         States++;
+        _torch?.SetRemoteLit(torch && !dead);
         if (!position.IsFinite() || !Mathf.IsFinite(yaw))
         {
             return;
@@ -194,10 +210,8 @@ public partial class RemoteCarrier : CharacterBody3D
         {
             Velocity = (GlobalPosition - before) / (float)delta;
         }
-        if (_driverModel != null)
-        {
-            _driverModel.GlobalBasis = new Basis(Vector3.Up, yaw).Scaled(_modelScale);
-        }
+        // Their model faced `yaw`; the model sits turned _restYaw inside the body, as here.
+        Rotation = new Vector3(0.0f, yaw - _restYaw, 0.0f);
     }
 
     private void Play(string clip, float speed)
