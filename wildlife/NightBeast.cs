@@ -396,6 +396,24 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget
     /// A sword blow or a kick: it loses health, is shoved back, and flinches (backs off, no attack for
     /// a while; a crouch or charge breaks off). At no health left it runs off for the night.
     /// </summary>
+    /// <summary>An open wound (environment/Bleeding): health drains quietly; at nothing it slinks away.</summary>
+    public bool Bleed(float damage)
+    {
+        if (!CanBeHit)
+        {
+            return false;
+        }
+        Health = Mathf.Max(0.0f, Health - damage);
+        if (Health <= 0.0f)
+        {
+            State = Mode.Leave;
+            LeavingFor = 0.0f;
+            Play(Species!.RunClip, 1.6f);
+            return false;
+        }
+        return true;
+    }
+
     public void TakeHit(float damage, Vector3 push, string source)
     {
         if (!CanBeHit)

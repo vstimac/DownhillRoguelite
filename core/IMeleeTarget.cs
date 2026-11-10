@@ -25,4 +25,15 @@ public interface IMeleeTarget
 
     /// <summary>Takes a blow: <paramref name="damage"/> health and a shove (m/s) away from the carrier.</summary>
     void TakeHit(float damage, Vector3 push, string source);
+
+    /// <summary>
+    /// Loses <paramref name="damage"/> health to an open wound (environment/Bleeding): no flinch, no
+    /// cry, no shove. False once it is down (the bleeding stops). Bodies that don't override it take
+    /// it as a quiet blow.
+    /// </summary>
+    bool Bleed(float damage)
+    {
+        TakeHit(damage, Vector3.Zero, "bleeding");
+        return CanBeHit;
+    }
 }

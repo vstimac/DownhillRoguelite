@@ -586,6 +586,12 @@ public partial class NewspaperSeller : Node3D, IInteractable, IDescribed, IMelee
 
     // --- The sword ---
 
+    /// <summary>She has no health: a wound only leaves a trail of blood as she runs (environment/Bleeding).</summary>
+    public bool Bleed(float damage)
+    {
+        return Visible;
+    }
+
     public void TakeHit(float damage, Vector3 push, string source)
     {
         if (State == Mood.Struck)

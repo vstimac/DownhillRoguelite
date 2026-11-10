@@ -621,6 +621,23 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     /// A sword blow or kick. Into its raised guard from the front it takes only a sliver; otherwise it
     /// loses the health, is shoved and reels (a blow mid-swing breaks the swing off), and at 0 it dies.
     /// </summary>
+    /// <summary>An open wound (environment/Bleeding): health drains without a flinch; it dies when it runs out.</summary>
+    public bool Bleed(float damage)
+    {
+        if (State == Phase.Dead || Health <= 0.0f)
+        {
+            return false;
+        }
+        Health = Mathf.Max(0.0f, Health - damage);
+        ShowHealth();
+        if (Health <= 0.0f)
+        {
+            Die();
+            return false;
+        }
+        return true;
+    }
+
     public void TakeHit(float damage, Vector3 push, string source)
     {
         if (!CanBeHit || Species == null)

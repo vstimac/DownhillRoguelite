@@ -71,6 +71,12 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget
     public bool Lockable => false;
 
     /// <summary>Struck: knocked the way of the blow, and it bolts away from the carrier.</summary>
+    /// <summary>Animals have no health: a wound only leaves a trail of blood (environment/Bleeding).</summary>
+    public bool Bleed(float damage)
+    {
+        return true;
+    }
+
     public void TakeHit(float damage, Vector3 push, string source)
     {
         Struck++;

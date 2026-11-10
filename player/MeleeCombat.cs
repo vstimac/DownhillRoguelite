@@ -79,6 +79,21 @@ public partial class MeleeCombat : Node
     [Export] public float Reach { get; set; } = 1.4f;
     [Export] public float HitAngle { get; set; } = 65.0f;
 
+    [ExportGroup("Wounds")]
+    /// <summary>
+    /// Damage is weighed by where the blow lands: the head and the neck are deadly, limbs take less.
+    /// A body without bones is read by the height of the hit on its capsule.
+    /// </summary>
+    [Export] public float HeadDamage { get; set; } = 2.0f;
+    [Export] public float NeckDamage { get; set; } = 1.6f;
+    [Export] public float TorsoDamage { get; set; } = 1.0f;
+    [Export] public float ArmDamage { get; set; } = 0.6f;
+    [Export] public float LegDamage { get; set; } = 0.7f;
+    /// <summary>On a capsule: above this share of its height is the head, above NeckFrom the neck, above TorsoFrom the torso, below it the legs.</summary>
+    [Export] public float HeadFrom { get; set; } = 0.86f;
+    [Export] public float NeckFrom { get; set; } = 0.8f;
+    [Export] public float TorsoFrom { get; set; } = 0.45f;
+
     [ExportGroup("Kick")]
     [Export] public float KickSpeed { get; set; } = 1.3f;
     [Export] public Vector2 KickWindow { get; set; } = new(0.12f, 0.4f);
@@ -885,23 +900,48 @@ public partial class MeleeCombat : Node
                 continue;
             }
             bool hit;
+            BodyHit where = new(BodyZone.Body, target.HitBase + Vector3.Up * target.HitHeight * 0.6f, "");
             BoneHitboxes? boxes = BoneHitboxes.For(target.HitSkeleton);
             if (boxes != null)
             {
-                // A body with bones: some part of it in the blow's reach, or the blade through it.
-                hit = boxes.InReach(feet, facing, reach, cosLimit, ReachBelow, ReachAbove) || (!kick && BladeTouches(boxes));
+                // A body with bones: the blade through it (where it went in), or some part of it in the blow's reach.
+                hit = !kick && BladeStruck(boxes, out where);
+                if (!hit && boxes.InReach(feet, facing, reach, cosLimit, ReachBelow, ReachAbove))
+                {
+                    hit = true;
+                    Vector3 aim = feet + facing * reach * 0.5f + Vector3.Up * ReachHeight(kick);
+                    if (!kick)
+                    {
+                        aim = BladeTip;
+                    }
+                    where = boxes.Nearest(aim);
+                }
             }
             else
             {
                 hit = InFront(target, feet, facing, reach, cosLimit);
+                if (hit)
+                {
+                    float height = ReachHeight(kick);
+                    if (!kick)
+                    {
+                        height = BladeTip.Y - target.HitBase.Y;
+                    }
+                    where = CapsuleHit(target, height, facing);
+                }
                 if (!hit && !kick)
                 {
-                    hit = BladeTouches(target);
+                    hit = BladeTouches(target, out where);
                 }
             }
             if (!hit)
             {
                 continue;
+            }
+            if (!target.Lockable)
+            {
+                // Animals: no weighing by human parts.
+                where = where with { Zone = BodyZone.Body };
             }
             _struck.Add(node.GetInstanceId());
             Vector3 away = target.HitBase - feet;
@@ -910,7 +950,20 @@ public partial class MeleeCombat : Node
             {
                 away = facing;
             }
-            target.TakeHit(damage, away.Normalized() * push, "sword");
+            float dealt = damage * ZoneDamage(where.Zone);
+            LastZone = where.Zone;
+            LastDealt = dealt;
+            target.TakeHit(dealt, away.Normalized() * push, "sword");
+            Vector3 cut = away.Normalized();
+            if (_haveTip && !kick)
+            {
+                Vector3 swing = BladeTip - _previousTip;
+                if (swing.LengthSquared() > 0.0001f)
+                {
+                    cut = (cut + swing.Normalized()).Normalized();
+                }
+            }
+            GameEvents.PublishWounded(node, where.Point, cut, where.Zone, dealt);
             if (kick)
             {
                 KicksLanded++;
@@ -924,9 +977,9 @@ public partial class MeleeCombat : Node
             GameEvents.RequestCameraShake(HitShake);
         }
         // A swing that hasn't bitten into anything yet can be stopped by the world.
-        if (!kick && _struck.Count == 0 && _haveTip && GlancesOffWorld(out Vector3 where))
+        if (!kick && _struck.Count == 0 && _haveTip && GlancesOffWorld(out Vector3 glanced))
         {
-            Glance(where);
+            Glance(glanced);
         }
         _previousTip = BladeTip;
         _previousBase = BladeBase;
@@ -990,6 +1043,61 @@ public partial class MeleeCombat : Node
         GameEvents.RequestCameraShake(GlanceShake);
     }
 
+    /// <summary>Where the last blow landed and what it took, after the zone's weight (tests, the debug overlay).</summary>
+    public BodyZone LastZone { get; private set; } = BodyZone.Body;
+    public float LastDealt { get; private set; }
+
+    /// <summary>The weight of a blow on this part of the body.</summary>
+    public float ZoneDamage(BodyZone zone)
+    {
+        switch (zone)
+        {
+            case BodyZone.Head:
+                return HeadDamage;
+            case BodyZone.Neck:
+                return NeckDamage;
+            case BodyZone.Torso:
+                return TorsoDamage;
+            case BodyZone.Arm:
+                return ArmDamage;
+            case BodyZone.Leg:
+                return LegDamage;
+            default:
+                return 1.0f;
+        }
+    }
+
+    /// <summary>A kick lands at the shins; a swing found only by reach, at chest height.</summary>
+    private static float ReachHeight(bool kick)
+    {
+        if (kick)
+        {
+            return 0.45f;
+        }
+        return 1.2f;
+    }
+
+    /// <summary>The zone and spot on a standing capsule at <paramref name="height"/> above its base.</summary>
+    public BodyHit CapsuleHit(IMeleeTarget target, float height, Vector3 facing)
+    {
+        float share = Mathf.Clamp(height / Mathf.Max(target.HitHeight, 0.01f), 0.0f, 1.0f);
+        BodyZone zone = BodyZone.Leg;
+        if (share >= HeadFrom)
+        {
+            zone = BodyZone.Head;
+        }
+        else if (share >= NeckFrom)
+        {
+            zone = BodyZone.Neck;
+        }
+        else if (share >= TorsoFrom)
+        {
+            zone = BodyZone.Torso;
+        }
+        Vector3 point = target.HitBase + Vector3.Up * share * target.HitHeight - facing * target.HitRadius;
+        return new BodyHit(zone, point, "");
+    }
+
     private static bool InFront(IMeleeTarget target, Vector3 feet, Vector3 facing, float reach, float cosLimit)
     {
         Vector3 to = target.HitBase - feet;
@@ -1007,35 +1115,59 @@ public partial class MeleeCombat : Node
         return (to / distance).Dot(facing) >= cosLimit;
     }
 
-    /// <summary>The blade (and its tip's path since the last frame) through a body's bone boxes.</summary>
-    private bool BladeTouches(BoneHitboxes boxes)
+    /// <summary>The blade (and its tip's path since the last frame) through a body's bone boxes, and where it went in.</summary>
+    private bool BladeStruck(BoneHitboxes boxes, out BodyHit where)
     {
-        if (boxes.Touches(BladeBase, BladeTip, BladeRadius))
+        if (_haveTip && boxes.Struck(_previousTip, BladeTip, BladeRadius, out where))
         {
             return true;
         }
-        if (!_haveTip)
+        if (_haveTip)
         {
-            return false;
+            Vector3 middle = BladeBase.Lerp(BladeTip, 0.6f);
+            Vector3 middleBefore = _previousBase.Lerp(_previousTip, 0.6f);
+            if (boxes.Struck(middleBefore, middle, BladeRadius, out where))
+            {
+                return true;
+            }
         }
-        Vector3 middle = BladeBase.Lerp(BladeTip, 0.6f);
-        Vector3 middleBefore = _previousBase.Lerp(_previousTip, 0.6f);
-        return boxes.Touches(_previousTip, BladeTip, BladeRadius) || boxes.Touches(middleBefore, middle, BladeRadius);
+        return boxes.Struck(BladeBase, BladeTip, BladeRadius, out where);
     }
 
-    private bool BladeTouches(IMeleeTarget target)
+    /// <summary>The blade through a standing capsule, and where on it (by height).</summary>
+    private bool BladeTouches(IMeleeTarget target, out BodyHit where)
     {
+        where = new BodyHit(BodyZone.Body, BladeTip, "");
+        Vector3 facing = target.HitBase - BladeBase;
+        facing.Y = 0.0f;
+        if (facing.LengthSquared() > 0.0001f)
+        {
+            facing = facing.Normalized();
+        }
+        if (BladeTouchesCapsule(target, out Vector3 at))
+        {
+            where = CapsuleHit(target, at.Y - target.HitBase.Y, facing);
+            return true;
+        }
+        return false;
+    }
+
+    private bool BladeTouchesCapsule(IMeleeTarget target, out Vector3 at)
+    {
+        at = BladeTip;
         Vector3 bottom = target.HitBase + Vector3.Up * target.HitRadius;
         Vector3 top = target.HitBase + Vector3.Up * Mathf.Max(target.HitHeight - target.HitRadius, target.HitRadius);
         float limit = target.HitRadius + BladeRadius;
         Vector3[] blade = Geometry3D.GetClosestPointsBetweenSegments(BladeBase, BladeTip, bottom, top);
         if (blade[0].DistanceTo(blade[1]) <= limit)
         {
+            at = blade[0];
             return true;
         }
         if (_haveTip)
         {
             Vector3[] sweep = Geometry3D.GetClosestPointsBetweenSegments(_previousTip, BladeTip, bottom, top);
+            at = sweep[0];
             return sweep[0].DistanceTo(sweep[1]) <= limit;
         }
         return false;

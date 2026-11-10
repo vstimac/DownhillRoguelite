@@ -25,6 +25,7 @@ public sealed class BoneHitboxes
 
     private readonly List<int> _bones = new();
     private readonly List<Aabb> _boxes = new();
+    private readonly List<BodyZone> _zones = new();
     private Transform3D[] _world = System.Array.Empty<Transform3D>();
     private readonly Skeleton3D _skeleton;
 
@@ -92,6 +93,7 @@ public sealed class BoneHitboxes
             }
             _bones.Add(bone);
             _boxes.Add(Fit(cloud));
+            _zones.Add(ZoneOf(_skeleton.GetBoneName(bone)));
         }
         _world = new Transform3D[_bones.Count];
     }
@@ -206,6 +208,81 @@ public sealed class BoneHitboxes
     }
 
     /// <summary>
+    /// Like Touches, but says where: the zone of the box the segment meets first (nearest
+    /// <paramref name="a"/>) and the spot where it goes in.
+    /// </summary>
+    public bool Struck(Vector3 a, Vector3 b, float radius, out BodyHit hit)
+    {
+        hit = new BodyHit(BodyZone.Body, b, "");
+        float first = 2.0f;
+        for (int i = 0; i < _bones.Count; i++)
+        {
+            Transform3D toBone = _world[i].AffineInverse();
+            float scale = _world[i].Basis.Scale.X;
+            float grow = radius / Mathf.Max(scale, 0.0001f);
+            Aabb box = _boxes[i].Grow(grow);
+            if (SegmentEnters(box, toBone * a, toBone * b, out float enter) && enter < first)
+            {
+                first = enter;
+                hit = new BodyHit(_zones[i], a.Lerp(b, enter), _skeleton.GetBoneName(_bones[i]));
+            }
+        }
+        return first <= 1.0f;
+    }
+
+    /// <summary>The part of the body nearest <paramref name="point"/> (a blow that found it by reach, not by the blade).</summary>
+    public BodyHit Nearest(Vector3 point)
+    {
+        BodyHit best = new(BodyZone.Body, point, "");
+        float closest = float.MaxValue;
+        for (int i = 0; i < _bones.Count; i++)
+        {
+            Vector3 centre = _world[i] * _boxes[i].GetCenter();
+            float distance = centre.DistanceSquaredTo(point);
+            if (distance < closest)
+            {
+                closest = distance;
+                best = new BodyHit(_zones[i], centre, _skeleton.GetBoneName(_bones[i]));
+            }
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// The zone a bone belongs to, read from its name (Mixamo, Quaternius, Tripo and Blender rigs
+    /// name them alike): head; neck; spine, chest, hips are the torso; shoulders, arms, hands; legs, feet.
+    /// </summary>
+    public static BodyZone ZoneOf(string bone)
+    {
+        string name = bone.ToLowerInvariant();
+        if (name.Contains("head") || name.Contains("jaw") || name.Contains("eye") || name.Contains("skull"))
+        {
+            return BodyZone.Head;
+        }
+        if (name.Contains("neck"))
+        {
+            return BodyZone.Neck;
+        }
+        if (name.Contains("thigh") || name.Contains("leg") || name.Contains("knee") || name.Contains("calf") || name.Contains("shin")
+            || name.Contains("foot") || name.Contains("toe") || name.Contains("ankle"))
+        {
+            return BodyZone.Leg;
+        }
+        if (name.Contains("shoulder") || name.Contains("clavicle") || name.Contains("arm") || name.Contains("elbow")
+            || name.Contains("hand") || name.Contains("wrist") || name.Contains("finger") || name.Contains("thumb")
+            || name.Contains("index") || name.Contains("middle") || name.Contains("ring") || name.Contains("pinky"))
+        {
+            return BodyZone.Arm;
+        }
+        if (name.Contains("spine") || name.Contains("chest") || name.Contains("hip") || name.Contains("pelvis")
+            || name.Contains("torso") || name.Contains("body") || name.Contains("root"))
+        {
+            return BodyZone.Torso;
+        }
+        return BodyZone.Body;
+    }
+
+    /// <summary>
     /// Whether any part of the body is within a blow's reach: some box's near side no further than
     /// <paramref name="reach"/> from <paramref name="feet"/> (flat), inside the cone around
     /// <paramref name="facing"/> (its cosine), and between <paramref name="below"/> and
@@ -256,8 +333,14 @@ public sealed class BoneHitboxes
     /// <summary>Slab test: does the segment cross the box?</summary>
     private static bool SegmentHits(Aabb box, Vector3 a, Vector3 b)
     {
+        return SegmentEnters(box, a, b, out float _);
+    }
+
+    /// <summary>Slab test with where the segment goes in (0 at <paramref name="a"/>, 1 at <paramref name="b"/>).</summary>
+    private static bool SegmentEnters(Aabb box, Vector3 a, Vector3 b, out float enter)
+    {
         Vector3 d = b - a;
-        float enter = 0.0f;
+        enter = 0.0f;
         float leave = 1.0f;
         Vector3 min = box.Position;
         Vector3 max = box.End;

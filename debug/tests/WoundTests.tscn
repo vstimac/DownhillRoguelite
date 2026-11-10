@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/WoundTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://environment/BloodEffects.cs" id="2_blood"]
+
+[node name="WoundTests" type="Node3D" node_paths=PackedStringArray("Blood")]
+script = ExtResource("1_tests")
+Blood = NodePath("BloodEffects")
+
+[node name="BloodEffects" type="Node3D" parent="."]
+script = ExtResource("2_blood")

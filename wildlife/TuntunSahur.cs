@@ -356,6 +356,22 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
     public bool CanBeHit => _phase != Phase.Down && Health > 0.0f;
 
     /// <summary>A sword blow or a kick: he loses health, is shoved back and his swing breaks off; at 0 he topples.</summary>
+    /// <summary>An open wound (environment/Bleeding): health drains quietly; at nothing he goes down.</summary>
+    public bool Bleed(float damage)
+    {
+        if (!CanBeHit)
+        {
+            return false;
+        }
+        Health = Mathf.Max(0.0f, Health - damage);
+        if (Health <= 0.0f)
+        {
+            Enter(Phase.Down);
+            return false;
+        }
+        return true;
+    }
+
     public void TakeHit(float damage, Vector3 push, string source)
     {
         if (!CanBeHit)

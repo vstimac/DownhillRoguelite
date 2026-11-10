@@ -72,6 +72,7 @@
 [ext_resource type="Script" uid="uid://c0b670ku72rbi" path="res://narrative/LorePlacer.cs" id="52_lore"]
 [ext_resource type="Script" path="res://audio/RadioPlayer.cs" id="110_radio"]
 [ext_resource type="Script" path="res://environment/SummitRadio.cs" id="111_summit_radio"]
+[ext_resource type="Script" path="res://environment/BloodEffects.cs" id="115_blood"]
 [ext_resource type="PackedScene" path="res://art/props/reno4/reno4.glb" id="112_reno4"]
 [ext_resource type="PackedScene" path="res://art/characters/skeleton/skeleton_sitting.glb" id="113_skeleton"]
 [ext_resource type="PackedScene" path="res://art/props/kenney_graveyard_kit/GLB format/bench.glb" id="114_bench"]
@@ -454,6 +455,9 @@ script = ExtResource("111_summit_radio")
 CarScene = ExtResource("112_reno4")
 SkeletonScene = ExtResource("113_skeleton")
 BenchScene = ExtResource("114_bench")
+
+[node name="BloodEffects" type="Node3D" parent="." unique_id=1907733615]
+script = ExtResource("115_blood")
 
 [node name="RunKeeper" type="Node" parent="." unique_id=1907733502 node_paths=PackedStringArray("PlayerBody", "Supplies")]
 script = ExtResource("102_run_keeper")
