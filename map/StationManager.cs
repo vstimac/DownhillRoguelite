@@ -44,6 +44,8 @@ public partial class StationManager : Node3D
 
     /// <summary>A path this far to the side at mid-stage is signed "far left" / "far right", in m.</summary>
     [Export] public float FarPathOffset { get; set; } = 105.0f;
+    /// <summary>The small per-path signposts (left of each path) as well as the junction signpost; off: the junction's arms say it all.</summary>
+    [Export] public bool ShowPathMarkers { get; set; }
     /// <summary>Each path's marker stands this far below the split (along Z), in m.</summary>
     [Export] public float MarkerDistance { get; set; } = 30.0f;
     /// <summary>...this far to the side of the path's centre (negative: left, facing downhill), in m.</summary>
@@ -165,7 +167,10 @@ public partial class StationManager : Node3D
         StreamStations(route);
         StreamCairns(route);
         StreamSigns(route);
-        StreamMarkers(route);
+        if (ShowPathMarkers)
+        {
+            StreamMarkers(route);
+        }
         StreamJunctions(route);
         UpdateShelter();
         UpdateCairnLabel();

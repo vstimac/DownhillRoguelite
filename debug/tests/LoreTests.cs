@@ -48,6 +48,11 @@ public partial class LoreTests : Node3D
         TestBook();
         TestPlan(route);
         await TestReading(PlayerBody, route);
+        // The per-path markers are off in the game (the junction signpost replaced them); their facts are still checked.
+        if (Stations != null)
+        {
+            Stations.ShowPathMarkers = true;
+        }
         await TestMarkers(PlayerBody, route);
 
         GameEvents.LoreRead -= OnLoreRead;
