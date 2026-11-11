@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
-using DownhillRoguelite.Balance;
 using DownhillRoguelite.Core;
-using DownhillRoguelite.Player;
 using DownhillRoguelite.Ui;
 using Godot;
 
@@ -55,8 +53,6 @@ public partial class NetChat : CanvasLayer
     private bool _open;
     private double _lastSent = -100.0;
     private bool _toldFirst;
-    private bool _playerWas = true;
-    private bool _balanceWas = true;
 
     private bool Live => Session != null && Session.Active && Session.Joined;
 
@@ -155,18 +151,7 @@ public partial class NetChat : CanvasLayer
         _input.CallDeferred(Control.MethodName.GrabFocus);
         GameEvents.PublishScreenOpen(true);
         // The letters typed mustn't walk or lean the carrier.
-        PlayerController? player = Session?.LocalPlayer();
-        if (player != null)
-        {
-            _playerWas = player.InputEnabled;
-            player.InputEnabled = false;
-            BalanceController? balance = Find<BalanceController>(player);
-            if (balance != null)
-            {
-                _balanceWas = balance.InputEnabled;
-                balance.InputEnabled = false;
-            }
-        }
+        Session?.LockControls("chat", true);
         Refresh();
     }
 
@@ -180,16 +165,7 @@ public partial class NetChat : CanvasLayer
         _input.ReleaseFocus();
         _input.Visible = false;
         GameEvents.PublishScreenOpen(false);
-        PlayerController? player = Session?.LocalPlayer();
-        if (player != null)
-        {
-            player.InputEnabled = _playerWas;
-            BalanceController? balance = Find<BalanceController>(player);
-            if (balance != null)
-            {
-                balance.InputEnabled = _balanceWas;
-            }
-        }
+        Session?.LockControls("chat", false);
         Refresh();
     }
 
@@ -371,22 +347,5 @@ public partial class NetChat : CanvasLayer
             _log.Text = shown;
         }
         Visible = Live && (any || _open);
-    }
-
-    private static T? Find<T>(Node root) where T : Node
-    {
-        if (root is T found)
-        {
-            return found;
-        }
-        foreach (Node child in root.GetChildren())
-        {
-            T? inner = Find<T>(child);
-            if (inner != null)
-            {
-                return inner;
-            }
-        }
-        return null;
     }
 }

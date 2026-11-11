@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using DownhillRoguelite.Balance;
 using DownhillRoguelite.Core;
 using DownhillRoguelite.Player;
 using Godot;
@@ -44,8 +43,6 @@ public partial class NetRevive : Node
 
     private readonly HashSet<long> _downPeers = new();
     private bool _finishing;
-    private bool _playerWas = true;
-    private bool _balanceWas = true;
     private long _helpTarget;
     private float _helpTimer;
     private static readonly StringName ActionInteract = "interact";
@@ -128,30 +125,7 @@ public partial class NetRevive : Node
     /// <summary>Down, the carrier can't walk, lean or swing (the letters and keys do nothing).</summary>
     private void Lock(bool locked)
     {
-        PlayerController? player = Session?.LocalPlayer();
-        if (player == null)
-        {
-            return;
-        }
-        BalanceController? balance = NetSession.Find<BalanceController>(player);
-        if (locked)
-        {
-            _playerWas = player.InputEnabled;
-            player.InputEnabled = false;
-            if (balance != null)
-            {
-                _balanceWas = balance.InputEnabled;
-                balance.InputEnabled = false;
-            }
-        }
-        else
-        {
-            player.InputEnabled = _playerWas;
-            if (balance != null)
-            {
-                balance.InputEnabled = _balanceWas;
-            }
-        }
+        Session?.LockControls("down", locked);
     }
 
     public override void _Process(double delta)

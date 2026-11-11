@@ -1375,6 +1375,36 @@ public partial class NetSession : Node
         return _spawner;
     }
 
+    private readonly HashSet<string> _controlLocks = new();
+
+    /// <summary>
+    /// Stops (or frees) the local carrier's walking and leaning for a reason (the chat line, being
+    /// down); it moves again only when no reason is left.
+    /// </summary>
+    public void LockControls(string reason, bool locked)
+    {
+        if (locked)
+        {
+            _controlLocks.Add(reason);
+        }
+        else
+        {
+            _controlLocks.Remove(reason);
+        }
+        PlayerController? player = LocalPlayer();
+        if (player == null)
+        {
+            return;
+        }
+        bool free = _controlLocks.Count == 0;
+        player.InputEnabled = free;
+        DownhillRoguelite.Balance.BalanceController? balance = Find<DownhillRoguelite.Balance.BalanceController>(player);
+        if (balance != null)
+        {
+            balance.InputEnabled = free;
+        }
+    }
+
     internal static T? Find<T>(Node? root) where T : class
     {
         if (root == null)
