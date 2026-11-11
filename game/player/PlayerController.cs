@@ -98,6 +98,11 @@ public partial class PlayerController : CharacterBody3D
         FloorStopOnSlope = true;
         FloorConstantSpeed = true;
         FloorBlockOnWall = true;
+        // Nothing the carrier stands on is a moving platform. Riding one let a creature or crate that was
+        // put somewhere else in one step drag the carrier along and fling them off at thousands of m/s.
+        PlatformFloorLayers = 0;
+        PlatformWallLayers = 0;
+        PlatformOnLeave = PlatformOnLeaveEnum.DoNothing;
         GameEvents.BalanceUpdated += OnBalanceUpdated;
         GameEvents.LaunchRequested += OnLaunchRequested;
         GameEvents.Snared += OnSnared;
