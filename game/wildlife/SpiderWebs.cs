@@ -40,6 +40,9 @@ public partial class SpiderWebs : Node3D
     [Export] public string[] TearSounds { get; set; } = { "res://audio/creatures/web_tear_0.wav", "res://audio/creatures/web_tear_1.wav" };
     [Export] public StringName SoundBus { get; set; } = "Ambience";
     [Export] public float TearVolumeDb { get; set; } = -2.0f;
+    [Export] public Color Thread { get; set; } = new(0.86f, 0.87f, 0.92f, 0.55f);
+    /// <summary>How bright the threads are at full night (unlit lines would glow white in the dark).</summary>
+    [Export] public float NightBrightness { get; set; } = 0.22f;
     /// <summary>Forces the circle (tests); negative: the run's.</summary>
     [Export] public int CircleOverride { get; set; } = -1;
 
@@ -58,12 +61,16 @@ public partial class SpiderWebs : Node3D
     private bool _hasCarrier;
     private float _check;
     private AudioStreamPlayer3D? _tear;
+    private StandardMaterial3D? _material;
+    private WorldClock? _clock;
     private readonly RandomNumberGenerator _random = new();
 
     public override void _Ready()
     {
         TopLevel = true;
         _run = GetNodeOrNull<RunState>("/root/RunState");
+        _clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
+        _material = SpiderWeb.MakeMaterial(Thread);
         GameEvents.LocomotionUpdated += OnLocomotion;
         GameEvents.NewMountain += OnNewMountain;
         GameEvents.RespawnRequested += Forget;
@@ -166,6 +173,26 @@ public partial class SpiderWebs : Node3D
         }
     }
 
+    /// <summary>Dims the threads with the light: pale by day, barely there at night.</summary>
+    private void Shade()
+    {
+        if (_material == null)
+        {
+            return;
+        }
+        float daylight = 1.0f;
+        if (_clock != null)
+        {
+            daylight = _clock.Daylight;
+        }
+        float bright = Mathf.Lerp(NightBrightness, 1.0f, Mathf.Clamp(daylight, 0.0f, 1.0f));
+        Color colour = new(Thread.R * bright, Thread.G * bright, Thread.B * bright, Thread.A);
+        if (!_material.AlbedoColor.IsEqualApprox(colour))
+        {
+            _material.AlbedoColor = colour;
+        }
+    }
+
     private void PlayTear(Vector3 at)
     {
         if (_tear == null || TearSounds.Length == 0)
@@ -191,6 +218,7 @@ public partial class SpiderWebs : Node3D
             return;
         }
         _check = CheckEvery;
+        Shade();
         if (Circle() < MinCircle)
         {
             if (_webs.Count > 0)
@@ -254,7 +282,7 @@ public partial class SpiderWebs : Node3D
                 Vector3 left = new(trunks[i].X, ground + Height, trunks[i].Z);
                 Vector3 right = new(trunks[j].X, ground + Height, trunks[j].Z);
                 SpiderWeb web = new() { Name = "Web" };
-                web.Setup(key, left, right, radius, hash);
+                web.Setup(key, left, right, radius, hash, _material);
                 AddChild(web);
                 _webs[key] = web;
             }
