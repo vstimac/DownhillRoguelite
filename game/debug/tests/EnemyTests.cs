@@ -17,6 +17,19 @@ namespace DownhillRoguelite.Debug;
 public partial class EnemyTests : Node3D
 {
     private readonly List<string> _failures = new();
+    // Every species is loaded once and kept for the whole run: a scripted resource dropped by C#
+    // and loaded again from the cache can come back empty while the GC finalizes its old wrapper.
+    private readonly Dictionary<string, EnemySpecies> _kinds = new();
+
+    private EnemySpecies Kind(string id)
+    {
+        if (!_kinds.TryGetValue(id, out EnemySpecies? kind))
+        {
+            kind = GD.Load<EnemySpecies>($"res://wildlife/enemies/{id}.tres");
+            _kinds[id] = kind;
+        }
+        return kind;
+    }
     private float _damage;
     private int _damageEvents;
     private int _shoves;
@@ -32,7 +45,7 @@ public partial class EnemyTests : Node3D
 
         foreach (string id in new[] { "ogre", "packbeast", "jade_glutton" })
         {
-            await Species(GD.Load<EnemySpecies>($"res://wildlife/enemies/{id}.tres"));
+            await Species(Kind(id));
         }
         await Director();
         await StuckEnemy();
@@ -200,7 +213,7 @@ public partial class EnemyTests : Node3D
     {
         EnemyDirector director = new()
         {
-            Species = new[] { GD.Load<EnemySpecies>("res://wildlife/enemies/ogre.tres") },
+            Species = new[] { Kind("ogre") },
             Arrivals = false,
             CircleOverride = 4,
         };
@@ -222,7 +235,7 @@ public partial class EnemyTests : Node3D
         AddChild(wall);
         EnemyDirector director = new()
         {
-            Species = new[] { GD.Load<EnemySpecies>("res://wildlife/enemies/ogre.tres") },
+            Species = new[] { Kind("ogre") },
             Arrivals = false,
             CircleOverride = 0,
         };
@@ -254,7 +267,7 @@ public partial class EnemyTests : Node3D
         AddChild(trees);
         EnemyDirector director = new()
         {
-            Wakeable = new[] { GD.Load<EnemySpecies>("res://wildlife/enemies/jade_glutton.tres") },
+            Wakeable = new[] { Kind("jade_glutton") },
             Arrivals = false,
             CircleOverride = 0,
         };
