@@ -83,6 +83,19 @@ public partial class TuntunTests : Node3D
 		TuntunSahur? second = Spawner.Spawn();
 		await Wait(0.1f);
 		Check("pressing it again replaces him", second != null && !IsInstanceValid(tuntun), $"old one gone {!IsInstanceValid(tuntun)}");
+
+		// A broken throw (thousands of m/s) is cut back to the hard limit instead of flinging him away.
+		second?.QueueFree();
+		await Frames(PlayerBody, start, 1.0f);
+		GameEvents.RequestLaunch(new Vector3(5000.0f, 0.0f, 0.0f), 1.0f, "test");
+		float fastest = 0.0f;
+		for (int i = 0; i < 20; i++)
+		{
+			await Wait(1.0f / Engine.PhysicsTicksPerSecond);
+			fastest = Mathf.Max(fastest, new Vector2(PlayerBody.Velocity.X, PlayerBody.Velocity.Z).Length());
+		}
+		Check("a wild throw is held to the hard speed limit", fastest > 1.0f && fastest <= PlayerBody.HardSpeedLimit + 0.1f,
+			$"fastest {fastest:0.0} m/s, limit {PlayerBody.HardSpeedLimit:0}");
 		Finish();
 	}
 
