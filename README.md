@@ -49,6 +49,8 @@ A dark survival adventure about descending a mountain that never ends — toward
 
 ## Download and play
 
+**Release policy (starting with the next release):** Every new Windows release must include a complete, standalone Windows game ZIP that new players can extract and run without installing an older version first. The main Windows download button must point to that newest complete ZIP. Smaller incremental update packages may be published separately for existing players using `Update game.bat`. Publish a new Linux download link only when a complete Linux build is available. Never label an update-only archive as the full game.
+
 **Latest update: [v0.2.7-beta](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.2.7-beta)** (11 November 2026). New players should install the full Beta 2.5 game first, then run `Update game.bat` to get Beta 2.7.
 
 1. Download [`DownhillRoguelite-beta-2.5-windows.zip`](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-beta-2.5-windows.zip) (~390 MB).
