@@ -92,6 +92,10 @@ The setting takes inspiration from Dante's nine circles, with the philosophical 
 | Gear and inventory | Pack items in a 3D grid; equip clothing and maintain its durability |
 | Map and journal | Set waypoints, explore fog of war and record the journey |
 | Narration and encounters | A companion narrates the descent; encounter travellers along the route |
+| Night and fire | Night beasts stalk you after dark (deeper down a giant spider too); a torch holds them back and lights the way |
+| Combat and loot | Sword and shield fights with enemies on the route; every kill drops supplies, sometimes something better |
+| Living world | Grass and trees sway in the wind, leaves fall in the autumn woods, fireflies glow on dry nights |
+| Achievements | 17 achievements across your runs, kept even when you die |
 
 Features may vary by released build and development branch.
 
@@ -108,6 +112,7 @@ Features may vary by released build and development branch.
 | **1–9**, mouse wheel, **V**, **G** | Select hotbar slot, use selected item, drop item |
 | **I** / **M** / **J** | Inventory / map / journal |
 | **Tab** | Repack backpack at a station |
+| **X** | Put your torch away / light it again |
 | **Enter** | Talk to the companion (optional local model) |
 | **Esc** | Pause, settings and control reference |
 | **R** | Give up the run and start a new mountain |

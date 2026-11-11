@@ -100,6 +100,7 @@ public partial class PlayerController : CharacterBody3D
         FloorBlockOnWall = true;
         GameEvents.BalanceUpdated += OnBalanceUpdated;
         GameEvents.LaunchRequested += OnLaunchRequested;
+        GameEvents.Snared += OnSnared;
         CharacterSpacing.Register(this, BodyRadius, BodyMass);
     }
 
@@ -107,6 +108,7 @@ public partial class PlayerController : CharacterBody3D
     {
         GameEvents.BalanceUpdated -= OnBalanceUpdated;
         GameEvents.LaunchRequested -= OnLaunchRequested;
+        GameEvents.Snared -= OnSnared;
         CharacterSpacing.Unregister(this);
         _groundProbe?.Dispose(); _groundProbe = null;
         _stepBlocker?.Dispose(); _stepBlocker = null;
@@ -115,6 +117,28 @@ public partial class PlayerController : CharacterBody3D
 
     private Vector3? _launch;
     private string _launchCause = "";
+    private float _snareLeft;
+    private float _snareFactor = 1.0f;
+
+    /// <summary>Whether something (a spider web) clings to the legs and slows the stride now.</summary>
+    public bool Snared => _snareLeft > 0.0f;
+
+    /// <summary>A web walked into: strides slow to <paramref name="speedFactor"/> for a while (the longer and stronger one wins).</summary>
+    private void OnSnared(float seconds, float speedFactor)
+    {
+        _snareLeft = Mathf.Max(_snareLeft, seconds);
+        _snareFactor = Mathf.Clamp(Mathf.Min(_snareFactor, speedFactor), 0.05f, 1.0f);
+    }
+
+    /// <summary>The snare's slowdown, easing back to a full stride over its last second.</summary>
+    private float SnareFactor()
+    {
+        if (_snareLeft <= 0.0f)
+        {
+            return 1.0f;
+        }
+        return Mathf.Lerp(1.0f, _snareFactor, Mathf.Clamp(_snareLeft, 0.0f, 1.0f));
+    }
 
     /// <summary>Queues a throw for the next physics step: up fast enough to reach the height, plus the push.</summary>
     private void OnLaunchRequested(Vector3 horizontal, float height, string cause)
@@ -148,6 +172,14 @@ public partial class PlayerController : CharacterBody3D
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta;
+        if (_snareLeft > 0.0f)
+        {
+            _snareLeft = Mathf.Max(0.0f, _snareLeft - dt);
+            if (_snareLeft <= 0.0f)
+            {
+                _snareFactor = 1.0f;
+            }
+        }
         if (GameEvents.IsVaulting)
         {
             // The vault moves the body along its animation; nothing to do here until it lands.
@@ -583,7 +615,7 @@ public partial class PlayerController : CharacterBody3D
         {
             map = Settings.MapSpeedFactor;
         }
-        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor() * map * TowFactor(grade) * GameEvents.CurrentGear.SpeedFactor, Settings.MaxSpeed);
+        return Mathf.Min(speed * InjuryFactor() * WeatherSpeedFactor() * map * TowFactor(grade) * SnareFactor() * GameEvents.CurrentGear.SpeedFactor, Settings.MaxSpeed);
     }
 
     /// <summary>

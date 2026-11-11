@@ -1,0 +1,46 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/SpiderWebLab.cs" id="1_lab"]
+
+[sub_resource type="PlaneMesh" id="Floor"]
+size = Vector2(60, 60)
+
+[sub_resource type="StandardMaterial3D" id="FloorColour"]
+albedo_color = Color(0.16, 0.2, 0.12, 1)
+roughness = 1.0
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky"]
+sky_top_color = Color(0.12, 0.13, 0.2, 1)
+sky_horizon_color = Color(0.45, 0.32, 0.28, 1)
+ground_bottom_color = Color(0.05, 0.05, 0.05, 1)
+ground_horizon_color = Color(0.3, 0.22, 0.2, 1)
+
+[sub_resource type="Sky" id="SkyRes"]
+sky_material = SubResource("Sky")
+
+[sub_resource type="Environment" id="Env"]
+background_mode = 2
+sky = SubResource("SkyRes")
+ambient_light_source = 3
+fog_enabled = true
+fog_light_color = Color(0.25, 0.2, 0.22, 1)
+fog_density = 0.02
+
+[node name="TestSpiderWebs" type="Node3D"]
+script = ExtResource("1_lab")
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+mesh = SubResource("Floor")
+surface_material_override/0 = SubResource("FloorColour")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.8, -0.36, 0.48, 0, 0.8, 0.6, -0.6, -0.48, 0.64, 0, 8, 0)
+light_color = Color(1, 0.75, 0.55, 1)
+light_energy = 0.8
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env")
+
+[node name="Camera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.995, 0.1, 0, -0.1, 0.995, 0, 1.6, 4.5)
+current = true

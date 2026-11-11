@@ -60,6 +60,8 @@ public partial class BeastDirector : Node3D
 
     private readonly List<NightBeast> _beasts = new();
     private RandomNumberGenerator _random = new();
+    /// <summary>Strings the giant spider's webs between trees in the deeper circles (SpiderWebs).</summary>
+    [Export] public bool WebsBetweenTrees { get; set; } = true;
     private RunState? _run;
     private WorldClock? _clock;
     private Vector3 _carrier;
@@ -91,6 +93,11 @@ public partial class BeastDirector : Node3D
         GameEvents.DownedChanged += OnDowned;
         GameEvents.RespawnRequested += Clear;
         GameEvents.MegaphoneBlasted += OnMegaphone;
+        // The giant spider's webs between the trees of the deeper circles.
+        if (WebsBetweenTrees)
+        {
+            AddChild(new SpiderWebs { Name = "SpiderWebs" });
+        }
     }
 
     public override void _ExitTree()
