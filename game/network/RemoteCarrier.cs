@@ -116,6 +116,8 @@ public partial class RemoteCarrier : CharacterBody3D
         };
         _nearPixelSize = _label.PixelSize;
         AddChild(_label);
+        // Their footsteps, heard from where they walk.
+        AddChild(new RemoteFootsteps { Name = "Footsteps", Carrier = this });
         Play(FallbackClip, 1.0f);
     }
 
