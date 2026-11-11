@@ -605,6 +605,7 @@ public partial class OptionsPanel : ParchmentPanel
             ("Lock on to an enemy / let go", "Tab"),
             ("Co-op: mark a spot for the others", "B"),
             ("Co-op: talk to the party", "Y  (Enter sends)"),
+            ("Co-op: help a downed friend up", InputGlyphs.Both("interact") + " (hold) beside them"),
             ("Take a cart / let go", InputGlyphs.Both("interact") + " at the handles"),
             ("Eat", InputGlyphs.Both("player_eat")),
             ("Drink", InputGlyphs.Both("player_drink")),
