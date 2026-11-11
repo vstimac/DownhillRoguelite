@@ -96,3 +96,24 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Release does not exist' }
           gh release upload "$env:RELEASE_TAG" DownhillRoguelite-windows-full.zip --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }
+      - name: Update README download button after successful upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        shell: pwsh
+        run: |
+          @'
+          import base64, json, os, re, subprocess
+          repo = os.environ["GITHUB_REPOSITORY"]
+          tag = os.environ["RELEASE_TAG"]
+          raw = subprocess.check_output(["gh", "api", f"repos/{repo}/contents/README.md", "-f", "ref=main"], text=True)
+          data = json.loads(raw)
+          readme = base64.b64decode(data["content"]).decode("utf-8")
+          target = f"https://github.com/{repo}/releases/download/{tag}/DownhillRoguelite-windows-full.zip"
+          readme, count = re.subn(r'\[!\[Download for Windows[^\n]*\]\(https://img\.shields\.io/[^\n]*\)\]\(https://github\.com/[^)]+\)', f'[![Download for Windows — {tag}](https://img.shields.io/badge/Download%20for%20Windows-{tag}-2ea44f?style=for-the-badge&logo=windows&logoColor=white)]({target})', readme, count=1)
+          if count != 1:
+              raise SystemExit("Could not locate Windows download badge")
+          readme = re.sub(r'\*\*Latest update: \[v[^\]]+\]\([^)]*\)\*\* \([^)]*\)\.', f'**Latest complete Windows build: [{tag}](https://github.com/{repo}/releases/tag/{tag})**.', readme, count=1)
+          payload = {"message": f"docs: point Windows download to full {tag} build", "content": base64.b64encode(readme.encode()).decode(), "sha": data["sha"], "branch": "main"}
+          subprocess.run(["gh", "api", "-X", "PUT", f"repos/{repo}/contents/README.md", "--input", "-"], input=json.dumps(payload), text=True, check=True)
+          '@ | python -
