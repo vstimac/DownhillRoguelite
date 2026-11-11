@@ -60,6 +60,11 @@ public partial class BeastDirector : Node3D
 
     private readonly List<NightBeast> _beasts = new();
     private RandomNumberGenerator _random = new();
+    /// <summary>The beast (its DisplayName) a web torn in the dark calls, if it lives in this circle.</summary>
+    [Export] public string WebCaller { get; set; } = "giant spider";
+    /// <summary>Seconds until the web's owner arrives after a web is torn in the dark.</summary>
+    [Export] public float WebCallDelay { get; set; } = 5.0f;
+    [Export] public string WebCallHint { get; set; } = "Something large stirs in the trees. The web's owner felt it tear.";
     /// <summary>Strings the giant spider's webs between trees in the deeper circles (SpiderWebs).</summary>
     [Export] public bool WebsBetweenTrees { get; set; } = true;
     private RunState? _run;
@@ -68,6 +73,7 @@ public partial class BeastDirector : Node3D
     private bool _hasCarrier;
     private bool _downed;
     private float _arrival;
+    private BeastSpecies? _called;
     private bool _toldEyes;
     private bool _toldGrowl;
     private PhysicsRayQueryParameters3D? _ray;
@@ -93,6 +99,7 @@ public partial class BeastDirector : Node3D
         GameEvents.DownedChanged += OnDowned;
         GameEvents.RespawnRequested += Clear;
         GameEvents.MegaphoneBlasted += OnMegaphone;
+        GameEvents.Snared += OnSnared;
         // The giant spider's webs between the trees of the deeper circles.
         if (WebsBetweenTrees)
         {
@@ -106,6 +113,7 @@ public partial class BeastDirector : Node3D
         GameEvents.DownedChanged -= OnDowned;
         GameEvents.RespawnRequested -= Clear;
         GameEvents.MegaphoneBlasted -= OnMegaphone;
+        GameEvents.Snared -= OnSnared;
     }
 
     /// <summary>Throws off every beast within the blast's radius. Returns how many.</summary>
@@ -131,6 +139,31 @@ public partial class BeastDirector : Node3D
     {
         Blast(at, radius, confuseSeconds);
     }
+
+    /// <summary>A web torn while they hunt: its spider comes for the carrier, and soon.</summary>
+    private void OnSnared(float seconds, float speed)
+    {
+        if (!Hunting || Roster == null || _called != null)
+        {
+            return;
+        }
+        foreach (BeastSpecies species in Roster.Beasts)
+        {
+            if (species.DisplayName == WebCaller && species.MinCircle <= Circle())
+            {
+                _called = species;
+                _arrival = Mathf.Min(_arrival, WebCallDelay);
+                if (WebCallHint.Length > 0)
+                {
+                    GameEvents.PublishHint(WebCallHint);
+                }
+                return;
+            }
+        }
+    }
+
+    /// <summary>The beast a torn web called, coming next (null: none).</summary>
+    public BeastSpecies? Called => _called;
 
     private void OnLocomotion(LocomotionSnapshot snapshot)
     {
@@ -221,6 +254,8 @@ public partial class BeastDirector : Node3D
         }
         if (!Hunting)
         {
+            // Dawn or a fire: whatever a torn web called gives up.
+            _called = null;
             return;
         }
         _arrival -= dt;
@@ -238,7 +273,7 @@ public partial class BeastDirector : Node3D
     /// <summary>Brings a beast in behind the carrier, on the ground. Returns it, or null when there's no ground or no beast for this circle.</summary>
     public NightBeast? Bring(Vector3 carrier, PhysicsDirectSpaceState3D space)
     {
-        BeastSpecies? species = Pick(Circle());
+        BeastSpecies? species = _called ?? Pick(Circle());
         if (species == null)
         {
             return null;
@@ -247,6 +282,7 @@ public partial class BeastDirector : Node3D
         {
             return null;
         }
+        _called = null;
         NightBeast beast = new();
         beast.Setup(species, _random.Randi(), BodyLayer, BodyMask);
         AddChild(beast);
@@ -296,6 +332,7 @@ public partial class BeastDirector : Node3D
         _beasts.Clear();
         _toldEyes = false;
         _toldGrowl = false;
+        _called = null;
         _arrival = _random.RandfRange(ArrivalDelay.X, ArrivalDelay.Y);
     }
 
