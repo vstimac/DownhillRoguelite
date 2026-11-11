@@ -52,6 +52,7 @@ public partial class BeastTests : Node3D
 		}
 		await Place(PlayerBody, start, 4.0f);
 
+		TestRoster(Director.Roster);
 		await TestDay(PlayerBody, Director);
 		await TestArrival(PlayerBody, Director);
 		await TestStalk(PlayerBody, Director);
@@ -80,6 +81,50 @@ public partial class BeastTests : Node3D
 	private void OnLaunch(Vector3 horizontal, float height, string cause) => _launches++;
 
 	private void OnDrop(string itemId) => _dropped = itemId;
+
+	/// <summary>Every beast in the roster has its model, the clips it names and its voice on disk.</summary>
+	private void TestRoster(BeastRoster roster)
+	{
+		List<string> missing = new();
+		foreach (BeastSpecies species in roster.Beasts)
+		{
+			if (species.Model?.Instantiate() is not Node3D model)
+			{
+				missing.Add($"{species.DisplayName}: model");
+				continue;
+			}
+			AnimationPlayer? animation = null;
+			foreach (Node node in model.FindChildren("*", "AnimationPlayer", true, false))
+			{
+				animation = node as AnimationPlayer;
+				break;
+			}
+			// Models that come with clips must have the ones the species names (a typo leaves it frozen).
+			if (animation != null && animation.GetAnimationList().Length > 0)
+			{
+				foreach (string clip in new[] { species.IdleClip, species.WalkClip, species.RunClip })
+				{
+					if (!animation.HasAnimation(clip))
+					{
+						missing.Add($"{species.DisplayName}: clip {clip}");
+					}
+				}
+			}
+			model.Free();
+			List<string> sounds = new(species.GrowlSounds);
+			sounds.AddRange(species.SnarlSounds);
+			sounds.AddRange(species.CallSounds);
+			foreach (string sound in sounds)
+			{
+				if (!ResourceLoader.Exists(sound))
+				{
+					missing.Add($"{species.DisplayName}: {sound}");
+				}
+			}
+		}
+		Check("every beast has its model, clips and voice", roster.Beasts.Length >= 4 && missing.Count == 0,
+			$"{roster.Beasts.Length} beasts; missing: {string.Join(", ", missing)}");
+	}
 
 	private async Task TestDay(PlayerController player, BeastDirector director)
 	{
