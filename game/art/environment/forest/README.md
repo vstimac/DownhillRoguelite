@@ -25,3 +25,14 @@ them in the wind's rolling gusts and parts them round the carrier. See debug/Fol
 
 Generation uses fixed seeds. Further tree species, saplings and a production foliage pass remain
 art work, and must be reviewed from ground level as well as distant silhouettes.
+
+## Broadleaf trees and snags (the deeper circles)
+
+`broadleaf_{green,dark,fall}_{0,1,2}`: about 8 m tall, a rooted trunk splitting low into three or
+four limbs that fork once, crowned by lumpy faceted leaf clusters (a once-split icosahedron each,
+lit from above; the coarse LODs use the unsplit one), an inner ring and a cap so the crown reads as
+one round canopy (1258–1524 / 418–504 / 338–408 triangles). Autumn trees mix red and yellow
+clusters into the orange. `snag_{0,1}`: bare, grey, crooked dead trees (140–156 triangles, no LODs).
+All carry the same wind data as the pines. TerrainSettings uses them from Lust down (green in Lust,
+dark in Gluttony, autumn in Greed, snags with a few leafy trees in Wrath, Heresy and Violence; the
+small pines in Fraud), and every circle's grass is the generated tufts.

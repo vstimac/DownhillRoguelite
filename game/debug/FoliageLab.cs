@@ -24,8 +24,8 @@ public partial class FoliageLab : Node3D
     };
     [Export] public string[] BroadleafModels { get; set; } =
     {
-        "res://art/props/kenney_nature_kit/GLB format/tree_oak_dark.glb", "res://art/props/kenney_nature_kit/GLB format/tree_default_fall.glb",
-        "res://art/props/kenney_nature_kit/GLB format/tree_fat_darkh.glb",
+        "res://art/environment/forest/broadleaf_green_0.tscn", "res://art/environment/forest/broadleaf_fall_1.tscn",
+        "res://art/environment/forest/broadleaf_dark_2.tscn", "res://art/environment/forest/snag_0.tscn",
     };
     [Export] public float MeadowRadius { get; set; } = 22.0f;
     [Export] public int Tufts { get; set; } = 9000;
@@ -129,7 +129,7 @@ public partial class FoliageLab : Node3D
     {
         for (int i = 0; i < 26; i++)
         {
-            bool pine = i % 4 != 3;
+            bool pine = i % 2 == 0;
             string[] models = BroadleafModels;
             if (pine)
             {
