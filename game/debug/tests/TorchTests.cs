@@ -55,6 +55,8 @@ public partial class TorchTests : Node3D
         Check("it is held in the hand, beside the body at hand height", height > 0.4f && height < 1.6f && aside < 0.9f,
             $"{height:0.00} m up, {aside:0.00} m out");
 
+        Check("the left arm comes up to carry it", torch.Arm != null && torch.Arm.Weight > 0.9f, $"carry pose {torch.Arm?.Weight ?? 0:0.00}");
+
         ParticleFire? fire = torch.Fire;
         bool burning = fire != null && fire.Flames != null && fire.Flames.Emitting && fire.SparkParticles != null && fire.SmokeParticles != null
             && fire.Light != null && fire.Light.Visible && fire.Light.LightEnergy > 0.5f;
@@ -82,6 +84,7 @@ public partial class TorchTests : Node3D
         Check("X puts it away: snuffed, dark, keeping its time", torch.Stowed && !torch.Lit && !GameEvents.CarrierTorchLit
             && fire?.Light?.Visible == false && Mathf.Abs(torch.Left - kept) < 0.2f,
             $"stowed {torch.Stowed}, left {torch.Left:0} s of {kept:0}");
+        Check("put away, the arm comes down", torch.Arm != null && torch.Arm.Weight < 0.1f, $"carry pose {torch.Arm?.Weight ?? 0:0.00}");
         Check("put away, it hangs at the belt", belt.Y > 0.5f && belt.Y < 1.3f && new Vector2(belt.X, belt.Z).Length() < 0.6f,
             $"{belt.Y:0.00} m up, {new Vector2(belt.X, belt.Z).Length():0.00} m out");
         PressStow();

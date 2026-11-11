@@ -15,7 +15,7 @@ public partial class TorchFit : Resource
     public const string DefaultPath = "res://player/torch_fit.tres";
 
     [Export] public Vector3 HandPosition { get; set; } = new(0.0f, 0.08f, 0.02f);
-    [Export] public Vector3 HandRotation { get; set; } = new(-20.0f, 0.0f, 15.0f);
+    [Export] public Vector3 HandRotation { get; set; } = new(-10.0f, 0.0f, 8.0f);
     /// <summary>In the hand: stay upright (only the turn above, about the carrier's facing) or follow the hand's own turn.</summary>
     [Export] public bool Upright { get; set; } = true;
     /// <summary>
@@ -26,6 +26,13 @@ public partial class TorchFit : Resource
     [Export] public Vector3 StowPosition { get; set; } = new(0.2f, -0.3f, 0.08f);
     [Export] public Vector3 StowRotation { get; set; } = new(25.0f, 0.0f, -15.0f);
     [Export] public float Scale { get; set; } = 1.0f;
+    /// <summary>
+    /// The carry pose while it burns in the hand (degrees, eased in by player/TorchArm): the upper arm
+    /// swings forward, tucks in toward the chest, and the elbow bends up, holding the torch out in front.
+    /// </summary>
+    [Export] public float ArmRaise { get; set; } = 40.0f;
+    [Export] public float ArmTuck { get; set; } = -10.0f;
+    [Export] public float ElbowBend { get; set; } = 60.0f;
 
     public static Basis Turn(Vector3 degrees)
     {

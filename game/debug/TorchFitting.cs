@@ -165,6 +165,20 @@ public partial class TorchFitting : Node3D
             Save();
             return;
         }
+        if (key.CtrlPressed && _part == Part.Hand)
+        {
+            // The carry pose: Ctrl + Up/Down raises the arm, Left/Right bends the elbow, Page Up/Down tucks it in.
+            switch (key.Keycode)
+            {
+                case Key.Up: _fit.ArmRaise += TurnStep; break;
+                case Key.Down: _fit.ArmRaise -= TurnStep; break;
+                case Key.Right: _fit.ElbowBend += TurnStep; break;
+                case Key.Left: _fit.ElbowBend -= TurnStep; break;
+                case Key.Pageup: _fit.ArmTuck += TurnStep; break;
+                case Key.Pagedown: _fit.ArmTuck -= TurnStep; break;
+            }
+            return;
+        }
         bool turn = key.ShiftPressed;
         switch (key.Keycode)
         {
@@ -251,6 +265,9 @@ public partial class TorchFitting : Node3D
             _fit.HandPosition = plain.HandPosition;
             _fit.HandRotation = plain.HandRotation;
             _fit.Upright = plain.Upright;
+            _fit.ArmRaise = plain.ArmRaise;
+            _fit.ArmTuck = plain.ArmTuck;
+            _fit.ElbowBend = plain.ElbowBend;
         }
         _fit.Scale = plain.Scale;
     }
@@ -356,6 +373,7 @@ public partial class TorchFitting : Node3D
             upright = "upright";
         }
         return $"Hand  pos {_fit.HandPosition:F3}  rot {_fit.HandRotation:F1}  ({upright})\n"
+            + $"Arm   raise {_fit.ArmRaise:F0}°  tuck {_fit.ArmTuck:F0}°  elbow {_fit.ElbowBend:F0}°\n"
             + $"Belt  pos {_fit.StowPosition:F3}  rot {_fit.StowRotation:F1}  on {_fit.StowBone}\n"
             + $"Scale {_fit.Scale:F2}";
     }
@@ -397,6 +415,7 @@ public partial class TorchFitting : Node3D
         _info.Text = $"Fitting: {part}   (Tab: next part)\nPose: {_pose + 1} {Poses[_pose]} @ {_poseTime:0.00} s ({state})\n\n{Describe()}\n\n"
             + $"Arrows / Page Up, Page Down: shift {MoveStep:0.###} m (Y = along the haft)\n"
             + $"Shift + same keys: turn {TurnStep:0.##}°   [ ]: smaller / bigger steps   + -: size\n"
+            + "Ctrl + Up/Down: raise the arm   Ctrl + Left/Right: bend the elbow   Ctrl + Page Up/Down: tuck it in\n"
             + "U: upright / turns with the hand   1-6: pose   , . : scrub   Space: play / freeze   R: reset this part\n"
             + "Right-drag: orbit   Wheel: zoom   Ctrl+S: save\n"
             + _message;
