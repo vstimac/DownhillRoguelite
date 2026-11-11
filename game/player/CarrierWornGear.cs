@@ -138,6 +138,12 @@ public partial class CarrierWornGear : Node
 
     private void OnGear(GearSnapshot gear)
     {
+        // A body taken out of the scene (a character being swapped) can't be dressed; the next change
+        // after it's back dresses it (nothing is marked shown meanwhile).
+        if (Skeleton == null || !IsInstanceValid(Skeleton) || !Skeleton.IsInsideTree())
+        {
+            return;
+        }
         foreach (EquipSlot slot in new[] { EquipSlot.Head, EquipSlot.Torso, EquipSlot.Hands, EquipSlot.Cape })
         {
             string id = gear.In(slot).ItemId ?? "";
