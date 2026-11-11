@@ -118,6 +118,8 @@ public partial class NetSession : Node
     public NetChat? Chat => _chat;
     private NetRevive? _revive;
     public NetRevive? Revive => _revive;
+    private NetWebs? _webs;
+    public NetWebs? Webs => _webs;
     /// <summary>Shared creatures and kill loot.</summary>
     public NetMobs? Mobs => _mobs;
 
@@ -152,6 +154,8 @@ public partial class NetSession : Node
         AddChild(_chat);
         _revive = new NetRevive { Name = "NetRevive", Session = this };
         AddChild(_revive);
+        _webs = new NetWebs { Name = "NetWebs", Session = this };
+        AddChild(_webs);
         CallDeferred(MethodName.ReadCommandLine);
     }
 
@@ -202,7 +206,7 @@ public partial class NetSession : Node
             {
                 AddChild(new NetProbe { Name = "NetProbe", Session = this, Seconds = seconds, GrabAtUnix = ProbeNumber("--net-grab-at="), DieAtUnix = ProbeNumber("--net-die-at="),
                     SpawnAtUnix = ProbeNumber("--net-spawn-at="), StrikeAtUnix = ProbeNumber("--net-strike-at="),
-                    StepAwayAtUnix = ProbeNumber("--net-step-away-at="), DropAtUnix = ProbeNumber("--net-drop-at="), PingAtUnix = ProbeNumber("--net-ping-at="), SayAtUnix = ProbeNumber("--net-say-at="), ShotAtUnix = ProbeNumber("--net-shot-at="), ShotPath = ProbeText("--net-shot="), HelpAtUnix = ProbeNumber("--net-help-at="),
+                    StepAwayAtUnix = ProbeNumber("--net-step-away-at="), DropAtUnix = ProbeNumber("--net-drop-at="), PingAtUnix = ProbeNumber("--net-ping-at="), WebAtUnix = ProbeNumber("--net-web-at="), SayAtUnix = ProbeNumber("--net-say-at="), ShotAtUnix = ProbeNumber("--net-shot-at="), ShotPath = ProbeText("--net-shot="), HelpAtUnix = ProbeNumber("--net-help-at="),
                     AdvanceHours = Mathf.Max((float)ProbeNumber("--net-advance="), 0.0f), Linger = (float)ProbeNumber("--net-linger=") });
                 double respawn = ProbeNumber("--net-respawn=");
                 if (respawn > 0.0)

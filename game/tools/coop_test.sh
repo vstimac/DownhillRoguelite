@@ -28,6 +28,8 @@ STRIKE=$((GRAB + 13))
 DROPAT=$((GRAB + 3))
 # Client 2 marks a spot (B); the host and the other clients should see the mark.
 PINGAT=$((GRAB + 4))
+# Client 3 tears a spider web; it should come down for everyone else.
+WEBAT=$((GRAB + 5))
 # Client 1 says a line in the chat (Y); everyone else should read it.
 SAYAT=$((GRAB + 8))
 # Downed, not dead: client 1 goes down and bleeds out (2 s, nobody helps) before it falls; client 3
@@ -42,7 +44,7 @@ for i in $(seq 1 "$CLIENTS"); do
     DIES=""
     if [ "$i" = "1" ]; then DIES="--net-die-at=$DIE --net-say-at=$SAYAT --net-bleed=2"; fi
     if [ "$i" = "2" ]; then DIES="--net-strike-at=$STRIKE --net-ping-at=$PINGAT --net-help-at=$HELP2"; fi
-    if [ "$i" = "3" ]; then DIES="--net-drop-at=$DROPAT --net-die-at=$DOWN3 --net-bleed=8"; fi
+    if [ "$i" = "3" ]; then DIES="--net-drop-at=$DROPAT --net-die-at=$DOWN3 --net-bleed=8 --net-web-at=$WEBAT"; fi
     "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --net-name="Client$i" --net-probe="$CLIENT_SECONDS" --net-linger=6 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" $DIES > "$LOGS/client$i.log" 2>&1 &
     PIDS="$PIDS $!"
     sleep 1
@@ -120,6 +122,16 @@ if [ "$CLIENTS" -ge 2 ]; then
         fi
     done
     check "a marked spot (B) appears for the others (client 2 marked $marked; $saw of $others saw it)" "$([ "${marked:-0}" -ge 1 ] && [ "$saw" -eq "$others" ]; echo $?)"
+fi
+if [ "$CLIENTS" -ge 3 ]; then
+    torn=$(num "$LOGS/client3.log" webs_sent)
+    down=0
+    others=0
+    for f in host client1 client2; do
+        others=$((others + 1))
+        if [ "$(num "$LOGS/$f.log" webs_received)" -ge 1 ] 2>/dev/null; then down=$((down + 1)); fi
+    done
+    check "a spider web one player tears comes down for everyone (client 3 tore $torn; $down of $others took it down)" "$([ "${torn:-0}" -ge 1 ] && [ "$down" -eq "$others" ]; echo $?)"
 fi
 downs1=$(num "$LOGS/client1.log" downs)
 check "a downed player nobody helps bleeds out, then falls (client 1 went down $downs1 time(s))" "$([ "${downs1:-0}" -ge 1 ] && [ "$fell" -eq 1 ]; echo $?)"

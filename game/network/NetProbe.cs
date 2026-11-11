@@ -34,6 +34,8 @@ public partial class NetProbe : Node
     [Export] public double DropAtUnix { get; set; } = -1.0;
     /// <summary>`--net-ping-at=unix seconds`: marks a spot a few metres ahead (the others should see the mark).</summary>
     [Export] public double PingAtUnix { get; set; } = -1.0;
+    /// <summary>`--net-web-at=unix seconds`: tears a spider web (the others should take it down too).</summary>
+    [Export] public double WebAtUnix { get; set; } = -1.0;
     /// <summary>`--net-say-at=unix seconds`: says a line in the chat (the others should read it).</summary>
     [Export] public double SayAtUnix { get; set; } = -1.0;
     /// <summary>`--net-shot-at=unix seconds --net-shot=file.png`: saves what this (rendered) machine shows then.</summary>
@@ -67,6 +69,8 @@ public partial class NetProbe : Node
     private bool _steppedAway;
     private bool _dropped;
     private bool _pinged;
+    private bool _webbed;
+    private double _nextWhere;
     private bool _said;
     private bool _shot;
     private bool _helped;
@@ -102,6 +106,16 @@ public partial class NetProbe : Node
             return;
         }
         _clock += delta;
+        // Where this carrier is, every 2 s (a fall through the ground shows as y running away).
+        if (_clock >= _nextWhere)
+        {
+            _nextWhere = _clock + 2.0;
+            Player.PlayerController? here = Session.LocalPlayer();
+            if (here != null)
+            {
+                GD.Print($"[NetProbe] at {here.GlobalPosition:0.0} moving {here.Velocity:0.0} after {_clock:0.00} s");
+            }
+        }
         if (_done)
         {
             if (_clock >= Seconds + Linger)
@@ -156,6 +170,12 @@ public partial class NetProbe : Node
                 GameEvents.RequestDrop(_droppedId);
                 GD.Print($"[NetProbe] dropped {_droppedId}");
             }
+        }
+        if (WebAtUnix >= 0.0 && !_webbed && Session.Joined && now >= WebAtUnix)
+        {
+            _webbed = true;
+            GameEvents.PublishWebTorn("12:-345:56:-345");
+            GD.Print("[NetProbe] tore a web");
         }
         if (PingAtUnix >= 0.0 && !_pinged && Session.Joined && now >= PingAtUnix)
         {
@@ -263,7 +283,7 @@ public partial class NetProbe : Node
             + $"taken={session.TakenSupplies.Count} granted={session.ClaimsGranted} refused={session.ClaimsRefused} fell={_fell} watched={_watched} back={_back} "
             + $"saw_fallen={_sawFallen} looks={Looks(session)} owned={session.Mobs?.OwnedCount ?? 0} saw_puppets={_sawPuppets} "
             + $"hits_sent={session.Mobs?.HitsSent ?? 0} hits_applied={session.Mobs?.HitsApplied ?? 0} loot_shared={session.Mobs?.LootShared ?? 0} "
-            + $"loot_received={session.Mobs?.LootReceived ?? 0} clock_at_grab={_clockAtGrab:0.000} strikes_sent={session.Mobs?.StrikesSent ?? 0} dropped={_droppedId.Length > 0} strikes_taken={session.Mobs?.StrikesTaken ?? 0} pings_sent={session.Pings?.Sent ?? 0} pings_seen={session.Pings?.Seen ?? 0} chat_sent={session.Chat?.Sent ?? 0} chat_seen={session.Chat?.Seen ?? 0} downs={session.Revive?.Downs ?? 0} revived={session.Revive?.Revived ?? 0} helped_up={session.Revive?.Helped ?? 0} status=\"{session.Status}\"");
+            + $"loot_received={session.Mobs?.LootReceived ?? 0} clock_at_grab={_clockAtGrab:0.000} strikes_sent={session.Mobs?.StrikesSent ?? 0} dropped={_droppedId.Length > 0} strikes_taken={session.Mobs?.StrikesTaken ?? 0} pings_sent={session.Pings?.Sent ?? 0} pings_seen={session.Pings?.Seen ?? 0} webs_sent={session.Webs?.Sent ?? 0} webs_received={session.Webs?.Received ?? 0} chat_sent={session.Chat?.Sent ?? 0} chat_seen={session.Chat?.Seen ?? 0} downs={session.Revive?.Downs ?? 0} revived={session.Revive?.Revived ?? 0} helped_up={session.Revive?.Helped ?? 0} status=\"{session.Status}\"");
     }
 
     /// <summary>Each remote carrier's name, character and shirt colour, as shown here.</summary>
