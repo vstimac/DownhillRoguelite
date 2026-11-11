@@ -74,8 +74,12 @@ check "states arrive from every remote carrier ($silent silent)" "$([ "$silent" 
 # one, only one may get it: no key is ever got twice, and someone was refused.
 dupes=$(grep -ho "got=[^ ]*" "$LOGS"/*.log | grep -v "got=none" | sort | uniq -d | wc -l)
 check "no supply was picked up by two players ($dupes duplicates)" "$([ "$dupes" -eq 0 ]; echo $?)"
+# Where two reached for the same one, the slower went without: a client is refused by the host, and
+# the host (which takes its own claims) simply finds it gone. If nobody's targets met, there's nothing to refuse.
 refused=$(grep -ho "refused=[1-9]" "$LOGS"/*.log | wc -l)
-check "players reaching for a taken supply were refused ($refused refused)" "$([ "$refused" -ge 1 ]; echo $?)"
+missed=$(grep -h "\[NetProbe\] role" "$LOGS"/*.log | grep -v "target=none" | grep -c "got=none")
+contested=$(grep -h "\[NetProbe\] role" "$LOGS"/*.log | grep -o "target=[^ ]*" | grep -v "target=none" | sort | uniq -d | wc -l)
+check "players reaching for a taken supply went without ($refused refused, $missed missed, $contested contested)" "$([ "$contested" -eq 0 ] || [ $((refused + missed)) -ge 1 ]; echo $?)"
 looks=$(grep -h "\[NetProbe\] role" "$LOGS"/*.log | grep -c "looks=.*:.*:[0-9a-f]\{6\}")
 check "everyone sees the others' nickname, character and colours ($looks of $players)" "$([ "$looks" -eq "$players" ]; echo $?)"
 fell=$(grep -h "name=Client1 " "$LOGS"/client1.log | grep -c "fell=True watched=[A-Za-z]")
@@ -161,5 +165,7 @@ check "its loot appeared for everyone ($shared items; $same of $CLIENTS clients 
 errors=$(grep -h "ERROR\|Unhandled exception" "$LOGS"/*.log | grep -v "ObjectDB\|leaked\|resources still in use" | sort -u | head -5)
 if [ -n "$errors" ]; then echo "Errors in the logs:"; echo "$errors"; fi
 echo "logs: $LOGS"
+# Not a check, a clue: a carrier thrown at impossible speed (the hard limit caught it) names the last throw.
+grep -h "sideways (\|broken velocity" "$LOGS"/*.log | sed 's/^/NOTE  /' | head -5
 if [ "$fail" = "0" ]; then echo "COOP TESTS: PASS"; else echo "COOP TESTS: FAIL"; fi
 exit "$fail"
