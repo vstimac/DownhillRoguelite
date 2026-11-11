@@ -51,6 +51,9 @@ public static class ItemModels
             case "cord":
                 AddCord(root);
                 break;
+            case "spider_silk":
+                AddSilk(root);
+                break;
             case "leather_patch":
                 AddPatch(root);
                 break;
@@ -197,6 +200,17 @@ public static class ItemModels
         }
         Part(parent, new CylinderMesh { TopRadius = 0.0075f, BottomRadius = 0.0075f, Height = 0.12f, RadialSegments = 6 }, cord,
             new Vector3(0.12f, 0.01f, 0.03f), new Vector3(0.0f, 30.0f, 85.0f));
+    }
+
+    /// <summary>A pale, loose hank of spider silk: a few thin loops wound together.</summary>
+    private static void AddSilk(Node3D parent)
+    {
+        Color silk = new(0.93f, 0.93f, 0.96f);
+        for (int i = 0; i < 5; i++)
+        {
+            Part(parent, new TorusMesh { InnerRadius = 0.05f, OuterRadius = 0.056f, Rings = 18, RingSegments = 5 }, silk,
+                new Vector3(0.003f * i, 0.006f + i * 0.004f, 0.004f * (i % 2)), new Vector3(6.0f * (i % 3), 25.0f * i, 4.0f * (i % 2)));
+        }
     }
 
     /// <summary>A rounded leather patch with stitch holes round its edge.</summary>

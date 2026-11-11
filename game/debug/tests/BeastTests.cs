@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using DownhillRoguelite.Core;
+using DownhillRoguelite.Inventory;
 using DownhillRoguelite.Player;
 using DownhillRoguelite.Terrain;
 using DownhillRoguelite.Wildlife;
@@ -64,6 +65,7 @@ public partial class BeastTests : Node3D
 		await TestCoopPrey(PlayerBody, Director);
 		await TestDawn(PlayerBody, Director);
 		TestDepth(PlayerBody, Director);
+		TestWebCall(PlayerBody, Director);
 
 		GameEvents.LaunchRequested -= OnLaunch;
 		GameEvents.DropRequested -= OnDrop;
@@ -112,6 +114,13 @@ public partial class BeastTests : Node3D
 				}
 			}
 			model.Free();
+			foreach (string trophy in species.Trophies)
+			{
+				if (ItemText.Find(trophy) == null)
+				{
+					missing.Add($"{species.DisplayName}: trophy {trophy}");
+				}
+			}
 			List<string> sounds = new(species.GrowlSounds);
 			sounds.AddRange(species.SnarlSounds);
 			sounds.AddRange(species.CallSounds);
@@ -123,7 +132,7 @@ public partial class BeastTests : Node3D
 				}
 			}
 		}
-		Check("every beast has its model, clips and voice", roster.Beasts.Length >= 4 && missing.Count == 0,
+		Check("every beast has its model, clips, voice and trophies", roster.Beasts.Length >= 4 && missing.Count == 0,
 			$"{roster.Beasts.Length} beasts; missing: {string.Join(", ", missing)}");
 	}
 
@@ -456,6 +465,36 @@ public partial class BeastTests : Node3D
 		director.CircleOverride = 0;
 		Check("deeper circles bring more beasts, and the lion stays out of Limbo", limbo == 1 && deep == 3 && !lionInLimbo,
 			$"at most {limbo} in Limbo, {deep} in the seventh circle, lion in Limbo {lionInLimbo}");
+	}
+
+	/// <summary>A spider web torn in the dark of a deep circle calls the giant spider, soon; by day it doesn't.</summary>
+	private void TestWebCall(PlayerController player, BeastDirector director)
+	{
+		float dt = 1.0f / Engine.PhysicsTicksPerSecond;
+		director.Clear();
+		director.CircleOverride = 4;
+		director.Step(dt, player.GlobalPosition, 1.0f, false, false);
+		GameEvents.PublishSnared(0.1f, 0.9f);
+		bool dayCalls = director.Called != null;
+		director.Step(dt, player.GlobalPosition, 0.0f, false, false);
+		GameEvents.PublishSnared(0.1f, 0.9f);
+		string called = director.Called?.DisplayName ?? "";
+		float waited = 0.0f;
+		while (director.Beasts.Count == 0 && waited < director.WebCallDelay + 2.0f)
+		{
+			director.Step(dt, player.GlobalPosition, 0.0f, false, false);
+			waited += dt;
+		}
+		string came = "";
+		if (director.Beasts.Count > 0)
+		{
+			came = director.Beasts[0].Species?.DisplayName ?? "";
+		}
+		director.Clear();
+		director.CircleOverride = 0;
+		Check("a web torn in the dark calls the giant spider, soon (by day nothing comes)", !dayCalls && called == director.WebCaller
+			&& came == director.WebCaller && waited <= director.WebCallDelay + 0.5f,
+			$"by day called {dayCalls}; at night called '{called}', '{came}' came after {waited:0.0} s");
 	}
 
 	/// <summary>Lets the carrier land and get up again, the beast keeping its distance meanwhile.</summary>

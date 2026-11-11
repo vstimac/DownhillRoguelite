@@ -75,6 +75,8 @@ public partial class BeastSpecies : Resource
     [ExportGroup("Where")]
     /// <summary>From this circle on (0 = Limbo).</summary>
     [Export] public int MinCircle { get; set; }
+    /// <summary>Items it always leaves behind when it is beaten off (besides the usual loot).</summary>
+    [Export] public string[] Trophies { get; set; } = System.Array.Empty<string>();
     /// <summary>Relative chance among the beasts that hunt in a circle.</summary>
     [Export] public float Weight { get; set; } = 1.0f;
 

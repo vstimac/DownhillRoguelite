@@ -21,10 +21,12 @@ public partial class SpiderWeb : Node3D
     private Vector3 _left;
     private Vector3 _right;
     private ulong _seed;
+    private Material? _material;
 
     /// <summary>Hangs it between <paramref name="left"/> and <paramref name="right"/> (points on the trunks at the web's height).</summary>
-    public void Setup(string key, Vector3 left, Vector3 right, float radius, ulong seed)
+    public void Setup(string key, Vector3 left, Vector3 right, float radius, ulong seed, Material? material = null)
     {
+        _material = material;
         Key = key;
         Radius = radius;
         _left = left;
@@ -122,13 +124,19 @@ public partial class SpiderWeb : Node3D
         arrays[(int)Mesh.ArrayType.Vertex] = points;
         ArrayMesh mesh = new();
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Lines, arrays);
-        mesh.SurfaceSetMaterial(0, new StandardMaterial3D
+        mesh.SurfaceSetMaterial(0, _material ?? MakeMaterial(Thread));
+        return mesh;
+    }
+
+    /// <summary>The threads' look: fine pale lines (SpiderWebs shares one and dims it at night).</summary>
+    public static StandardMaterial3D MakeMaterial(Color thread)
+    {
+        return new StandardMaterial3D
         {
             ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
             Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
-            AlbedoColor = Thread,
+            AlbedoColor = thread,
             CullMode = BaseMaterial3D.CullModeEnum.Disabled,
-        });
-        return mesh;
+        };
     }
 }

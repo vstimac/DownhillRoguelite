@@ -155,6 +155,13 @@ public static class ItemVisual
         }
         switch (item.ItemId)
         {
+            case "spider_silk":
+                for (int i = 0; i < 4; i++)
+                {
+                    lines.Add(Arc(new Vector2(0.5f, 0.5f), new Vector2(0.36f - i * 0.02f, 0.2f + i * 0.05f), i * 0.4f, i * 0.4f + Mathf.Tau, 18));
+                }
+                lines.Add(new[] { new Vector2(0.84f, 0.48f), new Vector2(0.95f, 0.2f) });
+                return lines;
             case "cord":
                 lines.Add(Arc(new Vector2(0.5f, 0.5f), new Vector2(0.36f, 0.36f), 0.0f, Mathf.Tau, 20));
                 lines.Add(Arc(new Vector2(0.5f, 0.5f), new Vector2(0.24f, 0.24f), 0.0f, Mathf.Tau, 16));
