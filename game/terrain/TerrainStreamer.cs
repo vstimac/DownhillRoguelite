@@ -178,6 +178,8 @@ public partial class TerrainStreamer : Node3D
         LoadSurfaces();
         // The wind the grass and trees feel, from the weather.
         AddChild(new DownhillRoguelite.Environment.FoliageWind { Name = "FoliageWind" });
+        // Leaves drifting down where the circle's trees shed them.
+        AddChild(new DownhillRoguelite.Environment.FallingLeaves { Name = "FallingLeaves", Streamer = this });
         _groundMaterial = MakeGroundMaterial();
         if (ResourceLoader.Exists(GrassShader) && ResourceLoader.Load(GrassShader) is Shader grassShader)
         {
