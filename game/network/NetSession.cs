@@ -112,6 +112,8 @@ public partial class NetSession : Node
     private bool _difficultySaved;
     private NetHud? _hud;
     private NetMobs? _mobs;
+    private NetPings? _pings;
+    public NetPings? Pings => _pings;
     /// <summary>Shared creatures and kill loot.</summary>
     public NetMobs? Mobs => _mobs;
 
@@ -140,6 +142,8 @@ public partial class NetSession : Node
         // The same path on every machine (/root/NetSession/NetMobs), so its messages find it.
         _mobs = new NetMobs { Name = "NetMobs", Session = this };
         AddChild(_mobs);
+        _pings = new NetPings { Name = "NetPings", Session = this };
+        AddChild(_pings);
         CallDeferred(MethodName.ReadCommandLine);
     }
 
@@ -190,7 +194,7 @@ public partial class NetSession : Node
             {
                 AddChild(new NetProbe { Name = "NetProbe", Session = this, Seconds = seconds, GrabAtUnix = ProbeNumber("--net-grab-at="), DieAtUnix = ProbeNumber("--net-die-at="),
                     SpawnAtUnix = ProbeNumber("--net-spawn-at="), StrikeAtUnix = ProbeNumber("--net-strike-at="),
-                    StepAwayAtUnix = ProbeNumber("--net-step-away-at="), DropAtUnix = ProbeNumber("--net-drop-at="),
+                    StepAwayAtUnix = ProbeNumber("--net-step-away-at="), DropAtUnix = ProbeNumber("--net-drop-at="), PingAtUnix = ProbeNumber("--net-ping-at="),
                     AdvanceHours = Mathf.Max((float)ProbeNumber("--net-advance="), 0.0f), Linger = (float)ProbeNumber("--net-linger=") });
                 double respawn = ProbeNumber("--net-respawn=");
                 if (respawn > 0.0)
@@ -350,6 +354,7 @@ public partial class NetSession : Node
         _remotes.Clear();
         _peers.Clear();
         _mobs?.Clear();
+        _pings?.Clear();
         GameEvents.PublishOtherCarriers(System.Array.Empty<NetCarrier>());
         _waitingHello.Clear();
         _taken.Clear();

@@ -26,6 +26,8 @@ AWAY=$((GRAB + 6))
 STRIKE=$((GRAB + 13))
 # Client 3 drops something from its pack; everyone else should see it on the ground.
 DROPAT=$((GRAB + 3))
+# Client 2 marks a spot (B); the host and the other clients should see the mark.
+PINGAT=$((GRAB + 4))
 
 "$GODOT" --headless --path . -- --host="$PORT" --net-name=Host --net-probe="$HOST_SECONDS" --net-linger=20 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" --net-spawn-at="$SPAWN" --net-step-away-at="$AWAY" --net-advance=8 > "$LOGS/host.log" 2>&1 &
 PIDS="$!"
@@ -33,7 +35,7 @@ sleep "$LEAD"
 for i in $(seq 1 "$CLIENTS"); do
     DIES=""
     if [ "$i" = "1" ]; then DIES="--net-die-at=$DIE"; fi
-    if [ "$i" = "2" ]; then DIES="--net-strike-at=$STRIKE"; fi
+    if [ "$i" = "2" ]; then DIES="--net-strike-at=$STRIKE --net-ping-at=$PINGAT"; fi
     if [ "$i" = "3" ]; then DIES="--net-drop-at=$DROPAT"; fi
     "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --net-name="Client$i" --net-probe="$CLIENT_SECONDS" --net-linger=6 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" $DIES > "$LOGS/client$i.log" 2>&1 &
     PIDS="$PIDS $!"
@@ -100,6 +102,18 @@ if [ "$CLIENTS" -ge 3 ]; then
     hostgot=$(num "$LOGS/host.log" loot_received)
     dropped=$(grep -c "dropped=True" "$LOGS/client3.log")
     check "a dropped item appears for the others (client 3 dropped one: $dropped; the host got $hostgot)" "$([ "$dropped" -ge 1 ] && [ "${hostgot:-0}" -ge 1 ]; echo $?)"
+fi
+if [ "$CLIENTS" -ge 2 ]; then
+    marked=$(num "$LOGS/client2.log" pings_sent)
+    saw=0
+    others=0
+    for f in host client1 client3; do
+        if [ -f "$LOGS/$f.log" ]; then
+            others=$((others + 1))
+            if [ "$(num "$LOGS/$f.log" pings_seen)" -ge 1 ] 2>/dev/null; then saw=$((saw + 1)); fi
+        fi
+    done
+    check "a marked spot (B) appears for the others (client 2 marked $marked; $saw of $others saw it)" "$([ "${marked:-0}" -ge 1 ] && [ "$saw" -eq "$others" ]; echo $?)"
 fi
 shared=$(num "$LOGS/host.log" loot_shared)
 same=0

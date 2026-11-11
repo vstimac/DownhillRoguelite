@@ -22,7 +22,8 @@ namespace DownhillRoguelite.Network;
 /// Loot: what a kill drops gets a shared key, and the others get the same items at the same spots.
 /// Picking one up goes through the host like any shared supply, so only one player ever gets it.
 ///
-/// A creature chases and attacks only its owner's carrier.
+/// A creature goes for whichever player is nearest; a blow on another player's carrier is sent to
+/// their machine (Strike / StruckYou), where their shield may take it.
 /// </summary>
 public partial class NetMobs : Node
 {

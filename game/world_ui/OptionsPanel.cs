@@ -603,6 +603,7 @@ public partial class OptionsPanel : ParchmentPanel
             ("Sword: swing (again to chain)", "Left mouse"),
             ("Sword: shield up / kick", "Right mouse (hold)  |  Middle mouse"),
             ("Lock on to an enemy / let go", "Tab"),
+            ("Co-op: mark a spot for the others", "B"),
             ("Take a cart / let go", InputGlyphs.Both("interact") + " at the handles"),
             ("Eat", InputGlyphs.Both("player_eat")),
             ("Drink", InputGlyphs.Both("player_drink")),
