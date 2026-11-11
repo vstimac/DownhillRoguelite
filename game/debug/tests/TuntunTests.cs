@@ -96,6 +96,30 @@ public partial class TuntunTests : Node3D
 		}
 		Check("a wild throw is held to the hard speed limit", fastest > 1.0f && fastest <= PlayerBody.HardSpeedLimit + 0.1f,
 			$"fastest {fastest:0.0} m/s, limit {PlayerBody.HardSpeedLimit:0}");
+
+		// Something he stands on that is moved away at once (a creature placed, then put where it belongs)
+		// doesn't carry him off with it, nor throw him when he drops off it.
+		await Frames(PlayerBody, start, 1.0f);
+		CharacterBody3D step = new() { Name = "Step" };
+		step.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(2.0f, 0.3f, 2.0f) } });
+		AddChild(step);
+		step.GlobalPosition = PlayerBody.GlobalPosition + Vector3.Up * 0.6f;
+		PlayerBody.Teleport(step.GlobalPosition + Vector3.Up * 0.3f, 0.0f);
+		await Wait(0.5f);
+		bool stood = PlayerBody.IsOnFloor();
+		Vector3 before = PlayerBody.GlobalPosition;
+		step.GlobalPosition += new Vector3(100.0f, 0.0f, 0.0f);
+		float carried = 0.0f;
+		for (int i = 0; i < 30; i++)
+		{
+			await Wait(1.0f / Engine.PhysicsTicksPerSecond);
+			carried = Mathf.Max(carried, new Vector2(PlayerBody.Velocity.X, PlayerBody.Velocity.Z).Length());
+		}
+		Vector3 moved = PlayerBody.GlobalPosition - before;
+		float away = new Vector2(moved.X, moved.Z).Length();
+		step.QueueFree();
+		Check("a body he stands on jumping away neither carries nor throws him", stood && away < 2.0f && carried < 6.0f,
+			$"stood on it {stood}, carried {away:0.0} m, fastest after {carried:0.0} m/s");
 		Finish();
 	}
 
