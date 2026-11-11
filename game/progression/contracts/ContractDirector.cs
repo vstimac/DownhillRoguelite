@@ -547,7 +547,7 @@ public partial class ContractDirector : Node3D
         {
             return;
         }
-        if (ResourceLoader.Load(_active.Definition.CargoItemPath) is ItemDefinition cargo && cargo.ItemId == itemId)
+        if (ItemText.AtPath(_active.Definition.CargoItemPath) is ItemDefinition cargo && cargo.ItemId == itemId)
         {
             Fail("lost from a torn pack");
         }
