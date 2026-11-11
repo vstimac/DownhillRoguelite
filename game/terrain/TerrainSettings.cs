@@ -208,31 +208,67 @@ public partial class TerrainSettings : Resource
 
     public static Biome[] DefaultBiomes()
     {
-        return new[]
+        Biome[] biomes = new[]
         {
             ForestBiome(),
-            Biome.Make("Lust", 1050.0f, new Color(1.0f, 0.96f, 0.86f), new[] { Kit + "tree_tall.glb", Kit + "tree_thin.glb", Kit + "tree_pineSmallA.glb", Kit + "tree_pineSmallC.glb" }, 2.0f, new Vector2(4.0f, 7.0f), 14.0f,
+            Biome.Make("Lust", 1050.0f, new Color(1.0f, 0.96f, 0.86f), Trees("broadleaf_green_0", "broadleaf_green_1", "broadleaf_green_2"), 2.0f, new Vector2(4.0f, 7.0f), 14.0f,
                 new[] { Kit + "grass_large.glb", Kit + "grass_leafs.glb" }, 0.5f, new[] { Kit + "flower_redA.glb", Kit + "flower_redB.glb", Kit + "flower_redC.glb" }, 0.04f),
-            Biome.Make("Gluttony", 2100.0f, new Color(0.78f, 0.9f, 0.72f), new[] { Kit + "tree_oak_dark.glb", Kit + "tree_default_dark.glb", Kit + "tree_fat_darkh.glb", Kit + "tree_detailed_dark.glb" }, 6.0f, new Vector2(5.0f, 9.0f), 4.0f,
+            Biome.Make("Gluttony", 2100.0f, new Color(0.78f, 0.9f, 0.72f), Trees("broadleaf_dark_0", "broadleaf_dark_1", "broadleaf_dark_2"), 6.0f, new Vector2(5.0f, 9.0f), 4.0f,
                 new[] { Kit + "grass_leafs.glb", Kit + "grass_leafsLarge.glb" }, 0.55f, System.Array.Empty<string>(), 0.0f),
-            Biome.Make("Greed", 3150.0f, new Color(1.06f, 0.95f, 0.78f), new[] { Kit + "tree_oak_fall.glb", Kit + "tree_default_fall.glb", Kit + "tree_fat_fall.glb", Kit + "tree_tall_fall.glb" }, 3.0f, new Vector2(4.5f, 8.0f), 3.0f,
+            Biome.Make("Greed", 3150.0f, new Color(1.06f, 0.95f, 0.78f), Trees("broadleaf_fall_0", "broadleaf_fall_1", "broadleaf_fall_2"), 3.0f, new Vector2(4.5f, 8.0f), 3.0f,
                 new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.25f, new[] { Kit + "flower_yellowA.glb", Kit + "flower_yellowB.glb", Kit + "flower_yellowC.glb" }, 0.04f),
-            Biome.Make("Wrath", 4200.0f, new Color(0.7f, 0.78f, 0.7f), new[] { Kit + "tree_thin_dark.glb", Kit + "tree_simple_dark.glb" }, 3.0f, new Vector2(4.0f, 7.0f), 8.0f,
+            Biome.Make("Wrath", 4200.0f, new Color(0.7f, 0.78f, 0.7f), Trees("snag_0", "snag_1", "broadleaf_dark_1"), 3.0f, new Vector2(4.0f, 7.0f), 8.0f,
                 new[] { Kit + "grass_leafs.glb", Kit + "grass_leafsLarge.glb" }, 0.3f, System.Array.Empty<string>(), 0.0f),
-            Biome.Make("Heresy", 5250.0f, new Color(1.1f, 0.94f, 0.8f), new[] { Kit + "tree_thin_fall.glb", Kit + "tree_simple_fall.glb" }, 0.8f, new Vector2(3.5f, 6.0f), 6.0f,
+            Biome.Make("Heresy", 5250.0f, new Color(1.1f, 0.94f, 0.8f), Trees("broadleaf_fall_2", "snag_0", "snag_1"), 0.8f, new Vector2(3.5f, 6.0f), 6.0f,
                 new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.08f, System.Array.Empty<string>(), 0.0f),
-            Biome.Make("Violence", 6300.0f, new Color(1.05f, 0.85f, 0.76f), new[] { Kit + "tree_thin_dark.glb" }, 0.3f, new Vector2(3.0f, 5.0f), 10.0f,
+            Biome.Make("Violence", 6300.0f, new Color(1.05f, 0.85f, 0.76f), Trees("snag_0", "snag_1"), 0.3f, new Vector2(3.0f, 5.0f), 10.0f,
                 new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.05f, System.Array.Empty<string>(), 0.0f),
-            Biome.Make("Fraud", 7350.0f, new Color(0.86f, 0.86f, 0.95f), new[] { Kit + "tree_pineSmallB.glb", Kit + "tree_pineSmallD.glb", Kit + "tree_pineRoundE.glb", Kit + "tree_pineRoundF.glb" }, 2.0f, new Vector2(3.5f, 7.0f), 4.0f,
+            Biome.Make("Fraud", 7350.0f, new Color(0.86f, 0.86f, 0.95f), Trees("pine_0", "pine_1", "pine_2"), 2.0f, new Vector2(3.5f, 7.0f), 4.0f,
                 new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.2f, System.Array.Empty<string>(), 0.0f),
             Biome.Make("Treachery", 8400.0f, new Color(0.9f, 0.95f, 1.1f), System.Array.Empty<string>(), 0.0f, new Vector2(3.0f, 5.0f), 0.0f,
                 System.Array.Empty<string>(), 0.0f, System.Array.Empty<string>(), 0.0f),
             Biome.Make("Beyond", 9450.0f, new Color(0.86f, 0.8f, 0.96f), new[] { Kit + "tree_blocks_dark.glb", Kit + "tree_blocks.glb", Kit + "tree_plateau_dark.glb" }, 1.5f, new Vector2(4.0f, 10.0f), 0.0f,
                 new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.1f, System.Array.Empty<string>(), 0.0f),
         };
+        foreach (Biome biome in biomes)
+        {
+            // Every circle grows the generated grass tufts (they bend in the wind), keeping its own
+            // leafy plants for variety; all ground plants are then fitted in metres.
+            if (biome.GrassModels.Length > 0 && !biome.GroundPlantsInMetres)
+            {
+                System.Collections.Generic.List<string> grass = new(Trees("grass_0", "grass_1", "grass_2"));
+                foreach (string model in biome.GrassModels)
+                {
+                    if (model.Contains("grass_leafs"))
+                    {
+                        grass.Add(model);
+                    }
+                }
+                biome.GrassModels = grass.ToArray();
+                biome.GroundPlantsInMetres = true;
+                biome.GrassScale = new Vector2(0.12f, 0.4f);
+            }
+            // The generated pines have slender trunks (as in the first circle's forest).
+            if (biome.TreeModels.Length > 0 && System.Array.TrueForAll(biome.TreeModels, model => model.Contains("/pine_")))
+            {
+                biome.TrunkRadiusPerMetre = 0.0125f;
+            }
+        }
+        return biomes;
     }
 
     public float ChunkSize => ChunkCells * CellSize;
+
+    /// <summary>Generated trees (tools/forest/generate_forest.gd: pines, broadleaf, snags), by name.</summary>
+    private static string[] Trees(params string[] names)
+    {
+        string[] paths = new string[names.Length];
+        for (int i = 0; i < names.Length; i++)
+        {
+            paths[i] = "res://art/environment/forest/" + names[i] + ".tscn";
+        }
+        return paths;
+    }
 
     private static Biome ForestBiome()
     {

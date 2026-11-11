@@ -47,6 +47,8 @@ public partial class CarrierTorch : Node3D
     /// <summary>The fitting scene drives the torch itself (no keys, no burning down).</summary>
     public bool Fitting { get; set; }
     public ParticleFire? Fire => _fire;
+    /// <summary>The carry pose on the driver's left arm.</summary>
+    public TorchArm? Arm { get; private set; }
     /// <summary>Where it sits (loaded from TorchFit.DefaultPath; the fitting scene edits it live).</summary>
     public TorchFit Fit { get; set; } = TorchFit.Load();
 
@@ -67,6 +69,9 @@ public partial class CarrierTorch : Node3D
         if (_driver != null)
         {
             _driver.SkeletonUpdated += Follow;
+            // The left arm comes up to carry it while it burns.
+            Arm = new TorchArm { Name = "TorchArm", Torch = this };
+            _driver.CallDeferred(Node.MethodName.AddChild, Arm);
         }
         if (Remote)
         {
