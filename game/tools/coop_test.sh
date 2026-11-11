@@ -30,15 +30,19 @@ DROPAT=$((GRAB + 3))
 PINGAT=$((GRAB + 4))
 # Client 1 says a line in the chat (Y); everyone else should read it.
 SAYAT=$((GRAB + 8))
+# Downed, not dead: client 1 goes down and bleeds out (2 s, nobody helps) before it falls; client 3
+# goes down later and client 2 helps it up.
+DOWN3=$((GRAB + 9))
+HELP2=$((GRAB + 11))
 
 "$GODOT" --headless --path . -- --host="$PORT" --net-name=Host --net-probe="$HOST_SECONDS" --net-linger=20 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" --net-spawn-at="$SPAWN" --net-step-away-at="$AWAY" --net-advance=8 > "$LOGS/host.log" 2>&1 &
 PIDS="$!"
 sleep "$LEAD"
 for i in $(seq 1 "$CLIENTS"); do
     DIES=""
-    if [ "$i" = "1" ]; then DIES="--net-die-at=$DIE --net-say-at=$SAYAT"; fi
-    if [ "$i" = "2" ]; then DIES="--net-strike-at=$STRIKE --net-ping-at=$PINGAT"; fi
-    if [ "$i" = "3" ]; then DIES="--net-drop-at=$DROPAT"; fi
+    if [ "$i" = "1" ]; then DIES="--net-die-at=$DIE --net-say-at=$SAYAT --net-bleed=2"; fi
+    if [ "$i" = "2" ]; then DIES="--net-strike-at=$STRIKE --net-ping-at=$PINGAT --net-help-at=$HELP2"; fi
+    if [ "$i" = "3" ]; then DIES="--net-drop-at=$DROPAT --net-die-at=$DOWN3 --net-bleed=8"; fi
     "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --net-name="Client$i" --net-probe="$CLIENT_SECONDS" --net-linger=6 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" $DIES > "$LOGS/client$i.log" 2>&1 &
     PIDS="$PIDS $!"
     sleep 1
@@ -116,6 +120,15 @@ if [ "$CLIENTS" -ge 2 ]; then
         fi
     done
     check "a marked spot (B) appears for the others (client 2 marked $marked; $saw of $others saw it)" "$([ "${marked:-0}" -ge 1 ] && [ "$saw" -eq "$others" ]; echo $?)"
+fi
+downs1=$(num "$LOGS/client1.log" downs)
+check "a downed player nobody helps bleeds out, then falls (client 1 went down $downs1 time(s))" "$([ "${downs1:-0}" -ge 1 ] && [ "$fell" -eq 1 ]; echo $?)"
+if [ "$CLIENTS" -ge 3 ]; then
+    downs3=$(num "$LOGS/client3.log" downs)
+    up3=$(num "$LOGS/client3.log" revived)
+    helped2=$(num "$LOGS/client2.log" helped_up)
+    fell3=$(grep -h "name=Client3 " "$LOGS/client3.log" | grep -c "fell=False")
+    check "a friend helps a downed player up, and they don't fall (client 3 down $downs3, up $up3; client 2 helped $helped2)" "$([ "${downs3:-0}" -ge 1 ] && [ "${up3:-0}" -ge 1 ] && [ "${helped2:-0}" -ge 1 ] && [ "$fell3" -eq 1 ]; echo $?)"
 fi
 said=$(num "$LOGS/client1.log" chat_sent)
 heard=0

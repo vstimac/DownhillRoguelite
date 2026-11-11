@@ -37,6 +37,8 @@ public partial class RemoteCarrier : CharacterBody3D
     public Color Shirt { get; private set; } = Colors.White;
     public Color Pack { get; private set; } = Colors.White;
     public bool Dead { get; private set; }
+    /// <summary>Down and bleeding out (co-op): a friend beside them can help them up.</summary>
+    public bool Bleeding { get; set; }
     /// <summary>Their torch burns (shown in their hand, lighting the ground round them).</summary>
     public bool TorchLit => _torch?.Lit ?? false;
     public string Clip { get; private set; } = "";
@@ -178,6 +180,10 @@ public partial class RemoteCarrier : CharacterBody3D
         if (Dead)
         {
             text += " (fallen)";
+        }
+        else if (Bleeding)
+        {
+            text += " (down: hold E beside them)";
         }
         Camera3D? camera = GetViewport()?.GetCamera3D();
         float distance = 0.0f;

@@ -36,6 +36,11 @@ public partial class NetProbe : Node
     [Export] public double PingAtUnix { get; set; } = -1.0;
     /// <summary>`--net-say-at=unix seconds`: says a line in the chat (the others should read it).</summary>
     [Export] public double SayAtUnix { get; set; } = -1.0;
+    /// <summary>`--net-shot-at=unix seconds --net-shot=file.png`: saves what this (rendered) machine shows then.</summary>
+    [Export] public double ShotAtUnix { get; set; } = -1.0;
+    [Export] public string ShotPath { get; set; } = "";
+    /// <summary>`--net-help-at=unix seconds`: helps up a downed friend, wherever they are.</summary>
+    [Export] public double HelpAtUnix { get; set; } = -1.0;
     /// <summary>`--net-step-away-at=unix seconds`: this carrier walks off (is moved StepAway metres), leaving its enemy to the others.</summary>
     [Export] public double StepAwayAtUnix { get; set; } = -1.0;
     [Export] public Vector3 StepAway { get; set; } = new(-35.0f, 4.0f, 0.0f);
@@ -63,6 +68,8 @@ public partial class NetProbe : Node
     private bool _dropped;
     private bool _pinged;
     private bool _said;
+    private bool _shot;
+    private bool _helped;
     private string _droppedId = "";
     private double _nextEnemyNote;
     private int _sawPuppets;
@@ -166,6 +173,22 @@ public partial class NetProbe : Node
             Session.Chat?.Say("Supplies by the big rock, come [here]!");
             GD.Print("[NetProbe] said a line");
         }
+        if (HelpAtUnix >= 0.0 && !_helped && Session.Joined && now >= HelpAtUnix)
+        {
+            _helped = true;
+            Session.Revive?.HelpAnyone();
+            GD.Print("[NetProbe] helped");
+        }
+        if (ShotAtUnix >= 0.0 && !_shot && ShotPath.Length > 0 && now >= ShotAtUnix)
+        {
+            _shot = true;
+            Image? frame = GetViewport().GetTexture()?.GetImage();
+            if (frame != null)
+            {
+                frame.SavePng(ShotPath);
+                GD.Print($"[NetProbe] saved {ShotPath}");
+            }
+        }
         if (_steppedAway && _clock >= _nextEnemyNote)
         {
             _nextEnemyNote = _clock + 1.0;
@@ -240,7 +263,7 @@ public partial class NetProbe : Node
             + $"taken={session.TakenSupplies.Count} granted={session.ClaimsGranted} refused={session.ClaimsRefused} fell={_fell} watched={_watched} back={_back} "
             + $"saw_fallen={_sawFallen} looks={Looks(session)} owned={session.Mobs?.OwnedCount ?? 0} saw_puppets={_sawPuppets} "
             + $"hits_sent={session.Mobs?.HitsSent ?? 0} hits_applied={session.Mobs?.HitsApplied ?? 0} loot_shared={session.Mobs?.LootShared ?? 0} "
-            + $"loot_received={session.Mobs?.LootReceived ?? 0} clock_at_grab={_clockAtGrab:0.000} strikes_sent={session.Mobs?.StrikesSent ?? 0} dropped={_droppedId.Length > 0} strikes_taken={session.Mobs?.StrikesTaken ?? 0} pings_sent={session.Pings?.Sent ?? 0} pings_seen={session.Pings?.Seen ?? 0} chat_sent={session.Chat?.Sent ?? 0} chat_seen={session.Chat?.Seen ?? 0} status=\"{session.Status}\"");
+            + $"loot_received={session.Mobs?.LootReceived ?? 0} clock_at_grab={_clockAtGrab:0.000} strikes_sent={session.Mobs?.StrikesSent ?? 0} dropped={_droppedId.Length > 0} strikes_taken={session.Mobs?.StrikesTaken ?? 0} pings_sent={session.Pings?.Sent ?? 0} pings_seen={session.Pings?.Seen ?? 0} chat_sent={session.Chat?.Sent ?? 0} chat_seen={session.Chat?.Seen ?? 0} downs={session.Revive?.Downs ?? 0} revived={session.Revive?.Revived ?? 0} helped_up={session.Revive?.Helped ?? 0} status=\"{session.Status}\"");
     }
 
     /// <summary>Each remote carrier's name, character and shirt colour, as shown here.</summary>

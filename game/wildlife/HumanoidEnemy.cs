@@ -356,7 +356,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
         if (others.Length == 0)
         {
             _targetPeer = 0;
-            _targetDown = GameEvents.IsDowned;
+            _targetDown = GameEvents.IsDowned || GameEvents.CarrierBleeding;
             if (_localKnown)
             {
                 _carrier = _localCarrier;
@@ -367,7 +367,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
         long peer = _targetPeer;
         Vector3 feet = _carrier;
         bool down = true;
-        if (_localKnown && !GameEvents.IsDowned)
+        if (_localKnown && !GameEvents.IsDowned && !GameEvents.CarrierBleeding)
         {
             best = Score(_localCarrier, 0);
             peer = 0;

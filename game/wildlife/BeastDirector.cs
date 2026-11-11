@@ -148,7 +148,7 @@ public partial class BeastDirector : Node3D
         {
             daylight = 0.0f;
         }
-        Step((float)delta, _carrier, daylight, GameEvents.InShelter || NearFire(_carrier), _downed);
+        Step((float)delta, _carrier, daylight, GameEvents.InShelter || NearFire(_carrier), _downed || GameEvents.CarrierBleeding);
     }
 
     /// <summary>One update: brings beasts in, drives them, removes the ones gone, says what's happening.</summary>

@@ -56,6 +56,11 @@ public static partial class GameEvents
 
     public static void PublishOtherCarriers(NetCarrier[] carriers) => _otherCarriers = carriers;
 
+    /// <summary>Co-op: this carrier is down and bleeding out (creatures leave them alone; a friend can help them up).</summary>
+    public static bool CarrierBleeding { get; private set; }
+
+    public static void PublishBleeding(bool bleeding) => CarrierBleeding = bleeding;
+
     public static void PublishNetStrike(NetStrike strike) => NetCarrierStruck?.Invoke(strike);
 
     /// <summary>A blow from a creature on another machine lands on this carrier: the shield may take it, else it hurts and shoves.</summary>

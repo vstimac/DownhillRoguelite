@@ -56,10 +56,24 @@ public partial class NetHud : CanvasLayer
             role = $"Co-op · hosting on port {session.Port}";
         }
         text.AppendLine(role);
+        NetRevive? revive = session.Revive;
         text.AppendLine($"• {session.LocalName} (you){Fallen(session.LocalDead)}");
         foreach (NetPeer peer in session.Peers.Values)
         {
-            text.AppendLine($"• {peer.Name}{Fallen(peer.Dead)}");
+            string state = Fallen(peer.Dead);
+            if (!peer.Dead && revive != null && revive.IsDown(peer.Id))
+            {
+                state = " (down: help them up!)";
+            }
+            text.AppendLine($"• {peer.Name}{state}");
+        }
+        if (revive != null && revive.Bleeding)
+        {
+            text.AppendLine($"Down! You bleed out in {Mathf.CeilToInt(revive.BleedLeft)} s unless a friend helps you up (E beside you).");
+        }
+        if (revive != null && revive.Helping > 0.0f)
+        {
+            text.AppendLine($"Helping {revive.HelpingName} up: {Mathf.RoundToInt(revive.Helping * 100.0f)}%");
         }
         if (session.LocalDead)
         {

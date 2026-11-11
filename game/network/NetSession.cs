@@ -116,6 +116,8 @@ public partial class NetSession : Node
     public NetPings? Pings => _pings;
     private NetChat? _chat;
     public NetChat? Chat => _chat;
+    private NetRevive? _revive;
+    public NetRevive? Revive => _revive;
     /// <summary>Shared creatures and kill loot.</summary>
     public NetMobs? Mobs => _mobs;
 
@@ -148,6 +150,8 @@ public partial class NetSession : Node
         AddChild(_pings);
         _chat = new NetChat { Name = "NetChat", Session = this };
         AddChild(_chat);
+        _revive = new NetRevive { Name = "NetRevive", Session = this };
+        AddChild(_revive);
         CallDeferred(MethodName.ReadCommandLine);
     }
 
@@ -198,12 +202,17 @@ public partial class NetSession : Node
             {
                 AddChild(new NetProbe { Name = "NetProbe", Session = this, Seconds = seconds, GrabAtUnix = ProbeNumber("--net-grab-at="), DieAtUnix = ProbeNumber("--net-die-at="),
                     SpawnAtUnix = ProbeNumber("--net-spawn-at="), StrikeAtUnix = ProbeNumber("--net-strike-at="),
-                    StepAwayAtUnix = ProbeNumber("--net-step-away-at="), DropAtUnix = ProbeNumber("--net-drop-at="), PingAtUnix = ProbeNumber("--net-ping-at="), SayAtUnix = ProbeNumber("--net-say-at="),
+                    StepAwayAtUnix = ProbeNumber("--net-step-away-at="), DropAtUnix = ProbeNumber("--net-drop-at="), PingAtUnix = ProbeNumber("--net-ping-at="), SayAtUnix = ProbeNumber("--net-say-at="), ShotAtUnix = ProbeNumber("--net-shot-at="), ShotPath = ProbeText("--net-shot="), HelpAtUnix = ProbeNumber("--net-help-at="),
                     AdvanceHours = Mathf.Max((float)ProbeNumber("--net-advance="), 0.0f), Linger = (float)ProbeNumber("--net-linger=") });
                 double respawn = ProbeNumber("--net-respawn=");
                 if (respawn > 0.0)
                 {
                     RespawnSeconds = (float)respawn;
+                }
+                double bleed = ProbeNumber("--net-bleed=");
+                if (bleed > 0.0 && _revive != null)
+                {
+                    _revive.BleedSeconds = (float)bleed;
                 }
             }
         }
@@ -226,6 +235,18 @@ public partial class NetSession : Node
     }
 
     /// <summary>A number after a probe argument (`--net-grab-at=unix seconds`, `--net-linger=seconds`), or -1.</summary>
+    private static string ProbeText(string prefix)
+    {
+        foreach (string arg in OS.GetCmdlineUserArgs())
+        {
+            if (arg.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return arg[prefix.Length..];
+            }
+        }
+        return "";
+    }
+
     private static double ProbeNumber(string prefix)
     {
         foreach (string arg in OS.GetCmdlineUserArgs())
@@ -360,6 +381,7 @@ public partial class NetSession : Node
         _mobs?.Clear();
         _pings?.Clear();
         _chat?.Clear();
+        _revive?.Clear();
         GameEvents.PublishOtherCarriers(System.Array.Empty<NetCarrier>());
         _waitingHello.Clear();
         _taken.Clear();
@@ -897,7 +919,7 @@ public partial class NetSession : Node
         {
             if (IsInstanceValid(remote) && remote.States > 0)
             {
-                carriers.Add(new NetCarrier(remote.PeerId, remote.GlobalPosition, remote.Dead));
+                carriers.Add(new NetCarrier(remote.PeerId, remote.GlobalPosition, remote.Dead || remote.Bleeding));
             }
         }
         GameEvents.PublishOtherCarriers(carriers.ToArray());
@@ -1353,7 +1375,7 @@ public partial class NetSession : Node
         return _spawner;
     }
 
-    private static T? Find<T>(Node? root) where T : class
+    internal static T? Find<T>(Node? root) where T : class
     {
         if (root == null)
         {
