@@ -16,12 +16,12 @@ public partial class SpiderWebs : Node3D
 {
     [Export] public int MinCircle { get; set; } = 3;
     /// <summary>Webs are looked for among the trees this far round the carrier, in m.</summary>
-    [Export] public float Radius { get; set; } = 35.0f;
+    [Export] public float Radius { get; set; } = 45.0f;
     [Export] public float CheckEvery { get; set; } = 1.0f;
     /// <summary>Two trunks this far apart (centre to centre, in m) can carry a web.</summary>
-    [Export] public Vector2 PairDistance { get; set; } = new(2.2f, 5.0f);
+    [Export] public Vector2 PairDistance { get; set; } = new(2.2f, 7.0f);
     /// <summary>The share of close pairs that do.</summary>
-    [Export] public float Chance { get; set; } = 0.12f;
+    [Export] public float Chance { get; set; } = 0.3f;
     [Export] public int MaxWebs { get; set; } = 16;
     /// <summary>The web's centre this high above the ground, in m.</summary>
     [Export] public float Height { get; set; } = 1.15f;
