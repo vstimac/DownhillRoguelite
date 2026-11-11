@@ -396,6 +396,13 @@ public partial class StartScreen : CanvasLayer
         y += screen.Y * 0.045f;
 
         float itemHeight = itemSize * 1.45f;
+        // Short screens (720p with every entry): the entries close up a little to clear the footer.
+        float footerTop = screen.Y - Mathf.Max(20.0f, screen.Y * 0.04f) - UiStyle.SmallSize * 1.4f - UiStyle.TextSize * 1.6f;
+        float room = footerTop - y - 6.0f;
+        if (_items.Count > 0 && (itemHeight + 4.0f) * _items.Count > room)
+        {
+            itemHeight = Mathf.Max(room / _items.Count - 4.0f, itemSize * 1.2f);
+        }
         foreach (MenuItem item in _items)
         {
             item.FontSize = itemSize;

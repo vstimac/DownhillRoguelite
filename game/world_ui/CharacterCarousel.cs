@@ -53,7 +53,22 @@ public partial class CharacterCarousel : Control
                 Index = i;
             }
         }
+        FitHeight();
         QueueRedraw();
+    }
+
+    /// <summary>The carousel never shows less height than this, in px.</summary>
+    [Export] public float MinHeight { get; set; } = 170.0f;
+
+    /// <summary>Tall enough for the shown character's name and description (a long one wraps more).</summary>
+    public void FitHeight()
+    {
+        float needed = Mathf.Max(MinHeight, NeededHeight() + 8.0f);
+        CustomMinimumSize = new Vector2(CustomMinimumSize.X, needed);
+        if (Size.Y < needed)
+        {
+            Size = new Vector2(Size.X, needed);
+        }
     }
 
     public override void _Ready()
@@ -91,6 +106,7 @@ public partial class CharacterCarousel : Control
             QueueRedraw();
         }), 28.0f * direction, 0.0f, 0.25).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
         Shown?.Invoke(_characters[Index]);
+        FitHeight();
         QueueRedraw();
     }
 
@@ -134,7 +150,7 @@ public partial class CharacterCarousel : Control
     /// <summary>Height the name, status, description and dots need.</summary>
     public float NeededHeight()
     {
-        return NameSize * 1.3f + TextSize * 1.6f + DescriptionSize().Y + 30.0f;
+        return ShownNameSize() * 1.3f + TextSize * 1.6f + DescriptionSize().Y + 30.0f;
     }
 
     public float NameWidth()
@@ -144,7 +160,24 @@ public partial class CharacterCarousel : Control
         {
             return 0.0f;
         }
-        return UiStyle.Heading.GetStringSize(character.DisplayName, HorizontalAlignment.Left, -1, NameSize).X;
+        return UiStyle.Heading.GetStringSize(character.DisplayName, HorizontalAlignment.Left, -1, ShownNameSize()).X;
+    }
+
+    /// <summary>The name's font size: NameSize, smaller for a long name (an outfit's) so it fits between the arrows.</summary>
+    public int ShownNameSize()
+    {
+        CarrierCharacter? character = Character;
+        if (character == null)
+        {
+            return NameSize;
+        }
+        float room = Size.X - ArrowZone * 2.0f - 8.0f;
+        float full = UiStyle.Heading.GetStringSize(character.DisplayName, HorizontalAlignment.Left, -1, NameSize).X;
+        if (full <= room || room <= 0.0f)
+        {
+            return NameSize;
+        }
+        return Mathf.Max(18, Mathf.FloorToInt(NameSize * room / full));
     }
 
     public float TextWidth()
@@ -181,12 +214,13 @@ public partial class CharacterCarousel : Control
             ink = new Color(UiStyle.Ink, 0.45f);
         }
         float nameTop = 8.0f;
-        float nameBase = nameTop + heading.GetAscent(NameSize);
+        int nameSize = ShownNameSize();
+        float nameBase = nameTop + heading.GetAscent(nameSize);
         float nameWidth = NameWidth();
-        DrawString(heading, new Vector2((Size.X - nameWidth) * 0.5f + _slide, nameBase), character.DisplayName, HorizontalAlignment.Left, -1, NameSize, ink);
+        DrawString(heading, new Vector2((Size.X - nameWidth) * 0.5f + _slide, nameBase), character.DisplayName, HorizontalAlignment.Left, -1, nameSize, ink);
 
         // Arrows either side of the name.
-        float mid = nameTop + NameSize * 0.55f;
+        float mid = nameTop + nameSize * 0.55f;
         Color arrow = new(UiStyle.Ink, 0.35f + 0.6f * _lit);
         if (_characters.Count > 1)
         {
@@ -194,7 +228,7 @@ public partial class CharacterCarousel : Control
             InkDraw.Shape(this, new[] { new Vector2(Size.X - 18.0f, mid), new Vector2(Size.X - 36.0f, mid - 13.0f), new Vector2(Size.X - 36.0f, mid + 13.0f) }, arrow, 2.0f, 6);
         }
 
-        float y = nameTop + NameSize * 1.3f;
+        float y = nameTop + nameSize * 1.3f;
         string status = "Ready to carry";
         Color statusInk = new(UiStyle.Stamina, 0.95f);
         if (!open)

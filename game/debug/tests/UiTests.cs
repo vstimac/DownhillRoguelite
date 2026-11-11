@@ -500,7 +500,7 @@ public partial class UiTests : Node3D
                 {
                     if (carousel.NeededHeight() > carousel.Size.Y || carousel.NameWidth() > carousel.Size.X - 112.0f)
                     {
-                        problems.Add($"character {carousel.Character?.DisplayName} clipped at {size}");
+                        problems.Add($"character {carousel.Character?.DisplayName} clipped at {size} (needs {carousel.NeededHeight():0} of {carousel.Size.Y:0}, name {carousel.NameWidth():0} of {carousel.Size.X - 112.0f:0})");
                     }
                     carousel.Step(1);
                 }
