@@ -7,7 +7,7 @@ namespace DownhillRoguelite.Debug;
 
 /// <summary>
 /// Spider web lab: a few trunks in a row with a web strung between every close pair, seen at dusk
-/// against a dark wood. Walk the stand-in carrier through them with A / D to see one tear (the
+/// against a dark wood. Walk the stand-in carrier through them with W A S D (or `-- --walk`) to see one tear (the
 /// hint and the snare are printed).
 /// </summary>
 public partial class SpiderWebLab : Node3D
@@ -16,8 +16,9 @@ public partial class SpiderWebLab : Node3D
     [Export] public int TrunkCount { get; set; } = 4;
     [Export] public float WalkSpeed { get; set; } = 2.0f;
 
-    private Vector3 _carrier = new(0.0f, 0.0f, 3.0f);
+    private Vector3 _carrier = new(0.0f, 0.0f, 1.5f);
     private SpiderWebs? _webs;
+    private bool _autoWalk;
 
     public override void _Ready()
     {
@@ -35,6 +36,8 @@ public partial class SpiderWebLab : Node3D
         AddChild(_webs);
         GameEvents.Snared += OnSnared;
         GameEvents.HintShown += OnHint;
+        // `-- --walk`: the stand-in walks straight through the middle web by itself.
+        _autoWalk = System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--walk") >= 0;
     }
 
     public override void _ExitTree()
@@ -58,7 +61,7 @@ public partial class SpiderWebLab : Node3D
         {
             step += 1.0f;
         }
-        if (Input.IsKeyPressed(Key.W))
+        if (Input.IsKeyPressed(Key.W) || _autoWalk)
         {
             _carrier.Z -= WalkSpeed * (float)delta;
         }

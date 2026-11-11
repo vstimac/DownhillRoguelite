@@ -4,6 +4,8 @@ Writes audio/creatures/spider_<kind>_<n>.wav:
 - hiss: the warning before it lunges (a long breathy hiss that swells)
 - shriek: the lunge (a harsh, rising screech over a burst of hiss)
 - chitter: while it stalks, far off (bursts of dry clicks, like mandibles)
+Also audio/creatures/web_tear_<n>.wav: a web torn as the carrier walks into it (threads snapping
+over a soft swish).
 
 Hiss is band-limited noise; the shriek a buzzing sawtooth through high formants; the chitter a
 string of very short noise clicks in irregular bursts. Run from the project folder:
@@ -83,6 +85,22 @@ def chitter():
     return out
 
 
+def web_tear():
+    n = int(RATE * 0.45)
+    t = np.arange(n) / RATE
+    # The swish of the legs through it: soft, airy noise that rises and falls.
+    swish = band(rng.standard_normal(n), 1200, 6000) * np.sin(np.pi * t / t[-1]) ** 2 * 0.35
+    out = swish
+    # Threads snapping: a handful of tiny bright ticks, close together at the start.
+    for _ in range(rng.integers(6, 11)):
+        at = int(RATE * rng.uniform(0.0, 0.25) ** 1.5 * 1.6)
+        length = int(RATE * rng.uniform(0.002, 0.005))
+        tick = band(rng.standard_normal(length * 4), 3000, 9000)[:length] * np.exp(-np.arange(length) / (length * 0.25))
+        if at + length < n:
+            out[at:at + length] += tick * rng.uniform(0.5, 1.0)
+    return out
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     write("spider_hiss_0", hiss(1.3, 2000, 8000))
@@ -91,6 +109,8 @@ def main():
     write("spider_shriek_1", shriek(380))
     write("spider_chitter_0", chitter(), 0.7)
     write("spider_chitter_1", chitter(), 0.7)
+    write("web_tear_0", web_tear(), 0.6)
+    write("web_tear_1", web_tear(), 0.6)
     print("wrote the spider's voice to", OUT)
 
 

@@ -95,7 +95,7 @@ The setting takes inspiration from Dante's nine circles, with the philosophical 
 | Night and fire | Night beasts stalk you after dark (deeper down a giant spider too); a torch holds them back and lights the way |
 | Combat and loot | Sword and shield fights with enemies on the route; every kill drops supplies, sometimes something better |
 | Living world | Grass and trees sway in the wind, leaves fall in the autumn woods, fireflies glow on dry nights |
-| Achievements | 17 achievements across your runs, kept even when you die |
+| Achievements | 18 achievements across your runs, kept even when you die |
 
 Features may vary by released build and development branch.
 

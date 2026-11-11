@@ -16,12 +16,12 @@ public partial class SpiderWebs : Node3D
 {
     [Export] public int MinCircle { get; set; } = 3;
     /// <summary>Webs are looked for among the trees this far round the carrier, in m.</summary>
-    [Export] public float Radius { get; set; } = 35.0f;
+    [Export] public float Radius { get; set; } = 45.0f;
     [Export] public float CheckEvery { get; set; } = 1.0f;
     /// <summary>Two trunks this far apart (centre to centre, in m) can carry a web.</summary>
-    [Export] public Vector2 PairDistance { get; set; } = new(2.2f, 5.0f);
+    [Export] public Vector2 PairDistance { get; set; } = new(2.2f, 7.0f);
     /// <summary>The share of close pairs that do.</summary>
-    [Export] public float Chance { get; set; } = 0.12f;
+    [Export] public float Chance { get; set; } = 0.3f;
     [Export] public int MaxWebs { get; set; } = 16;
     /// <summary>The web's centre this high above the ground, in m.</summary>
     [Export] public float Height { get; set; } = 1.15f;
@@ -36,6 +36,9 @@ public partial class SpiderWebs : Node3D
     /// <summary>Stride speed while the web clings (share of normal).</summary>
     [Export] public float SnareSpeed { get; set; } = 0.35f;
     [Export] public string SnareHint { get; set; } = "You blunder into a spider web. It clings to your legs…";
+    [Export] public string[] TearSounds { get; set; } = { "res://audio/creatures/web_tear_0.wav", "res://audio/creatures/web_tear_1.wav" };
+    [Export] public StringName SoundBus { get; set; } = "Ambience";
+    [Export] public float TearVolumeDb { get; set; } = -2.0f;
     /// <summary>Forces the circle (tests); negative: the run's.</summary>
     [Export] public int CircleOverride { get; set; } = -1;
 
@@ -51,6 +54,8 @@ public partial class SpiderWebs : Node3D
     private Vector3 _previous;
     private bool _hasCarrier;
     private float _check;
+    private AudioStreamPlayer3D? _tear;
+    private readonly RandomNumberGenerator _random = new();
 
     public override void _Ready()
     {
@@ -59,6 +64,13 @@ public partial class SpiderWebs : Node3D
         GameEvents.LocomotionUpdated += OnLocomotion;
         GameEvents.NewMountain += OnNewMountain;
         GameEvents.RespawnRequested += Forget;
+        // Headless runs (tests) have no audio output.
+        if (DisplayServer.GetName() != "headless")
+        {
+            _random.Randomize();
+            _tear = new AudioStreamPlayer3D { Name = "Tear", Bus = SoundBus, VolumeDb = TearVolumeDb, UnitSize = 3.0f, MaxDistance = 25.0f };
+            AddChild(_tear);
+        }
     }
 
     public override void _ExitTree()
@@ -134,10 +146,28 @@ public partial class SpiderWebs : Node3D
         _webs.Remove(web.Key);
         web.QueueFree();
         GameEvents.PublishSnared(SnareSeconds, SnareSpeed);
+        PlayTear(web.GlobalPosition);
         if (SnareHint.Length > 0)
         {
             GameEvents.PublishHint(SnareHint);
         }
+    }
+
+    private void PlayTear(Vector3 at)
+    {
+        if (_tear == null || TearSounds.Length == 0)
+        {
+            return;
+        }
+        string path = TearSounds[_random.RandiRange(0, TearSounds.Length - 1)];
+        if (!ResourceLoader.Exists(path) || ResourceLoader.Load<AudioStream>(path) is not AudioStream stream)
+        {
+            return;
+        }
+        _tear.GlobalPosition = at;
+        _tear.Stream = stream;
+        _tear.PitchScale = _random.RandfRange(0.9f, 1.1f);
+        _tear.Play();
     }
 
     public override void _Process(double delta)

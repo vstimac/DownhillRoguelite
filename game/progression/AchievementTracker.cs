@@ -27,6 +27,7 @@ public partial class AchievementTracker : Node
         GameEvents.Mended += OnMended;
         GameEvents.CarrierDied += OnDied;
         GameEvents.RunBegun += OnRunBegun;
+        GameEvents.Snared += OnSnared;
     }
 
     public override void _ExitTree()
@@ -43,6 +44,7 @@ public partial class AchievementTracker : Node
         GameEvents.Mended -= OnMended;
         GameEvents.CarrierDied -= OnDied;
         GameEvents.RunBegun -= OnRunBegun;
+        GameEvents.Snared -= OnSnared;
     }
 
     private RunState? Run()
@@ -147,6 +149,11 @@ public partial class AchievementTracker : Node
     private void OnDied(string cause)
     {
         Count(AchievementBook.Tallies.Deaths);
+    }
+
+    private void OnSnared(float seconds, float speed)
+    {
+        Count(AchievementBook.Tallies.Webs);
     }
 
     private void OnRunBegun(bool continuing)
