@@ -180,6 +180,8 @@ public partial class TerrainStreamer : Node3D
         AddChild(new DownhillRoguelite.Environment.FoliageWind { Name = "FoliageWind" });
         // Leaves drifting down where the circle's trees shed them.
         AddChild(new DownhillRoguelite.Environment.FallingLeaves { Name = "FallingLeaves", Streamer = this });
+        // Fireflies on dry nights in the green circles.
+        AddChild(new DownhillRoguelite.Environment.Fireflies { Name = "Fireflies", Streamer = this });
         _groundMaterial = MakeGroundMaterial();
         if (ResourceLoader.Exists(GrassShader) && ResourceLoader.Load(GrassShader) is Shader grassShader)
         {

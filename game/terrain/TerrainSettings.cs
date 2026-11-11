@@ -235,15 +235,21 @@ public partial class TerrainSettings : Resource
             // Leaves drift down where broadleaf trees grow: thick in the autumn circles.
             switch (biome.Name)
             {
+                case "Limbo":
+                    biome.Fireflies = 0.6f;
+                    break;
                 case "Lust":
+                    biome.Fireflies = 1.0f;
                     biome.LeafFall = 0.15f;
                     biome.LeafColour = new Color(0.45f, 0.6f, 0.22f);
                     break;
                 case "Gluttony":
+                    biome.Fireflies = 0.7f;
                     biome.LeafFall = 0.25f;
                     biome.LeafColour = new Color(0.4f, 0.48f, 0.18f);
                     break;
                 case "Greed":
+                    biome.Fireflies = 0.3f;
                     biome.LeafFall = 1.0f;
                     biome.LeafColour = new Color(0.82f, 0.45f, 0.14f);
                     break;
