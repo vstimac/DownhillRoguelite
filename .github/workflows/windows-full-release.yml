@@ -106,7 +106,7 @@ jobs:
           import base64, json, os, re, subprocess
           repo = os.environ["GITHUB_REPOSITORY"]
           tag = os.environ["RELEASE_TAG"]
-          raw = subprocess.check_output(["gh", "api", f"repos/{repo}/contents/README.md", "-f", "ref=main"], text=True)
+          raw = subprocess.check_output(["gh", "api", "-X", "GET", f"repos/{repo}/contents/README.md", "-f", "ref=main"], text=True)
           data = json.loads(raw)
           readme = base64.b64decode(data["content"]).decode("utf-8")
           target = f"https://github.com/{repo}/releases/download/{tag}/DownhillRoguelite-windows-full.zip"
