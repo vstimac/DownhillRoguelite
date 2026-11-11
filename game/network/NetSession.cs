@@ -258,7 +258,15 @@ public partial class NetSession : Node
         RunState? run = Run();
         SessionSeed = run?.Seed ?? 0;
         BeginSession();
-        SetStatus($"Hosting on port {port}. Others join with this computer's address.");
+        string addresses = LocalAddresses();
+        if (addresses.Length > 0)
+        {
+            SetStatus($"Hosting on port {port}. Others join with your address: {addresses} (over the internet: your public address, with the port forwarded).");
+        }
+        else
+        {
+            SetStatus($"Hosting on port {port}. Others join with this computer's address.");
+        }
         Log($"hosting on port {port}, seed {SessionSeed}, up to {MaxPlayers} players");
         return true;
     }
@@ -932,6 +940,33 @@ public partial class NetSession : Node
         {
             _promised.Remove(key);
         }
+    }
+
+    /// <summary>This computer's home-network (IPv4) addresses, for friends to type in: "192.168.1.5", or two joined by "or".</summary>
+    public static string LocalAddresses()
+    {
+        List<string> found = new();
+        foreach (string address in IP.GetLocalAddresses())
+        {
+            bool lan = address.StartsWith("192.168.", StringComparison.Ordinal) || address.StartsWith("10.", StringComparison.Ordinal);
+            if (address.StartsWith("172.", StringComparison.Ordinal))
+            {
+                string[] parts = address.Split('.');
+                if (parts.Length == 4 && int.TryParse(parts[1], out int second) && second >= 16 && second <= 31)
+                {
+                    lan = true;
+                }
+            }
+            if (lan && !found.Contains(address))
+            {
+                found.Add(address);
+            }
+        }
+        if (found.Count > 2)
+        {
+            found.RemoveRange(2, found.Count - 2);
+        }
+        return string.Join(" or ", found);
     }
 
     // --- One clock for everyone (the weather follows it) ---
