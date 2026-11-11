@@ -35,6 +35,7 @@ public sealed class AchievementBook
         public const string Mends = "mends";
         public const string Deaths = "deaths";
         public const string Runs = "runs";
+        public const string Webs = "webs";
     }
 
     /// <summary>Every achievement, in the order the page lists them.</summary>
@@ -46,6 +47,7 @@ public sealed class AchievementBook
         new("kilometre", "A Kilometre Down", "Descend a thousand metres in one run.", Tallies.BestDepth, 1000),
         new("past_limbo", "Past Limbo", "Go down into the second circle, Lust.", Tallies.BestCircle, 2),
         new("greed", "Deeper Still", "Reach the fourth circle, Greed.", Tallies.BestCircle, 4),
+        new("tangled", "Tangled", "Walk into a giant spider's web.", Tallies.Webs, 1),
         new("first_blood", "First Blood", "Kill something that wanted to kill you.", Tallies.Kills, 1),
         new("hunter", "Hunter", "Kill 25 enemies or beasts, over all your runs.", Tallies.Kills, 25),
         new("torchbearer", "Torchbearer", "Light a torch against the dark.", Tallies.Torches, 1),
