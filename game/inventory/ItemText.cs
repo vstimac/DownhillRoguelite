@@ -139,17 +139,22 @@ public static class ItemText
     /// <summary>The item definition for an id (items live at res://inventory/items/&lt;id&gt;.tres).</summary>
     public static ItemDefinition? Find(string itemId)
     {
-        if (Definitions.TryGetValue(itemId, out ItemDefinition? cached))
+        return AtPath($"res://inventory/items/{itemId}.tres");
+    }
+
+    /// <summary>The item definition at a resource path (null if there's none), kept loaded from then on.</summary>
+    public static ItemDefinition? AtPath(string path)
+    {
+        if (Definitions.TryGetValue(path, out ItemDefinition? cached))
         {
             return cached;
         }
-        string path = $"res://inventory/items/{itemId}.tres";
         ItemDefinition? item = null;
         if (ResourceLoader.Exists(path))
         {
             item = ResourceLoader.Load(path) as ItemDefinition;
         }
-        Definitions[itemId] = item;
+        Definitions[path] = item;
         return item;
     }
 

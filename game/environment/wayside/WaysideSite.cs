@@ -184,7 +184,7 @@ public partial class WaysideSite : Node3D, IInteractable, IDescribed
         foreach (string path in paths)
         {
             string name = path.GetFile().GetBaseName().Replace("_", " ");
-            if (ResourceLoader.Exists(path) && ResourceLoader.Load(path) is Inventory.ItemDefinition item && item.DisplayName.Length > 0)
+            if (Inventory.ItemText.AtPath(path) is Inventory.ItemDefinition item && item.DisplayName.Length > 0)
             {
                 name = item.DisplayName.ToLowerInvariant();
             }

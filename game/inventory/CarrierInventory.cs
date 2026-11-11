@@ -76,7 +76,7 @@ public partial class CarrierInventory : Node
         GameEvents.CargoHandOverRequested += OnCargoHandOverRequested;
         foreach (string path in StartingItemPaths)
         {
-            if (ResourceLoader.Load(path) is ItemDefinition item)
+            if (ItemText.AtPath(path) is ItemDefinition item)
             {
                 _all.Add(item);
                 _loose.Add(new StoredItem(item, InstanceId: System.Guid.NewGuid().ToString("N")));
@@ -413,7 +413,7 @@ public partial class CarrierInventory : Node
     {
         foreach (string path in itemPaths)
         {
-            if (ResourceLoader.Load(path) is ItemDefinition item)
+            if (ItemText.AtPath(path) is ItemDefinition item)
             {
                 TryAdd(item);
             }
@@ -422,7 +422,7 @@ public partial class CarrierInventory : Node
 
     private bool OnItemGrantRequested(string path)
     {
-        if (!ResourceLoader.Exists(path) || ResourceLoader.Load(path) is not ItemDefinition item) { return false; }
+        if (ItemText.AtPath(path) is not ItemDefinition item) { return false; }
         return TryAdd(item);
     }
 
@@ -437,7 +437,7 @@ public partial class CarrierInventory : Node
         {
             return false;
         }
-        if (ResourceLoader.Load(itemPath) is not ItemDefinition kind)
+        if (ItemText.AtPath(itemPath) is not ItemDefinition kind)
         {
             GD.PushWarning("CarrierInventory: contract cargo " + itemPath + " is not an ItemDefinition.");
             return false;

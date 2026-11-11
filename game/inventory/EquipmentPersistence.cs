@@ -69,8 +69,7 @@ public static class EquipmentPersistence
             {
                 if (!Guid.TryParseExact(entry.InstanceId, "N", out _) || !identities.Add(entry.InstanceId))
                 { throw new InvalidDataException("Invalid or duplicate item-copy identity"); }
-                if (!entry.Path.StartsWith("res://inventory/items/", StringComparison.Ordinal) || !ResourceLoader.Exists(entry.Path)
-                    || ResourceLoader.Load(entry.Path) is not ItemDefinition definition)
+                if (!entry.Path.StartsWith("res://inventory/items/", StringComparison.Ordinal) || ItemText.AtPath(entry.Path) is not ItemDefinition definition)
                 { throw new InvalidDataException("Missing item resource: " + entry.Path); }
                 if (entry.CargoId.Length > 0)
                 {
