@@ -91,7 +91,7 @@ public partial class StartingKit : Node
         _run.StartingKit.Clear();
         foreach (string path in items)
         {
-            if (ResourceLoader.Load(path) is Resource item && item.Get("DisplayName").AsString() is string name && name.Length > 0)
+            if (Inventory.ItemText.AtPath(path) is Resource item && item.Get("DisplayName").AsString() is string name && name.Length > 0)
             {
                 _run.StartingKit.Add(name);
             }

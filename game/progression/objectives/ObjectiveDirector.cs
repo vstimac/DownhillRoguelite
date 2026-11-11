@@ -220,7 +220,7 @@ public partial class ObjectiveDirector : Node
         List<string> names = new();
         foreach (string path in RewardItemPaths)
         {
-            if (ResourceLoader.Exists(path) && ResourceLoader.Load(path) is ItemDefinition item)
+            if (ItemText.AtPath(path) is ItemDefinition item)
             {
                 names.Add("a " + item.DisplayName.ToLowerInvariant());
             }

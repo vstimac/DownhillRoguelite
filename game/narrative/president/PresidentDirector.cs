@@ -469,7 +469,7 @@ public partial class PresidentDirector : Node3D, IPresidentHost
 
     private WorldItem? Drop(string path, Vector3 at)
     {
-        if (ResourceLoader.Load(path) is not ItemDefinition definition)
+        if (ItemText.AtPath(path) is not ItemDefinition definition)
         {
             return null;
         }
@@ -830,7 +830,7 @@ public partial class PresidentDirector : Node3D, IPresidentHost
         Save.Favor -= ShopCosts[index];
         Save.Save();
         string name = ShopItemPaths[index].GetFile().GetBaseName();
-        if (ResourceLoader.Load(ShopItemPaths[index]) is ItemDefinition item)
+        if (ItemText.AtPath(ShopItemPaths[index]) is ItemDefinition item)
         {
             name = item.DisplayName;
         }

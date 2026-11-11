@@ -271,7 +271,7 @@ public partial class RelicDirector : Node3D
     /// <summary>A stone with candles and the relic on the ground before it (a real item, picked up with E).</summary>
     private Node3D? BuildSite(Placement placement)
     {
-        if (ResourceLoader.Load(placement.Relic.ItemPath) is not ItemDefinition kind || kind.Duplicate() is not ItemDefinition item)
+        if (ItemText.AtPath(placement.Relic.ItemPath) is not ItemDefinition kind || kind.Duplicate() is not ItemDefinition item)
         {
             return null;
         }
