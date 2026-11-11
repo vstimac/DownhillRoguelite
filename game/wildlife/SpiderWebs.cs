@@ -74,6 +74,7 @@ public partial class SpiderWebs : Node3D
         GameEvents.LocomotionUpdated += OnLocomotion;
         GameEvents.NewMountain += OnNewMountain;
         GameEvents.RespawnRequested += Forget;
+        GameEvents.WebGoneRequested += OnWebGone;
         // Headless runs (tests) have no audio output.
         if (DisplayServer.GetName() != "headless")
         {
@@ -88,6 +89,21 @@ public partial class SpiderWebs : Node3D
         GameEvents.LocomotionUpdated -= OnLocomotion;
         GameEvents.NewMountain -= OnNewMountain;
         GameEvents.RespawnRequested -= Forget;
+        GameEvents.WebGoneRequested -= OnWebGone;
+    }
+
+    /// <summary>Someone else went through that web (co-op): it's gone here too, quietly.</summary>
+    private void OnWebGone(string key)
+    {
+        _torn.Add(key);
+        if (_webs.TryGetValue(key, out SpiderWeb? web))
+        {
+            _webs.Remove(key);
+            if (IsInstanceValid(web))
+            {
+                web.QueueFree();
+            }
+        }
     }
 
     private void OnNewMountain(ulong seed) => Forget();
@@ -156,6 +172,7 @@ public partial class SpiderWebs : Node3D
         _webs.Remove(web.Key);
         web.QueueFree();
         PlayTear(web.GlobalPosition);
+        GameEvents.PublishWebTorn(web.Key);
         // A burning torch shrivels the web before it can cling (and nothing feels it tear).
         if (GameEvents.CarrierTorchLit)
         {
