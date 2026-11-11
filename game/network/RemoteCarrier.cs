@@ -26,6 +26,10 @@ public partial class RemoteCarrier : CharacterBody3D
     [Export] public string FallbackClip { get; set; } = "Idle";
     [Export] public string DeathClip { get; set; } = "Death01";
     [Export] public float NameHeight { get; set; } = 2.15f;
+    /// <summary>Further than this (m), the name keeps one size on screen and shows how far they are.</summary>
+    [Export] public float FarName { get; set; } = 25.0f;
+    /// <summary>The far name's size (Label3D pixel size with FixedSize).</summary>
+    [Export] public float FarPixelSize { get; set; } = 0.0011f;
 
     public long PeerId { get; set; }
     public string PlayerName { get; set; } = "";
@@ -49,6 +53,7 @@ public partial class RemoteCarrier : CharacterBody3D
     private AnimationPlayer? _animation;
     private CarrierModel? _look;
     private Label3D? _label;
+    private float _nearPixelSize = 0.004f;
     private CarrierTorch? _torch;
     private Transform3D _modelRest = Transform3D.Identity;
     private Transform3D _lookRest = Transform3D.Identity;
@@ -107,6 +112,7 @@ public partial class RemoteCarrier : CharacterBody3D
             NoDepthTest = true,
             Position = Vector3.Up * NameHeight,
         };
+        _nearPixelSize = _label.PixelSize;
         AddChild(_label);
         Play(FallbackClip, 1.0f);
     }
@@ -158,13 +164,46 @@ public partial class RemoteCarrier : CharacterBody3D
                 }
             }
         }
-        if (_label != null)
+        ShowName();
+    }
+
+    /// <summary>The name over their head: near, a sign in the world; far, a fixed-size tag with the distance.</summary>
+    private void ShowName()
+    {
+        if (_label == null)
         {
-            string text = PlayerName;
-            if (Dead)
+            return;
+        }
+        string text = PlayerName;
+        if (Dead)
+        {
+            text += " (fallen)";
+        }
+        Camera3D? camera = GetViewport()?.GetCamera3D();
+        float distance = 0.0f;
+        if (camera != null)
+        {
+            distance = camera.GlobalPosition.DistanceTo(GlobalPosition);
+        }
+        bool far = distance > FarName;
+        if (far)
+        {
+            text += $"\n{Mathf.RoundToInt(distance)} m";
+        }
+        if (_label.FixedSize != far)
+        {
+            _label.FixedSize = far;
+            if (far)
             {
-                text += " (fallen)";
+                _label.PixelSize = FarPixelSize;
             }
+            else
+            {
+                _label.PixelSize = _nearPixelSize;
+            }
+        }
+        if (_label.Text != text)
+        {
             _label.Text = text;
         }
     }
