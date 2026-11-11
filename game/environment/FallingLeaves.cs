@@ -27,6 +27,8 @@ public partial class FallingLeaves : Node3D
     [Export] public float Easing { get; set; } = 3.0f;
     /// <summary>How often the circle under the camera is looked up, in s.</summary>
     [Export] public float CheckEvery { get; set; } = 0.5f;
+    /// <summary>Share of them shown at Low, Medium and High graphics quality (fewer on slow machines).</summary>
+    [Export] public float[] QualityShare { get; set; } = { 0.35f, 0.7f, 1.0f };
 
     public GpuParticles3D? Emitter => _emitter;
     /// <summary>How thick the fall is now (0 none, 1 full; tests).</summary>
@@ -177,7 +179,18 @@ public partial class FallingLeaves : Node3D
         {
             return;
         }
-        _wanted = Mathf.Clamp(biome.LeafFall, 0.0f, 1.0f);
+        _wanted = Mathf.Clamp(biome.LeafFall, 0.0f, 1.0f) * QualityScale();
         _colour = biome.LeafColour;
+    }
+
+    /// <summary>The share the graphics quality allows (Options: Low shows fewer).</summary>
+    private float QualityScale()
+    {
+        int quality = (int)GameOptions.Quality;
+        if (quality < 0 || quality >= QualityShare.Length)
+        {
+            return 1.0f;
+        }
+        return Mathf.Clamp(QualityShare[quality], 0.0f, 1.0f);
     }
 }

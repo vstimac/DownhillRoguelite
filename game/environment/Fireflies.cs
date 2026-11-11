@@ -27,6 +27,8 @@ public partial class Fireflies : Node3D
     [Export] public float WetAbove { get; set; } = 0.1f;
     [Export] public float Easing { get; set; } = 4.0f;
     [Export] public float CheckEvery { get; set; } = 0.5f;
+    /// <summary>Share of them shown at Low, Medium and High graphics quality (fewer on slow machines).</summary>
+    [Export] public float[] QualityShare { get; set; } = { 0.35f, 0.7f, 1.0f };
 
     public GpuParticles3D? Emitter => _emitter;
     /// <summary>How many are out now (0 none, 1 all; tests).</summary>
@@ -185,6 +187,17 @@ public partial class Fireflies : Node3D
         }
         // Darker is more: they come out at dusk and are all out at full night.
         float dark = Mathf.Clamp((DarkBelow - daylight) / Mathf.Max(DarkBelow, 0.01f) * 2.0f, 0.0f, 1.0f);
-        return Mathf.Clamp(biome.Fireflies, 0.0f, 1.0f) * dark;
+        return Mathf.Clamp(biome.Fireflies, 0.0f, 1.0f) * dark * QualityScale();
+    }
+
+    /// <summary>The share the graphics quality allows (Options: Low shows fewer).</summary>
+    private float QualityScale()
+    {
+        int quality = (int)GameOptions.Quality;
+        if (quality < 0 || quality >= QualityShare.Length)
+        {
+            return 1.0f;
+        }
+        return Mathf.Clamp(QualityShare[quality], 0.0f, 1.0f);
     }
 }
