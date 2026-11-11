@@ -71,6 +71,12 @@ public partial class NetMobs : Node
     }
 
     private readonly Dictionary<int, Node3D> _owned = new();
+    /// <summary>
+    /// Species read for puppets stay loaded: reading one afresh after its puppets were gone let .NET
+    /// finalize the old copy while the new one loaded, a rare crash (Godot: "gchandle.is_released").
+    /// </summary>
+    private readonly Dictionary<string, EnemySpecies?> _enemySpecies = new();
+    private BeastRoster? _roster;
     private readonly Dictionary<ulong, int> _ids = new();
     private readonly Dictionary<(long Owner, int Id), Puppet> _puppets = new();
     private readonly Dictionary<Node3D, (long Owner, int Id)> _puppetKeys = new();
@@ -356,7 +362,7 @@ public partial class NetMobs : Node
             world.AddChild(_holder);
         }
         Node3D? body = null;
-        if (kind == 0 && ResourceLoader.Load(species) is EnemySpecies enemySpecies)
+        if (kind == 0 && Enemy(species) is EnemySpecies enemySpecies)
         {
             HumanoidEnemy enemy = HumanoidEnemy.Create(enemySpecies);
             enemy.Puppet = true;
@@ -378,9 +384,28 @@ public partial class NetMobs : Node
         return body;
     }
 
+    private EnemySpecies? Enemy(string path)
+    {
+        if (_enemySpecies.TryGetValue(path, out EnemySpecies? cached))
+        {
+            return cached;
+        }
+        EnemySpecies? species = null;
+        if (ResourceLoader.Exists(path))
+        {
+            species = ResourceLoader.Load(path) as EnemySpecies;
+        }
+        if (species != null)
+        {
+            _enemySpecies[path] = species;
+        }
+        return species;
+    }
+
     private BeastSpecies? Beast(string species)
     {
-        if (ResourceLoader.Load(BeastRosterPath) is not BeastRoster roster)
+        _roster ??= ResourceLoader.Load(BeastRosterPath) as BeastRoster;
+        if (_roster is not BeastRoster roster)
         {
             return null;
         }
