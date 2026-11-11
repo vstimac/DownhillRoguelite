@@ -40,6 +40,18 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
     public float Health { get; private set; } = 1.0f;
     /// <summary>Another machine's beast (co-op): moved and animated by NetMobs, its blows sent to its owner.</summary>
     public bool Puppet { get; set; }
+    /// <summary>
+    /// Co-op: the other players it may hunt (standing, away from fire; set by the director each tick).
+    /// It goes for whoever is nearest, its owner included, but sticks with its prey unless another is
+    /// clearly closer (TargetLoyalty), and never switches mid-attack.
+    /// </summary>
+    public NetCarrier[] Others { get; set; } = System.Array.Empty<NetCarrier>();
+    /// <summary>Another player counts only this close to the beast, in m (so the pack stays round its owner).</summary>
+    [Export] public float OtherReach { get; set; } = 30.0f;
+    /// <summary>Its current prey's distance counts this much (under 1: it keeps after them).</summary>
+    [Export] public float TargetLoyalty { get; set; } = 0.75f;
+    /// <summary>The player it is after: 0 for its owner, else their peer id.</summary>
+    public long TargetPeer => _targetPeer;
 
     public int NetKind => 1;
     /// <summary>Beasts are sub-resources of one roster: "beast:" and the species name.</summary>
@@ -123,6 +135,8 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
     private float _detourSide = 1.0f;
     private Vector3 _shove;
     private float _height = 1.0f;
+    private long _targetPeer;
+    private bool _targetDown;
 
     public void Setup(BeastSpecies species, ulong seed, uint layer, uint mask)
     {
@@ -219,11 +233,17 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
     /// Advances the beast. <paramref name="mayAttack"/>: the director lets one beast attack at a time
     /// (and none while the carrier is down); <paramref name="safe"/>: fire, shelter or daylight.
     /// </summary>
-    public void Tick(float dt, Vector3 carrier, bool mayAttack, bool safe, float hunger, PhysicsDirectSpaceState3D space)
+    public void Tick(float dt, Vector3 carrier, bool mayAttack, bool safe, float hunger, PhysicsDirectSpaceState3D space, bool carrierDown = false)
     {
         if (Species == null)
         {
             return;
+        }
+        bool attacking = State == Mode.WindUp || State == Mode.Charge || State == Mode.Retreat;
+        carrier = Aim(carrier, carrierDown, attacking);
+        if (_targetDown)
+        {
+            mayAttack = false;
         }
         Vector3 toCarrier = carrier - GlobalPosition;
         toCarrier.Y = 0.0f;
@@ -317,6 +337,72 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
         }
         Step(walk, dt);
         Unstick(walk, dt);
+    }
+
+    /// <summary>
+    /// Picks its prey among its owner (<paramref name="owner"/>) and the other players near it: the
+    /// nearest standing one, its current prey counted a little closer. <paramref name="keep"/> (mid-attack)
+    /// only follows where the current prey is now. Returns the prey's feet.
+    /// </summary>
+    private Vector3 Aim(Vector3 owner, bool ownerDown, bool keep)
+    {
+        if (keep)
+        {
+            if (_targetPeer == 0)
+            {
+                _targetDown = ownerDown;
+                return owner;
+            }
+            foreach (NetCarrier other in Others)
+            {
+                if (other.Peer == _targetPeer)
+                {
+                    _targetDown = other.Down;
+                    return other.Feet;
+                }
+            }
+        }
+        long peer = 0;
+        Vector3 feet = owner;
+        bool down = ownerDown;
+        float best = float.MaxValue;
+        if (!ownerDown)
+        {
+            best = Score(owner, 0);
+        }
+        foreach (NetCarrier other in Others)
+        {
+            if (other.Down)
+            {
+                continue;
+            }
+            float flat = new Vector2(other.Feet.X - GlobalPosition.X, other.Feet.Z - GlobalPosition.Z).Length();
+            if (flat > OtherReach)
+            {
+                continue;
+            }
+            float score = Score(other.Feet, other.Peer);
+            if (score < best)
+            {
+                best = score;
+                peer = other.Peer;
+                feet = other.Feet;
+                down = false;
+            }
+        }
+        _targetPeer = peer;
+        _targetDown = down;
+        return feet;
+    }
+
+    private float Score(Vector3 feet, long peer)
+    {
+        float distance = new Vector2(feet.X - GlobalPosition.X, feet.Z - GlobalPosition.Z).Length();
+        if (peer == _targetPeer)
+        {
+            distance *= TargetLoyalty;
+        }
+        return distance;
     }
 
     /// <summary>Notices when it is held up and tries a detour to one side, then the other.</summary>
@@ -529,6 +615,16 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
     private void Hit()
     {
         BeastSpecies species = Species!;
+        if (_targetPeer != 0)
+        {
+            // Another player's carrier (co-op): the blow is sent to them (their shield, their landing).
+            Hits++;
+            GameEvents.PublishNetStrike(new NetStrike(_targetPeer, 0.0f, _chargeDirection, species.ThrowSpeed, false, 0.0f,
+                species.ThrowHeight, species.DisplayName));
+            State = Mode.Retreat;
+            Play(species.RunClip, 1.0f);
+            return;
+        }
         if (GameEvents.TryBlock(_chargeDirection, species.DisplayName))
         {
             // The shield takes it: thrown back, it backs off and thinks again.

@@ -65,7 +65,10 @@ public static partial class GameEvents
         {
             return;
         }
-        RequestDamage(strike.Damage, strike.Cause);
+        if (strike.Damage > 0.0f)
+        {
+            RequestDamage(strike.Damage, strike.Cause);
+        }
         RequestCameraShake(0.05f + strike.Push * 0.02f);
         if (strike.Knockdown)
         {

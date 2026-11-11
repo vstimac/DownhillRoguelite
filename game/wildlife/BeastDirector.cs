@@ -169,6 +169,16 @@ public partial class BeastDirector : Node3D
         {
             hunger *= TorchHunger;
         }
+        // Co-op: the other players the beasts may go for (standing, and not by a station's fire).
+        System.Collections.Generic.List<NetCarrier> prey = new();
+        foreach (NetCarrier other in GameEvents.OtherCarriers)
+        {
+            if (!other.Down && !NearFire(other.Feet))
+            {
+                prey.Add(other);
+            }
+        }
+        NetCarrier[] others = prey.ToArray();
         bool someoneAttacking = false;
         foreach (NightBeast beast in _beasts)
         {
@@ -182,12 +192,13 @@ public partial class BeastDirector : Node3D
             NightBeast beast = _beasts[i];
             NightBeast.Mode before = beast.State;
             beast.FoodInPack = food;
-            bool mayAttack = !someoneAttacking && !downed;
-            beast.Tick(dt, carrier, mayAttack, !Hunting, hunger, space);
+            beast.Others = others;
+            bool mayAttack = !someoneAttacking;
+            beast.Tick(dt, carrier, mayAttack, !Hunting, hunger, space, downed);
             if (beast.State == NightBeast.Mode.WindUp && before != NightBeast.Mode.WindUp)
             {
                 someoneAttacking = true;
-                if (!_toldGrowl)
+                if (!_toldGrowl && beast.TargetPeer == 0)
                 {
                     _toldGrowl = true;
                     GameEvents.PublishHint($"A growl behind you: the {beast.Species?.DisplayName} is about to charge. Get out of its way!");
