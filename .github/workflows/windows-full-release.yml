@@ -1,0 +1,98 @@
+name: Windows full release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to upload the complete Windows build to
+        required: true
+        type: string
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-full-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event_name != 'release' || github.event.release.draft == false
+    runs-on: windows-2022
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Download pinned Godot Mono and export templates
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = '4.7.2'
+          $tag = "$version-stable"
+          $base = "https://github.com/godotengine/godot/releases/download/$tag"
+          New-Item -ItemType Directory -Force -Path .ci | Out-Null
+          $editor = "Godot_v${tag}_mono_win64.zip"
+          $templates = "Godot_v${tag}_mono_export_templates.tpz"
+          Invoke-WebRequest "$base/SHA512-SUMS.txt" -OutFile .ci/SHA512-SUMS.txt
+          foreach ($file in @($editor,$templates)) {
+            Invoke-WebRequest "$base/$file" -OutFile ".ci/$file"
+            $line = Get-Content .ci/SHA512-SUMS.txt | Where-Object { $_ -match [regex]::Escape($file) + '$' } | Select-Object -First 1
+            if (-not $line) { throw "No SHA512 entry for $file" }
+            $expected = ($line.Trim() -split '\\s+')[0].ToLowerInvariant()
+            $actual = (Get-FileHash ".ci/$file" -Algorithm SHA512).Hash.ToLowerInvariant()
+            if ($expected -ne $actual) { throw "Checksum mismatch: $file" }
+          }
+          Expand-Archive ".ci/$editor" -DestinationPath .ci/godot
+          Copy-Item ".ci/$templates" ".ci/templates.zip"
+          $templateDir = Join-Path $env:APPDATA 'Godot/export_templates/4.7.2.stable.mono'
+          New-Item -ItemType Directory -Force -Path $templateDir | Out-Null
+          Expand-Archive .ci/templates.zip -DestinationPath .ci/templates
+          Copy-Item .ci/templates/templates/* $templateDir -Recurse -Force
+          $exe = Get-ChildItem .ci/godot -Filter '*mono_win64.exe' -Recurse | Select-Object -First 1
+          if (-not $exe) { throw 'Godot Mono executable missing' }
+          "GODOT_EXE=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Fetch optional native library
+        shell: bash
+        working-directory: game
+        run: bash scripts/fetch_nobodywho.sh windows
+      - name: Import project and build C#
+        shell: pwsh
+        working-directory: game
+        run: |
+          & $env:GODOT_EXE --headless --path . --import
+          if ($LASTEXITCODE -ne 0) { throw 'Godot import failed' }
+          dotnet build -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'C# build failed' }
+      - name: Export complete Windows build
+        shell: pwsh
+        working-directory: game
+        run: |
+          New-Item -ItemType Directory -Force -Path build/windows | Out-Null
+          & $env:GODOT_EXE --headless --path . --export-release 'Windows Desktop' build/windows/DownhillRoguelite.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Windows export failed' }
+          if (-not (Test-Path build/windows/DownhillRoguelite.exe)) { throw 'Missing game EXE' }
+          if (-not (Test-Path build/windows/DownhillRoguelite.pck)) { throw 'Missing game PCK' }
+          $files = Get-ChildItem build/windows -Recurse -File
+          if ($files.Count -lt 2) { throw 'Incomplete export' }
+          Compress-Archive -Path build/windows/* -DestinationPath ../../DownhillRoguelite-windows-full.zip -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DownhillRoguelite-windows-full
+          path: DownhillRoguelite-windows-full.zip
+          retention-days: 14
+      - name: Attach full build to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        shell: pwsh
+        run: |
+          gh release view "$env:RELEASE_TAG" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Release does not exist' }
+          gh release upload "$env:RELEASE_TAG" DownhillRoguelite-windows-full.zip --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }
