@@ -20,6 +20,7 @@ public partial class SpiderWebTests : Node3D
     private readonly List<string> _failures = new();
     private int _snares;
     private float _snareSpeed;
+    private readonly List<string> _torn = new();
 
     public override async void _Ready()
     {
@@ -30,6 +31,7 @@ public partial class SpiderWebTests : Node3D
             return;
         }
         GameEvents.Snared += OnSnared;
+        GameEvents.WebTorn += OnTorn;
         // Two trunks 3.5 m apart (a web fits between), and one standing alone.
         StaticBody3D trees = new() { Name = "Trees" };
         trees.AddToGroup(TerrainChunk.TreeGroup);
@@ -84,11 +86,24 @@ public partial class SpiderWebTests : Node3D
         Check("a burning torch burns through a web without being caught", webs.Burned == 1 && webs.Webs.Count == 0 && _snares == snares,
             $"burned {webs.Burned}, snared {_snares - snares} more times");
 
+        // Someone else went through it (co-op): it goes here too, without a snare, and stays gone.
+        webs.Forget();
+        webs.Refresh();
+        await Frames(2);
+        int before = _snares;
+        GameEvents.RequestWebGone(key);
+        await Frames(2);
+        webs.Refresh();
+        await Frames(2);
+        Check("a web someone else tore goes here too, without a snare", webs.Webs.Count == 0 && _snares == before && _torn.Contains(key),
+            $"{webs.Webs.Count} webs, snared {_snares - before} times, announced {string.Join(",", _torn)}");
+
         webs.CircleOverride = 1;
         await Frames(Mathf.CeilToInt(webs.CheckEvery * 60.0f) + 10);
         Check("no webs in the upper circles", webs.Webs.Count == 0, $"{webs.Webs.Count} webs");
 
         GameEvents.Snared -= OnSnared;
+        GameEvents.WebTorn -= OnTorn;
         if (_failures.Count == 0)
         {
             GD.Print("SPIDER WEB TESTS: PASS");
@@ -100,6 +115,8 @@ public partial class SpiderWebTests : Node3D
             GetTree().Quit(1);
         }
     }
+
+    private void OnTorn(string key) => _torn.Add(key);
 
     private void OnSnared(float seconds, float speed)
     {
