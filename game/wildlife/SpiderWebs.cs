@@ -36,6 +36,7 @@ public partial class SpiderWebs : Node3D
     /// <summary>Stride speed while the web clings (share of normal).</summary>
     [Export] public float SnareSpeed { get; set; } = 0.35f;
     [Export] public string SnareHint { get; set; } = "You blunder into a spider web. It clings to your legs…";
+    [Export] public string BurnHint { get; set; } = "Your torch burns through a spider web.";
     [Export] public string[] TearSounds { get; set; } = { "res://audio/creatures/web_tear_0.wav", "res://audio/creatures/web_tear_1.wav" };
     [Export] public StringName SoundBus { get; set; } = "Ambience";
     [Export] public float TearVolumeDb { get; set; } = -2.0f;
@@ -46,6 +47,8 @@ public partial class SpiderWebs : Node3D
     public IReadOnlyCollection<SpiderWeb> Webs => _webs.Values;
     /// <summary>Webs the carrier tore this run (tests).</summary>
     public int Torn => _torn.Count;
+    /// <summary>Webs a burning torch went through (tests).</summary>
+    public int Burned { get; private set; }
 
     private readonly Dictionary<string, SpiderWeb> _webs = new();
     private readonly HashSet<string> _torn = new();
@@ -145,8 +148,18 @@ public partial class SpiderWebs : Node3D
         _torn.Add(web.Key);
         _webs.Remove(web.Key);
         web.QueueFree();
-        GameEvents.PublishSnared(SnareSeconds, SnareSpeed);
         PlayTear(web.GlobalPosition);
+        // A burning torch shrivels the web before it can cling (and nothing feels it tear).
+        if (GameEvents.CarrierTorchLit)
+        {
+            Burned++;
+            if (BurnHint.Length > 0)
+            {
+                GameEvents.PublishHint(BurnHint);
+            }
+            return;
+        }
+        GameEvents.PublishSnared(SnareSeconds, SnareSpeed);
         if (SnareHint.Length > 0)
         {
             GameEvents.PublishHint(SnareHint);

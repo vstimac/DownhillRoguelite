@@ -11,7 +11,7 @@ namespace DownhillRoguelite.Debug;
 /// <summary>
 /// Spider webs: strung between two trees standing close together in the deeper circles, always the
 /// same pairs; walking through one tears it and slows the carrier's stride for a while; a torn web
-/// stays torn until a new run; none in the upper circles.
+/// stays torn until a new run; a burning torch burns through one; none in the upper circles.
 /// </summary>
 public partial class SpiderWebTests : Node3D
 {
@@ -72,6 +72,17 @@ public partial class SpiderWebTests : Node3D
         webs.Refresh();
         await Frames(2);
         Check("a new run: the same web hangs in the same place again", webs.Webs.Count == 1 && webs.Webs.First().Key == key, key);
+
+        // With a burning torch the web shrivels: it's gone, but nothing clings.
+        GameEvents.PublishTorch(true);
+        int snares = _snares;
+        Player.Teleport(new Vector3(0.0f, 0.1f, -5.6f), 0.0f);
+        await Frames(3);
+        Player.Teleport(new Vector3(0.0f, 0.1f, -4.4f), 0.0f);
+        await Frames(3);
+        GameEvents.PublishTorch(false);
+        Check("a burning torch burns through a web without being caught", webs.Burned == 1 && webs.Webs.Count == 0 && _snares == snares,
+            $"burned {webs.Burned}, snared {_snares - snares} more times");
 
         webs.CircleOverride = 1;
         await Frames(Mathf.CeilToInt(webs.CheckEvery * 60.0f) + 10);
