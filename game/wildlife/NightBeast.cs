@@ -425,7 +425,7 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget
             name = "beast";
         }
         GameEvents.PublishEnemyKilled(name);
-        Loot.Scatter(this, GlobalPosition, name);
+        Loot.Scatter(this, GlobalPosition, name, Species?.Trophies);
     }
 
     public void TakeHit(float damage, Vector3 push, string source)

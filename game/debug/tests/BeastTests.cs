@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using DownhillRoguelite.Core;
+using DownhillRoguelite.Inventory;
 using DownhillRoguelite.Player;
 using DownhillRoguelite.Terrain;
 using DownhillRoguelite.Wildlife;
@@ -112,6 +113,13 @@ public partial class BeastTests : Node3D
 				}
 			}
 			model.Free();
+			foreach (string trophy in species.Trophies)
+			{
+				if (ItemText.Find(trophy) == null)
+				{
+					missing.Add($"{species.DisplayName}: trophy {trophy}");
+				}
+			}
 			List<string> sounds = new(species.GrowlSounds);
 			sounds.AddRange(species.SnarlSounds);
 			sounds.AddRange(species.CallSounds);
@@ -123,7 +131,7 @@ public partial class BeastTests : Node3D
 				}
 			}
 		}
-		Check("every beast has its model, clips and voice", roster.Beasts.Length >= 4 && missing.Count == 0,
+		Check("every beast has its model, clips, voice and trophies", roster.Beasts.Length >= 4 && missing.Count == 0,
 			$"{roster.Beasts.Length} beasts; missing: {string.Join(", ", missing)}");
 	}
 

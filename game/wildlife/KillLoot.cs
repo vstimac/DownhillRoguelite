@@ -36,7 +36,7 @@ public partial class KillLoot : Resource
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
 
     /// <summary>Throws the loot out of a body at <paramref name="from"/> (its feet); returns the items.</summary>
-    public List<WorldItem> Scatter(Node3D body, Vector3 from, string killed)
+    public List<WorldItem> Scatter(Node3D body, Vector3 from, string killed, string[]? always = null)
     {
         List<WorldItem> dropped = new();
         if (!body.IsInsideTree())
@@ -52,6 +52,11 @@ public partial class KillLoot : Resource
         if (Rare.Length > 0 && GD.Randf() < RareChance)
         {
             ids.Add(Rare[GD.RandRange(0, Rare.Length - 1)]);
+        }
+        // What this kind always leaves (the giant spider's silk).
+        if (always != null)
+        {
+            ids.AddRange(always);
         }
         Node parent = body.GetTree().CurrentScene ?? body.GetTree().Root;
         PhysicsDirectSpaceState3D space = body.GetWorld3D().DirectSpaceState;

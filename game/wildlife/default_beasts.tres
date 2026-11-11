@@ -120,6 +120,7 @@ ChargeTurnSpeed = 30.0
 ThrowHeight = 2.5
 ThrowSpeed = 7.0
 MinCircle = 3
+Trophies = PackedStringArray("spider_silk")
 Weight = 1.5
 Health = 90.0
 

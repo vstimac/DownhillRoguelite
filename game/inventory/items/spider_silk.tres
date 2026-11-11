@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemDefinition" format=3]
+
+[ext_resource type="Script" path="res://inventory/ItemDefinition.cs" id="1_item"]
+
+[resource]
+script = ExtResource("1_item")
+ItemId = "spider_silk"
+DisplayName = "Spider silk"
+Description = "A hank of the giant spider's silk, fine as hair and strong as wire. Mends cloth and packs."
+MassKg = 0.05
+Category = 5
+SizeCells = Vector3i(2, 1, 2)
+Tags = 0
+Orientation = 0
+DebugColor = Color(0.92, 0.92, 0.95, 1)
+MendsTypes = PackedStringArray("cloth", "backpack")
+MendAmount = 35.0
