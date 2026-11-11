@@ -14,6 +14,11 @@ A dark survival adventure about descending a mountain that never ends — toward
 
 ## ⬇ Download the game (free)
 
+**Latest update: [Beta 2.7 — spiders, torches and fire](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.2.7-beta)** · 11 November 2026
+
+**New player?** Download the full Beta 2.5 game below, extract it, then run `Update game.bat` to update to Beta 2.7. **Already installed?** Close the game and run `Update game.bat`.
+
+
 [![Download for Windows — Beta 2.5, 390 MB](https://img.shields.io/badge/Download%20for%20Windows-Beta%202.5%20%7C%20390%20MB-2ea44f?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-beta-2.5-windows.zip)
 
 [![Download for Linux (experimental)](https://img.shields.io/badge/Linux-experimental-555555?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-linux-beta.tar.gz) [![Join the Downhill Roguelite Discord](https://img.shields.io/badge/Discord-Join%20the%20descent-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/vhPkSvPk2)
@@ -44,7 +49,7 @@ A dark survival adventure about descending a mountain that never ends — toward
 
 ## Download and play
 
-**Latest published Windows build: [v0.2.5-beta](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.2.5-beta)** (10 November 2026).
+**Latest update: [v0.2.7-beta](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.2.7-beta)** (11 November 2026). New players should install the full Beta 2.5 game first, then run `Update game.bat` to get Beta 2.7.
 
 1. Download [`DownhillRoguelite-beta-2.5-windows.zip`](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-beta-2.5-windows.zip) (~390 MB).
 2. Right-click the ZIP and choose **Extract All**. **Don't run the game from inside the ZIP**: Windows then copies only the `.exe` out and the game closes straight away.
