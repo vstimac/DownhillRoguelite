@@ -155,7 +155,7 @@ public partial class CharacterPage : ParchmentPanel
         _scroll.Position = new Vector2(Margin, top);
         _scroll.Size = new Vector2(Size.X - Margin * 2.0f, Mathf.Max(Size.Y - top - 75.0f, 90.0f));
         _carousel.Size = new Vector2(_scroll.Size.X - 14.0f, 170.0f);
-        _carousel.CustomMinimumSize = new Vector2(0, Mathf.Max(170, _carousel.NeededHeight() + 8));
+        _carousel.FitHeight();
         _done.Position = new Vector2((Size.X - 240.0f) * 0.5f, Size.Y - 60.0f);
         _done.Size = new Vector2(240.0f, 42.0f);
     }

@@ -37,6 +37,11 @@ public partial class Biome : Resource
     [Export] public string[] FlowerModels { get; set; } = System.Array.Empty<string>();
     /// <summary>Flowers per m² on grassy ground.</summary>
     [Export] public float FlowerDensity { get; set; }
+    /// <summary>How thick leaves fall round the carrier (0 none, 1 an autumn wood; environment/FallingLeaves).</summary>
+    [Export(PropertyHint.Range, "0,1")] public float LeafFall { get; set; }
+    [Export] public Color LeafColour { get; set; } = new(0.8f, 0.45f, 0.15f);
+    /// <summary>How many fireflies come out on dry nights (0 none, 1 a meadow full; environment/Fireflies).</summary>
+    [Export(PropertyHint.Range, "0,1")] public float Fireflies { get; set; }
 
     public static Biome Make(string name, float from, Color tint, string[] trees, float treeDensity, Vector2 treeHeight, float lean,
         string[] grass, float grassDensity, string[] flowers, float flowerDensity)

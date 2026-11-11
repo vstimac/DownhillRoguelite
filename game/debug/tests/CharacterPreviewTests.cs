@@ -28,8 +28,9 @@ public partial class CharacterPreviewTests : Node3D
             Skeleton3D? rig = look.Follower?.GetSkeleton();
             if (rig != null && look.Follower != null)
             {
-                int arm = RigFollower.FindBone(rig, "LeftArm");
-                int elbow = RigFollower.FindBone(rig, "LeftForeArm");
+                // The rig's own left upper arm and forearm (Mixamo, Unreal or Tripo names).
+                int arm = RigFollower.FindBone(rig, look.Follower.AlignBones[0]);
+                int elbow = RigFollower.FindBone(rig, look.Follower.AlignBones[1]);
                 Vector3 direction = rig.GlobalBasis * (look.Follower.TargetPose[elbow] - look.Follower.TargetPose[arm]);
                 Check(id + " arms leave the T-pose while the menu is paused", Mathf.Abs(direction.Normalized().Dot(Vector3.Up)) > 0.65f);
             }

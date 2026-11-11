@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://art/creatures/quaternius_wolf/FBX/Wolf.fbx" id="2_wolf"]
 [ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-tiger.glb" id="3_tiger"]
 [ext_resource type="PackedScene" path="res://art/creatures/kenney_cube_pets/GLB format/animal-lion.glb" id="4_lion"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_enemies/FBX/Spider.fbx" id="6_spider"]
 
 [sub_resource type="Resource" id="SheWolf"]
 script = ExtResource("1_species")
@@ -89,6 +90,39 @@ ThrowSpeed = 8.0
 MinCircle = 2
 Weight = 1.5
 
+[sub_resource type="Resource" id="Spider"]
+script = ExtResource("1_species")
+GrowlSounds = PackedStringArray("res://audio/creatures/spider_hiss_0.wav", "res://audio/creatures/spider_hiss_1.wav")
+SnarlSounds = PackedStringArray("res://audio/creatures/spider_shriek_0.wav", "res://audio/creatures/spider_shriek_1.wav")
+CallSounds = PackedStringArray("res://audio/creatures/spider_chitter_0.wav", "res://audio/creatures/spider_chitter_1.wav")
+CallInterval = Vector2(10, 20)
+DisplayName = "giant spider"
+Model = ExtResource("6_spider")
+ModelScale = 0.4
+IdleClip = "SpiderArmature|Spider_Idle"
+WalkClip = "SpiderArmature|Spider_Walk"
+RunClip = "SpiderArmature|Spider_Walk"
+RunClipSpeed = 2.5
+Shade = Color(0.02, 0.02, 0.03, 0.85)
+EyeColor = Color(0.9, 0.1, 0.1, 1)
+EyeOffset = Vector3(0, 0.5, -0.85)
+EyeSize = 0.035
+EyeSpacing = 0.12
+BodySize = Vector3(1.6, 0.9, 1.6)
+MaxSlope = 75.0
+StalkRadius = Vector2(12, 20)
+StalkSpeed = 2.6
+CatchUpSpeed = 8.0
+AttackInterval = Vector2(14, 26)
+WindUp = 1.0
+ChargeSpeed = 11.0
+ChargeTurnSpeed = 30.0
+ThrowHeight = 2.5
+ThrowSpeed = 7.0
+MinCircle = 3
+Weight = 1.5
+Health = 90.0
+
 [resource]
 script = ExtResource("5_roster")
-Beasts = Array[Object]([SubResource("SheWolf"), SubResource("Leopard"), SubResource("Lion")])
+Beasts = Array[Object]([SubResource("SheWolf"), SubResource("Leopard"), SubResource("Lion"), SubResource("Spider")])

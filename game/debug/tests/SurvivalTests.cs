@@ -228,6 +228,8 @@ public partial class SurvivalTests : Node3D
         stamina.Refill();
     }
 
+    private static readonly ulong[] DepthSeeds = { 1234, 999, 31337, 2024, 77, 4096, 51, 8675309 };
+
     private async Task TestSupplies(PlayerController player, SupplySpawner supplies, RunState run)
     {
         IRouteQuery route = run.Route!;
@@ -255,13 +257,19 @@ public partial class SurvivalTests : Node3D
                     {
                         nearRoute++;
                     }
+                }
+                // Thinning is a trend, so it's counted over several mountains (one seed is too few items).
+                // Side paths are left out: how many branch off depends on the stage, not the depth.
+                foreach (ulong seed in DepthSeeds)
+                {
+                    int planned = supplies.PlanCell(cell, seed, route, multiplier).Count(slot => !slot.Key.StartsWith("b") && !slot.Key.StartsWith("c"));
                     if (row < 15)
                     {
-                        shallow++;
+                        shallow += planned;
                     }
                     else if (row >= 45)
                     {
-                        deep++;
+                        deep += planned;
                     }
                 }
             }
@@ -275,7 +283,7 @@ public partial class SurvivalTests : Node3D
         float farDensity = Mathf.Max(total - nearRoute, 1) / restArea;
         Check("supplies are much denser along the route", nearDensity >= farDensity * MinRouteDensityRatio,
             $"{nearRoute} of {total} within {supplies.Table.RouteBand:0} m: {nearDensity / farDensity:0.0}× denser than elsewhere");
-        Check("supplies thin out with depth", deep < shallow, $"first 15 rows {shallow}, last 15 rows {deep}");
+        Check("supplies thin out with depth", deep < shallow, $"main path and scatter over {DepthSeeds.Length} mountains: first 15 rows {shallow}, last 15 rows {deep}");
 
         await Place(player, route.RoutePoint(route.StartZ - 5.0f));
         await WaitSeconds(1.0f);

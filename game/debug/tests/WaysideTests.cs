@@ -265,10 +265,13 @@ public partial class WaysideTests : Node3D
 
     private async Task TestNewRun(WaysidePlacer placer)
     {
+        List<WaysideSite> before = placer.Sites.Values.ToList();
         GameEvents.PublishRespawnRequest();
         await WaitSeconds(0.2f);
-        bool cleared = placer.Sites.Count == 0 && GameEvents.NearestWayside == null && !placer.IsUsed(_used.FirstOrDefault().Id ?? "");
-        Check("a new run clears every site and what was taken", cleared, $"sites {placer.Sites.Count}, nearest '{GameEvents.NearestWayside?.Title}'");
+        // The new run may already have planted its own first site by the carrier; none of the old may stay.
+        int stayed = before.Count(site => IsInstanceValid(site) && !site.IsQueuedForDeletion() && placer.Sites.Values.Contains(site));
+        bool cleared = stayed == 0 && !placer.IsUsed(_used.FirstOrDefault().Id ?? "");
+        Check("a new run clears every site and what was taken", cleared, $"{stayed} of {before.Count} old sites stayed, {placer.Sites.Count} new");
     }
 
     private async Task Place(PlayerController player, Vector3 position, float settle)
