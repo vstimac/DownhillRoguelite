@@ -78,6 +78,21 @@ public partial class MapCanvas : Control
         // Supplies lying on ground already seen: a dot in their colour (food, water, gear, cloth, mending).
         DrawLoot(chart, centre, metresPerPixel, size);
 
+        // Co-op: the other players, green discs (hollow while they're down).
+        foreach (NetCarrier other in GameEvents.OtherCarriers)
+        {
+            Vector2 at = ToPixel(new Vector2(other.Feet.X, other.Feet.Z), centre, metresPerPixel, size);
+            if (other.Down)
+            {
+                DrawArc(at, 8.0f, 0.0f, Mathf.Tau, 16, new Color(Ink, 0.6f), 2.5f, true);
+            }
+            else
+            {
+                DrawCircle(at, 10.0f, Ink);
+                DrawCircle(at, 7.5f, TeammateInk);
+            }
+        }
+
         // The carrier: a bright disc under an arrow pointing the way he faces, easy to find at a glance.
         Vector2 me = ToPixel(Map.CarrierPoint, centre, metresPerPixel, size);
         DrawCircle(me, 15.0f, new Color(Paper, 0.9f));
@@ -164,6 +179,8 @@ public partial class MapCanvas : Control
     /// <summary>How far ahead (downhill) unseen paths are sketched in, in m.</summary>
     [Export] public float AheadReach { get; set; } = 900.0f;
     [Export] public Color StationInk { get; set; } = new(0.85f, 0.45f, 0.1f);
+    /// <summary>Co-op teammates on the sheet.</summary>
+    [Export] public Color TeammateInk { get; set; } = new(0.18f, 0.5f, 0.32f);
 
     /// <summary>An arrow from the carrier toward the next station, with its number and distance; at the sheet's edge if it's off the sheet.</summary>
     private void DrawStationArrow(IRouteQuery route, Vector2 centre, float metresPerPixel, Vector2 size, Font font)
