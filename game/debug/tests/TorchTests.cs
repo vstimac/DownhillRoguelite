@@ -79,7 +79,7 @@ public partial class TorchTests : Node3D
         PressStow();
         await Seconds(1.0f);
         Vector3 belt = torch.GlobalPosition - Player.GlobalPosition;
-        Check("X puts it away: snuffed, dark, keeping its time", torch.Stowed && !torch.Lit && !GameEvents.CarrierTorchLit
+        Check("X puts it away: snuffed, dark, keeping its time", torch.Stowed && !torch.Lit && !GameEvents.CarrierTorchLit && GameEvents.CarrierTorchStowed
             && fire?.Light?.Visible == false && Mathf.Abs(torch.Left - kept) < 0.2f,
             $"stowed {torch.Stowed}, left {torch.Left:0} s of {kept:0}");
         Check("put away, it hangs at the belt", belt.Y > 0.5f && belt.Y < 1.3f && new Vector2(belt.X, belt.Z).Length() < 0.6f,
@@ -93,6 +93,20 @@ public partial class TorchTests : Node3D
         GameEvents.RequestTorch(30.0f);
         await Frames(2);
         Check("a new torch from the pack takes the put-away one out", !torch.Stowed && torch.Lit, $"lit {torch.Lit}, left {torch.Left:0} s");
+
+        // Co-op: another player's torch follows what their machine says: in the hand, at the belt, or none.
+        CarrierTorch remote = new() { Name = "RemoteTorch", Remote = true };
+        AddChild(remote);
+        await Frames(2);
+        remote.SetRemote(false, true);
+        bool atBelt = remote.Stowed && !remote.Lit && remote.Left > 0.0f;
+        remote.SetRemote(true, false);
+        bool inHand = !remote.Stowed && remote.Lit;
+        remote.SetRemote(false, false);
+        bool none = !remote.Stowed && !remote.Lit && remote.Left <= 0.0f;
+        Check("another player's torch shows lit, put away at the belt, or not at all", atBelt && inHand && none,
+            $"belt {atBelt}, hand {inHand}, none {none}");
+        remote.QueueFree();
 
         if (_failures.Count == 0)
         {

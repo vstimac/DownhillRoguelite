@@ -39,7 +39,7 @@ public partial class NetSession : Node
     }
 
     /// <summary>Peers must speak the same protocol (a join from another version is turned away).</summary>
-    public const string ProtocolVersion = "downhill-coop-4";
+    public const string ProtocolVersion = "downhill-coop-5";
 
     [Export] public int DefaultPort { get; set; } = 7777;
     [Export] public int MaxPlayers { get; set; } = 4;
@@ -493,7 +493,7 @@ public partial class NetSession : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered, TransferChannel = 1)]
-    private void State(Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead, bool torch)
+    private void State(Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead, int torch)
     {
         if (Mode != Role.Host)
         {
@@ -668,7 +668,7 @@ public partial class NetSession : Node
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered, TransferChannel = 1)]
-    private void PeerState(long id, Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead, bool torch)
+    private void PeerState(long id, Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead, int torch)
     {
         if (Mode != Role.Client || id == LocalId || !_peers.TryGetValue(id, out NetPeer? peer))
         {
@@ -1064,6 +1064,20 @@ public partial class NetSession : Node
         }
     }
 
+    /// <summary>The local torch for the others: 1 burning in the hand, 2 put away at the belt, 0 none.</summary>
+    private static int LocalTorch()
+    {
+        if (GameEvents.CarrierTorchLit)
+        {
+            return 1;
+        }
+        if (GameEvents.CarrierTorchStowed)
+        {
+            return 2;
+        }
+        return 0;
+    }
+
     private void SendState()
     {
         PlayerController? player = LocalPlayer();
@@ -1092,12 +1106,12 @@ public partial class NetSession : Node
         {
             foreach (long id in _peers.Keys)
             {
-                RpcId(id, MethodName.PeerState, 1L, position, yaw, clip, clipPosition, clipSpeed, LocalDead, GameEvents.CarrierTorchLit);
+                RpcId(id, MethodName.PeerState, 1L, position, yaw, clip, clipPosition, clipSpeed, LocalDead, LocalTorch());
             }
         }
         else
         {
-            RpcId(1, MethodName.State, position, yaw, clip, clipPosition, clipSpeed, LocalDead, GameEvents.CarrierTorchLit);
+            RpcId(1, MethodName.State, position, yaw, clip, clipPosition, clipSpeed, LocalDead, LocalTorch());
         }
     }
 

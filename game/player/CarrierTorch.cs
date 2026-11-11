@@ -42,7 +42,7 @@ public partial class CarrierTorch : Node3D
     public bool Lit => Left > 0.0f && !Stowed;
     /// <summary>Put away at the belt, snuffed, with time left in it.</summary>
     public bool Stowed { get; private set; }
-    /// <summary>Another player's torch (co-op): lit and put out by SetRemoteLit only, never by this machine's pack or keys.</summary>
+    /// <summary>Another player's torch (co-op): lit, put away and put out by SetRemote only, never by this machine's pack or keys.</summary>
     public bool Remote { get; set; }
     /// <summary>The fitting scene drives the torch itself (no keys, no burning down).</summary>
     public bool Fitting { get; set; }
@@ -73,6 +73,7 @@ public partial class CarrierTorch : Node3D
             return;
         }
         GameEvents.TorchRequested += OnTorchRequested;
+        GameEvents.PublishTorchStowed(false);
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             if (arg == "--torch")
@@ -100,16 +101,17 @@ public partial class CarrierTorch : Node3D
         }
     }
 
-    /// <summary>Another player's torch burns or is out, as their machine says (co-op).</summary>
-    public void SetRemoteLit(bool lit)
+    /// <summary>Another player's torch burns in their hand, is put away at their belt, or is out, as their machine says (co-op).</summary>
+    public void SetRemote(bool lit, bool stowed)
     {
-        if (lit == Lit)
+        bool has = lit || stowed;
+        if (has == Left > 0.0f && stowed == Stowed)
         {
             return;
         }
-        Stowed = false;
+        Stowed = stowed && !lit;
         Left = 0.0f;
-        if (lit)
+        if (has)
         {
             Left = float.MaxValue;
         }
@@ -121,6 +123,7 @@ public partial class CarrierTorch : Node3D
         bool was = Lit;
         Left += seconds;
         Stowed = false;
+        GameEvents.PublishTorchStowed(false);
         ShowState();
         if (!was)
         {
@@ -160,6 +163,7 @@ public partial class CarrierTorch : Node3D
         ShowState();
         if (!Remote && !Fitting)
         {
+            GameEvents.PublishTorchStowed(true);
             GameEvents.PublishTorch(false);
             GameEvents.PublishHint(string.Format(StowHint, Mathf.Max(1, Mathf.RoundToInt(Left / 60.0f))));
         }
@@ -176,6 +180,7 @@ public partial class CarrierTorch : Node3D
         ShowState();
         if (!Remote && !Fitting)
         {
+            GameEvents.PublishTorchStowed(false);
             GameEvents.PublishTorch(true);
             GameEvents.PublishHint(UnstowHint);
         }

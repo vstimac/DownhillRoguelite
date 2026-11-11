@@ -23,4 +23,9 @@ public static partial class GameEvents
         CarrierTorchLit = lit;
         TorchChanged?.Invoke(lit);
     }
+
+    /// <summary>Whether the carrier's torch is put away at the belt (still has time left; co-op shows it there).</summary>
+    public static bool CarrierTorchStowed { get; private set; }
+
+    public static void PublishTorchStowed(bool stowed) => CarrierTorchStowed = stowed;
 }

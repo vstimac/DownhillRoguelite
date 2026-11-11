@@ -112,10 +112,11 @@ public partial class RemoteCarrier : CharacterBody3D
     }
 
     /// <summary>A new state from their machine: where they stand, which way they face, what they do.</summary>
-    public void Receive(Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead, bool torch)
+    public void Receive(Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, bool dead, int torch)
     {
         States++;
-        _torch?.SetRemoteLit(torch && !dead);
+        // 1: burning in the hand, 2: put away at the belt, 0: none.
+        _torch?.SetRemote(torch == 1 && !dead, torch == 2 && !dead);
         if (!position.IsFinite() || !Mathf.IsFinite(yaw))
         {
             return;
