@@ -41,7 +41,7 @@ public partial class AnimationSmoothTests : Node3D
         }
         Check($"actual gait clocks stay in phase across changing speeds (error {phaseError:0.0000})", phaseError < 0.001f);
         CarrierModel look = _body.GetNode<CarrierModel>("CarrierModel");
-        Check("Vučić can use the same locomotion driver", look.ShowCharacter("vucic"));
+        Check("an outfit preset can use the same locomotion driver", look.ShowCharacter("carrier_ranger"));
         await Frames(5);
         if (look.Follower == null) { GetTree().Quit(1); return; }
         RigFollower follower = look.Follower!;
@@ -52,7 +52,7 @@ public partial class AnimationSmoothTests : Node3D
         Vector3[] previous = follower.TargetPose;
         float maxStep = 0;
         bool finite = previous.Length > 20;
-        float height = follower.GetSkeleton()!.GetBoneGlobalRest(RigFollower.FindBone(follower.GetSkeleton()!, "mixamorig1_Hips")).Origin.Length();
+        float height = follower.GetSkeleton()!.GetBoneGlobalRest(RigFollower.FindBone(follower.GetSkeleton()!, follower.HipsBone)).Origin.Length();
         for (int i = 0; i < 90; i++)
         {
             await Frames(1);
