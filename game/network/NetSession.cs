@@ -114,6 +114,8 @@ public partial class NetSession : Node
     private NetMobs? _mobs;
     private NetPings? _pings;
     public NetPings? Pings => _pings;
+    private NetChat? _chat;
+    public NetChat? Chat => _chat;
     /// <summary>Shared creatures and kill loot.</summary>
     public NetMobs? Mobs => _mobs;
 
@@ -144,6 +146,8 @@ public partial class NetSession : Node
         AddChild(_mobs);
         _pings = new NetPings { Name = "NetPings", Session = this };
         AddChild(_pings);
+        _chat = new NetChat { Name = "NetChat", Session = this };
+        AddChild(_chat);
         CallDeferred(MethodName.ReadCommandLine);
     }
 
@@ -194,7 +198,7 @@ public partial class NetSession : Node
             {
                 AddChild(new NetProbe { Name = "NetProbe", Session = this, Seconds = seconds, GrabAtUnix = ProbeNumber("--net-grab-at="), DieAtUnix = ProbeNumber("--net-die-at="),
                     SpawnAtUnix = ProbeNumber("--net-spawn-at="), StrikeAtUnix = ProbeNumber("--net-strike-at="),
-                    StepAwayAtUnix = ProbeNumber("--net-step-away-at="), DropAtUnix = ProbeNumber("--net-drop-at="), PingAtUnix = ProbeNumber("--net-ping-at="),
+                    StepAwayAtUnix = ProbeNumber("--net-step-away-at="), DropAtUnix = ProbeNumber("--net-drop-at="), PingAtUnix = ProbeNumber("--net-ping-at="), SayAtUnix = ProbeNumber("--net-say-at="),
                     AdvanceHours = Mathf.Max((float)ProbeNumber("--net-advance="), 0.0f), Linger = (float)ProbeNumber("--net-linger=") });
                 double respawn = ProbeNumber("--net-respawn=");
                 if (respawn > 0.0)
@@ -355,6 +359,7 @@ public partial class NetSession : Node
         _peers.Clear();
         _mobs?.Clear();
         _pings?.Clear();
+        _chat?.Clear();
         GameEvents.PublishOtherCarriers(System.Array.Empty<NetCarrier>());
         _waitingHello.Clear();
         _taken.Clear();

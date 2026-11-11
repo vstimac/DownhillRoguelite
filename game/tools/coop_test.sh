@@ -28,13 +28,15 @@ STRIKE=$((GRAB + 13))
 DROPAT=$((GRAB + 3))
 # Client 2 marks a spot (B); the host and the other clients should see the mark.
 PINGAT=$((GRAB + 4))
+# Client 1 says a line in the chat (Y); everyone else should read it.
+SAYAT=$((GRAB + 8))
 
 "$GODOT" --headless --path . -- --host="$PORT" --net-name=Host --net-probe="$HOST_SECONDS" --net-linger=20 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" --net-spawn-at="$SPAWN" --net-step-away-at="$AWAY" --net-advance=8 > "$LOGS/host.log" 2>&1 &
 PIDS="$!"
 sleep "$LEAD"
 for i in $(seq 1 "$CLIENTS"); do
     DIES=""
-    if [ "$i" = "1" ]; then DIES="--net-die-at=$DIE"; fi
+    if [ "$i" = "1" ]; then DIES="--net-die-at=$DIE --net-say-at=$SAYAT"; fi
     if [ "$i" = "2" ]; then DIES="--net-strike-at=$STRIKE --net-ping-at=$PINGAT"; fi
     if [ "$i" = "3" ]; then DIES="--net-drop-at=$DROPAT"; fi
     "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --net-name="Client$i" --net-probe="$CLIENT_SECONDS" --net-linger=6 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" $DIES > "$LOGS/client$i.log" 2>&1 &
@@ -115,6 +117,16 @@ if [ "$CLIENTS" -ge 2 ]; then
     done
     check "a marked spot (B) appears for the others (client 2 marked $marked; $saw of $others saw it)" "$([ "${marked:-0}" -ge 1 ] && [ "$saw" -eq "$others" ]; echo $?)"
 fi
+said=$(num "$LOGS/client1.log" chat_sent)
+heard=0
+listeners=0
+for f in host client2 client3; do
+    if [ -f "$LOGS/$f.log" ]; then
+        listeners=$((listeners + 1))
+        if [ "$(num "$LOGS/$f.log" chat_seen)" -ge 1 ] 2>/dev/null; then heard=$((heard + 1)); fi
+    fi
+done
+check "a chat line (Y) reaches everyone (client 1 said $said; $heard of $listeners read it)" "$([ "${said:-0}" -ge 1 ] && [ "$heard" -eq "$listeners" ]; echo $?)"
 shared=$(num "$LOGS/host.log" loot_shared)
 same=0
 for i in $(seq 1 "$CLIENTS"); do
