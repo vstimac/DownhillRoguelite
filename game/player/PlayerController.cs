@@ -118,6 +118,15 @@ public partial class PlayerController : CharacterBody3D
     private Vector3? _launch;
     private string _launchCause = "";
     private float _snareLeft;
+    private string _lastLaunch = "";
+    private bool _warnedSpeed;
+
+    /// <summary>
+    /// No carrier ever moves faster than this sideways, in m/s (a throw is ~10). Anything above it is
+    /// a fault somewhere: the speed is cut back (and a broken, non-finite one zeroed) so the carrier
+    /// can't be flung off the mountain, and the first time it's logged with the last throw's cause.
+    /// </summary>
+    [Export] public float HardSpeedLimit { get; set; } = 40.0f;
     private float _snareFactor = 1.0f;
 
     /// <summary>Whether something (a spider web) clings to the legs and slows the stride now.</summary>
@@ -145,7 +154,8 @@ public partial class PlayerController : CharacterBody3D
     {
         float gravity = _gravity * Settings.GravityScale;
         float up = Mathf.Sqrt(2.0f * gravity * Mathf.Max(height, 0.0f));
-        _launch = new Vector3(horizontal.X, up, horizontal.Z);
+        _lastLaunch = cause;
+        _launch = Sane(new Vector3(horizontal.X, up, horizontal.Z), "a throw");
         _launchCause = cause;
     }
 
@@ -154,6 +164,27 @@ public partial class PlayerController : CharacterBody3D
         _balanceState = snapshot.State;
         _bracing = snapshot.Bracing;
         _lurchDirection = Flatten(snapshot.Right * snapshot.Imbalance.X + snapshot.Forward * snapshot.Imbalance.Y);
+    }
+
+    private Vector3 Sane(Vector3 velocity, string where)
+    {
+        if (!velocity.IsFinite())
+        {
+            GD.PushWarning($"PlayerController: a broken velocity ({where}) was zeroed.");
+            return Vector3.Zero;
+        }
+        Vector2 flat = new(velocity.X, velocity.Z);
+        if (flat.Length() <= HardSpeedLimit)
+        {
+            return velocity;
+        }
+        if (!_warnedSpeed)
+        {
+            _warnedSpeed = true;
+            GD.PushWarning($"PlayerController: {flat.Length():0} m/s sideways ({where}, last throw '{_lastLaunch}') cut to {HardSpeedLimit:0}.");
+        }
+        flat = flat.LimitLength(HardSpeedLimit);
+        return new Vector3(flat.X, velocity.Y, flat.Y);
     }
 
     /// <summary>Moves the carrier instantly and clears its momentum.</summary>
@@ -251,6 +282,7 @@ public partial class PlayerController : CharacterBody3D
 
         // Only a real flight counts as a landing: sliding off a steep face onto flat ground doesn't.
         bool wasAirborne = State == LocomotionState.Airborne;
+        Velocity = Sane(Velocity, "move");
         Vector3 preMoveVelocity = Velocity;
         MoveAndSlide();
         // Carts and crates give way instead of stopping the carrier dead; other characters are eased apart.
