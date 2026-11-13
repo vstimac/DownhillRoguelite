@@ -1,0 +1,34 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/tests/PackViewTests.cs" id="1_tests"]
+[ext_resource type="Script" path="res://debug/TestCourseBuilder.cs" id="2_course"]
+[ext_resource type="PackedScene" path="res://player/Player.tscn" id="3_player"]
+[ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="4_inventory"]
+[ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="5_backpack"]
+[ext_resource type="Script" path="res://inventory/interaction/PackingMode.cs" id="6_packing"]
+[ext_resource type="Script" path="res://ui/Hud.cs" id="7_hud"]
+
+[node name="PackViewTests" type="Node3D" node_paths=PackedStringArray("PlayerBody", "Inventory", "Packing", "Ui")]
+script = ExtResource("1_tests")
+PlayerBody = NodePath("Player")
+Inventory = NodePath("Player/Inventory")
+Packing = NodePath("Packing")
+Ui = NodePath("Hud")
+
+[node name="Course" type="Node3D" parent="."]
+script = ExtResource("2_course")
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, -88)
+
+[node name="Inventory" type="Node" parent="Player"]
+script = ExtResource("4_inventory")
+Backpack = ExtResource("5_backpack")
+
+[node name="Packing" type="Node3D" parent="." node_paths=PackedStringArray("Inventory", "PlayerBody")]
+script = ExtResource("6_packing")
+Inventory = NodePath("../Player/Inventory")
+PlayerBody = NodePath("../Player")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("7_hud")

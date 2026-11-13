@@ -53,6 +53,9 @@ public partial class Hud : CanvasLayer
     public Notifications? Notes { get; private set; }
     public Subtitles? Captions { get; private set; }
     public InventoryScreen? Inventory { get; private set; }
+    public PackQuickView? PackLook { get; private set; }
+    public PackingRing? PackRing { get; private set; }
+    public PackingScreen? Packing { get; private set; }
     public MapScreen? MapPage { get; private set; }
     public JournalScreen? Journal { get; private set; }
     public TalkScreen? Talk { get; private set; }
@@ -126,6 +129,13 @@ public partial class Hud : CanvasLayer
         _root.AddChild(Inventory);
         ThrowZone.Inventory = Inventory;
         AddChild(new PageFreeze { Name = "PageFreeze", Inventory = Inventory });
+        // The pack in 2.5D: the quick look (short Tab), the wait ring, and the packing page (held Tab).
+        PackLook = new PackQuickView { Name = "PackQuickView" };
+        _root.AddChild(PackLook);
+        PackRing = new PackingRing { Name = "PackingRing" };
+        _root.AddChild(PackRing);
+        Packing = new PackingScreen { Name = "PackingScreen" };
+        _root.AddChild(Packing);
         AddChild(new OptionsApplier { Name = "OptionsApplier" });
         MapPage = new MapScreen();
         foreach (Node node in GetTree().GetNodesInGroup(FieldMap.Group))

@@ -4,7 +4,7 @@ using Godot;
 namespace DownhillRoguelite.Ui;
 
 /// <summary>
-/// Single player: stops the world (SceneTree.Paused) while the inventory page or the pack screen is
+/// Single player: stops the world (SceneTree.Paused) while the inventory page or the packing page is
 /// open, so sorting the load never costs a fall, warmth or daylight (GameOptions.PauseWhileOpen).
 /// The HUD and the pack screen keep running (ProcessMode Always); GameEvents.PagesFrozen tells them
 /// this pause is theirs and not the pause menu's.
@@ -20,7 +20,7 @@ public partial class PageFreeze : Node
 
     public override void _Process(double delta)
     {
-        bool open = (Inventory != null && Inventory.IsOpen && Inventory.Visible) || GameEvents.IsPacking;
+        bool open = (Inventory != null && Inventory.IsOpen && Inventory.Visible) || GameEvents.IsPackOpen;
         bool want = open && GameOptions.PauseWhileOpen;
         SceneTree tree = GetTree();
         if (want)

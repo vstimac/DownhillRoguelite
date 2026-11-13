@@ -11,6 +11,7 @@
 [ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="11_backpack"]
 [ext_resource type="Script" path="res://inventory/interaction/PackingMode.cs" id="12_packing"]
 [ext_resource type="Script" path="res://debug/VitalsDebugOverlay.cs" id="13_vitals"]
+[ext_resource type="Script" path="res://ui/Hud.cs" id="14_hud"]
 [ext_resource type="Script" path="res://debug/LoadDebugVisual.cs" id="9_load_visual"]
 [ext_resource type="Script" path="res://debug/BalanceDebugOverlay.cs" id="10_balance_overlay"]
 
@@ -83,3 +84,6 @@ PlayerCamera = NodePath("../Player/CameraRig/SpringArm/Camera")
 
 [node name="VitalsOverlay" type="CanvasLayer" parent="."]
 script = ExtResource("13_vitals")
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("14_hud")

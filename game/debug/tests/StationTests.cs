@@ -208,7 +208,7 @@ public partial class StationTests : Node3D
 
         Check("reaching a station shelters the carrier and counts the stage", sheltered && _reached.Contains(1) && _run!.Stage >= 1,
             $"in shelter {GameEvents.InShelter}, reached {string.Join(",", _reached)}, stage {_run!.Stage}");
-        Check("packing only works in a station's shelter", !outsideOpened && insideOpened, $"outside {outsideOpened}, inside {insideOpened}");
+        Check("the pack can be set down and opened anywhere, at a station or away from one", outsideOpened && insideOpened, $"outside {outsideOpened}, inside {insideOpened}");
     }
 
     private async Task TestSleep(PlayerController player, IRouteQuery route, StationManager stations, WorldClock clock, CarrierNeeds needs)
