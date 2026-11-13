@@ -36,3 +36,6 @@ game/art/characters/mixamo/*.png.import
 # Linux export output (scripts/build_linux.sh)
 build/
 .ci/
+
+# Python bytecode from the audio tools
+__pycache__/
