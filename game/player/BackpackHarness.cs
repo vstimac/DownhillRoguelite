@@ -89,6 +89,47 @@ public partial class BackpackHarness : Node3D
     public float SwingAngle { get; private set; }
     /// <summary>Starts the pack over at its fit on the next update, with the current settings (tuning).</summary>
     public void RequestRestart() => _needReset = true;
+
+    /// <summary>Seconds on his feet after a fall before the pack hangs from its straps again.</summary>
+    [Export] public float SettleAfterFall { get; set; } = 0.6f;
+    /// <summary>The wearer's body is a ragdoll right now.</summary>
+    public bool WearerLimp => _wasLimp;
+
+    private PhysicalBoneSimulator3D? _ragdoll;
+    private bool _ragdollSought;
+    private bool _wasLimp;
+    private float _upFor;
+
+    private bool Limp()
+    {
+        if (_rig == null)
+        {
+            return false;
+        }
+        if (_ragdoll == null || !IsInstanceValid(_ragdoll))
+        {
+            // Looked for again now and then: the ragdoll is added to the skeleton after the pack.
+            if (_ragdollSought && Engine.GetProcessFrames() % 30 != 0)
+            {
+                return false;
+            }
+            _ragdollSought = true;
+            _ragdoll = null;
+            foreach (Node child in _rig.GetChildren())
+            {
+                if (child is PhysicalBoneSimulator3D simulator)
+                {
+                    _ragdoll = simulator;
+                    break;
+                }
+            }
+            if (_ragdoll == null)
+            {
+                return false;
+            }
+        }
+        return _ragdoll.IsSimulatingPhysics();
+    }
     /// <summary>The simulation (null until fitted).</summary>
     public PackPhysics? Physics => _physics;
     /// <summary>The body's surface the pack rests on and the straps lie on (measured from the mesh).</summary>
@@ -496,6 +537,30 @@ public partial class BackpackHarness : Node3D
             dt = Mathf.Min((float)GetProcessDeltaTime(), 0.05f);
         }
         _lastFrame = frame;
+        // While the body is a ragdoll (a fall, a thrown jump or dive) and for a moment after he is up,
+        // the pack rides the bone at its fit: laying it on a tumbling body would fit it crooked, and
+        // the swing would fight the fall. It is hung afresh from the standing pose.
+        if (Limp())
+        {
+            _upFor = 0.0f;
+            _wasLimp = true;
+        }
+        else if (_wasLimp)
+        {
+            _upFor += dt;
+            if (_upFor >= SettleAfterFall)
+            {
+                _wasLimp = false;
+                _needReset = true;
+            }
+        }
+        if (_wasLimp)
+        {
+            _pack.StopSimulating();
+            _lastHips = _rig.GlobalTransform * _rig.GetBoneGlobalPose(_hips).Origin;
+            DrawStraps();
+            return;
+        }
         Vector3 hips = _rig.GlobalTransform * _rig.GetBoneGlobalPose(_hips).Origin;
         bool moved = hips.DistanceTo(_lastHips) > TeleportDistance;
         _lastHips = hips;
