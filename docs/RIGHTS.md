@@ -24,6 +24,8 @@ MIT permits copying and modifying covered code with the copyright notice and lic
 | `audio/narrator/` | Original script; voice output made using ElevenLabs | Review voice permissions, service terms and use of any cloned voice |
 | `audio/music/`, `audio/ambience/` | Some procedurally generated audio | Confirm source and all incorporated audio elements before releasing |
 | `audio/sfx/` | Mixture of potentially separately licensed assets | Track source and individual permissions |
+| `audio/sonniss/` | Cut and processed clips from the Sonniss #GameAudioGDC 2026 bundle (royalty-free, commercial use, no attribution required); every clip's library and original file is in [audio/sonniss_sources.csv](audio/sonniss_sources.csv) | The licence forbids selling the sounds "as they come" and any use for AI training; ship them only inside the game, never as a sound pack |
+| `audio/creatures/mimic_*`, `cup_*`, `audio/voice/` | The team's own recordings ([original_recordings.csv](../game/audio/original_recordings.csv)) | Rights stay with the team |
 | `addons/` | Third-party software | Respect its included licenses, even when original project code is MIT |
 | Optional `*.gguf` models | Not shipped in the repo | Distribute only under the model's actual license and with required notices |
 | Posters, logos and original character art | Not automatically MIT | Use only with verified rights and a suitable separate license |

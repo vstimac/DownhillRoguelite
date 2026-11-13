@@ -85,6 +85,15 @@ public partial class HandCart : RigidBody3D, IInteractable, IPushable
     /// <summary>How often the bed is checked for new cargo, in s.</summary>
     [Export] public float CargoCheckSeconds { get; set; } = 0.3f;
 
+    [ExportGroup("Sounds")]
+    /// <summary>The wheels rolling (a loop, as loud as the cart is fast) and the handles taken or let go.</summary>
+    [Export(PropertyHint.File, "*.ogg,*.wav")] public string RollSoundPath { get; set; } = "res://audio/sonniss/foley/cart_roll_loop.ogg";
+    [Export(PropertyHint.File, "*.ogg,*.wav")] public string HandleSoundPath { get; set; } = "res://audio/sonniss/foley/cart_handle.ogg";
+    [Export] public float RollVolumeDb { get; set; } = -2.0f;
+    [Export] public float HandleVolumeDb { get; set; } = -4.0f;
+    /// <summary>Speed (m/s) at which the rolling is at full volume; slower is quieter and lower.</summary>
+    [Export] public float RollFullSpeed { get; set; } = 4.0f;
+
     [ExportGroup("Prompt")]
     [Export] public string TakePrompt { get; set; } = "E: take the cart";
     [Export] public string LetGoPrompt { get; set; } = "E: let go of the cart";
@@ -113,6 +122,8 @@ public partial class HandCart : RigidBody3D, IInteractable, IPushable
     private bool _onGround;
     private float _settled;
     private float _held;
+    private AudioStreamPlayer3D? _roll;
+    private AudioStreamPlayer3D? _handle;
 
     /// <summary>The body's friction: none while pulled (rolling and grip are applied by hand), braked when let go.</summary>
     private void SetGrip(float friction)
@@ -145,7 +156,69 @@ public partial class HandCart : RigidBody3D, IInteractable, IPushable
         // Placed somewhere new: hold still until there is ground below to settle onto.
         Freeze = true;
         FreezeMode = FreezeModeEnum.Static;
+        AddSounds();
         GameEvents.RespawnRequested += LetGo;
+    }
+
+    private void AddSounds()
+    {
+        // Headless runs (tests, smoke) have no real audio output and never release playing streams.
+        if (DisplayServer.GetName() == "headless")
+        {
+            return;
+        }
+        if (ResourceLoader.Exists(RollSoundPath))
+        {
+            AudioStream stream = ResourceLoader.Load<AudioStream>(RollSoundPath);
+            if (stream is AudioStreamOggVorbis ogg)
+            {
+                ogg.Loop = true;
+            }
+            _roll = new AudioStreamPlayer3D { Name = "Roll", Stream = stream, Bus = "Ambience", VolumeDb = -80.0f, UnitSize = 4.0f, MaxDistance = 40.0f };
+            AddChild(_roll);
+        }
+        if (ResourceLoader.Exists(HandleSoundPath))
+        {
+            _handle = new AudioStreamPlayer3D
+            {
+                Name = "Handle",
+                Stream = ResourceLoader.Load<AudioStream>(HandleSoundPath),
+                Bus = "Ambience",
+                VolumeDb = HandleVolumeDb,
+                UnitSize = 3.0f,
+                Position = new Vector3(0.0f, HandleTip.Y, HandleTip.Z),
+            };
+            AddChild(_handle);
+        }
+    }
+
+    /// <summary>The wheels are heard as they roll on the ground: louder and a little higher the faster.</summary>
+    private void UpdateRollSound()
+    {
+        if (_roll == null)
+        {
+            return;
+        }
+        float speed = 0.0f;
+        if (!Freeze && GetContactCount() > 0)
+        {
+            speed = Mathf.Abs(LinearVelocity.Dot(-GlobalBasis.Z));
+        }
+        float mix = Mathf.Clamp(speed / Mathf.Max(RollFullSpeed, 0.1f), 0.0f, 1.0f);
+        if (mix < 0.03f)
+        {
+            if (_roll.Playing)
+            {
+                _roll.Stop();
+            }
+            return;
+        }
+        if (!_roll.Playing)
+        {
+            _roll.Play();
+        }
+        _roll.VolumeDb = RollVolumeDb + Mathf.LinearToDb(mix);
+        _roll.PitchScale = Mathf.Lerp(0.8f, 1.1f, mix);
     }
 
     public override void _ExitTree()
@@ -205,6 +278,7 @@ public partial class HandCart : RigidBody3D, IInteractable, IPushable
         _held = 0.0f;
         SetGrip(0.0f);
         GameEvents.PublishTow(Mass);
+        _handle?.Play();
         UpdatePrompt();
     }
 
@@ -220,6 +294,7 @@ public partial class HandCart : RigidBody3D, IInteractable, IPushable
         _settled = 0.0f;
         SetGrip(ParkFriction);
         GameEvents.PublishTow(0.0f);
+        _handle?.Play();
         UpdatePrompt();
     }
 
@@ -291,6 +366,7 @@ public partial class HandCart : RigidBody3D, IInteractable, IPushable
         {
             wheel?.RotateObjectLocal(Vector3.Right, -roll);
         }
+        UpdateRollSound();
     }
 
     public override void _IntegrateForces(PhysicsDirectBodyState3D state)

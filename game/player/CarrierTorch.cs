@@ -31,6 +31,9 @@ public partial class CarrierTorch : Node3D
     [Export] public float LightRange { get; set; } = 13.0f;
     /// <summary>The last seconds in which the flame shrinks before it goes out.</summary>
     [Export] public float DyingSeconds { get; set; } = 20.0f;
+    /// <summary>The flame's crackle while it burns in the hand (a loop, heard in 3D).</summary>
+    [Export(PropertyHint.File, "*.ogg,*.wav")] public string BurnSoundPath { get; set; } = "res://audio/sonniss/fire/torch_loop.ogg";
+    [Export] public float BurnVolumeDb { get; set; } = -6.0f;
     [Export] public string LitHint { get; set; } = "The torch catches. It will burn for about {0} minutes. (X puts it away.)";
     [Export] public string OutHint { get; set; } = "Your torch gutters and goes out.";
     [Export] public string StowHint { get; set; } = "You snuff the torch and hang it at your belt. About {0} minutes left in it. (X lights it again.)";
@@ -54,6 +57,7 @@ public partial class CarrierTorch : Node3D
 
     private Node3D? _torch;
     private ParticleFire? _fire;
+    private AudioStreamPlayer3D? _burn;
     private StandardMaterial3D? _head;
     private Skeleton3D? _driver;
     private int _hand = -1;
@@ -205,6 +209,17 @@ public partial class CarrierTorch : Node3D
             _torch.Visible = Left > 0.0f;
         }
         _fire?.SetBurning(Lit);
+        if (_burn != null)
+        {
+            if (Lit && !_burn.Playing)
+            {
+                _burn.Play();
+            }
+            else if (!Lit && _burn.Playing)
+            {
+                _burn.Stop();
+            }
+        }
         if (_head != null)
         {
             // Snuffed rags stop glowing.
@@ -363,5 +378,25 @@ public partial class CarrierTorch : Node3D
         };
         _torch.AddChild(_fire);
         _fire.SetBurning(false);
+        // Headless runs (tests, smoke) have no real audio output and never release playing streams.
+        if (DisplayServer.GetName() != "headless" && ResourceLoader.Exists(BurnSoundPath))
+        {
+            AudioStream stream = ResourceLoader.Load<AudioStream>(BurnSoundPath);
+            if (stream is AudioStreamOggVorbis ogg)
+            {
+                ogg.Loop = true;
+            }
+            _burn = new AudioStreamPlayer3D
+            {
+                Name = "Crackle",
+                Stream = stream,
+                Bus = "Ambience",
+                VolumeDb = BurnVolumeDb,
+                UnitSize = 2.0f,
+                MaxDistance = 25.0f,
+                Position = _fire.Position,
+            };
+            _torch.AddChild(_burn);
+        }
     }
 }

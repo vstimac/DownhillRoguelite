@@ -87,9 +87,9 @@ public partial class EnemySpecies : Resource
     [Export] public string[] HurtSounds { get; set; } = System.Array.Empty<string>();
     /// <summary>Its own cry as it starts a blow, heard over the weapon's swing (none: it attacks without a sound of its own).</summary>
     [Export] public string[] AttackVoices { get; set; } = System.Array.Empty<string>();
-    [Export] public string[] SwingSounds { get; set; } = { "res://audio/combat/sword_swing_0.wav", "res://audio/combat/sword_swing_1.wav" };
-    [Export] public string[] HitSounds { get; set; } = { "res://audio/combat/sword_kick_0.wav" };
-    [Export] public string[] GuardSounds { get; set; } = { "res://audio/combat/sword_block_0.wav", "res://audio/combat/sword_block_1.wav" };
+    [Export] public string[] SwingSounds { get; set; } = { "res://audio/sonniss/combat/sword_swing_0.ogg", "res://audio/sonniss/combat/sword_swing_1.ogg" };
+    [Export] public string[] HitSounds { get; set; } = { "res://audio/sonniss/combat/body_hit_0.ogg", "res://audio/sonniss/combat/body_hit_1.ogg", "res://audio/sonniss/combat/body_hit_2.ogg" };
+    [Export] public string[] GuardSounds { get; set; } = { "res://audio/sonniss/combat/shield_block_0.ogg", "res://audio/sonniss/combat/shield_block_1.ogg", "res://audio/sonniss/combat/shield_block_2.ogg" };
     [Export] public float VolumeDb { get; set; } = 2.0f;
     [Export] public float VoicePitch { get; set; } = 1.0f;
 

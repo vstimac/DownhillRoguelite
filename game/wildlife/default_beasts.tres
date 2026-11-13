@@ -9,7 +9,7 @@
 
 [sub_resource type="Resource" id="SheWolf"]
 script = ExtResource("1_species")
-GrowlSounds = PackedStringArray("res://audio/creatures/she_wolf_growl_0.wav", "res://audio/creatures/she_wolf_growl_1.wav", "res://audio/creatures/she_wolf_growl_2.wav")
+GrowlSounds = PackedStringArray("res://audio/sonniss/creatures/wolf_growl_0.ogg", "res://audio/sonniss/creatures/wolf_growl_1.ogg")
 SnarlSounds = PackedStringArray("res://audio/creatures/she_wolf_snarl_0.wav", "res://audio/creatures/she_wolf_snarl_1.wav")
 CallSounds = PackedStringArray("res://audio/creatures/she_wolf_howl_0.wav", "res://audio/creatures/she_wolf_howl_1.wav")
 DisplayName = "she-wolf"
@@ -41,7 +41,7 @@ Weight = 3.0
 [sub_resource type="Resource" id="Leopard"]
 script = ExtResource("1_species")
 GrowlSounds = PackedStringArray("res://audio/creatures/leopard_growl_0.wav", "res://audio/creatures/leopard_growl_1.wav")
-SnarlSounds = PackedStringArray("res://audio/creatures/leopard_snarl_0.wav", "res://audio/creatures/leopard_snarl_1.wav")
+SnarlSounds = PackedStringArray("res://audio/sonniss/creatures/leopard_snarl_0.ogg", "res://audio/creatures/leopard_snarl_0.wav")
 CallSounds = PackedStringArray("res://audio/creatures/leopard_chuff_0.wav")
 DisplayName = "leopard"
 Model = ExtResource("3_tiger")
@@ -68,7 +68,7 @@ Weight = 2.0
 script = ExtResource("1_species")
 GrowlSounds = PackedStringArray("res://audio/creatures/lion_growl_0.wav", "res://audio/creatures/lion_growl_1.wav")
 SnarlSounds = PackedStringArray("res://audio/creatures/lion_snarl_0.wav", "res://audio/creatures/lion_snarl_1.wav")
-CallSounds = PackedStringArray("res://audio/creatures/lion_roar_0.wav")
+CallSounds = PackedStringArray("res://audio/sonniss/creatures/lion_roar_0.ogg", "res://audio/sonniss/creatures/lion_roar_1.ogg")
 DisplayName = "lion"
 Model = ExtResource("4_lion")
 ModelScale = 1.1
@@ -93,7 +93,7 @@ Weight = 1.5
 [sub_resource type="Resource" id="Spider"]
 script = ExtResource("1_species")
 GrowlSounds = PackedStringArray("res://audio/creatures/spider_hiss_0.wav", "res://audio/creatures/spider_hiss_1.wav")
-SnarlSounds = PackedStringArray("res://audio/creatures/spider_shriek_0.wav", "res://audio/creatures/spider_shriek_1.wav")
+SnarlSounds = PackedStringArray("res://audio/sonniss/creatures/spider_shriek_0.ogg", "res://audio/creatures/spider_shriek_0.wav")
 CallSounds = PackedStringArray("res://audio/creatures/spider_chitter_0.wav", "res://audio/creatures/spider_chitter_1.wav")
 CallInterval = Vector2(10, 20)
 DisplayName = "giant spider"
