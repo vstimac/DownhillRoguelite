@@ -111,6 +111,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     private Node3D? _visual;
     private Skeleton3D? _driver;
     private AudioStreamPlayer3D? _voice;
+    private AudioStreamPlayer3D? _cry;
     private Vector3 _carrier;
     private bool _carrierKnown;
     private bool _aware;
@@ -171,6 +172,9 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         {
             _voice = new AudioStreamPlayer3D { Name = "Voice", VolumeDb = Species.VolumeDb, PitchScale = Species.VoicePitch, UnitSize = 8.0f, Position = Vector3.Up * Species.Height * 0.8f };
             AddChild(_voice);
+            // Its attack cry has a player of its own, so the weapon's swing isn't cut off by it.
+            _cry = new AudioStreamPlayer3D { Name = "Cry", VolumeDb = Species.VolumeDb, PitchScale = Species.VoicePitch, UnitSize = 8.0f, Position = _voice.Position };
+            AddChild(_cry);
         }
         _home = GlobalPosition;
         _wanderTarget = _home;
@@ -541,6 +545,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         _struck = false;
         Enter(Phase.Attack);
         Say(Species.SwingSounds);
+        Say(Species.AttackVoices, _cry);
     }
 
     private void UpdateAttack(Vector3 direction, float distance)
@@ -825,16 +830,18 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         return (float)Animations.GetAnimation(clip).Length;
     }
 
-    private void Say(string[] sounds)
+    /// <summary>Plays one of the sounds, picked at random, through the voice (or the given player).</summary>
+    private void Say(string[] sounds, AudioStreamPlayer3D? through = null)
     {
-        if (_voice == null || sounds.Length == 0)
+        AudioStreamPlayer3D? player = through ?? _voice;
+        if (player == null || sounds.Length == 0)
         {
             return;
         }
         if (ResourceLoader.Load(sounds[_random.RandiRange(0, sounds.Length - 1)]) is AudioStream stream)
         {
-            _voice.Stream = stream;
-            _voice.Play();
+            player.Stream = stream;
+            player.Play();
         }
     }
 }

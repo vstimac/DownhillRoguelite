@@ -1,0 +1,45 @@
+path,source,start_seconds,end_seconds,suggested_usage,words,seconds,gain_db,peak_db,rms_db,clipped_samples
+audio/creatures/cup_vocal_01.wav,CupOfPohlepe.wav,0.09,0.6,Kratka vokalizacija,,0.51,+0.0,0.0,-13.1,27
+audio/creatures/cup_vocal_02.wav,CupOfPohlepe.wav,0.59,0.98,Kratka vokalizacija,,0.39,+0.0,-0.8,-16.3,0
+audio/creatures/cup_vocal_03.wav,CupOfPohlepe.wav,0.97,1.38,Kratka vokalizacija,,0.41,+0.0,-6.0,-20.2,0
+audio/creatures/cup_laugh_01.wav,CupOfPohlepe.wav,1.33,2.06,Smijeh / ruganje,,0.73,+0.0,-9.3,-21.4,0
+audio/creatures/cup_grunt_01.wav,CupOfPohlepe.wav,2.27,3.22,Duboki grleni zvuk,,0.95,+0.0,0.0,-10.8,1410
+audio/creatures/cup_grunt_02.wav,CupOfPohlepe.wav,3.93,4.6,Reakcija / napor,,0.67,+0.0,0.0,-8.0,2397
+audio/creatures/cup_attack_01.wav,CupOfPohlepe.wav,4.73,5.44,Napad / uzvik,,0.71,+0.0,0.0,-8.5,1792
+audio/creatures/cup_exertion_01.wav,CupOfPohlepe.wav,5.53,6.22,Napor / izdah,,0.69,+0.0,0.0,-10.8,458
+audio/creatures/mimic_idle_01.wav,MimicEffects.wav,0.27,1.28,Mirno grleno glasanje,,1.01,+0.0,-1.3,-14.4,0
+audio/creatures/mimic_growl_01.wav,MimicEffects.wav,1.89,2.78,Režanje,,0.89,+0.0,-0.0,-10.6,132
+audio/creatures/mimic_snarl_01.wav,MimicEffects.wav,3.31,4.0,Kratki agresivni zvuk,,0.69,+0.0,0.0,-9.6,601
+audio/creatures/mimic_breath_01.wav,MimicEffects.wav,5.09,5.86,Teško disanje,,0.77,+0.0,0.0,-8.8,536
+audio/creatures/mimic_growl_02.wav,MimicEffects.wav,6.41,7.68,Dulje režanje,,1.27,+0.0,-0.0,-16.9,7
+audio/creatures/mimic_growl_03.wav,MimicEffects.wav,7.59,8.58,Režanje / prijetnja,,0.99,+0.0,-0.7,-18.4,0
+audio/creatures/mimic_growl_04.wav,MimicEffects.wav,9.57,10.82,Duboki zvuk,,1.25,+0.0,0.0,-8.9,568
+audio/creatures/mimic_hiss_01.wav,MimicEffects.wav,11.81,12.9,Siktanje / upozorenje,,1.09,+0.0,-0.1,-13.0,0
+audio/creatures/mimic_attack_01.wav,MimicEffects.wav,13.75,14.24,Kratki napad,,0.49,+0.0,-2.0,-18.1,0
+audio/creatures/mimic_attack_02.wav,MimicEffects.wav,15.11,15.9,Napad,,0.79,+0.0,-0.0,-13.9,121
+audio/creatures/mimic_snort_01.wav,MimicEffects.wav,16.67,17.3,Frktanje,,0.63,+0.0,0.0,-9.5,1743
+audio/creatures/mimic_growl_05.wav,MimicEffects.wav,17.57,19.72,Dugo režanje,,2.15,+0.0,0.0,-15.1,754
+audio/creatures/mimic_attack_03.wav,MimicEffects.wav,19.55,20.36,Završni agresivni izdah,,0.81,+0.0,0.0,-11.0,211
+audio/voice/npc_hz_putnik/hr-HR/HZ_001_Opa.wav,untitled.mp3,0.53,1.02,NPC dijalog: Opa,Opa.,0.49,+7.2,-5.5,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_002_NoviPutnik.wav,untitled.mp3,1.63,2.52,NPC dijalog: NoviPutnik,Novi putnik.,0.89,+5.2,-7.2,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_003_VecSamMislioDaSuUkinuliOvuLiniju.wav,untitled.mp3,3.48,5.52,NPC dijalog: VecSamMislioDaSuUkinuliOvuLiniju,Već sam mislio da su ukinuli ovu liniju.,2.04,+2.0,-6.6,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_004_KamoSteKrenuliMladiGospodine.wav,untitled.mp3,6.43,8.42,NPC dijalog: KamoSteKrenuliMladiGospodine,"Kamo ste krenuli, mladi gospodine?",1.99,-0.4,-5.0,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_005_GoreSeNeMoze.wav,untitled.mp3,9.33,10.37,NPC dijalog: GoreSeNeMoze,Gore se ne može.,1.04,-1.6,-6.7,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_006_DoljeSeNePreporucuje.wav,untitled.mp3,10.88,12.27,NPC dijalog: DoljeSeNePreporucuje,Dolje se ne preporučuje.,1.39,+1.0,-4.0,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_007_OvdjeNemaSignala.wav,untitled.mp3,12.93,14.07,NPC dijalog: OvdjeNemaSignala,Ovdje nema signala.,1.14,-1.0,-4.7,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_008_JaCekamVlak.wav,untitled.mp3,15.03,16.22,NPC dijalog: JaCekamVlak,Ja čekam vlak.,1.19,+2.4,-1.5,-22.2,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_009_TrebaoJeDociUtorak.wav,untitled.mp3,17.03,18.37,NPC dijalog: TrebaoJeDociUtorak,Trebao je doći u utorak.,1.34,+2.6,-6.4,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_010_KojiUtorak.wav,untitled.mp3,19.23,20.02,NPC dijalog: KojiUtorak,Koji utorak?,0.79,+4.8,-6.1,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_011_ToJosUtvrdjujemo.wav,untitled.mp3,20.98,22.17,NPC dijalog: ToJosUtvrdjujemo,To još utvrđujemo.,1.19,+2.2,-7.2,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_012_DobrodosliNaStajalisteBezPovratka.wav,untitled.mp3,22.88,25.27,NPC dijalog: DobrodosliNaStajalisteBezPovratka,Dobrodošli na stajalište bez povratka.,2.39,-0.5,-4.3,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_013_ImeJePrivremeno.wav,untitled.mp3,25.88,27.02,NPC dijalog: ImeJePrivremeno,Ime je privremeno.,1.14,-2.4,-5.5,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_014_VecSedamdesetGodina.wav,untitled.mp3,27.58,28.87,NPC dijalog: VecSedamdesetGodina,Već sedamdeset godina.,1.29,+1.6,-8.2,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_015_KartuNaPregledMolim.wav,untitled.mp3,29.83,31.37,NPC dijalog: KartuNaPregledMolim,"Kartu na pregled, molim.",1.54,+0.3,-7.0,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_016_AkoJeNemateMozemoSePraviti.wav,untitled.mp3,31.83,35.12,NPC dijalog: AkoJeNemateMozemoSePraviti,"Ako je nemate, možemo se praviti.",3.29,+0.1,-4.7,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_017_NeStojiteNaRubuPerona.wav,untitled.mp3,36.18,37.82,NPC dijalog: NeStojiteNaRubuPerona,Ne stojite na rubu perona.,1.64,+0.1,-4.6,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_018_PeronJeOtisaoPrijeTridesetGodina.wav,untitled.mp3,38.73,40.77,NPC dijalog: PeronJeOtisaoPrijeTridesetGodina,Peron je otišao prije trideset godina.,2.04,-0.1,-5.4,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_019_Cudno.wav,untitled.mp3,42.13,42.82,NPC dijalog: Cudno,Čudno.,0.69,+5.3,-4.6,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_020_ViJosImateSjenu.wav,untitled.mp3,43.43,44.72,NPC dijalog: ViJosImateSjenu,Vi još imate sjenu.,1.29,+5.7,-5.7,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_021_Aha.wav,untitled.mp3,45.58,46.22,NPC dijalog: Aha,Aha.,0.64,-3.4,-4.0,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_022_PrviPutSeSpustate.wav,untitled.mp3,46.98,48.32,NPC dijalog: PrviPutSeSpustate,Prvi put se spuštate?,1.34,+1.1,-5.1,-21.0,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_023_ToSeVidiPoKoljenima.wav,untitled.mp3,49.03,50.37,NPC dijalog: ToSeVidiPoKoljenima,To se vidi po koljenima.,1.34,-0.6,-5.8,-21.0,0

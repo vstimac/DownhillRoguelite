@@ -6,5 +6,10 @@ Sound effects, ambience and music.
 - `narrator/NARR_###.wav`: the 500 voiced narrator lines (ElevenLabs, generated from `narrative/data/metadata.csv`), played by `narrative/NarratorDirector`.
 - `ambience/wind.wav`, `ambience/rain.wav`: synthesized weather loops from `tools/generate_weather_sounds.py`, played by `WeatherAudio` as loud as the wind and rain.
 - `footsteps/<surface>_<n>.wav` and `ambience/fire.wav`: synthesized by `tools/generate_foley.py`; `Footsteps` plays a step per planted foot by surface (snow when it's snowing), stations play the fire.
+- Our own recordings (`original_recordings.csv` lists every clip: the recording it was cut from, its cut times, suggested use, level and, for voice lines, the words). Brought in by `tools/import_recordings.py <unpacked audio pack>`; they come before anything synthesized or from a sound library, which only fill in for what we can't record ourselves.
+  - `creatures/mimic_<kind>_<n>.wav` (growls, hiss, snarl, snort, breath, attacks): the voice of the pack fiend, the backpack enemy (`wildlife/enemies/packbeast.tres`).
+  - `creatures/cup_<kind>_<n>.wav` (the Cup of Pohlepe: laugh, short vocals, grunts, attack, exertion): the voice of the bog ogre (`wildlife/enemies/ogre.tres`).
+  - `voice/npc_hz_putnik/hr-HR/HZ_###_<words>.wav`: 23 Croatian lines for HŽ, the eternal traveller, levelled to one loudness. TODO: the NPC itself is a placeholder; the lines aren't played yet.
+  - 14 of the creature clips clip (the recordings ran too hot); fine for monsters, but record the next ones with more headroom.
 - Buses (`default_bus_layout.tres`): Music, Voice and Ambience, set from the pause menu.
 - `creatures/<beast>_<kind>_<n>.wav`: the night beasts' voices (she-wolf growl, snarl and howl; leopard growl, snarl and chuff; lion growl, snarl and roar), synthesized by `tools/generate_beast_sounds.py`, and the giant spider hiss, shriek and chitter (plus `web_tear_<n>.wav`, a spider web torn), by `tools/generate_spider_sounds.py`; `NightBeast` growls before a charge, snarls as it charges or steals food, and calls now and then while it stalks.

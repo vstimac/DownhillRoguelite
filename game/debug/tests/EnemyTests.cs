@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using DownhillRoguelite.Core;
@@ -47,6 +48,7 @@ public partial class EnemyTests : Node3D
         {
             await Species(Kind(id));
         }
+        Voices();
         await Director();
         await StuckEnemy();
         await Wake();
@@ -65,6 +67,40 @@ public partial class EnemyTests : Node3D
             GD.Print("ENEMY TESTS: FAIL (" + string.Join(", ", _failures) + ")");
             GetTree().Quit(1);
         }
+    }
+
+    /// <summary>Every sound an enemy names is there to play, and the ogre and pack fiend speak with the team's own recordings.</summary>
+    private void Voices()
+    {
+        List<string> missing = new();
+        foreach (string id in new[] { "ogre", "packbeast", "jade_glutton" })
+        {
+            EnemySpecies kind = Kind(id);
+            foreach (string[] set in new[] { kind.CallSounds, kind.HurtSounds, kind.AttackVoices, kind.SwingSounds, kind.HitSounds, kind.GuardSounds })
+            {
+                foreach (string path in set)
+                {
+                    if (ResourceLoader.Load(path) is not AudioStream)
+                    {
+                        missing.Add(id + ": " + path);
+                    }
+                }
+            }
+        }
+        EnemySpecies ogre = Kind("ogre");
+        EnemySpecies fiend = Kind("packbeast");
+        bool own = ogre.CallSounds.Length > 0 && ogre.AttackVoices.Length > 0 && fiend.CallSounds.Length > 0 && fiend.AttackVoices.Length > 0;
+        foreach (string path in ogre.CallSounds.Concat(ogre.HurtSounds).Concat(ogre.AttackVoices))
+        {
+            own = own && path.Contains("/cup_");
+        }
+        foreach (string path in fiend.CallSounds.Concat(fiend.HurtSounds).Concat(fiend.AttackVoices))
+        {
+            own = own && path.Contains("/mimic_");
+        }
+        Check("every enemy sound loads, and the ogre and pack fiend speak with our own recordings", missing.Count == 0 && own,
+            $"missing [{string.Join(", ", missing)}]; ogre {ogre.CallSounds.Length} calls, {ogre.HurtSounds.Length} hurt, {ogre.AttackVoices.Length} attack cries; "
+            + $"pack fiend {fiend.CallSounds.Length}, {fiend.HurtSounds.Length}, {fiend.AttackVoices.Length}");
     }
 
     private void OnDamage(float amount, string cause)

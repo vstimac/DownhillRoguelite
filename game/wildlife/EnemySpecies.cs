@@ -85,6 +85,8 @@ public partial class EnemySpecies : Resource
     [ExportGroup("Sounds")]
     [Export] public string[] CallSounds { get; set; } = System.Array.Empty<string>();
     [Export] public string[] HurtSounds { get; set; } = System.Array.Empty<string>();
+    /// <summary>Its own cry as it starts a blow, heard over the weapon's swing (none: it attacks without a sound of its own).</summary>
+    [Export] public string[] AttackVoices { get; set; } = System.Array.Empty<string>();
     [Export] public string[] SwingSounds { get; set; } = { "res://audio/combat/sword_swing_0.wav", "res://audio/combat/sword_swing_1.wav" };
     [Export] public string[] HitSounds { get; set; } = { "res://audio/combat/sword_kick_0.wav" };
     [Export] public string[] GuardSounds { get; set; } = { "res://audio/combat/sword_block_0.wav", "res://audio/combat/sword_block_1.wav" };
