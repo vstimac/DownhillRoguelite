@@ -87,6 +87,11 @@ public partial class StartScreen : CanvasLayer
     /// <summary>The menu's letters never get smaller than this on short screens.</summary>
     [Export] public int SmallestItemSize { get; set; } = 20;
     private ulong? _chosenSeed;
+    /// <summary>
+    /// The title screen is up again after "Save and main menu": the run's numbers are still those of
+    /// the run just left, so a New Run starts a new mountain and resets them (Continue does that itself).
+    /// </summary>
+    public static bool ReturnedFromRun { get; set; }
     private MenuCamera? _camera;
     private MenuItem? _characterItem;
     private MenuItem? _lastFocus;
@@ -124,6 +129,17 @@ public partial class StartScreen : CanvasLayer
         GetViewport().SizeChanged += Relayout;
         Relayout();
         UpdateCheck.Start();
+        // Check: `-- --return-to-menu-test` starts a run by itself (the pause menu then returns here, and the run is continued).
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--return-to-menu-test") >= 0)
+        {
+            GetTree().CreateTimer(3.0, true).Timeout += () =>
+            {
+                RunSave.UseFiles("user://test_menu_run.json", "user://test_menu_run_pack.json");
+                bool again = ReturnedFromRun && RunSave.Exists;
+                GD.Print("StartScreen: test run, continuing " + again);
+                BeginRun(again);
+            };
+        }
     }
 
     public override void _ExitTree()
@@ -777,6 +793,11 @@ public partial class StartScreen : CanvasLayer
         {
             GetNodeOrNull<RunState>("/root/RunState")?.StartNewRun(_chosenSeed.Value);
         }
+        else if (!continuing && ReturnedFromRun)
+        {
+            GetNodeOrNull<RunState>("/root/RunState")?.StartNewRun();
+        }
+        ReturnedFromRun = false;
         _chosenSeed = null;
         Current = Page.Starting;
         _warmup = 0.0f;
