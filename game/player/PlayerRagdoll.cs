@@ -482,7 +482,84 @@ public partial class PlayerRagdoll : Node
         {
             _gettingUp = true;
             _blend = 0.0f;
+            BeginRise();
         }
+    }
+
+    [ExportGroup("Getting up")]
+    /// <summary>
+    /// The pose he gathers himself into from the ground before standing (a low crouch): the ragdoll
+    /// blends into it, he holds it a moment and then rises, instead of snapping upright.
+    /// </summary>
+    [Export] public StringName GetUpClip { get; set; } = "Crouch_Idle_Loop";
+    /// <summary>How long he stays gathered in the crouch once the ragdoll has let go (s).</summary>
+    [Export] public float GetUpHold { get; set; } = 0.25f;
+    /// <summary>How long the rise from the crouch to standing takes (s).</summary>
+    [Export] public float GetUpRise { get; set; } = 0.45f;
+
+    /// <summary>He is gathering himself or rising after a fall (tests read it).</summary>
+    public bool Rising => _rise != RisePhase.None;
+
+    private enum RisePhase { None, Gather, Hold, Stand }
+
+    private RisePhase _rise = RisePhase.None;
+    private float _riseTime;
+    private float _fadeBefore = -1.0f;
+
+    private CharacterAnimator? RiseAnimator()
+    {
+        return Body?.GetNodeOrNull<Dive>("Dive")?.Animator;
+    }
+
+    /// <summary>The get-up begins: the crouch plays under the fading ragdoll.</summary>
+    private void BeginRise()
+    {
+        CharacterAnimator? animator = RiseAnimator();
+        if (animator == null || !animator.PlayAction(GetUpClip, 0.0f, 1.0f, true))
+        {
+            _rise = RisePhase.None;
+            return;
+        }
+        _rise = RisePhase.Gather;
+        _riseTime = 0.0f;
+    }
+
+    /// <summary>After the ragdoll has let go: hold the crouch, then let the normal animation take over slowly.</summary>
+    private void UpdateRise(float dt)
+    {
+        if (_rise == RisePhase.None || _rise == RisePhase.Gather)
+        {
+            return;
+        }
+        CharacterAnimator? animator = RiseAnimator();
+        if (animator == null)
+        {
+            _rise = RisePhase.None;
+            return;
+        }
+        _riseTime += dt;
+        if (_rise == RisePhase.Hold && _riseTime >= GetUpHold)
+        {
+            _fadeBefore = animator.ActionFadeTime;
+            animator.ActionFadeTime = GetUpRise;
+            animator.StopAction();
+            _rise = RisePhase.Stand;
+            _riseTime = 0.0f;
+        }
+        else if (_rise == RisePhase.Stand && _riseTime >= GetUpRise)
+        {
+            EndRise(animator);
+        }
+    }
+
+    private void EndRise(CharacterAnimator? animator)
+    {
+        if (animator != null && _fadeBefore >= 0.0f)
+        {
+            animator.ActionFadeTime = _fadeBefore;
+        }
+        _fadeBefore = -1.0f;
+        _rise = RisePhase.None;
     }
 
     /// <summary>Lost normal approach speed causes damage, scaled by hardness, body part and mass share.</summary>
@@ -670,6 +747,11 @@ public partial class PlayerRagdoll : Node
         {
             GameEvents.PublishVaultCue(VaultCue.None);
         }
+        if (_rise == RisePhase.Gather)
+        {
+            _rise = RisePhase.Hold;
+            _riseTime = 0.0f;
+        }
         ClearRoll();
         GameEvents.PublishDowned(false);
     }
@@ -706,6 +788,10 @@ public partial class PlayerRagdoll : Node
         GoDown(velocity, upperPush);
         _launched = Downed;
         ClearRoll();
+        if (_rise != RisePhase.None)
+        {
+            EndRise(RiseAnimator());
+        }
     }
 
     /// <summary>True while down from a throw on purpose (dive, jump), which gets up sooner.</summary>
@@ -721,6 +807,7 @@ public partial class PlayerRagdoll : Node
 
     public override void _Process(double delta)
     {
+        UpdateRise((float)delta);
         // Dying while upright collapses the carrier too.
         if (Health != null && Health.Dead && !Downed && Body != null)
         {
