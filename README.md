@@ -1,74 +1,86 @@
 <div align="center">
 
-<img src="game/art/brand/discord_icon_512.png" width="108" alt="Downhill Roguelite emblem">
+<img src="game/art/brand/app_icon.png" width="120" alt="Downhill Roguelite emblem">
 
 # Downhill Roguelite
 
-**An endless third-person descent roguelite.**
+**Carry your world on your back. Keep your balance. Go deeper.**
 
-*Carry your world on your back. Keep your balance. Go deeper.*
+A free survival adventure about walking down a mountain that never ends.
 
-A dark survival adventure about descending a mountain that never ends — toward godhood you can never quite reach.
+<br>
 
-**Godot 4.7 .NET · C# · Windows and Linux playtests · In active development**
+## ⬇ Play it now — it's free
 
-## ⬇ Download the game (free)
+[![Download for Windows](https://img.shields.io/badge/DOWNLOAD%20FOR%20WINDOWS-454%20MB-2ea44f?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/vstimac/DownhillRoguelite/releases/latest/download/DownhillRoguelite-windows.zip)
+&nbsp;&nbsp;
+[![Download for Linux](https://img.shields.io/badge/DOWNLOAD%20FOR%20LINUX-441%20MB-e95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/vstimac/DownhillRoguelite/releases/latest/download/DownhillRoguelite-linux-x86_64.tar.gz)
 
-**Latest update: [Beta 2.7 — spiders, torches and fire](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.2.7-beta)** · 11 November 2026
-
-**New player?** Download the full Beta 2.5 game below, extract it, then run `Update game.bat` to update to Beta 2.7. **Already installed?** Close the game and run `Update game.bat`.
-
-
-[![Download for Windows — Beta 2.5, 390 MB](https://img.shields.io/badge/Download%20for%20Windows-Beta%202.5%20%7C%20390%20MB-2ea44f?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-beta-2.5-windows.zip)
-
-[![Download for Linux (experimental)](https://img.shields.io/badge/Linux-experimental-555555?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-linux-beta.tar.gz) [![Join the Downhill Roguelite Discord](https://img.shields.io/badge/Discord-Join%20the%20descent-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/vhPkSvPk2)
-
-**Click the green button → right-click the ZIP → Extract All → run `DownhillRoguelite.exe`.** [How to install](#download-and-play) · [All releases](https://github.com/vstimac/DownhillRoguelite/releases) · [Report feedback](https://github.com/vstimac/DownhillRoguelite/issues/new/choose)
+**The buttons always give you the newest version.** No account, no installer, nothing else to install.
 
 </div>
 
+### How to start (Windows) — 3 steps
+
+| | |
+|:-:|---|
+| **1** | Click the green **DOWNLOAD FOR WINDOWS** button above and wait for the ZIP to finish. |
+| **2** | Find the ZIP in your **Downloads** folder → **right-click** it → **Extract All** → **Extract**. |
+| **3** | Open the new folder and double-click **`DownhillRoguelite.exe`** (the golden mountain icon). |
+
+> **Windows says "Windows protected your PC"?** That is normal for a small free game. Click **More info**, then **Run anyway**.
+>
+> **The game closes at once?** You started it from inside the ZIP. Do step 2 first, then start the `.exe` in the extracted folder.
+
+**Updates come by themselves:** when a new version is out, the game's title screen shows **Update**. Click it and the game updates and starts again. You never need to download it twice.
+
+<details>
+<summary><b>Linux</b></summary>
+
+1. Click **DOWNLOAD FOR LINUX** and unpack the archive anywhere you can write to.
+2. Run `./DownhillRoguelite.x86_64` (if it won't start: `chmod +x DownhillRoguelite.x86_64`).
+
+You need a GPU with Vulkan drivers. Updates work the same way as on Windows: pick **Update** on the title screen. More in the [Linux guide](docs/LINUX.md).
+
+</details>
+
+<details>
+<summary><b>It doesn't work — help</b></summary>
+
+- Make sure you extracted the whole ZIP and are starting the `.exe` inside the extracted folder, not a copy of the `.exe` on its own.
+- Update your graphics drivers (NVIDIA, AMD or Intel). The game needs Vulkan.
+- You need 64-bit Windows 10 or 11 and about 1 GB of free space.
+- Still stuck? [Ask on Discord](https://discord.gg/vhPkSvPk2) or [open an issue](https://github.com/vstimac/DownhillRoguelite/issues/new/choose) and attach `%APPDATA%\Godot\app_userdata\Downhill Roguelite\logs\godot.log`.
+
+</details>
+
 ---
 
-## Gameplay
-
-*Real, unedited in-game capture from the current development build.*
+## What is it?
 
 ![The summit: the skeleton with the rose on his bench beside the old Reno 4](docs/media/summit-radio.jpg)
 
-**Carry everything you own down a mountain that never ends.** Pack a backpack cell by cell, feel its weight pull at your balance, read the weather and reach the next station's fire before dark. Every run is a new procedural mountain; every death is final. Each run starts beside an old Reno 4 on the summit: press **E** on the car and the skeleton with the rose plays you a song, **K** opens the music player.
+**You start on the summit with a backpack. The only way is down.**
+
+- 🎒 **Pack your backpack piece by piece.** Everything you carry has weight, and the weight pulls at your balance.
+- 🔥 **Reach the next fire before dark.** Night kills outside a shelter. Stations are safe.
+- ⚔️ **Fight or run.** Ogres, a backpack that ate its owner, a giant spider that hunts at night.
+- ⛰️ **A new mountain every run.** Death is final; the next descent is a different mountain. Or type your own seed and share it with friends.
+- 🗣️ **A companion who talks back**, travellers at the fires, and a counter clerk who is never in a hurry.
+
+![A station at night: the fire, the boons and the way on](docs/media/station-night.jpg)
+
+**[Join the Discord](https://discord.gg/vhPkSvPk2)** to tell us what broke, what was fun and what you want next. · [All versions](https://github.com/vstimac/DownhillRoguelite/releases) · Godot 4.7 .NET · C# · in active development
 
 ### System requirements
 
 | | Minimum | Recommended |
 | --- | --- | --- |
-| **OS** | 64-bit Windows 10 / 11 (Linux experimental) | 64-bit Windows 11 |
+| **OS** | 64-bit Windows 10 / 11, or Linux (x86_64) | 64-bit Windows 11 |
 | **Graphics** | Vulkan-capable GPU with up-to-date drivers (integrated graphics start on Low quality) | Dedicated NVIDIA / AMD GPU |
 | **Storage** | ~1 GB free | ~3.5 GB with the optional AI companion model |
 | **Sound** | | Headphones (directional voices) |
 | **Heart** | <img src="docs/media/u-ram.jpg" width="150" alt="Framed meme: pa onda stavi me u ram, da znam da tebi pripadam"> | |
-
-## Download and play
-
-**Release policy (starting with the next release):** Every new Windows release must include a complete, standalone Windows game ZIP that new players can extract and run without installing an older version first. The main Windows download button must point to that newest complete ZIP. Smaller incremental update packages may be published separately for existing players using `Update game.bat`. Publish a new Linux download link only when a complete Linux build is available. Never label an update-only archive as the full game.
-
-**Latest update: [v0.2.7-beta](https://github.com/vstimac/DownhillRoguelite/releases/tag/v0.2.7-beta)** (11 November 2026). New players should install the full Beta 2.5 game first, then run `Update game.bat` to get Beta 2.7.
-
-1. Download [`DownhillRoguelite-beta-2.5-windows.zip`](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-beta-2.5-windows.zip) (~390 MB).
-2. Right-click the ZIP and choose **Extract All**. **Don't run the game from inside the ZIP**: Windows then copies only the `.exe` out and the game closes straight away.
-3. Open the extracted folder and run **`DownhillRoguelite.exe`**. Keep the files in that folder together.
-4. **Updates:** when a new version is out, close the game and double-click **`Update game.bat`** in the same folder. It downloads only what changed (usually a few MB).
-
-**Nothing else to install:** .NET is included in the download. **Requirements:** 64-bit Windows 10/11 and up-to-date graphics drivers (Vulkan) from NVIDIA, AMD or Intel. Headphones recommended.
-
-**If the game closes straight away or shows a .NET error:**
-- Make sure you extracted the whole ZIP (step 2) and are starting the `.exe` inside the extracted `DownhillRoguelite-playtest1` folder, not a copy of the `.exe` on its own.
-- Update your graphics drivers.
-- The talking companion (optional) also needs the [Microsoft Visual C++ Redistributable (x64)](https://aka.ms/vs/17/release/vc_redist.x64.exe) on older builds; the game runs without it.
-- Still stuck? [Open an issue](https://github.com/vstimac/DownhillRoguelite/issues/new/choose) and attach `%APPDATA%\Godot\app_userdata\Downhill Roguelite\logs\godot.log`.
-
-**Linux (experimental):** Download [`DownhillRoguelite-linux-beta.tar.gz`](https://github.com/vstimac/DownhillRoguelite/releases/download/v0.2.5-beta/DownhillRoguelite-linux-beta.tar.gz) from the same Beta 2.5 release (64-bit, Vulkan). Follow [Linux instructions](docs/LINUX.md).
-
-**Beta 2.7** (an update for Beta 2.5 and 2.6: close the game and run `Update game.bat`) brings torches for the night and fire that really burns, a giant spider that stalks the deeper circles and strings webs between the trees, spider silk for mending, 18 achievements, a station every 350 m, kills that drop loot, grass and trees that move in the wind, new trees for every circle, falling leaves and fireflies, and a fix for carriers being flung off the mountain. Beta 2.5 lets you save and quit a run and continue it later, adds a Ground fog switch, makes crates, logs and carts give way when you bump into them, and from now on updates download only what changed. Beta 2.4 brought sword and shield combat with lock-on, two new enemies, a dive and roll, modelled clothes, hand carts, ground fog that flows downhill, and starts on Low quality on laptops without a graphics card. Beta 2.3 added a forest at human scale, a new modular carrier, night beasts that stalk you after dark, the president at the rest site, a loading screen so the mountain is ready before you start, a smoother frame rate and a Wallpaper folder to thank our beta testers. It builds on Beta 2.2's title screen, Options, cargo jobs, relics and walking with weight. This is a playtest, not a finished release.
 
 ## Join the project — we need your help!
 
