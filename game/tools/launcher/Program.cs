@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
-using System.Text.Json;
+using DownhillRoguelite.Core.Update;
 
 namespace LetsPlay;
 
@@ -14,8 +14,6 @@ namespace LetsPlay;
 /// </summary>
 public static class Program
 {
-    private const string Repo = "vstimac/DownhillRoguelite";
-    private const string WindowsAssetSuffix = "-windows.zip";
     private const string GameExe = "DownhillRoguelite.exe";
     private const string VersionFile = "installed-version.txt";
     private const string ModelFile = "qwen2.5-3b-instruct-q4_k_m.gguf";
@@ -115,60 +113,84 @@ public static class Program
         }
     }
 
-    /// <summary>Installs the latest release's Windows build if it isn't the one installed.</summary>
+    /// <summary>
+    /// Brings the install up to the newest release (UpdatePlanner's rules, shared with the game): a
+    /// small update when one is made for the installed full release, else the whole new build. The
+    /// download is checked against GitHub's SHA-256 before anything in the install changes.
+    /// </summary>
     private static async Task UpdateAsync(string install)
     {
         Say("Checking for the newest version...");
-        using JsonDocument release = JsonDocument.Parse(await Http.GetStringAsync($"https://api.github.com/repos/{Repo}/releases/latest"));
-        JsonElement root = release.RootElement;
-        string tag = root.GetProperty("tag_name").GetString() ?? "";
-        string name = tag;
-        if (root.TryGetProperty("name", out JsonElement n) && n.ValueKind == JsonValueKind.String)
-        {
-            name = n.GetString() ?? tag;
-        }
-        string? url = null;
-        long size = 0;
-        foreach (JsonElement asset in root.GetProperty("assets").EnumerateArray())
-        {
-            string assetName = asset.GetProperty("name").GetString() ?? "";
-            if (assetName.EndsWith(WindowsAssetSuffix, StringComparison.OrdinalIgnoreCase))
-            {
-                url = asset.GetProperty("browser_download_url").GetString();
-                size = asset.GetProperty("size").GetInt64();
-            }
-        }
-        string versionPath = Path.Combine(install, VersionFile);
-        string installed = "";
-        if (File.Exists(versionPath))
-        {
-            installed = File.ReadAllText(versionPath).Trim();
-        }
-        if (installed == tag && File.Exists(Path.Combine(install, GameExe)))
-        {
-            Say($"You have the newest version: {name}.");
-            return;
-        }
-        if (url == null)
-        {
-            throw new InvalidOperationException("the newest release has no Windows build");
-        }
+        string json = await Http.GetStringAsync(UpdatePlanner.ReleasesUrl);
+        string baseTag = ReadLine(Path.Combine(install, "base.txt"));
+        string installed = ReadLine(Path.Combine(install, "version.txt"));
         if (installed.Length == 0)
         {
-            Say($"Installing {name} ({size / 1_000_000} MB) into:");
+            // Launchers before 2.8 kept the tag here.
+            installed = ReadLine(Path.Combine(install, VersionFile));
+        }
+        bool present = File.Exists(Path.Combine(install, GameExe));
+        UpdateOffer? offer = UpdatePlanner.Plan(json, present ? baseTag : "", present ? installed : "");
+        if (offer == null)
+        {
+            if (!present)
+            {
+                throw new InvalidOperationException("no release has a Windows build yet");
+            }
+            Say($"You have the newest version: {(installed.Length > 0 ? installed : baseTag)}.");
+            return;
+        }
+        string what = offer.Kind == UpdateKind.Patch ? "update" : "game";
+        if (!present)
+        {
+            Say($"Installing {offer.ReleaseName} ({offer.Size / 1_000_000} MB) into:");
         }
         else
         {
-            Say($"New version: {name} ({size / 1_000_000} MB). Updating:");
+            Say($"New version: {offer.ReleaseName} ({what}, {offer.Size / 1_000_000} MB). Updating:");
         }
         Say(install);
-        string zip = Path.Combine(Path.GetTempPath(), $"downhill-{tag}.zip");
-        await DownloadAsync(url, zip, size);
+        string zip = Path.Combine(Path.GetTempPath(), $"downhill-{offer.Version}.zip");
+        await DownloadAsync(offer.Url, zip, offer.Size);
+        if (offer.Sha256.Length > 0)
+        {
+            string actual;
+            using (FileStream file = File.OpenRead(zip))
+            {
+                actual = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(file)).ToLowerInvariant();
+            }
+            if (actual != offer.Sha256)
+            {
+                File.Delete(zip);
+                throw new InvalidOperationException("the download is damaged (checksum mismatch); nothing was changed");
+            }
+        }
         Say("Unpacking...");
+        if (offer.Kind == UpdateKind.Full)
+        {
+            // A new full release replaces every earlier small update.
+            string patches = Path.Combine(install, "patches");
+            if (Directory.Exists(patches))
+            {
+                Directory.Delete(patches, true);
+            }
+            File.Delete(Path.Combine(install, "base.txt"));
+            File.Delete(Path.Combine(install, "version.txt"));
+        }
         Unpack(zip, install);
         File.Delete(zip);
-        File.WriteAllText(versionPath, tag);
+        if (offer.Kind == UpdateKind.Full && !File.Exists(Path.Combine(install, "base.txt")))
+        {
+            File.WriteAllText(Path.Combine(install, "base.txt"), offer.Tag + Environment.NewLine);
+        }
+        File.WriteAllText(Path.Combine(install, "version.txt"), offer.Version + Environment.NewLine);
+        File.WriteAllText(Path.Combine(install, VersionFile), offer.Version);
         Say("Done.");
+    }
+
+    private static string ReadLine(string path)
+    {
+        return File.Exists(path) ? (File.ReadLines(path).FirstOrDefault() ?? "").Trim() : "";
     }
 
     /// <summary>Downloads a file with a progress bar.</summary>

@@ -8,7 +8,9 @@ Needs Windows 10 or 11 (64-bit) and up-to-date graphics drivers (Vulkan) from NV
 
 Start: DownhillRoguelite.exe
 Race:  "Race - same mountain.bat" (everyone gets the same mountain; your first life counts, deepest wins)
-Update: "Update game.bat" downloads only what changed (a few MB) instead of the whole game again
+Update: the game checks for a new version when it starts; pick "Update" on the title screen and it
+        updates and starts again by itself (only what changed is downloaded). "Update game.bat" does
+        the same by hand. Options > Gameplay > "Check for new versions" turns the check off.
 
 You carry a pack down an endless mountain. Reach the next station (a fire with a beam of light)
 before night. Eat, drink, rest. A heavy or badly packed load tips you over: lean against it.

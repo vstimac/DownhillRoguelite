@@ -36,6 +36,8 @@ PATCH = "patches/update.pck"
 # Player-made or per-install files that an update must never overwrite.
 SKIP = {"version.txt", "base.txt"}
 SKIP_DIRS = {"patches", "Models", "logs"}
+# Files from export/playtest/ that the full release ships next to the exe and updates refresh.
+PLAYER_SCRIPTS = ["update.ps1", "Update game.bat"]
 
 
 def fail(message):
@@ -108,6 +110,12 @@ def main():
             old = base_files.get(relative)
             if old is None or digest(old) != digest(path):
                 changed.append((relative, path))
+        # The folder's own updater ("Update game.bat" runs it) travels with every update too.
+        for name in PLAYER_SCRIPTS:
+            source = os.path.join(ROOT, "export", "playtest", name)
+            old = base_files.get(name)
+            if os.path.isfile(source) and (old is None or digest(old) != digest(source)):
+                changed.append((name, source))
 
         os.makedirs(out_dir, exist_ok=True)
         zip_path = os.path.join(out_dir, f"DownhillRoguelite-update-{version}-for-{base_id}.zip")
