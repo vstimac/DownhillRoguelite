@@ -629,7 +629,14 @@ public partial class UiTests : Node3D
 
         await Press("ui_down");
         MenuItem? second = GetViewport().GuiGetFocusOwner() as MenuItem;
-        bool moved = first?.Text == "New Run" && second != null && second != first;
+        // With a saved run on this PC the menu opens on Continue, otherwise on New Run.
+        bool moved = (first?.Text == "New Run" || first?.Text == "Continue") && second != null && second != first;
+        // New Run and Saved runs sit between the first entry and Character.
+        for (int i = 0; i < 3 && (second?.Text == "New Run" || second?.Text == "Saved runs"); i++)
+        {
+            await Press("ui_down");
+            second = GetViewport().GuiGetFocusOwner() as MenuItem;
+        }
 
         // Character page (if there is more than one character), then back.
         bool character = true;

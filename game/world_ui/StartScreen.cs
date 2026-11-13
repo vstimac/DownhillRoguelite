@@ -24,6 +24,7 @@ public partial class StartScreen : CanvasLayer
         Options,
         About,
         Achievements,
+        Saves,
         Starting,
     }
 
@@ -82,6 +83,10 @@ public partial class StartScreen : CanvasLayer
     private CharacterPage? _characters;
     private CreditsPage? _about;
     private AchievementsPage? _achievements;
+    private SavesPage? _saves;
+    /// <summary>The menu's letters never get smaller than this on short screens.</summary>
+    [Export] public int SmallestItemSize { get; set; } = 20;
+    private ulong? _chosenSeed;
     private MenuCamera? _camera;
     private MenuItem? _characterItem;
     private MenuItem? _lastFocus;
@@ -238,11 +243,14 @@ public partial class StartScreen : CanvasLayer
         _menu = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         _menu.AddThemeConstantOverride("separation", 4);
         _column.AddChild(_menu);
-        if (RunSave.Exists)
+        int newest = RunSave.NewestSlot();
+        if (newest > 0)
         {
-            AddItem("Continue", "Carry on the descent you left.", ContinueRun);
+            string left = RunSave.Peek(newest)?.Describe() ?? "the descent you left";
+            AddItem("Continue", "Carry on: " + left + ".", ContinueRun);
         }
         AddItem("New Run", "Start on the summit of a new mountain.", StartRun);
+        AddItem("Saved runs", "Pick one of your saved descents, or start a mountain from a seed you choose.", () => ShowPage(Page.Saves));
         if (CharacterPage.Roster(RosterPath).Count > 1)
         {
             _characterItem = AddItem("Character", "", () => ShowPage(Page.Character));
@@ -282,6 +290,12 @@ public partial class StartScreen : CanvasLayer
         _achievements.BackPressed += () => ClosePage(_achievements);
         _root.AddChild(_achievements);
         _achievements.SetOpenNow(false);
+        _saves = new SavesPage { Name = "Saves" };
+        _saves.BackPressed += () => ClosePage(_saves);
+        _saves.SlotChosen += PlaySlot;
+        _saves.SeedChosen += StartRunWithSeed;
+        _root.AddChild(_saves);
+        _saves.SetOpenNow(false);
 
         _curtain = new ColorRect { Color = Colors.Black, MouseFilter = Control.MouseFilterEnum.Ignore };
         _curtain.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -517,6 +531,12 @@ public partial class StartScreen : CanvasLayer
         if (_items.Count > 0 && (itemHeight + 4.0f) * _items.Count > room)
         {
             itemHeight = Mathf.Max(room / _items.Count - 4.0f, itemSize * 1.2f);
+            // Still too tall (every entry at once on 720p): the letters shrink a little too.
+            if ((itemHeight + 4.0f) * _items.Count > room)
+            {
+                itemSize = (int)Mathf.Max(SmallestItemSize, (room / _items.Count - 4.0f) / 1.2f);
+                itemHeight = itemSize * 1.2f;
+            }
         }
         foreach (MenuItem item in _items)
         {
@@ -539,6 +559,7 @@ public partial class StartScreen : CanvasLayer
         _options?.FitInto(full);
         _about?.FitInto(full);
         _achievements?.FitInto(full);
+        _saves?.FitInto(full);
         _characters?.FitInto(new Rect2(screen.X * 0.5f, margin * 0.6f, screen.X * 0.5f - margin * 0.6f, screen.Y - margin * 1.2f));
     }
 
@@ -676,6 +697,10 @@ public partial class StartScreen : CanvasLayer
         {
             _achievements?.OpenSheet();
         }
+        else if (page == Page.Saves)
+        {
+            _saves?.OpenSheet();
+        }
         else
         {
             UpdateCharacterHint();
@@ -705,13 +730,38 @@ public partial class StartScreen : CanvasLayer
     /// <summary>New Run: the menu fades, the camera flies into the run's camera, the world wakes and the sound fades in.</summary>
     public void StartRun()
     {
+        // A new run takes an empty slot; with all of them used, the one saved longest ago.
+        RunSave.UseSlot(RunSave.SlotForNewRun());
         BeginRun(false);
     }
 
-    /// <summary>Continue: as New Run, but RunKeeper puts the saved run back.</summary>
+    /// <summary>Continue: as New Run, but RunKeeper puts the saved run back (the one saved last).</summary>
     public void ContinueRun()
     {
+        int newest = RunSave.NewestSlot();
+        if (newest > 0)
+        {
+            RunSave.UseSlot(newest);
+        }
         BeginRun(true);
+    }
+
+    /// <summary>Saved runs: carry on the run in that slot, or start a new one there when it is empty.</summary>
+    public void PlaySlot(int slot)
+    {
+        _saves?.Close();
+        Current = Page.Main;
+        RunSave.UseSlot(slot);
+        BeginRun(RunSave.Exists);
+    }
+
+    /// <summary>Saved runs: a new run on the mountain this seed makes (the same seed, the same mountain).</summary>
+    public void StartRunWithSeed(ulong seed)
+    {
+        _saves?.Close();
+        Current = Page.Main;
+        _chosenSeed = seed;
+        StartRun();
     }
 
     private void BeginRun(bool continuing)
@@ -723,6 +773,11 @@ public partial class StartScreen : CanvasLayer
         Started = true;
         GetNodeOrNull<RunState>("/root/RunState")?.BeginCharacterRun();
         GameEvents.PublishRunBegun(continuing);
+        if (!continuing && _chosenSeed != null)
+        {
+            GetNodeOrNull<RunState>("/root/RunState")?.StartNewRun(_chosenSeed.Value);
+        }
+        _chosenSeed = null;
         Current = Page.Starting;
         _warmup = 0.0f;
         GetViewport().GuiReleaseFocus();

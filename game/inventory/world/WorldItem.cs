@@ -18,8 +18,8 @@ public partial class WorldItem : Node3D, IInteractable, IDescribed
     [Export] public float Durability { get; set; } = -1.0f;
     public ItemAppearance Appearance { get; set; }
     public string InstanceId { get; set; } = System.Guid.NewGuid().ToString("N");
-    /// <summary>Visual scale of the box compared to the item's real size.</summary>
-    [Export] public float VisualScale { get; set; } = 3.0f;
+    /// <summary>Visual scale of the box compared to the item's real size (1 = as big as it is in the pack: 5 cm cells).</summary>
+    [Export] public float VisualScale { get; set; } = 1.0f;
     [Export] public float LabelHeight { get; set; } = 0.45f;
     [Export] public int LabelFontSize { get; set; } = 36;
     [Export] public float LabelPixelSize { get; set; } = 0.004f;

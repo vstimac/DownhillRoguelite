@@ -237,6 +237,14 @@ public partial class PauseMenu : CanvasLayer
         AddItem("Resume", Resume);
         AddItem("Options", ShowOptions);
         AddItem("Achievements", ShowAchievements);
+        AddItem("Save and main menu", () =>
+        {
+            // The game starts again at the title screen: every system begins clean, and the run
+            // waits under Continue and Saved runs.
+            GameEvents.RequestSave();
+            OS.SetRestartOnExit(true, OS.GetCmdlineArgs());
+            GetTree().Quit();
+        });
         AddItem("Save and quit", () =>
         {
             GameEvents.RequestSave();
