@@ -2,6 +2,9 @@
 
 The carrier: character controller, step planner, foot IK (TwoBoneIK3D) and the gameplay camera.
 
+Hybrid recovery adds spring-driven hips/free arms and brief physical arm tension during living
+falls. Try `debug/TestActiveRagdoll.tscn` with F6; see [setup and limits](../../docs/active-ragdoll.md).
+
 Phase-synchronized gait blending and authored takeoff/landing use the existing Quaternius clips.
 Open `debug/TestSmoothLocomotion.tscn` with F6; [assets and tuning guide](../docs/smooth-locomotion.md).
 

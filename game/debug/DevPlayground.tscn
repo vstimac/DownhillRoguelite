@@ -139,7 +139,16 @@ ScenePath = "res://debug/LearnGodot.tscn"
 Description = "Obican pod i blokovi koje mozes micati u editoru. Dobar pocetak za vlastite prepreke i eksperimentiranje s Inspectorom."
 Controls = "WASD | Shift | C | Space | Ctrl | F10 izbornik"
 
+[sub_resource type="Resource" id="ActiveRagdoll"]
+script = ExtResource("2_entry")
+Id = "active-ragdoll"
+Title = "Aktivna ravnoteza i ragdoll"
+Category = "Kretanje"
+ScenePath = "res://debug/TestActiveRagdoll.tscn"
+Description = "Hibrid: hodanje i IK, opruzna korekcija kukova i slobodnih ruku, kratka fizicka napetost ruku pri padu. Gumbi za udarce, pad, nagib i A/B usporedbu."
+Controls = "Gumbi za udarce i A/B | WASD | Shift | C | Space | Ctrl | F3 dijagnostika | F10 izbornik"
+
 [node name="DevPlayground" type="Node"]
 script = ExtResource("1_root")
-Labs = Array[Resource]([SubResource("Sandbox"), SubResource("Clothing"), SubResource("BackpackFit"), SubResource("Abilities"), SubResource("Animation"), SubResource("Locomotion"), SubResource("Balance"), SubResource("Packing"), SubResource("Forest"), SubResource("Recovery"), SubResource("Purpose"), SubResource("Npcs"), SubResource("President"), SubResource("Beasts"), SubResource("Wildlife"), SubResource("Game"), SubResource("Learning")])
+Labs = Array[Resource]([SubResource("Sandbox"), SubResource("Clothing"), SubResource("BackpackFit"), SubResource("Abilities"), SubResource("Animation"), SubResource("Locomotion"), SubResource("ActiveRagdoll"), SubResource("Balance"), SubResource("Packing"), SubResource("Forest"), SubResource("Recovery"), SubResource("Purpose"), SubResource("Npcs"), SubResource("President"), SubResource("Beasts"), SubResource("Wildlife"), SubResource("Game"), SubResource("Learning")])
 Seed = 1

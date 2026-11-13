@@ -19,6 +19,8 @@ public partial class FootIK : Node3D
     private static readonly Variant NormalKey = "normal";
     [Export] public PlayerController? Body { get; set; }
     [Export] public Skeleton3D? Skeleton { get; set; }
+    /// <summary>Remove the recovery's hip displacement when planning ankles; IK then solves against the shifted hips.</summary>
+    [Export] public ActiveBalancePose? RecoveryPose { get; set; }
 
     [ExportGroup("Bones")]
     [Export] public string HipsBone { get; set; } = "DEF-hips";
@@ -182,6 +184,12 @@ public partial class FootIK : Node3D
 
             Transform3D animatedLocal = skeleton.GetBoneGlobalPose(foot.FootIndex);
             Transform3D animated = skeletonWorld * animatedLocal;
+            if (RecoveryPose != null && RecoveryPose.Active)
+            {
+                // Pelvis correction must not drag the contact targets along with the body, even
+                // when an animated foot is not locked. Only the leg solver sees the shifted hips.
+                animated.Origin -= RecoveryPose.HipShift * RecoveryPose.Influence;
+            }
             foot.AnimatedTransform = animated;
             foot.AnimatedSkeletonBasis = animatedLocal.Basis;
             foot.AnimatedHeight = animated.Origin.Y - origin.Y;
