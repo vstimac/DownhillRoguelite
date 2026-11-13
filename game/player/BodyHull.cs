@@ -310,6 +310,32 @@ public sealed class BodyHull
         }
     }
 
+    /// <summary>
+    /// How far a point can move along <paramref name="direction"/> (unit, world) before it touches the
+    /// body (only <paramref name="bones"/>' outlines; null: all): negative when it starts inside (how far
+    /// back it must go), <paramref name="reach"/> when nothing is in the way.
+    /// </summary>
+    public float GapAlong(Vector3 point, Vector3 direction, float reach, ICollection<int>? bones)
+    {
+        const float Step = 0.004f;
+        Vector3 probe = point;
+        if (Collide(ref probe, 0.0f, bones, out _, out _, out _))
+        {
+            for (float back = Step; back <= reach; back += Step)
+            {
+                probe = point - direction * back;
+                if (!Collide(ref probe, 0.0f, bones, out _, out _, out _)) { return -back; }
+            }
+            return -reach;
+        }
+        for (float along = Step; along <= reach; along += Step)
+        {
+            probe = point + direction * along;
+            if (Collide(ref probe, 0.0f, bones, out _, out _, out _)) { return along - Step * 0.5f; }
+        }
+        return reach;
+    }
+
     /// <summary>The surface's outward direction nearest a point, or zero away from the body.</summary>
     public Vector3 NormalNear(Vector3 point, float reach)
     {

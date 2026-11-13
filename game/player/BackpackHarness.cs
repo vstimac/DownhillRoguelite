@@ -52,6 +52,10 @@ public partial class BackpackHarness : Node3D
     [Export] public float ShoulderGive { get; set; } = 0.00001f;
     /// <summary>How much the shoulder straps' lower ends and the hip belt give (more: the pack's bottom swings further).</summary>
     [Export] public float LowerGive { get; set; } = 0.00003f;
+    /// <summary>On each start, lay the pack onto the body's surface (moved in and tilted until its back panel's top and bottom touch).</summary>
+    [Export] public bool LayOnBody { get; set; } = true;
+    /// <summary>The most (degrees) laying it on the body may tilt it from its fit.</summary>
+    [Export] public float MaxLayTiltDegrees { get; set; } = 25.0f;
     /// <summary>How far in (m) the straps pull the pack towards the body: its back panel stops it on the body, so it lies snug.</summary>
     [Export] public float Snug { get; set; } = 0.03f;
     /// <summary>Simulation steps per second (each frame is split into this many, at least one).</summary>
@@ -569,6 +573,43 @@ public partial class BackpackHarness : Node3D
         return _held;
     }
 
+    /// <summary>
+    /// The pack's fit moved in towards the body and tilted (about its across axis) until its back
+    /// panel's top and bottom both rest on the body's surface, PackClearance off it: whatever the body,
+    /// its clothes or the measured fit, the pack lies on the back.
+    /// </summary>
+    private Transform3D OnTheBody(Transform3D fit, List<Vector3> panel, ICollection<int> torso)
+    {
+        float maxTilt = Mathf.DegToRad(MaxLayTiltDegrees);
+        for (int pass = 0; pass < 3; pass++)
+        {
+            Vector3 inward = (fit.Basis * new Vector3(0.0f, 0.0f, -_awaySign)).Normalized();
+            float top = float.PositiveInfinity, bottom = float.PositiveInfinity;
+            float topY = 0.0f, bottomY = 0.0f;
+            int tops = 0, bottoms = 0;
+            foreach (Vector3 point in panel)
+            {
+                float gap = _hull!.GapAlong(fit.Origin + fit.Basis * point, inward, 0.35f, torso);
+                if (point.Y >= 0.0f) { top = Mathf.Min(top, gap); topY += point.Y; tops++; }
+                else { bottom = Mathf.Min(bottom, gap); bottomY += point.Y; bottoms++; }
+            }
+            if (tops == 0 || bottoms == 0) { return fit; }
+            topY /= tops;
+            bottomY /= bottoms;
+            // Nothing under one end (off the body): keep its height, just move in by the other.
+            if (top >= 0.35f) { top = bottom; }
+            if (bottom >= 0.35f) { bottom = top; }
+            if (top >= 0.35f) { return fit; }
+            float tilt = Mathf.Clamp((top - bottom) / Mathf.Max(topY - bottomY, 0.01f), -maxTilt, maxTilt);
+            float move = top - PackClearance - tilt * topY;
+            // A turn about the across axis by -awaySign * tilt moves a panel point at height y by tilt * y inwards.
+            Basis turn = new Basis(fit.Basis.X.Normalized(), -_awaySign * tilt);
+            fit = new Transform3D(turn * fit.Basis, fit.Origin + inward * move);
+            if (Mathf.Abs(move) < 0.002f && Mathf.Abs(tilt) < 0.005f) { break; }
+        }
+        return fit;
+    }
+
     private void AddTie(Vector3 local, float give)
     {
         _ties.Add(local);
@@ -607,7 +648,22 @@ public partial class BackpackHarness : Node3D
             if (bone >= 0) { torso.Add(bone); }
         }
         _physics.PanelBones = torso;
+        // The back panel: a grid over its body side (offsets from the centre of mass, pack axes).
+        Vector3 halfSize = box.Size * 0.5f;
+        float backZ = _centre.Z - _awaySign * halfSize.Z;
+        List<Vector3> panel = new();
+        foreach (float x in new[] { -0.7f, 0.0f, 0.7f })
+        {
+            foreach (float y in new[] { -0.8f, -0.27f, 0.27f, 0.8f })
+            {
+                panel.Add((new Vector3(_centre.X + x * halfSize.X, _centre.Y + y * halfSize.Y, backZ) - _centre) * _scale);
+            }
+        }
         Transform3D fit = FitFrame();
+        if (LayOnBody && _hull != null)
+        {
+            fit = OnTheBody(fit, panel, torso);
+        }
         _physics.Clear(_hull, PackMass, box.Size * _scale, fit);
         _ties.Clear();
         // The held frame, measured at the fit: the pack's top (between the shoulder straps' ends) on
@@ -659,16 +715,8 @@ public partial class BackpackHarness : Node3D
             if (path[0].Bone < 0) { AddTie((path[0].Local - _centre) * _scale + pull, first); }
             if (path[^1].Bone < 0) { AddTie((path[^1].Local - _centre) * _scale + pull, LowerGive); }
         }
-        // The back panel rests on the body: a grid over its body side.
-        float backZ = _centre.Z - _awaySign * half.Z;
-        foreach (float x in new[] { -0.7f, 0.0f, 0.7f })
-        {
-            foreach (float y in new[] { -0.8f, -0.27f, 0.27f, 0.8f })
-            {
-                Vector3 onPanel = new(_centre.X + x * half.X, _centre.Y + y * half.Y, backZ);
-                _physics.Contact((onPanel - _centre) * _scale);
-            }
-        }
+        // The back panel rests on the body.
+        foreach (Vector3 point in panel) { _physics.Contact(point); }
         // It comes to rest on the back once (the straps pulling it in, the panel stopping it); the
         // swing is then around that resting place.
         _physics.MaxDistance = MaxSwing;

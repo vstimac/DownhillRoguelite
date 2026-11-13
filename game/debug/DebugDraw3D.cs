@@ -38,6 +38,11 @@ public partial class DebugDraw3D : Node3D
         ProcessPhysicsPriority = int.MinValue;
         PhysicsInterpolationMode = PhysicsInterpolationModeEnum.Off;
 
+        // `-- --side-photo`: a camera beside the player in any scene (see SidePhoto).
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--side-photo") >= 0)
+        {
+            AddChild(new SidePhoto { Name = "SidePhoto", Fov = 45 });
+        }
         _mesh = new ImmediateMesh();
         _material = new StandardMaterial3D
         {
