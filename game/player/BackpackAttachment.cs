@@ -4,8 +4,10 @@ using Godot;
 namespace DownhillRoguelite.Player;
 
 /// <summary>
-/// A rigid pack follows the final visible skeleton through Godot's native attachment. Alignment is
-/// computed once in rest/body space; the imported model keeps its own transform under a fit pivot.
+/// A pack on the carrier. The fit (computed once in rest/body space, plus any hand fit) says where it
+/// sits on the back; the imported model keeps its own transform under a fit pivot. While its harness
+/// simulates it (BackpackHarness), the pivot is set free of the bone and hangs where the straps hold
+/// it; the fit is then only where it starts and what the straps' lengths are measured from.
 /// </summary>
 public partial class BackpackAttachment : BoneAttachment3D
 {
@@ -30,17 +32,48 @@ public partial class BackpackAttachment : BoneAttachment3D
     private Transform3D _placement = Transform3D.Identity;
     private Transform3D _anchorInBone = Transform3D.Identity;
     private Transform3D _adjustment = Transform3D.Identity;
-    private Transform3D _sway = Transform3D.Identity;
+    private Transform3D _fitted = Transform3D.Identity;
 
+    /// <summary>Counts every change of the fit (the harness starts over from a new fit).</summary>
+    public int FitVersion { get; private set; }
+    /// <summary>The harness moves the pivot (it hangs from the straps, not from the bone).</summary>
+    public bool Simulated { get; private set; }
+    /// <summary>Where the fit puts the pivot now, in world space (follows the bone).</summary>
     /// <summary>
-    /// BackpackMotion's swing, in the pack's own frame (identity when it hangs still). Applied after the
-    /// fit, so refitting keeps it and the fit never drifts with it.
+    /// Where the fit puts the pivot for the skeleton's current pose, read from the bone itself (this node
+    /// may still hold the last pose while the skeleton's update is being handled).
     /// </summary>
-    public void SetSway(Transform3D sway)
+    public Transform3D FittedPivot
     {
-        if (!sway.IsFinite()) { return; }
-        _sway = sway;
-        ApplyPlacement();
+        get
+        {
+            if (GetParent() is Skeleton3D rig && BoneIdx >= 0 && BoneIdx < rig.GetBoneCount())
+            {
+                return rig.GlobalTransform * rig.GetBoneGlobalPose(BoneIdx) * _fitted;
+            }
+            return GlobalTransform * _fitted;
+        }
+    }
+
+    /// <summary>Sets the pivot where the straps hold the pack (world space), free of the bone.</summary>
+    public void Simulate(Transform3D pivot)
+    {
+        if (!pivot.IsFinite()) { return; }
+        if (!Simulated)
+        {
+            Simulated = true;
+            Pivot.TopLevel = true;
+        }
+        Pivot.GlobalTransform = pivot;
+    }
+
+    /// <summary>Back on the bone, exactly at the fit.</summary>
+    public void StopSimulating()
+    {
+        if (!Simulated) { return; }
+        Simulated = false;
+        Pivot.TopLevel = false;
+        Pivot.Transform = _fitted;
     }
 
     /// <summary>The pack's extent in the pivot's frame (metres, as the model is placed).</summary>
@@ -61,7 +94,7 @@ public partial class BackpackAttachment : BoneAttachment3D
         return Model.Transform * bounds;
     }
 
-    /// <summary>The pivot (without sway) in the skeleton's rest pose, in the skeleton's space.</summary>
+    /// <summary>The fitted pivot in the skeleton's rest pose, in the skeleton's space.</summary>
     public Transform3D RestPivot(Skeleton3D rig)
     {
         Transform3D placed = _anchorInBone * _adjustment * _anchorInBone.AffineInverse() * _placement;
@@ -79,7 +112,9 @@ public partial class BackpackAttachment : BoneAttachment3D
 
     private void ApplyPlacement()
     {
-        Pivot.Transform = _anchorInBone * _adjustment * _anchorInBone.AffineInverse() * _placement * _sway;
+        _fitted = _anchorInBone * _adjustment * _anchorInBone.AffineInverse() * _placement;
+        FitVersion++;
+        if (!Simulated) { Pivot.Transform = _fitted; }
     }
 
     public static BackpackAttachment? Create(Skeleton3D rig, Node3D model, string bone,
@@ -107,8 +142,7 @@ public partial class BackpackAttachment : BoneAttachment3D
             attachment.Free();
             return null;
         }
-        // The harness (straps, sternum strap, hip belt) and the pack's swing come with every pack.
-        attachment.AddChild(new BackpackMotion { Name = "BackpackMotion" });
+        // The harness (straps, sternum strap, hip belt) comes with every pack; it hangs the pack on them.
         attachment.AddChild(new BackpackHarness { Name = "BackpackHarness" });
         rig.AddChild(attachment);
         return attachment;

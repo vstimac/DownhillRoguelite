@@ -67,6 +67,7 @@ public partial class BackpackAttachmentLab : ClothingLab
                 row.AddChild(input); _values.Add(input);
             }
         }
+        AddStrapPhysicsControls();
         Button print = new() { Text = "Apply fit / print to Output" };
         print.Pressed += () => { if (Pack() is BackpackAttachment pack) { pack.Refit(); GD.Print($"Backpack {pack.BoneName}: offset {pack.LocalOffset}, rotation {pack.LocalRotationDegrees}, scale {pack.ModelScale}, auto {pack.FitToBody}, gap {pack.Clearance}"); } };
         ControlList.AddChild(print);
@@ -81,18 +82,95 @@ public partial class BackpackAttachmentLab : ClothingLab
             float aim = 1.15f;
             // The whole body, head to feet (reference shots).
             if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--whole-body") >= 0) { eye = new Vector3(eye.X * 1.7f, 1.0f, eye.Z * 1.7f); aim = 0.9f; }
-            Camera3D photo = new() { Position = GetNode<Node3D>("World/Player").GlobalPosition + eye, Fov = 45, Current = true };
+            Node3D player = GetNode<Node3D>("World/Player");
+            Camera3D photo = new() { Position = player.GlobalPosition + eye, Fov = 45, Current = true };
             AddChild(photo);
-            photo.LookAt(GetNode<Node3D>("World/Player").GlobalPosition + Vector3.Up * aim);
+            photo.LookAt(player.GlobalPosition + Vector3.Up * aim);
+            // `-- --pack-walk` / `--pack-sprint`: the carrier walks (runs) forward, the camera along with it (the pack's swing in motion).
+            bool sprint = Array.IndexOf(OS.GetCmdlineUserArgs(), "--pack-sprint") >= 0;
+            if (sprint || Array.IndexOf(OS.GetCmdlineUserArgs(), "--pack-walk") >= 0)
+            {
+                photo.Reparent(player, true);
+                Input.ActionPress("player_move_forward");
+                if (sprint) { Input.ActionPress("player_sprint"); }
+            }
             GetNode<CanvasLayer>("ClothingControls").Visible = false;
         }
     }
 
     private BackpackAttachment? Pack() => _look.Clothing?.BackpackMount;
+    private BackpackHarness? Harness() => Pack()?.GetNodeOrNull<BackpackHarness>("BackpackHarness");
+
+    private bool _showHull;
+    private bool _showTies = true;
+
+    /// <summary>
+    /// Live tuning of the pack's strap physics: every change starts the pack over at its fit with the
+    /// new values (copy the printed values into BackpackHarness's exports to keep them).
+    /// </summary>
+    private void AddStrapPhysicsControls()
+    {
+        ControlList.AddChild(UiStyle.MakeLabel("Strap physics", 16));
+        CheckButton simulate = new() { Text = "Swing on straps", ButtonPressed = true };
+        simulate.Toggled += value => { if (Harness() is BackpackHarness harness) { harness.Simulate = value; harness.RequestRestart(); } };
+        ControlList.AddChild(simulate);
+        CheckButton hull = new() { Text = "Show body hull (mesh collider)" };
+        hull.Toggled += value => _showHull = value;
+        ControlList.AddChild(hull);
+        CheckButton ties = new() { Text = "Show strap ties (pack > body)", ButtonPressed = true };
+        ties.Toggled += value => _showTies = value;
+        ControlList.AddChild(ties);
+        Tune("Pack mass (kg)", 1, 30, 0.5, h => h.PackMass, (h, v) => h.PackMass = v);
+        Tune("Shoulder give (x1e-5)", 0, 200, 0.5, h => h.ShoulderGive * 100000f, (h, v) => h.ShoulderGive = v / 100000f);
+        Tune("Lower give (x1e-5)", 0, 500, 1, h => h.LowerGive * 100000f, (h, v) => h.LowerGive = v / 100000f);
+        Tune("Snug pull (m)", 0, 0.15, 0.005, h => h.Snug, (h, v) => h.Snug = v);
+        Tune("Panel clearance (m)", 0, 0.05, 0.002, h => h.PackClearance, (h, v) => h.PackClearance = v);
+        Tune("Damping", 0, 20, 0.25, h => h.PackDamping, (h, v) => h.PackDamping = v);
+        Tune("Turn damping", 0, 40, 0.5, h => h.PackTurnDamping, (h, v) => h.PackTurnDamping = v);
+        Tune("Steps per second", 60, 2000, 20, h => h.StepsPerSecond, (h, v) => h.StepsPerSecond = v);
+        Tune("Max swing (m)", 0, 0.3, 0.005, h => h.MaxSwing, (h, v) => h.MaxSwing = v);
+        Tune("Max turn (deg)", 0, 45, 0.5, h => h.MaxTurnDegrees, (h, v) => h.MaxTurnDegrees = v);
+        Button restart = new() { Text = "Restart pack at its fit" };
+        restart.Pressed += () => Harness()?.RequestRestart();
+        ControlList.AddChild(restart);
+        Button print = new() { Text = "Print strap physics to Output" };
+        print.Pressed += () =>
+        {
+            if (Harness() is not BackpackHarness h) { return; }
+            GD.Print($"BackpackHarness: PackMass {h.PackMass}, ShoulderGive {h.ShoulderGive}, LowerGive {h.LowerGive}, Snug {h.Snug}, PackClearance {h.PackClearance}, PackDamping {h.PackDamping}, PackTurnDamping {h.PackTurnDamping}, StepsPerSecond {h.StepsPerSecond}, MaxSwing {h.MaxSwing}, MaxTurnDegrees {h.MaxTurnDegrees}");
+        };
+        ControlList.AddChild(print);
+    }
+
+    private void Tune(string title, double min, double max, double step, Func<BackpackHarness, float> read, Action<BackpackHarness, float> write)
+    {
+        HBoxContainer row = new();
+        ControlList.AddChild(row);
+        row.AddChild(UiStyle.MakeLabel(title, 14));
+        SpinBox input = new() { MinValue = min, MaxValue = max, Step = step, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        // Picks up the harness's current value once it exists.
+        input.Ready += () => { if (Harness() is BackpackHarness h) { input.SetValueNoSignal(read(h)); } };
+        input.FocusEntered += () => { if (Harness() is BackpackHarness h) { input.SetValueNoSignal(read(h)); } };
+        input.ValueChanged += value =>
+        {
+            if (Harness() is not BackpackHarness h) { return; }
+            write(h, (float)value);
+            h.RequestRestart();
+        };
+        row.AddChild(input);
+    }
+
+    private int _logFrame;
 
     public override void _Process(double delta)
     {
         base._Process(delta);
+        // `-- --pack-log`: the hanging pack's state every 10 frames (tuning the strap simulation).
+        if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--pack-log") >= 0 && Pack() is BackpackAttachment logged && ++_logFrame % 10 == 0
+            && logged.GetNodeOrNull<BackpackHarness>("BackpackHarness") is BackpackHarness harness && harness.Physics is PackPhysics physics)
+        {
+            GD.Print($"pack f{_logFrame} swing={harness.SwingDistance:0.000} m / {Mathf.RadToDeg(harness.SwingAngle):0.0} deg panel inside={physics.DeepestInside:0.000} widest tie={physics.WidestTie:0.000} us={harness.StepMicroseconds} ties={physics.Ties} resets={harness.Resets}");
+        }
         if (HidePack && Pack() is BackpackAttachment hidden) { hidden.Visible = false; }
         _refresh -= (float)delta;
         if (_refresh > 0 || _details == null) { return; }
@@ -110,6 +188,26 @@ public partial class BackpackAttachmentLab : ClothingLab
 
     public override void _PhysicsProcess(double delta)
     {
+        // `-- --pack-hull`: the body surface the straps and the pack collide with (measured from the
+        // skinned meshes' vertices, one outline per bone, coloured by bone). Add Godot's own
+        // `--debug-collisions` to see the physics capsules too: the straps never touch those.
+        if ((_showHull || Array.IndexOf(OS.GetCmdlineUserArgs(), "--pack-hull") >= 0) && Harness()?.Hull is BodyHull hull)
+        {
+            if (!DebugDraw3D.Enabled) { DebugDraw3D.SetEnabled(true); }
+            Color[] colours = { Colors.Magenta, Colors.Cyan, Colors.Yellow, Colors.Orange, Colors.Lime, Colors.White };
+            hull.Outline((from, to, part) => DebugDraw3D.Line(from, to, colours[part % colours.Length]));
+        }
+        // Each strap point on the pack (white cross) and where its strap holds it on the body (red), joined.
+        if (_showTies && Harness()?.Physics is PackPhysics physics && Harness()!.Simulate)
+        {
+            if (!DebugDraw3D.Enabled) { DebugDraw3D.SetEnabled(true); }
+            for (int i = 0; i < physics.Ties; i++)
+            {
+                DebugDraw3D.Cross(physics.TiePoint(i), Colors.White, 0.03f);
+                DebugDraw3D.Cross(physics.TieHeld(i), Colors.Red, 0.03f);
+                DebugDraw3D.Line(physics.TiePoint(i), physics.TieHeld(i), Colors.Orange);
+            }
+        }
         if (!DrawMount || Pack() is not BackpackAttachment pack) { return; }
         DebugDraw3D.Cross(pack.GlobalPosition, Colors.Yellow, 0.08f);
         DebugDraw3D.Line(pack.GlobalPosition, pack.Pivot.GlobalPosition, Colors.Cyan);

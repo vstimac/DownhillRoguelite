@@ -4,16 +4,20 @@ using Godot;
 namespace DownhillRoguelite.Player;
 
 /// <summary>
-/// The pack's harness, drawn as continuous webbing:
+/// The pack's harness, and what holds the pack on:
 /// - two shoulder straps (from the pack's top, over the shoulder, down the chest and under the arm to
 ///   the pack's lower corner);
 /// - a sternum strap with a buckle joining them across the chest;
 /// - a hip belt round the waist, from one side of the pack to the other, buckled in front.
 /// The body is measured once in its rest pose (its visible skinned meshes, so the clothes it wears
-/// count; measured again when they change). Every strap point is held by a bone (or by the pack), and
-/// the straps are rebuilt from the final pose on each skeleton update (after the animation, IK and
-/// lean), so they follow the shoulders, chest and hips through every move and the pack's swing.
-/// Procedural webbing, not cloth: it bends along its path but doesn't fold. BackpackAttachment adds it.
+/// count; measured again when they change): where each strap runs over it, and its surface (BodyHull).
+/// The pack is its own body (PackPhysics), not held by a bone. Where the straps hold it is one frame:
+/// its top where the shoulder straps hold it on the upper back, its bottom turned towards the hips
+/// where the hip belt holds it (so it follows the spine as it bends, and every strap's pull agrees).
+/// Its strap points are tied to that frame, firmly at the top and with a little give below, so it lags,
+/// swings and settles with every move while the straps and pack stay one piece. Its back panel rests on the mesh's surface. Simulated on each
+/// skeleton update (after the animation, IK, lean and ragdoll); the straps are drawn from that pose as
+/// flat webbing lying on the body, their ends sewn to the swinging pack. Visual only. BackpackAttachment adds it.
 /// </summary>
 public partial class BackpackHarness : Node3D
 {
@@ -41,6 +45,29 @@ public partial class BackpackHarness : Node3D
     [Export] public Color Metal { get; set; } = new(0.45f, 0.45f, 0.43f);
     /// <summary>How often (s) it checks whether what the body wears changed (then measures again).</summary>
     [Export] public float RecheckEvery { get; set; } = 1.0f;
+    /// <summary>Let the pack swing on its straps; off: it sits at its fit.</summary>
+    [Export] public bool Simulate { get; set; } = true;
+    [Export] public float PackMass { get; set; } = 8.0f;
+    /// <summary>How much the shoulder straps' tops give (compliance, m/N; 0 holds rigidly).</summary>
+    [Export] public float ShoulderGive { get; set; } = 0.00001f;
+    /// <summary>How much the shoulder straps' lower ends and the hip belt give (more: the pack's bottom swings further).</summary>
+    [Export] public float LowerGive { get; set; } = 0.00003f;
+    /// <summary>How far in (m) the straps pull the pack towards the body: its back panel stops it on the body, so it lies snug.</summary>
+    [Export] public float Snug { get; set; } = 0.03f;
+    /// <summary>Simulation steps per second (each frame is split into this many, at least one).</summary>
+    [Export] public float StepsPerSecond { get; set; } = 480.0f;
+    [Export] public float PackDamping { get; set; } = 4.0f;
+    [Export] public float PackTurnDamping { get; set; } = 10.0f;
+    /// <summary>The furthest (m) the pack swings from where its straps hold it (they only stretch so far).</summary>
+    [Export] public float MaxSwing { get; set; } = 0.06f;
+    /// <summary>The most (degrees) the pack turns from where its straps hold it.</summary>
+    [Export] public float MaxTurnDegrees { get; set; } = 10.0f;
+    /// <summary>The pack's back panel stays this far off the body, in m.</summary>
+    [Export] public float PackClearance { get; set; } = 0.012f;
+    /// <summary>The body moving further than this (m) in one update was moved (a teleport): the pack starts over at its fit.</summary>
+    [Export] public float TeleportDistance { get; set; } = 1.5f;
+    /// <summary>The pack further than this (m) from its fit starts over there (a safety net).</summary>
+    [Export] public float ResetDistance { get; set; } = 0.6f;
 
     /// <summary>The body was measured and every strap has its points.</summary>
     public bool Fitted { get; private set; }
@@ -49,6 +76,19 @@ public partial class BackpackHarness : Node3D
     public int Measures { get; private set; }
     /// <summary>Times the straps were rebuilt from a pose (tests).</summary>
     public int Rebuilds { get; private set; }
+    /// <summary>Times the pack started over at its fit (tests).</summary>
+    public int Resets { get; private set; }
+    /// <summary>The last simulation step's cost, in microseconds (tests).</summary>
+    public long StepMicroseconds { get; private set; }
+    /// <summary>How far (m) and how much (radians) the pack has swung from where its straps hold it, at the last update.</summary>
+    public float SwingDistance { get; private set; }
+    public float SwingAngle { get; private set; }
+    /// <summary>Starts the pack over at its fit on the next update, with the current settings (tuning).</summary>
+    public void RequestRestart() => _needReset = true;
+    /// <summary>The simulation (null until fitted).</summary>
+    public PackPhysics? Physics => _physics;
+    /// <summary>The body's surface the pack rests on and the straps lie on (measured from the mesh).</summary>
+    public BodyHull? Hull => _hull;
 
     /// <summary>A strap point: held by a bone (Local in the bone's frame) or by the pack (Bone -1, Local in the pivot's frame).</summary>
     private readonly record struct Anchor(int Bone, Vector3 Local);
@@ -68,6 +108,27 @@ public partial class BackpackHarness : Node3D
     private ulong _wearing;
     private float _recheck;
     private readonly List<Vector3> _body = new();
+    private PackPhysics? _physics;
+    private BodyHull? _hull;
+    private bool _needReset = true;
+    private int _fitVersion = -1;
+    private ulong _lastFrame;
+    private Vector3 _lastHips;
+    private float _awaySign = 1.0f;
+    /// <summary>The pack's centre of mass in the pivot's frame, and the pivot's scale.</summary>
+    private Vector3 _centre;
+    private float _scale = 1.0f;
+    /// <summary>The ties' strap points (offsets from the centre of mass, pack axes, pulled in by Snug).</summary>
+    private readonly List<Vector3> _ties = new();
+    private readonly List<Vector3> _held = new();
+    // The held frame: the pack's top on the upper spine, its bottom towards the hips (see HeldFrame).
+    private Vector3 _topOnSpine;
+    private Vector3 _bottomOnHips;
+    private Vector3 _awayOnSpine;
+    private Vector3 _topInPack;
+    private Basis _packAxes = Basis.Identity;
+    /// <summary>Where the pack came to rest, in the held frame (on the body, the straps pulling): the swing is around it.</summary>
+    private Transform3D _rest = Transform3D.Identity;
 
     public const int LeftStrap = 0;
     public const int RightStrap = 1;
@@ -273,6 +334,16 @@ public partial class BackpackHarness : Node3D
         }
         belt.Add(Pack(-0.97f, -0.85f, -0.6f));
         _beltBuckleAt = 1 + steps / 2;
+        _awaySign = awaySign;
+        List<int> hullBones = new();
+        foreach (string name in new[] { "Hips", "Spine", "Spine1", "Spine2", "Neck", "Head", "LeftShoulder", "RightShoulder", "LeftArm", "RightArm" })
+        {
+            int bone = ClothingRig.Bone(_rig, name);
+            if (bone >= 0 && !hullBones.Contains(bone)) { hullBones.Add(bone); }
+        }
+        _hull = BodyHull.Measure(_rig, BodyMeshes(), hullBones);
+        _physics ??= new PackPhysics();
+        _needReset = true;
         Problem = "";
         Fitted = true;
     }
@@ -390,19 +461,247 @@ public partial class BackpackHarness : Node3D
         return fallback;
     }
 
-    private Vector3 World(Anchor anchor)
+    private Vector3 World(Anchor anchor) => World(anchor, _pack!.Pivot.GlobalTransform);
+
+    private Vector3 World(Anchor anchor, Transform3D pivot)
     {
         if (anchor.Bone < 0)
         {
-            return _pack!.Pivot.GlobalTransform * anchor.Local;
+            return pivot * anchor.Local;
         }
         return _rig!.GlobalTransform * (_rig.GetBoneGlobalPose(anchor.Bone) * anchor.Local);
     }
 
-    /// <summary>Rebuilds the webbing from the pose just finished (the skeleton's update).</summary>
+    /// <summary>Simulates the pack and draws the harness for the pose just finished (the skeleton's update).</summary>
     private void Rebuild()
     {
         if (!Fitted || _rig == null || _pack == null || _webbing == null || !IsVisibleInTree())
+        {
+            return;
+        }
+        if (!Simulate || _physics == null)
+        {
+            _pack.StopSimulating();
+            DrawStraps();
+            return;
+        }
+        ulong frame = Engine.GetProcessFrames();
+        float dt = 0.0f;
+        if (frame != _lastFrame)
+        {
+            dt = Mathf.Min((float)GetProcessDeltaTime(), 0.05f);
+        }
+        _lastFrame = frame;
+        Vector3 hips = _rig.GlobalTransform * _rig.GetBoneGlobalPose(_hips).Origin;
+        bool moved = hips.DistanceTo(_lastHips) > TeleportDistance;
+        _lastHips = hips;
+        if (_needReset || moved || _pack.FitVersion != _fitVersion)
+        {
+            Restart();
+        }
+        else
+        {
+            ulong started = Time.GetTicksUsec();
+            _hull?.Pose(false);
+            int substeps = Mathf.Clamp(Mathf.CeilToInt(dt * StepsPerSecond), 1, 24);
+            Transform3D rest = HeldFrame() * _rest;
+            _physics.MaxDistance = MaxSwing;
+            _physics.MaxAngle = Mathf.DegToRad(MaxTurnDegrees);
+            _physics.Step(dt, substeps, Held(), rest);
+            StepMicroseconds = (long)(Time.GetTicksUsec() - started);
+            SwingDistance = _physics.Position.DistanceTo(rest.Origin);
+            SwingAngle = _physics.Rotation.AngleTo(rest.Basis.GetRotationQuaternion());
+            Transform3D hung = HungPivot();
+            if (!hung.IsFinite() || SwingDistance > ResetDistance)
+            {
+                Restart();
+            }
+            else
+            {
+                _pack.Simulate(hung);
+            }
+        }
+        DrawStraps();
+    }
+
+    /// <summary>The pack's centre of mass's frame at its fit (no scale): where its straps hold it.</summary>
+    private Transform3D FitFrame()
+    {
+        Transform3D pivot = _pack!.FittedPivot;
+        return new Transform3D(pivot.Basis.Orthonormalized(), pivot * _centre);
+    }
+
+    /// <summary>
+    /// Where the straps hold the pack now (its centre of mass's frame, no scale): its top on the upper
+    /// spine (the shoulder straps), turned so its bottom points at the hips (the hip belt), its back to
+    /// the body.
+    /// </summary>
+    private Transform3D HeldFrame()
+    {
+        Transform3D spine = _rig!.GlobalTransform * _rig.GetBoneGlobalPose(_pack!.BoneIdx);
+        Transform3D hips = _rig.GlobalTransform * _rig.GetBoneGlobalPose(_hips);
+        Vector3 top = spine * _topOnSpine;
+        Vector3 down = (hips * _bottomOnHips - top).Normalized();
+        Vector3 away = (spine.Basis * _awayOnSpine).Normalized();
+        Basis world = Axes(down, away);
+        if (!world.IsFinite())
+        {
+            return new Transform3D(spine.Basis.Orthonormalized() * _packAxes, top - spine.Basis.Orthonormalized() * _packAxes * _topInPack);
+        }
+        Basis turn = world * _packAxes;
+        return new Transform3D(turn, top - turn * _topInPack);
+    }
+
+    /// <summary>An orthonormal frame from a down direction and an away direction (columns: across, down, away).</summary>
+    private static Basis Axes(Vector3 down, Vector3 away)
+    {
+        Vector3 out_ = (away - down * away.Dot(down)).Normalized();
+        Vector3 across = down.Cross(out_).Normalized();
+        return new Basis(across, down, out_);
+    }
+
+    /// <summary>Where the straps hold each tie now.</summary>
+    private List<Vector3> Held()
+    {
+        Transform3D frame = HeldFrame();
+        _held.Clear();
+        foreach (Vector3 local in _ties) { _held.Add(frame * local); }
+        return _held;
+    }
+
+    private void AddTie(Vector3 local, float give)
+    {
+        _ties.Add(local);
+        _physics!.Tie(local, give, HeldFrame() * local);
+    }
+
+    /// <summary>Where the simulated pack puts the pivot.</summary>
+    private Transform3D HungPivot()
+    {
+        Basis turn = new Basis(_physics!.Rotation).Scaled(Vector3.One * _scale);
+        return new Transform3D(turn, _physics.Position - turn * _centre);
+    }
+
+    /// <summary>The pack back at its fit, still, tied on by its straps' ends.</summary>
+    private void Restart()
+    {
+        if (_physics == null || _pack == null || _rig == null)
+        {
+            return;
+        }
+        Resets++;
+        _needReset = false;
+        _fitVersion = _pack.FitVersion;
+        _lastHips = _rig.GlobalTransform * _rig.GetBoneGlobalPose(_hips).Origin;
+        _scale = _pack.FittedPivot.Basis.Scale.X;
+        Aabb box = _pack.PackBounds();
+        _centre = box.GetCenter();
+        _hull?.Pose(true);
+        _physics.LinearDamping = PackDamping;
+        _physics.AngularDamping = PackTurnDamping;
+        _physics.PackClearance = PackClearance;
+        List<int> torso = new();
+        foreach (string name in new[] { "Hips", "Spine", "Spine1", "Spine2" })
+        {
+            int bone = ClothingRig.Bone(_rig, name);
+            if (bone >= 0) { torso.Add(bone); }
+        }
+        _physics.PanelBones = torso;
+        Transform3D fit = FitFrame();
+        _physics.Clear(_hull, PackMass, box.Size * _scale, fit);
+        _ties.Clear();
+        // The held frame, measured at the fit: the pack's top (between the shoulder straps' ends) on
+        // the upper spine, its bottom (between the hip belt's ends, else the shoulder straps' lower
+        // ends) on the hips, and which way is away from the back.
+        Vector3 topEnd = Vector3.Zero;
+        Vector3 bottomEnd = Vector3.Zero;
+        int tops = 0;
+        int bottoms = 0;
+        foreach (int strap in new[] { LeftStrap, RightStrap })
+        {
+            List<Anchor> path = _paths[strap];
+            if (!Shown(strap) || path.Count < 2 || path[0].Bone >= 0) { continue; }
+            topEnd += path[0].Local;
+            tops++;
+        }
+        int lower = Belt;
+        if (!Shown(Belt) || _paths[Belt].Count < 2) { lower = -1; }
+        foreach (int strap in new[] { LeftStrap, RightStrap, Belt })
+        {
+            List<Anchor> path = _paths[strap];
+            if (!Shown(strap) || path.Count < 2 || (lower >= 0 && strap != Belt) || (lower < 0 && strap == Belt)) { continue; }
+            if (path[0].Bone < 0 && strap == Belt) { bottomEnd += path[0].Local; bottoms++; }
+            if (path[^1].Bone < 0) { bottomEnd += path[^1].Local; bottoms++; }
+        }
+        Vector3 half = box.Size * 0.5f;
+        if (tops == 0) { topEnd = _centre + new Vector3(0.0f, half.Y, 0.0f); tops = 1; }
+        if (bottoms == 0) { bottomEnd = _centre - new Vector3(0.0f, half.Y, 0.0f); bottoms = 1; }
+        Vector3 topRel = (topEnd / tops - _centre) * _scale;
+        Vector3 bottomRel = (bottomEnd / bottoms - _centre) * _scale;
+        Vector3 awayRel = new(0.0f, 0.0f, _awaySign);
+        Transform3D spine = _rig.GlobalTransform * _rig.GetBoneGlobalPose(_pack.BoneIdx);
+        Transform3D hips = _rig.GlobalTransform * _rig.GetBoneGlobalPose(_hips);
+        _topOnSpine = spine.AffineInverse() * (fit * topRel);
+        _bottomOnHips = hips.AffineInverse() * (fit * bottomRel);
+        _awayOnSpine = spine.Basis.Inverse() * (fit.Basis * awayRel);
+        _topInPack = topRel;
+        _packAxes = Axes((bottomRel - topRel).Normalized(), awayRel).Transposed();
+        // The straps' ends sewn to the pack, tied to the held frame, pulled a little in towards the
+        // body (the straps' tension: the back panel stops the pack on the body, so it lies snug). The
+        // shoulder straps' tops hold it, the rest give a little.
+        Vector3 pull = new(0.0f, 0.0f, -_awaySign * Snug);
+        foreach (int strap in new[] { LeftStrap, RightStrap, Belt })
+        {
+            List<Anchor> path = _paths[strap];
+            if (!Shown(strap) || path.Count < 2) { continue; }
+            float first = LowerGive;
+            if (strap != Belt) { first = ShoulderGive; }
+            if (path[0].Bone < 0) { AddTie((path[0].Local - _centre) * _scale + pull, first); }
+            if (path[^1].Bone < 0) { AddTie((path[^1].Local - _centre) * _scale + pull, LowerGive); }
+        }
+        // The back panel rests on the body: a grid over its body side.
+        float backZ = _centre.Z - _awaySign * half.Z;
+        foreach (float x in new[] { -0.7f, 0.0f, 0.7f })
+        {
+            foreach (float y in new[] { -0.8f, -0.27f, 0.27f, 0.8f })
+            {
+                Vector3 onPanel = new(_centre.X + x * half.X, _centre.Y + y * half.Y, backZ);
+                _physics.Contact((onPanel - _centre) * _scale);
+            }
+        }
+        // It comes to rest on the back once (the straps pulling it in, the panel stopping it); the
+        // swing is then around that resting place.
+        _physics.MaxDistance = MaxSwing;
+        _physics.MaxAngle = Mathf.DegToRad(MaxTurnDegrees);
+        _physics.Settle(Held(), 1.0f);
+        Transform3D held = HeldFrame();
+        _rest = held.AffineInverse() * new Transform3D(new Basis(_physics.Rotation), _physics.Position);
+        _physics.Step(0.0f, 1, Held(), held * _rest);
+        SwingDistance = 0.0f;
+        SwingAngle = 0.0f;
+        _pack.Simulate(HungPivot());
+    }
+
+    /// <summary>The body's outward direction under a strap point (its surface), else from the body's middle line.</summary>
+    private Vector3 Surface(Vector3 point, Vector3 along, Vector3 axisFrom, Vector3 axisTo)
+    {
+        Vector3 normal = Vector3.Zero;
+        if (_hull != null && Simulate)
+        {
+            normal = _hull.NormalNear(point, Clearance + StrapThickness + 0.03f);
+            normal -= along * along.Dot(normal);
+        }
+        if (normal.LengthSquared() < 0.25f)
+        {
+            return Outward(point, along, axisFrom, axisTo);
+        }
+        return normal.Normalized();
+    }
+
+    /// <summary>The straps along their measured paths over the body, their ends sewn to the pack where it hangs now.</summary>
+    private void DrawStraps()
+    {
+        if (_rig == null || _pack == null || _webbing == null)
         {
             return;
         }
@@ -536,7 +835,7 @@ public partial class BackpackHarness : Node3D
         for (int i = 0; i < count; i++)
         {
             Vector3 along = (points[Mathf.Min(count - 1, i + 1)] - points[Mathf.Max(0, i - 1)]).Normalized();
-            Vector3 normal = Outward(points[i], along, axisFrom, axisTo);
+            Vector3 normal = Surface(points[i], along, axisFrom, axisTo);
             if (!normal.IsFinite() || normal.LengthSquared() < 0.5f)
             {
                 normal = lastOut;
