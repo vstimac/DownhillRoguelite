@@ -12,9 +12,9 @@ A free survival adventure about walking down a mountain that never ends.
 
 ## ⬇ Play it now — it's free
 
-[![Download for Windows](https://img.shields.io/badge/DOWNLOAD%20FOR%20WINDOWS-454%20MB-2ea44f?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/vstimac/DownhillRoguelite/releases/latest/download/DownhillRoguelite-windows.zip)
+[![Windows download](https://img.shields.io/badge/DOWNLOAD%20FOR%20WINDOWS-454%20MB-2ea44f?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/vstimac/DownhillRoguelite/releases/latest/download/DownhillRoguelite-windows.zip)
 &nbsp;&nbsp;
-[![Download for Linux](https://img.shields.io/badge/DOWNLOAD%20FOR%20LINUX-441%20MB-e95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/vstimac/DownhillRoguelite/releases/latest/download/DownhillRoguelite-linux-x86_64.tar.gz)
+[![Linux download](https://img.shields.io/badge/DOWNLOAD%20FOR%20LINUX-441%20MB-e95420?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/vstimac/DownhillRoguelite/releases/latest/download/DownhillRoguelite-linux-x86_64.tar.gz)
 
 **The buttons always give you the newest version.** No account, no installer, nothing else to install.
 
