@@ -8,8 +8,9 @@ namespace DownhillRoguelite.Progression;
 /// One offering at a station: a small glowing stone with the boon's name above it; up close (when
 /// the carrier faces it) the description shows too. E chooses it (through PickupInteractor).
 /// </summary>
-public partial class BoonStone : Node3D, IInteractable, IDescribed
+public partial class BoonStone : Node3D, ISharedWorldPickup, IDescribed
 {
+    public string SharedPickupKey => "boon:" + Station;
     public BoonDefinition? Boon { get; private set; }
     public int Station { get; private set; }
 
@@ -85,6 +86,9 @@ public partial class BoonStone : Node3D, IInteractable, IDescribed
         {
             return false;
         }
-        return _offerings.Choose(this);
+        if (!GameEvents.MayPickUp(SharedPickupKey, this)) { return false; }
+        bool chosen = _offerings.Choose(this);
+        if (chosen) { GameEvents.PublishSupplyPickedUp(SharedPickupKey); }
+        return chosen;
     }
 }

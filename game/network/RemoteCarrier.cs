@@ -46,6 +46,7 @@ public partial class RemoteCarrier : CharacterBody3D
     public int States { get; private set; }
     public CarrierModel? Look => _look;
     public Node3D? Driver => _driverModel;
+    public RemotePlayerPose? Pose { get; private set; }
 
     private readonly record struct Sample(double Time, Vector3 Position, float Yaw);
 
@@ -103,6 +104,15 @@ public partial class RemoteCarrier : CharacterBody3D
         }
         _look = new CarrierModel { Name = "CarrierModel", Remote = true, RemoteCharacter = Character, Driver = _driver, DriverModel = _driverModel, Transform = _lookRest };
         AddChild(_look);
+        if (_driver != null)
+        {
+            Pose = new RemotePlayerPose
+            {
+                Name = "OwnerPose", Model = _driverModel, WeaponParent = this, Delay = InterpolationDelay,
+                Template = NetSession.Instance?.LocalPlayer()?.GetNodeOrNull<MeleeCombat>("MeleeCombat"),
+            };
+            _driver.AddChild(Pose);
+        }
         _label = new Label3D
         {
             Name = "Name",

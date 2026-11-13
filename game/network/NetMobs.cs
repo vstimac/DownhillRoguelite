@@ -10,11 +10,8 @@ namespace DownhillRoguelite.Network;
 /// <summary>
 /// Co-op creatures and kill loot (a child of NetSession).
 ///
-/// Ownership: each machine's directors bring enemies and night beasts round its own carrier, and that
-/// machine simulates them (their owner). Ten times a second it sends each one's state (kind, species,
-/// position, facing, clip, health, down) through the host to everyone else. The others show a puppet
-/// (made when the first state arrives, so late joiners see everything), and remove it when the owner
-/// says it's gone or leaves.
+/// The host alone simulates enemies, night beasts, wildlife and Tuntun. Clients receive bounded
+/// snapshots and show non-simulating puppets. New peers receive existing actors and unclaimed loot.
 ///
 /// Blows: a blow on a puppet goes to its owner, who applies it to the real one; the owner's next state
 /// shows the result everywhere.
@@ -34,7 +31,7 @@ public partial class NetMobs : Node
     /// <summary>Further than this from its latest state (m), a puppet jumps there.</summary>
     [Export] public float SnapDistance { get; set; } = 8.0f;
     /// <summary>At most this many creatures per owner are shown (anything beyond is ignored).</summary>
-    [Export] public int MaxPerOwner { get; set; } = 24;
+    [Export] public int MaxPerOwner { get; set; } = 128;
     /// <summary>Enemy species come from this folder; beasts by name from this roster.</summary>
     [Export(PropertyHint.Dir)] public string EnemyFolder { get; set; } = "res://wildlife/enemies/";
     [Export(PropertyHint.File, "*.tres")] public string BeastRosterPath { get; set; } = "res://wildlife/default_beasts.tres";
@@ -71,6 +68,18 @@ public partial class NetMobs : Node
     }
 
     private readonly Dictionary<int, Node3D> _owned = new();
+    private readonly HashSet<int> _gone = new();
+    /// <summary>Stable actor identity/state digest for network diagnostics.</summary>
+    public string StateDigest()
+    {
+        List<string> actors = new();
+        foreach (var pair in _owned)
+        { if (IsInstanceValid(pair.Value) && !pair.Value.IsQueuedForDeletion() && pair.Value is INetMob mob) { actors.Add($"{pair.Key}:{mob.NetKind}:{mob.NetSpecies}:{mob.NetDown}"); } }
+        foreach (var pair in _puppets)
+        { if (IsInstanceValid(pair.Value.Body) && pair.Value.Body is INetMob mob) { actors.Add($"{pair.Key.Id}:{mob.NetKind}:{mob.NetSpecies}:{mob.NetDown}"); } }
+        actors.Sort(System.StringComparer.Ordinal);
+        return string.Join("|", actors);
+    }
     /// <summary>
     /// Species read for puppets stay loaded: reading one afresh after its puppets were gone let .NET
     /// finalize the old copy while the new one loaded, a rare crash (Godot: "gchandle.is_released").
@@ -84,6 +93,10 @@ public partial class NetMobs : Node
     private int _nextLoot = 1;
     private double _sendTimer;
     private Node3D? _holder;
+    private readonly Dictionary<string, (string Item, Vector3 At, float Wear)> _loot = new();
+    private readonly Dictionary<string, WorldItem> _lootNodes = new();
+    private double _lootTimer;
+    public int SharedLootCount => _loot.Count;
 
     public override void _Ready()
     {
@@ -116,6 +129,9 @@ public partial class NetMobs : Node
         _puppetKeys.Clear();
         _owned.Clear();
         _ids.Clear();
+        _gone.Clear();
+        _loot.Clear();
+        _lootNodes.Clear();
     }
 
     /// <summary>A player left: their creatures go with them.</summary>
@@ -142,6 +158,17 @@ public partial class NetMobs : Node
             return;
         }
         MovePuppets((float)delta);
+        _lootTimer += delta;
+        if (_lootTimer >= 2 && Session!.Mode == NetSession.Role.Host)
+        {
+            _lootTimer = 0;
+            foreach (string key in _loot.Keys.ToArray())
+            {
+                if (Session.TakenSupplies.Contains(key)) { _loot.Remove(key); _lootNodes.Remove(key); continue; }
+                var drop = _loot[key];
+                foreach (long peer in Session.Peers.Keys) { RpcId(peer, MethodName.PeerLootDrop, key, drop.Item, drop.At, drop.Wear); }
+            }
+        }
         _sendTimer += delta;
         if (_sendTimer < 1.0 / Mathf.Max(SendRate, 1.0f))
         {
@@ -155,6 +182,7 @@ public partial class NetMobs : Node
 
     private void ShareOwned()
     {
+        if (Session?.Mode != NetSession.Role.Host) { return; }
         // New ones (any non-puppet creature that can still be hit), then a state for each.
         foreach (Node node in GetTree().GetNodesInGroup(IMeleeTarget.Group))
         {
@@ -175,7 +203,7 @@ public partial class NetMobs : Node
                 continue;
             }
             INetMob mob = (INetMob)body;
-            Send(pair.Key, mob.NetKind, mob.NetSpecies, body.GlobalPosition, body.Rotation.Y, mob.NetClip, mob.NetClipPosition, mob.NetClipSpeed, mob.NetHealth, mob.NetDown);
+            Send(pair.Key, mob.NetKind, mob.NetSpecies, body.GlobalPosition, body.Rotation.Y, mob.NetClip, mob.NetClipPosition, mob.NetClipSpeed, mob.NetHealth, mob.NetDown, mob.NetVisual);
         }
         foreach (int id in gone)
         {
@@ -184,82 +212,36 @@ public partial class NetMobs : Node
             {
                 Rpc(MethodName.PeerMobGone, 1L, id);
             }
-            else
-            {
-                RpcId(1, MethodName.MobGone, id);
-            }
+
         }
     }
 
-    private void Send(int id, int kind, string species, Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, float health, bool down)
+    private void Send(int id, int kind, string species, Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, float health, bool down, Transform3D visual)
     {
         if (Session!.Mode == NetSession.Role.Host)
         {
             foreach (long peer in Session.Peers.Keys)
             {
-                RpcId(peer, MethodName.PeerMobState, 1L, id, kind, species, position, yaw, clip, clipPosition, clipSpeed, health, down);
+                RpcId(peer, MethodName.PeerMobState, 1L, id, kind, species, position, yaw, clip, clipPosition, clipSpeed, health, down, visual);
             }
         }
-        else
-        {
-            RpcId(1, MethodName.MobState, id, kind, species, position, yaw, clip, clipPosition, clipSpeed, health, down);
-        }
+
     }
 
-    // --- Client -> host (the host relays to everyone else) ---
-
-    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered, TransferChannel = 2)]
-    private void MobState(int id, int kind, string species, Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, float health, bool down)
-    {
-        long sender = Multiplayer.GetRemoteSenderId();
-        if (!FromPeer(sender) || !Sane(species, position, yaw, clip))
-        {
-            return;
-        }
-        Show(sender, id, kind, species, position, yaw, clip, clipPosition, clipSpeed, health, down);
-        foreach (long peer in Session!.Peers.Keys)
-        {
-            if (peer != sender)
-            {
-                RpcId(peer, MethodName.PeerMobState, sender, id, kind, species, position, yaw, clip, clipPosition, clipSpeed, health, down);
-            }
-        }
-    }
-
-    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void MobGone(int id)
-    {
-        long sender = Multiplayer.GetRemoteSenderId();
-        if (!FromPeer(sender))
-        {
-            return;
-        }
-        RemovePuppet((sender, id));
-        foreach (long peer in Session!.Peers.Keys)
-        {
-            if (peer != sender)
-            {
-                RpcId(peer, MethodName.PeerMobGone, sender, id);
-            }
-        }
-    }
+    // --- Client -> host ---
 
     /// <summary>A client struck another machine's creature: the host passes the blow to its owner (or takes it, if it's the host's).</summary>
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     private void MobHit(long owner, int id, float damage, Vector3 push, string source)
     {
         long sender = Multiplayer.GetRemoteSenderId();
-        if (!FromPeer(sender) || !Mathf.IsFinite(damage) || damage < 0.0f || damage > 1000.0f || !push.IsFinite() || push.Length() > 100.0f || source.Length > 32)
+        if (!FromPeer(sender) || owner != 1 || !Mathf.IsFinite(damage) || damage < 0.0f || damage > 1000.0f || !push.IsFinite() || push.Length() > 100.0f || source.Length > 32)
         {
             return;
         }
         if (owner == 1)
         {
             ApplyHit(id, damage, push, source);
-        }
-        else if (Session!.Peers.ContainsKey(owner))
-        {
-            RpcId(owner, MethodName.TakeMobHit, id, damage, push, source);
         }
     }
 
@@ -271,6 +253,8 @@ public partial class NetMobs : Node
         {
             return;
         }
+        if (_loot.Count >= 512 || _loot.ContainsKey(key)) { return; }
+        _loot[key] = (itemId, at, durability);
         PlaceLoot(key, itemId, at, durability);
         foreach (long peer in Session!.Peers.Keys)
         {
@@ -284,13 +268,13 @@ public partial class NetMobs : Node
     // --- Host -> clients ---
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered, TransferChannel = 2)]
-    private void PeerMobState(long owner, int id, int kind, string species, Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, float health, bool down)
+    private void PeerMobState(long owner, int id, int kind, string species, Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, float health, bool down, Transform3D visual)
     {
-        if (Session?.Mode != NetSession.Role.Client || owner == Session.LocalId)
+        if (Session?.Mode != NetSession.Role.Client || owner != 1)
         {
             return;
         }
-        Show(owner, id, kind, species, position, yaw, clip, clipPosition, clipSpeed, health, down);
+        Show(owner, id, kind, species, position, yaw, clip, clipPosition, clipSpeed, health, down, visual);
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -298,16 +282,9 @@ public partial class NetMobs : Node
     {
         if (Session?.Mode == NetSession.Role.Client)
         {
+            if (owner != 1) { return; }
+            _gone.Add(id);
             RemovePuppet((owner, id));
-        }
-    }
-
-    [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void TakeMobHit(int id, float damage, Vector3 push, string source)
-    {
-        if (Session?.Mode == NetSession.Role.Client)
-        {
-            ApplyHit(id, damage, push, source);
         }
     }
 
@@ -322,11 +299,13 @@ public partial class NetMobs : Node
 
     // --- Puppets ---
 
-    private void Show(long owner, int id, int kind, string species, Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, float health, bool down)
+    private void Show(long owner, int id, int kind, string species, Vector3 position, float yaw, string clip, float clipPosition, float clipSpeed, float health, bool down, Transform3D visual)
     {
+        if (!visual.Origin.IsFinite() || !visual.Basis.X.IsFinite() || !visual.Basis.Y.IsFinite() || !visual.Basis.Z.IsFinite() || visual.Origin.Length() > 10) { return; }
+        if (owner != 1 || id < 1 || _gone.Contains(id) || !Sane(kind, species, position, yaw, clip, clipPosition, clipSpeed, health)) { return; }
         if (!_puppets.TryGetValue((owner, id), out Puppet? puppet))
         {
-            if (down || CountOf(owner) >= MaxPerOwner)
+            if (CountOf(owner) >= MaxPerOwner)
             {
                 return;
             }
@@ -347,6 +326,7 @@ public partial class NetMobs : Node
         puppet.Position = position;
         puppet.Yaw = yaw;
         ((INetMob)puppet.Body).NetShow(clip, clipPosition, clipSpeed, health, down);
+        ((INetMob)puppet.Body).NetShowVisual(visual);
     }
 
     private Node3D? MakePuppet(int kind, string species, Vector3 position, float yaw)
@@ -366,6 +346,7 @@ public partial class NetMobs : Node
         {
             HumanoidEnemy enemy = HumanoidEnemy.Create(enemySpecies);
             enemy.Puppet = true;
+            enemy.RagdollDeath = false;
             body = enemy;
         }
         else if (kind == 1 && Beast(species) is BeastSpecies beastSpecies)
@@ -373,6 +354,18 @@ public partial class NetMobs : Node
             NightBeast beast = new() { Puppet = true };
             beast.Setup(beastSpecies, (ulong)GD.Randi(), 0, 0);
             body = beast;
+        }
+        else if (kind == 2 && species.StartsWith("res://wildlife/", System.StringComparison.Ordinal)
+            && ResourceLoader.Load(species) is WildlifeSpecies animalSpecies)
+        {
+            WildlifeAnimal animal = new() { Puppet = true };
+            animal.Setup(animalSpecies, new WildlifeTable(), 1);
+            animal.CollisionLayer = 0; animal.CollisionMask = 0;
+            body = animal;
+        }
+        else if (kind == 3 && species == "tuntun")
+        {
+            body = new TuntunSahur { Puppet = true };
         }
         if (body == null)
         {
@@ -428,11 +421,7 @@ public partial class NetMobs : Node
             {
                 continue;
             }
-            // A dead enemy lies where it fell (its ragdoll); a fleeing beast keeps running.
-            if (puppet.Body is HumanoidEnemy enemy && enemy.State == HumanoidEnemy.Phase.Dead)
-            {
-                continue;
-            }
+            // Corpse roots also follow the host (sinking/falling), never an independent client ragdoll.
             Vector3 at = puppet.Body.GlobalPosition;
             if (at.DistanceTo(puppet.Position) > SnapDistance)
             {
@@ -483,13 +472,9 @@ public partial class NetMobs : Node
             return;
         }
         HitsSent++;
-        if (Session!.Mode == NetSession.Role.Host)
+        if (Session!.Mode == NetSession.Role.Client)
         {
-            RpcId(key.Owner, MethodName.TakeMobHit, key.Id, damage, push, source);
-        }
-        else
-        {
-            RpcId(1, MethodName.MobHit, key.Owner, key.Id, damage, push, source);
+            RpcId(1, MethodName.MobHit, 1L, key.Id, damage, push, source);
         }
     }
 
@@ -543,6 +528,7 @@ public partial class NetMobs : Node
     private void Strike(long target, float damage, Vector3 away, float push, bool knockdown, float lift, float stagger, string cause)
     {
         long sender = Multiplayer.GetRemoteSenderId();
+        if (Session?.Mode == NetSession.Role.Host) { return; } // clients never simulate attackers
         if (!FromPeer(sender) || target == sender || !SaneStrike(damage, away, push, lift, stagger, cause))
         {
             return;
@@ -585,13 +571,17 @@ public partial class NetMobs : Node
         {
             return;
         }
+        if (Session!.Mode == NetSession.Role.Host && _loot.Count >= 512) { node.QueueFree(); return; }
         string key = $"L{Session!.LocalId}.{_nextLoot++}";
         item.SlotKey = key;
+        _lootNodes[key] = item;
         LootShared++;
         // Its wear goes with it (a worn shirt handed over stays worn).
         float durability = item.Durability;
         if (Session.Mode == NetSession.Role.Host)
         {
+            _loot[key] = (itemId, landing, durability);
+            _lootNodes[key] = item;
             foreach (long peer in Session.Peers.Keys)
             {
                 RpcId(peer, MethodName.PeerLootDrop, key, itemId, landing, durability);
@@ -605,6 +595,8 @@ public partial class NetMobs : Node
 
     private void PlaceLoot(string key, string itemId, Vector3 at, float durability)
     {
+        if (key.Length == 0 || key.Length > 64 || !at.IsFinite() || at.Length() > Session!.WorldLimit || !Mathf.IsFinite(durability)) { return; }
+        if (_lootNodes.TryGetValue(key, out WorldItem? existing) && IsInstanceValid(existing) && existing.IsInsideTree() && !existing.IsQueuedForDeletion()) { return; }
         ItemDefinition? definition = ItemText.Find(itemId);
         Node? world = GetTree().CurrentScene;
         if (definition == null || world == null || Session!.TakenSupplies.Contains(key))
@@ -617,6 +609,7 @@ public partial class NetMobs : Node
             loot.Durability = Mathf.Min(durability, definition.MaxDurability);
         }
         world.AddChild(loot);
+        _lootNodes[key] = loot;
         loot.GlobalPosition = at;
         LootReceived++;
     }
@@ -628,11 +621,16 @@ public partial class NetMobs : Node
         return Session != null && Session.Mode == NetSession.Role.Host && Session.Peers.ContainsKey(sender);
     }
 
-    private bool Sane(string species, Vector3 position, float yaw, string clip)
+    private bool Sane(int kind, string species, Vector3 position, float yaw, string clip, float time, float speed, float health)
     {
-        bool enemy = species.StartsWith(EnemyFolder, System.StringComparison.Ordinal) && species.EndsWith(".tres", System.StringComparison.Ordinal) && !species.Contains("..");
-        bool beast = species.StartsWith("beast:", System.StringComparison.Ordinal);
-        return (enemy || beast) && species.Length < 200
-            && position.IsFinite() && position.Length() < Session!.WorldLimit && Mathf.IsFinite(yaw) && clip.Length < 64;
+        bool known = false;
+        if (kind == 0) { known = species.StartsWith(EnemyFolder, System.StringComparison.Ordinal) && species.EndsWith(".tres", System.StringComparison.Ordinal); }
+        if (kind == 1) { known = species.StartsWith("beast:", System.StringComparison.Ordinal); }
+        if (kind == 2) { known = species.StartsWith("res://wildlife/", System.StringComparison.Ordinal); }
+        if (kind == 3) { known = species == "tuntun"; }
+        return known && !species.Contains("..") && species.Length < 200
+            && position.IsFinite() && position.Length() < Session!.WorldLimit && Mathf.IsFinite(yaw) && clip.Length < 64
+            && Mathf.IsFinite(time) && time >= 0 && time < 100000 && Mathf.IsFinite(speed) && Mathf.Abs(speed) <= 100
+            && Mathf.IsFinite(health) && health >= 0 && health <= 100000;
     }
 }

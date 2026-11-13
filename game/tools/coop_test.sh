@@ -78,6 +78,10 @@ seeing=$(grep -h "\[NetProbe\] role" "$LOGS"/*.log | grep -c "peers=$others remo
 check "everyone sees the other $others players ($seeing of $players)" "$([ "$seeing" -eq "$players" ]; echo $?)"
 silent=$(grep -h "\[NetProbe\] role" "$LOGS"/*.log | grep -c "min_states=0 ")
 check "states arrive from every remote carrier ($silent silent)" "$([ "$silent" -eq 0 ]; echo $?)"
+missingposes=$(grep -h "\[NetProbe\] role" "$LOGS"/*.log | grep -c "min_poses=0 ")
+check "final skeleton poses arrive from every player ($missingposes missing)" "$([ "$missingposes" -eq 0 ]; echo $?)"
+clientowners=$(grep -h "\[NetProbe\] role" "$LOGS"/client*.log | grep -vc 'owned=0 ')
+check "clients simulate no independent creatures ($clientowners unexpected owners)" "$([ "$clientowners" -eq 0 ]; echo $?)"
 # Each machine reaches for the first supply it has loaded (by key); where several reach for the same
 # one, only one may get it: no key is ever got twice, and someone was refused.
 dupes=$(grep -ho "got=[^ ]*" "$LOGS"/*.log | grep -v "got=none" | sort | uniq -d | wc -l)

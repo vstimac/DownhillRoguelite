@@ -77,6 +77,7 @@ public partial class RelicDirector : Node3D
         GameEvents.CargoHandedOver += OnCargoAnswer;
         GameEvents.Landed += OnLanded;
         GameEvents.DownedChanged += OnDowned;
+        GameEvents.SharedPickupTaken += OnSharedTaken;
     }
 
     public override void _ExitTree()
@@ -87,6 +88,7 @@ public partial class RelicDirector : Node3D
         GameEvents.CargoHandedOver -= OnCargoAnswer;
         GameEvents.Landed -= OnLanded;
         GameEvents.DownedChanged -= OnDowned;
+        GameEvents.SharedPickupTaken -= OnSharedTaken;
     }
 
     /// <summary>Reads Relics again, keeping only definitions that make sense (the rest are skipped with a warning).</summary>
@@ -251,7 +253,8 @@ public partial class RelicDirector : Node3D
         foreach (Placement placement in Plan(route).Values)
         {
             string id = placement.Relic.Id;
-            bool near = Mathf.Abs(placement.Position.Z - _focus.Z) <= LoadDistance && !_taken.Contains(id);
+            bool near = Mathf.Abs(placement.Position.Z - _focus.Z) <= LoadDistance && !_taken.Contains(id)
+                && !GameEvents.WasSharedPickupTaken("relic:" + id);
             if (near && !_sites.ContainsKey(id))
             {
                 Node3D? site = BuildSite(placement);
@@ -282,7 +285,7 @@ public partial class RelicDirector : Node3D
         RelicShrine shrine = new();
         site.AddChild(shrine);
         shrine.Position = new Vector3(0.0f, 0.0f, -0.7f);
-        WorldItem world = new() { Name = "Relic", Definition = item };
+        WorldItem world = new() { Name = "Relic", Definition = item, SlotKey = "relic:" + placement.Relic.Id };
         site.AddChild(world);
         world.Position = new Vector3(0.0f, 0.15f, 0.2f);
         return site;
@@ -324,6 +327,11 @@ public partial class RelicDirector : Node3D
             _altars[station].QueueFree();
             _altars.Remove(station);
         }
+    }
+
+    private void OnSharedTaken(string key)
+    {
+        if (key.StartsWith("relic:", System.StringComparison.Ordinal)) { _taken.Add(key[6..]); }
     }
 
     private void DiscoverNearby()

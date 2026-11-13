@@ -10,7 +10,7 @@ namespace DownhillRoguelite.Core;
 /// </summary>
 public interface INetMob
 {
-    /// <summary>0: humanoid enemy, 1: night beast.</summary>
+    /// <summary>0: humanoid enemy, 1: night beast, 2: wildlife, 3: Tuntun.</summary>
     int NetKind { get; }
     /// <summary>Its species' resource path (every machine loads the same one).</summary>
     string NetSpecies { get; }
@@ -24,6 +24,9 @@ public interface INetMob
     string NetClip { get; }
     float NetClipPosition { get; }
     float NetClipSpeed { get; }
+    /// <summary>Additional model placement (slope tilt or a procedural prop swing).</summary>
+    Transform3D NetVisual => Transform3D.Identity;
+    void NetShowVisual(Transform3D visual) { }
 
     /// <summary>A puppet shows what its owner says: the clip (kept in step), its health, and whether it is down.</summary>
     void NetShow(string clip, float clipPosition, float clipSpeed, float health, bool down);

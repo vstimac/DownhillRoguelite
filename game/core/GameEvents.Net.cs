@@ -9,17 +9,38 @@ namespace DownhillRoguelite.Core;
 /// </summary>
 public static partial class GameEvents
 {
+    public static bool SharedWorldActive { get; private set; }
+    public static bool SharedWorldHost { get; private set; }
+    public static bool MaySimulateWorld => !SharedWorldActive || SharedWorldHost;
+    public static event Action? WorldAuthorityChanged;
+    public static event Action<Godot.Vector3>? SharedCarrierFell;
+    public static void SetWorldAuthority(bool active, bool host)
+    {
+        bool changed = SharedWorldActive != active || SharedWorldHost != host;
+        SharedWorldActive = active;
+        SharedWorldHost = active && host;
+        if (changed) { WorldAuthorityChanged?.Invoke(); }
+    }
+    public static void PublishSharedCarrierFell(Godot.Vector3 at) => SharedCarrierFell?.Invoke(at);
+    public static Func<string, Action, bool>? SharedNpcUseGate { get; set; }
+    public static bool MayUseSharedNpc(string key, Action retry) => SharedNpcUseGate?.Invoke(key, retry) ?? true;
     /// <summary>
     /// Asked before a keyed supply is taken: true lets it go into the pack now; false holds it (the
     /// session asks the host first, and takes it again once the host says yes). Null: no co-op.
     /// </summary>
     public static Func<string, bool>? PickupGate { get; set; }
+    public static Func<string, bool>? PickupWasTaken { get; set; }
+    public static event Action<string, IInteractable>? SharedPickupAttempted;
+    public static event Action<string>? SharedPickupTaken;
+    public static bool WasSharedPickupTaken(string key) => PickupWasTaken?.Invoke(key) == true;
+    public static void PublishSharedPickupTaken(string key) => SharedPickupTaken?.Invoke(key);
 
     /// <summary>A keyed supply went into this player's pack.</summary>
     public static event Action<string>? SupplyPickedUp;
 
-    public static bool MayPickUp(string slotKey)
+    public static bool MayPickUp(string slotKey, IInteractable? preferred = null)
     {
+        if (preferred != null) { SharedPickupAttempted?.Invoke(slotKey, preferred); }
         if (PickupGate == null || slotKey.Length == 0)
         {
             return true;

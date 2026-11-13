@@ -456,12 +456,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
         float dt = (float)delta;
         if (Puppet)
         {
-            // NetMobs moves it; it only lies and sinks once it's dead.
-            if (State == Phase.Dead)
-            {
-                _phaseTime += dt;
-                Sink(dt);
-            }
+            // The host owns corpse sinking and removal too, including late joiners.
             return;
         }
         _phaseTime += dt;
@@ -531,7 +526,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
                 }
                 break;
             case Phase.Gloat:
-                if (!GameEvents.IsDowned)
+                if (!_targetDown)
                 {
                     Enter(Phase.Chase);
                 }
@@ -570,7 +565,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
 
     private Vector3 Chase(Vector3 direction, float distance, float dt)
     {
-        if (GameEvents.IsDowned)
+        if (_targetDown)
         {
             Enter(Phase.Gloat);
             return Vector3.Zero;

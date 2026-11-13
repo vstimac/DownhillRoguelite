@@ -11,8 +11,23 @@ namespace DownhillRoguelite.Narrative;
 /// comes near, GameEvents.VisitorMet is raised. They settle onto the ground once the terrain
 /// under them has loaded.
 /// </summary>
-public partial class NpcFigure : Node3D, IInteractable, IDescribed
+public partial class NpcFigure : Node3D, IInteractable, IDescribed, ISharedNpc
 {
+    public string SharedNpcKey => "traveller:" + Station;
+    public bool SharedNpcProxy { get; set; }
+    public SharedNpcFrame CaptureSharedNpc() => new(GlobalPosition, Rotation.Y, _talkTimer > 0, _talkTimer > 0, 0,
+        _animations?.CurrentAnimation.ToString() ?? "", SharedClipTime(), "", 0, 0);
+    private float SharedClipTime()
+    { if (_animations == null || _animations.CurrentAnimation == "") { return 0; } return (float)_animations.CurrentAnimationPosition; }
+    public void ApplySharedNpc(SharedNpcFrame frame, long author)
+    {
+        GlobalPosition = frame.Position; Rotation = new Vector3(0, frame.Yaw, 0); Grounded = true;
+        if (_animations != null && _animations.HasAnimation(frame.Clip))
+        {
+            if (_animations.CurrentAnimation != frame.Clip) { PlayClip(frame.Clip); }
+            if (Mathf.Abs((float)_animations.CurrentAnimationPosition - frame.ClipTime) > 0.2f) { _animations.Seek(frame.ClipTime, true); }
+        }
+    }
     [Export] public float MeetDistance { get; set; } = 16.0f;
     [Export] public float VoiceHeight { get; set; } = 1.1f;
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
@@ -84,6 +99,8 @@ public partial class NpcFigure : Node3D, IInteractable, IDescribed
     public override void _Ready()
     {
         GameEvents.ErrandPosted += OnErrandPosted;
+        AddToGroup(ISharedNpc.Group);
+        SharedNpcProxy = GameEvents.SharedWorldActive && !GameEvents.SharedWorldHost;
         AddToGroup(IInteractable.Group);
         if (!BuildModeled())
         {
@@ -105,6 +122,7 @@ public partial class NpcFigure : Node3D, IInteractable, IDescribed
 
     public override void _Process(double delta)
     {
+        if (SharedNpcProxy) { return; }
         if (_talkTimer > 0.0f)
         {
             _talkTimer -= (float)delta;
@@ -222,7 +240,7 @@ public partial class NpcFigure : Node3D, IInteractable, IDescribed
 
     public override void _PhysicsProcess(double delta)
     {
-        if (!Grounded)
+        if (!Grounded && !SharedNpcProxy)
         {
             _groundTimer -= (float)delta;
             if (_groundTimer <= 0.0f)
@@ -276,6 +294,7 @@ public partial class NpcFigure : Node3D, IInteractable, IDescribed
         {
             return false;
         }
+        if (!GameEvents.MayUseSharedNpc(SharedNpcKey, () => Interact(interactor))) { return false; }
         GameEvents.RequestTalkTo(Persona.Speaker(GlobalPosition + Vector3.Up * VoiceHeight));
         if (_animations != null)
         {

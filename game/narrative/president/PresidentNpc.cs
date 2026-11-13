@@ -13,8 +13,24 @@ namespace DownhillRoguelite.Narrative;
 /// unless Model is set; a model's AnimationPlayer gets IdleClip/TalkClip and an AnimationTree gets
 /// TalkParameter (1 while talking), each only if present.
 /// </summary>
-public partial class PresidentNpc : Node3D, IInteractable, IDescribed
+public partial class PresidentNpc : Node3D, IInteractable, IDescribed, ISharedNpc
 {
+    public int SharedStation { get; set; }
+    public string SharedNpcKey => "president:" + SharedStation;
+    public bool SharedNpcProxy { get; set; }
+    public SharedNpcFrame CaptureSharedNpc() => new(GlobalPosition, Rotation.Y, Talking || Voice?.Speaking == true,
+        Voice?.Speaking == true, _clock, _animation?.CurrentAnimation.ToString() ?? "", SharedClipTime(),
+        Voice?.CurrentLine ?? "", Voice?.LineSequence ?? 0, Voice?.LineElapsed ?? 0);
+    private float SharedClipTime()
+    { if (_animation == null || _animation.CurrentAnimation == "") { return 0; } return (float)_animation.CurrentAnimationPosition; }
+    public void ApplySharedNpc(SharedNpcFrame frame, long author)
+    {
+        GlobalPosition = frame.Position; Rotation = new Vector3(0, frame.Yaw, 0); Grounded = true; _clock = frame.Clock;
+        Voice?.ApplySharedLine(author, frame.LineSequence, frame.Line, frame.LineElapsed);
+        Animate(frame.Speaking);
+        if (_animation != null && _animation.HasAnimation(frame.Clip) && Mathf.Abs((float)_animation.CurrentAnimationPosition - frame.ClipTime) > 0.2f)
+        { _animation.Seek(frame.ClipTime, true); }
+    }
     public const string NpcId = "npc_restsite_president";
 
     [Export] public PackedScene? Model { get; set; }
@@ -122,6 +138,7 @@ public partial class PresidentNpc : Node3D, IInteractable, IDescribed
 
     public bool Interact(Node3D interactor)
     {
+        if (!GameEvents.MayUseSharedNpc(SharedNpcKey, () => Interact(interactor))) { return false; }
         if (Dialogue == null)
         {
             return false;
@@ -141,6 +158,7 @@ public partial class PresidentNpc : Node3D, IInteractable, IDescribed
     /// <summary>Starts a conversation at a beat (the podium starts its own).</summary>
     public void Run(DialogueBeat? beat)
     {
+        if (!GameEvents.MayUseSharedNpc(SharedNpcKey, () => Run(beat))) { return; }
         if (beat == null)
         {
             if (Talking)
@@ -244,13 +262,14 @@ public partial class PresidentNpc : Node3D, IInteractable, IDescribed
 
     public override void _Process(double delta)
     {
+        if (SharedNpcProxy) { return; }
         float dt = (float)delta;
         _clock += dt;
         if (!Grounded)
         {
             Settle();
         }
-        Vector3 carrier = GameEvents.CarrierPosition;
+        Vector3 carrier = WorldInterests.Nearest(GlobalPosition, GameEvents.CarrierPosition, true);
         Vector3 flat = carrier - GlobalPosition;
         flat.Y = 0.0f;
         float distance = flat.Length();

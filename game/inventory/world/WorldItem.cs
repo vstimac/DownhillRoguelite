@@ -68,6 +68,7 @@ public partial class WorldItem : Node3D, IInteractable, IDescribed
 
     public override void _Ready()
     {
+        if (SlotKey.Length > 0 && GameEvents.WasSharedPickupTaken(SlotKey)) { QueueFree(); return; }
         AddToGroup(IInteractable.Group);
         if (Definition == null)
         {

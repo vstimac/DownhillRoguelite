@@ -80,6 +80,7 @@ public partial class NetProbe : Node
     private int _sawPuppets;
     private double _clockAtGrab = -1.0;
     private bool _advanced;
+    private bool _sawPhysicalFall;
 
     public override void _Ready()
     {
@@ -254,6 +255,7 @@ public partial class NetProbe : Node
         }
         foreach (RemoteCarrier remote in Session.Remotes.Values)
         {
+            _sawPhysicalFall |= remote.Pose?.PhysicalFall == true;
             if (remote.Dead)
             {
                 _sawFallen = true;
@@ -270,17 +272,20 @@ public partial class NetProbe : Node
     {
         NetSession session = Session!;
         int fewest = int.MaxValue;
+        int fewestPoses = int.MaxValue;
         foreach (RemoteCarrier remote in session.Remotes.Values)
         {
             fewest = Mathf.Min(fewest, remote.States);
+            fewestPoses = Mathf.Min(fewestPoses, remote.Pose?.Received ?? 0);
         }
         if (session.Remotes.Count == 0)
         {
             fewest = 0;
+            fewestPoses = 0;
         }
         ulong seed = GetNodeOrNull<RunState>("/root/RunState")?.Seed ?? 0;
         GD.Print($"[NetProbe] role={session.Mode} name={session.LocalName} joined={session.Joined} seed={seed} session_seed={session.SessionSeed} "
-            + $"peers={session.Peers.Count} remotes={session.Remotes.Count} min_states={fewest} target={_target} got={_got} "
+            + $"peers={session.Peers.Count} remotes={session.Remotes.Count} min_states={fewest} min_poses={fewestPoses} poses_sent={session.Poses?.Sent ?? 0} saw_physical_fall={_sawPhysicalFall} npc_states={session.WorldActors?.Received ?? 0} target={_target} got={_got} "
             + $"taken={session.TakenSupplies.Count} granted={session.ClaimsGranted} refused={session.ClaimsRefused} fell={_fell} watched={_watched} back={_back} "
             + $"saw_fallen={_sawFallen} looks={Looks(session)} owned={session.Mobs?.OwnedCount ?? 0} saw_puppets={_sawPuppets} "
             + $"hits_sent={session.Mobs?.HitsSent ?? 0} hits_applied={session.Mobs?.HitsApplied ?? 0} loot_shared={session.Mobs?.LootShared ?? 0} "

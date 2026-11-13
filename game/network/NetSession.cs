@@ -39,7 +39,7 @@ public partial class NetSession : Node
     }
 
     /// <summary>Peers must speak the same protocol (a join from another version is turned away).</summary>
-    public const string ProtocolVersion = "downhill-coop-5";
+    public const string ProtocolVersion = "downhill-coop-6";
 
     [Export] public int DefaultPort { get; set; } = 7777;
     [Export] public int MaxPlayers { get; set; } = 4;
@@ -107,6 +107,12 @@ public partial class NetSession : Node
     public IReadOnlyDictionary<long, RemoteCarrier> Remotes => _remotes;
     /// <summary>Shared supplies taken this session (by anyone).</summary>
     public IReadOnlyCollection<string> TakenSupplies => _taken;
+    private readonly Dictionary<string, long> _pickupOwners = new();
+    public bool HoldsPickup(string key, long peer)
+    {
+        return (_pickupOwners.TryGetValue(key, out long owner) && owner == peer)
+            || (_promised.TryGetValue(key, out var claim) && claim.Peer == peer && claim.Until >= _clock);
+    }
     /// <summary>Who is being watched while fallen (null: alive, or nobody left to watch).</summary>
     public RemoteCarrier? Watching { get; private set; }
     public bool LocalDead { get; private set; }
@@ -128,6 +134,7 @@ public partial class NetSession : Node
     private readonly Dictionary<string, (long Peer, double Until)> _promised = new();
     private readonly HashSet<string> _granted = new();
     private readonly HashSet<string> _asking = new();
+    private readonly Dictionary<string, IInteractable> _claimTargets = new();
     private double _sendTimer;
     private double _connectTimer;
     private double _clock;
@@ -153,6 +160,8 @@ public partial class NetSession : Node
     public NetWebs? Webs => _webs;
     /// <summary>Shared creatures and kill loot.</summary>
     public NetMobs? Mobs => _mobs;
+    public NetPlayerPoses? Poses { get; private set; }
+    public NetWorldActors? WorldActors { get; private set; }
 
     public override void _EnterTree()
     {
@@ -172,6 +181,7 @@ public partial class NetSession : Node
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.StationReached += OnStationReached;
         GameEvents.SupplyPickedUp += OnSupplyPickedUp;
+        GameEvents.SharedPickupAttempted += OnSharedPickupAttempted;
         GameEvents.Slept += OnSlept;
         GameOptions.Changed += OnOptionsChanged;
         _hud = new NetHud { Name = "NetHud", Session = this };
@@ -179,6 +189,10 @@ public partial class NetSession : Node
         // The same path on every machine (/root/NetSession/NetMobs), so its messages find it.
         _mobs = new NetMobs { Name = "NetMobs", Session = this };
         AddChild(_mobs);
+        Poses = new NetPlayerPoses { Name = "NetPlayerPoses", Session = this };
+        AddChild(Poses);
+        WorldActors = new NetWorldActors { Name = "NetWorldActors", Session = this };
+        AddChild(WorldActors);
         _pings = new NetPings { Name = "NetPings", Session = this };
         AddChild(_pings);
         _chat = new NetChat { Name = "NetChat", Session = this };
@@ -197,6 +211,7 @@ public partial class NetSession : Node
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.StationReached -= OnStationReached;
         GameEvents.SupplyPickedUp -= OnSupplyPickedUp;
+        GameEvents.SharedPickupAttempted -= OnSharedPickupAttempted;
         GameEvents.Slept -= OnSlept;
         GameOptions.Changed -= OnOptionsChanged;
         if (Active)
@@ -259,6 +274,8 @@ public partial class NetSession : Node
                 }
             }
         }
+        double worldProbe = ProbeNumber("--net-world-probe=");
+        if (worldProbe >= 0) { AddChild(new NetWorldProbe { Name = "NetWorldProbe", Session = this, StartAtUnix = worldProbe }); }
         if (hostPort > 0)
         {
             Host(name, hostPort);
@@ -325,7 +342,7 @@ public partial class NetSession : Node
         LocalName = CleanName(name);
         SessionMax = Mathf.Clamp(maxPlayers, 2, Mathf.Max(MaxPlayers, 2));
         _peer = new ENetMultiplayerPeer();
-        Error error = _peer.CreateServer(port, Mathf.Max(SessionMax - 1, 1));
+        Error error = _peer.CreateServer(port, Mathf.Max(SessionMax - 1, 1), 4);
         if (error != Error.Ok)
         {
             SetStatus($"Couldn't host on port {port} ({error}). Is another game using it?");
@@ -335,6 +352,7 @@ public partial class NetSession : Node
         }
         Multiplayer.MultiplayerPeer = _peer;
         Mode = Role.Host;
+        GameEvents.SetWorldAuthority(true, true);
         Port = port;
         LocalId = 1;
         Joined = true;
@@ -377,7 +395,7 @@ public partial class NetSession : Node
             host = "127.0.0.1";
         }
         _peer = new ENetMultiplayerPeer();
-        Error error = _peer.CreateClient(host, port);
+        Error error = _peer.CreateClient(host, port, 4);
         if (error != Error.Ok)
         {
             SetStatus($"Couldn't reach {host}:{port} ({error}).");
@@ -387,6 +405,7 @@ public partial class NetSession : Node
         }
         Multiplayer.MultiplayerPeer = _peer;
         Mode = Role.Client;
+        GameEvents.SetWorldAuthority(true, false);
         Port = port;
         Joined = false;
         _connectTimer = 0.0;
@@ -418,6 +437,7 @@ public partial class NetSession : Node
             run.SummaryDelay = RespawnSeconds;
         }
         GameEvents.PickupGate = Gate;
+        GameEvents.PickupWasTaken = key => _taken.Contains(key);
         _lastStation = 0;
         LocalDead = false;
         Changed?.Invoke();
@@ -448,16 +468,20 @@ public partial class NetSession : Node
         _remotes.Clear();
         _peers.Clear();
         _mobs?.Clear();
+        WorldActors?.Clear();
         _pings?.Clear();
         _chat?.Clear();
         _revive?.Clear();
         GameEvents.PublishOtherCarriers(System.Array.Empty<NetCarrier>());
         _waitingHello.Clear();
         _taken.Clear();
+        _pickupOwners.Clear();
         _promised.Clear();
         _granted.Clear();
         _asking.Clear();
+        _claimTargets.Clear();
         GameEvents.PickupGate = null;
+        GameEvents.PickupWasTaken = null;
         RunState? run = Run();
         if (run != null && wasActive)
         {
@@ -471,6 +495,7 @@ public partial class NetSession : Node
         }
         StopWatching();
         Mode = Role.None;
+        GameEvents.SetWorldAuthority(false, false);
         Joined = false;
         SetStatus("Not connected");
         if (wasActive && hint.Length > 0)
@@ -814,6 +839,7 @@ public partial class NetSession : Node
         _asking.Remove(key);
         if (!granted)
         {
+            _claimTargets.Remove(key);
             ClaimsRefused++;
             Log($"{key}: someone else got it first");
             RemoveSupply(key);
@@ -822,7 +848,10 @@ public partial class NetSession : Node
         ClaimsGranted++;
         _granted.Add(key);
         // Now take it for real (the gate lets it through once).
-        WorldItem? item = FindSupply(key);
+        IInteractable? item = null;
+        if (_claimTargets.Remove(key, out IInteractable? preferred) && preferred is Node target && IsInstanceValid(target) && !target.IsQueuedForDeletion())
+        { item = preferred; }
+        item ??= FindSupply(key);
         PlayerController? player = LocalPlayer();
         if (item == null || player == null || !item.Interact(player))
         {
@@ -839,6 +868,7 @@ public partial class NetSession : Node
             return;
         }
         _taken.Add(key);
+        GameEvents.PublishSharedPickupTaken(key);
         if (by != LocalId)
         {
             RemoveSupply(key);
@@ -846,6 +876,10 @@ public partial class NetSession : Node
     }
 
     // --- Shared supplies ---
+    private void OnSharedPickupAttempted(string key, IInteractable target)
+    {
+        if (Active && Joined && Mode == Role.Client && !_asking.Contains(key)) { _claimTargets[key] = target; }
+    }
 
     /// <summary>The pickup gate (GameEvents.PickupGate): may this machine take this supply now?</summary>
     private bool Gate(string key)
@@ -897,6 +931,8 @@ public partial class NetSession : Node
     private void MarkTaken(string key, long by)
     {
         _taken.Add(key);
+        _pickupOwners[key] = by;
+        GameEvents.PublishSharedPickupTaken(key);
         if (by != 1)
         {
             RemoveSupply(key);
@@ -912,6 +948,7 @@ public partial class NetSession : Node
         {
             spawner.MarkTaken(_taken);
         }
+        foreach (string key in _taken) { RemoveSharedChoice(key); }
     }
 
     private void RemoveSupply(string key)
@@ -919,6 +956,20 @@ public partial class NetSession : Node
         Spawner()?.MarkTaken(new[] { key });
         // Kill loot isn't the spawner's: it goes by its key.
         FindSupply(key)?.QueueFree();
+        RemoveSharedChoice(key);
+    }
+
+    private void RemoveSharedChoice(string key)
+    {
+        foreach (Node node in GetTree().GetNodesInGroup(IInteractable.Group))
+        {
+            if (node is ISharedWorldPickup shared && shared.SharedPickupKey == key)
+            {
+                shared.SharedTaken();
+                if (shared.RemoveWhenTaken) { node.QueueFree(); }
+            }
+        }
+        GameEvents.PublishSharedPickupTaken(key);
     }
 
     private WorldItem? FindSupply(string key)
@@ -998,7 +1049,9 @@ public partial class NetSession : Node
         {
             if (IsInstanceValid(remote) && remote.States > 0)
             {
-                carriers.Add(new NetCarrier(remote.PeerId, remote.GlobalPosition, remote.Dead || remote.Bleeding));
+                Vector3 input = Vector3.Zero; bool sprinting = false;
+                if (remote.Pose?.Received > 0) { input = NetPoseCodec.Vector(remote.Pose.CurrentPose, 3); sprinting = remote.Pose.CurrentPose[6] > 0.5f; }
+                carriers.Add(new NetCarrier(remote.PeerId, remote.GlobalPosition, remote.Dead || remote.Bleeding || remote.Pose?.PhysicalFall == true, remote.TorchLit, input, sprinting));
             }
         }
         GameEvents.PublishOtherCarriers(carriers.ToArray());
