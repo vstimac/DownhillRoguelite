@@ -61,6 +61,7 @@
 [ext_resource type="Script" path="res://debug/LeakMonitor.cs" id="95_leak"]
 [ext_resource type="Script" path="res://wildlife/EnemyDirector.cs" id="96_enemies"]
 [ext_resource type="Script" path="res://narrative/NewspaperSeller.cs" id="100_newspaper_seller"]
+[ext_resource type="Script" path="res://narrative/salterusa/Salterusa.cs" id="101_salterusa"]
 [ext_resource type="Resource" path="res://wildlife/enemies/ogre.tres" id="97_ogre"]
 [ext_resource type="Resource" path="res://wildlife/enemies/packbeast.tres" id="98_packbeast"]
 [ext_resource type="Resource" path="res://wildlife/enemies/jade_glutton.tres" id="99_jade_glutton"]
@@ -363,6 +364,9 @@ Personas = [ExtResource("48_pilgrim"), ExtResource("48_cartographer"), ExtResour
 
 [node name="NewspaperSeller" type="Node3D" parent="." unique_id=1907733563]
 script = ExtResource("100_newspaper_seller")
+
+[node name="Salterusa" type="Node3D" parent="." unique_id=1907733564]
+script = ExtResource("101_salterusa")
 
 [node name="PauseMenu" type="CanvasLayer" parent="." unique_id=379047615]
 script = ExtResource("30_pause")

@@ -1,45 +1,142 @@
-path,source,start_seconds,end_seconds,suggested_usage,words,seconds,gain_db,peak_db,rms_db,clipped_samples
-audio/creatures/cup_vocal_01.wav,CupOfPohlepe.wav,0.09,0.6,Kratka vokalizacija,,0.51,+0.0,0.0,-13.1,27
-audio/creatures/cup_vocal_02.wav,CupOfPohlepe.wav,0.59,0.98,Kratka vokalizacija,,0.39,+0.0,-0.8,-16.3,0
-audio/creatures/cup_vocal_03.wav,CupOfPohlepe.wav,0.97,1.38,Kratka vokalizacija,,0.41,+0.0,-6.0,-20.2,0
-audio/creatures/cup_laugh_01.wav,CupOfPohlepe.wav,1.33,2.06,Smijeh / ruganje,,0.73,+0.0,-9.3,-21.4,0
-audio/creatures/cup_grunt_01.wav,CupOfPohlepe.wav,2.27,3.22,Duboki grleni zvuk,,0.95,+0.0,0.0,-10.8,1410
-audio/creatures/cup_grunt_02.wav,CupOfPohlepe.wav,3.93,4.6,Reakcija / napor,,0.67,+0.0,0.0,-8.0,2397
-audio/creatures/cup_attack_01.wav,CupOfPohlepe.wav,4.73,5.44,Napad / uzvik,,0.71,+0.0,0.0,-8.5,1792
-audio/creatures/cup_exertion_01.wav,CupOfPohlepe.wav,5.53,6.22,Napor / izdah,,0.69,+0.0,0.0,-10.8,458
-audio/creatures/mimic_idle_01.wav,MimicEffects.wav,0.27,1.28,Mirno grleno glasanje,,1.01,+0.0,-1.3,-14.4,0
-audio/creatures/mimic_growl_01.wav,MimicEffects.wav,1.89,2.78,Režanje,,0.89,+0.0,-0.0,-10.6,132
-audio/creatures/mimic_snarl_01.wav,MimicEffects.wav,3.31,4.0,Kratki agresivni zvuk,,0.69,+0.0,0.0,-9.6,601
-audio/creatures/mimic_breath_01.wav,MimicEffects.wav,5.09,5.86,Teško disanje,,0.77,+0.0,0.0,-8.8,536
-audio/creatures/mimic_growl_02.wav,MimicEffects.wav,6.41,7.68,Dulje režanje,,1.27,+0.0,-0.0,-16.9,7
-audio/creatures/mimic_growl_03.wav,MimicEffects.wav,7.59,8.58,Režanje / prijetnja,,0.99,+0.0,-0.7,-18.4,0
-audio/creatures/mimic_growl_04.wav,MimicEffects.wav,9.57,10.82,Duboki zvuk,,1.25,+0.0,0.0,-8.9,568
-audio/creatures/mimic_hiss_01.wav,MimicEffects.wav,11.81,12.9,Siktanje / upozorenje,,1.09,+0.0,-0.1,-13.0,0
-audio/creatures/mimic_attack_01.wav,MimicEffects.wav,13.75,14.24,Kratki napad,,0.49,+0.0,-2.0,-18.1,0
-audio/creatures/mimic_attack_02.wav,MimicEffects.wav,15.11,15.9,Napad,,0.79,+0.0,-0.0,-13.9,121
-audio/creatures/mimic_snort_01.wav,MimicEffects.wav,16.67,17.3,Frktanje,,0.63,+0.0,0.0,-9.5,1743
-audio/creatures/mimic_growl_05.wav,MimicEffects.wav,17.57,19.72,Dugo režanje,,2.15,+0.0,0.0,-15.1,754
-audio/creatures/mimic_attack_03.wav,MimicEffects.wav,19.55,20.36,Završni agresivni izdah,,0.81,+0.0,0.0,-11.0,211
-audio/voice/npc_hz_putnik/hr-HR/HZ_001_Opa.wav,untitled.mp3,0.53,1.02,NPC dijalog: Opa,Opa.,0.49,+7.2,-5.5,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_002_NoviPutnik.wav,untitled.mp3,1.63,2.52,NPC dijalog: NoviPutnik,Novi putnik.,0.89,+5.2,-7.2,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_003_VecSamMislioDaSuUkinuliOvuLiniju.wav,untitled.mp3,3.48,5.52,NPC dijalog: VecSamMislioDaSuUkinuliOvuLiniju,Već sam mislio da su ukinuli ovu liniju.,2.04,+2.0,-6.6,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_004_KamoSteKrenuliMladiGospodine.wav,untitled.mp3,6.43,8.42,NPC dijalog: KamoSteKrenuliMladiGospodine,"Kamo ste krenuli, mladi gospodine?",1.99,-0.4,-5.0,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_005_GoreSeNeMoze.wav,untitled.mp3,9.33,10.37,NPC dijalog: GoreSeNeMoze,Gore se ne može.,1.04,-1.6,-6.7,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_006_DoljeSeNePreporucuje.wav,untitled.mp3,10.88,12.27,NPC dijalog: DoljeSeNePreporucuje,Dolje se ne preporučuje.,1.39,+1.0,-4.0,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_007_OvdjeNemaSignala.wav,untitled.mp3,12.93,14.07,NPC dijalog: OvdjeNemaSignala,Ovdje nema signala.,1.14,-1.0,-4.7,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_008_JaCekamVlak.wav,untitled.mp3,15.03,16.22,NPC dijalog: JaCekamVlak,Ja čekam vlak.,1.19,+2.4,-1.5,-22.2,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_009_TrebaoJeDociUtorak.wav,untitled.mp3,17.03,18.37,NPC dijalog: TrebaoJeDociUtorak,Trebao je doći u utorak.,1.34,+2.6,-6.4,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_010_KojiUtorak.wav,untitled.mp3,19.23,20.02,NPC dijalog: KojiUtorak,Koji utorak?,0.79,+4.8,-6.1,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_011_ToJosUtvrdjujemo.wav,untitled.mp3,20.98,22.17,NPC dijalog: ToJosUtvrdjujemo,To još utvrđujemo.,1.19,+2.2,-7.2,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_012_DobrodosliNaStajalisteBezPovratka.wav,untitled.mp3,22.88,25.27,NPC dijalog: DobrodosliNaStajalisteBezPovratka,Dobrodošli na stajalište bez povratka.,2.39,-0.5,-4.3,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_013_ImeJePrivremeno.wav,untitled.mp3,25.88,27.02,NPC dijalog: ImeJePrivremeno,Ime je privremeno.,1.14,-2.4,-5.5,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_014_VecSedamdesetGodina.wav,untitled.mp3,27.58,28.87,NPC dijalog: VecSedamdesetGodina,Već sedamdeset godina.,1.29,+1.6,-8.2,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_015_KartuNaPregledMolim.wav,untitled.mp3,29.83,31.37,NPC dijalog: KartuNaPregledMolim,"Kartu na pregled, molim.",1.54,+0.3,-7.0,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_016_AkoJeNemateMozemoSePraviti.wav,untitled.mp3,31.83,35.12,NPC dijalog: AkoJeNemateMozemoSePraviti,"Ako je nemate, možemo se praviti.",3.29,+0.1,-4.7,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_017_NeStojiteNaRubuPerona.wav,untitled.mp3,36.18,37.82,NPC dijalog: NeStojiteNaRubuPerona,Ne stojite na rubu perona.,1.64,+0.1,-4.6,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_018_PeronJeOtisaoPrijeTridesetGodina.wav,untitled.mp3,38.73,40.77,NPC dijalog: PeronJeOtisaoPrijeTridesetGodina,Peron je otišao prije trideset godina.,2.04,-0.1,-5.4,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_019_Cudno.wav,untitled.mp3,42.13,42.82,NPC dijalog: Cudno,Čudno.,0.69,+5.3,-4.6,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_020_ViJosImateSjenu.wav,untitled.mp3,43.43,44.72,NPC dijalog: ViJosImateSjenu,Vi još imate sjenu.,1.29,+5.7,-5.7,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_021_Aha.wav,untitled.mp3,45.58,46.22,NPC dijalog: Aha,Aha.,0.64,-3.4,-4.0,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_022_PrviPutSeSpustate.wav,untitled.mp3,46.98,48.32,NPC dijalog: PrviPutSeSpustate,Prvi put se spuštate?,1.34,+1.1,-5.1,-21.0,0
-audio/voice/npc_hz_putnik/hr-HR/HZ_023_ToSeVidiPoKoljenima.wav,untitled.mp3,49.03,50.37,NPC dijalog: ToSeVidiPoKoljenima,To se vidi po koljenima.,1.34,-0.6,-5.8,-21.0,0
+path,source,start_seconds,end_seconds,suggested_usage,category,words,seconds,gain_db,peak_db,rms_db,speech_db,clipped_samples
+audio/creatures/cup_vocal_01.wav,CupOfPohlepe.wav,0.09,0.6,Kratka vokalizacija,,,0.51,+0.0,0.0,-13.1,,27
+audio/creatures/cup_vocal_02.wav,CupOfPohlepe.wav,0.59,0.98,Kratka vokalizacija,,,0.39,+0.0,-0.8,-16.3,,0
+audio/creatures/cup_vocal_03.wav,CupOfPohlepe.wav,0.97,1.38,Kratka vokalizacija,,,0.41,+0.0,-6.0,-20.2,,0
+audio/creatures/cup_laugh_01.wav,CupOfPohlepe.wav,1.33,2.06,Smijeh / ruganje,,,0.73,+0.0,-9.3,-21.4,,0
+audio/creatures/cup_grunt_01.wav,CupOfPohlepe.wav,2.27,3.22,Duboki grleni zvuk,,,0.95,+0.0,0.0,-10.8,,1410
+audio/creatures/cup_grunt_02.wav,CupOfPohlepe.wav,3.93,4.6,Reakcija / napor,,,0.67,+0.0,0.0,-8.0,,2397
+audio/creatures/cup_attack_01.wav,CupOfPohlepe.wav,4.73,5.44,Napad / uzvik,,,0.71,+0.0,0.0,-8.5,,1792
+audio/creatures/cup_exertion_01.wav,CupOfPohlepe.wav,5.53,6.22,Napor / izdah,,,0.69,+0.0,0.0,-10.8,,458
+audio/creatures/mimic_idle_01.wav,MimicEffects.wav,0.27,1.28,Mirno grleno glasanje,,,1.01,+0.0,-1.3,-14.4,,0
+audio/creatures/mimic_growl_01.wav,MimicEffects.wav,1.89,2.78,Režanje,,,0.89,+0.0,-0.0,-10.6,,132
+audio/creatures/mimic_snarl_01.wav,MimicEffects.wav,3.31,4.0,Kratki agresivni zvuk,,,0.69,+0.0,0.0,-9.6,,601
+audio/creatures/mimic_breath_01.wav,MimicEffects.wav,5.09,5.86,Teško disanje,,,0.77,+0.0,0.0,-8.8,,536
+audio/creatures/mimic_growl_02.wav,MimicEffects.wav,6.41,7.68,Dulje režanje,,,1.27,+0.0,-0.0,-16.9,,7
+audio/creatures/mimic_growl_03.wav,MimicEffects.wav,7.59,8.58,Režanje / prijetnja,,,0.99,+0.0,-0.7,-18.4,,0
+audio/creatures/mimic_growl_04.wav,MimicEffects.wav,9.57,10.82,Duboki zvuk,,,1.25,+0.0,0.0,-8.9,,568
+audio/creatures/mimic_hiss_01.wav,MimicEffects.wav,11.81,12.9,Siktanje / upozorenje,,,1.09,+0.0,-0.1,-13.0,,0
+audio/creatures/mimic_attack_01.wav,MimicEffects.wav,13.75,14.24,Kratki napad,,,0.49,+0.0,-2.0,-18.1,,0
+audio/creatures/mimic_attack_02.wav,MimicEffects.wav,15.11,15.9,Napad,,,0.79,+0.0,-0.0,-13.9,,121
+audio/creatures/mimic_snort_01.wav,MimicEffects.wav,16.67,17.3,Frktanje,,,0.63,+0.0,0.0,-9.5,,1743
+audio/creatures/mimic_growl_05.wav,MimicEffects.wav,17.57,19.72,Dugo režanje,,,2.15,+0.0,0.0,-15.1,,754
+audio/creatures/mimic_attack_03.wav,MimicEffects.wav,19.55,20.36,Završni agresivni izdah,,,0.81,+0.0,0.0,-11.0,,211
+audio/voice/npc_hz_putnik/hr-HR/HZ_001_Opa.wav,untitled.mp3,0.53,1.02,NPC dijalog: Opa,,Opa.,0.49,+7.2,-5.5,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_002_NoviPutnik.wav,untitled.mp3,1.63,2.52,NPC dijalog: NoviPutnik,,Novi putnik.,0.89,+5.2,-7.2,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_003_VecSamMislioDaSuUkinuliOvuLiniju.wav,untitled.mp3,3.48,5.52,NPC dijalog: VecSamMislioDaSuUkinuliOvuLiniju,,Već sam mislio da su ukinuli ovu liniju.,2.04,+2.0,-6.6,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_004_KamoSteKrenuliMladiGospodine.wav,untitled.mp3,6.43,8.42,NPC dijalog: KamoSteKrenuliMladiGospodine,,"Kamo ste krenuli, mladi gospodine?",1.99,-0.4,-5.0,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_005_GoreSeNeMoze.wav,untitled.mp3,9.33,10.37,NPC dijalog: GoreSeNeMoze,,Gore se ne može.,1.04,-1.6,-6.7,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_006_DoljeSeNePreporucuje.wav,untitled.mp3,10.88,12.27,NPC dijalog: DoljeSeNePreporucuje,,Dolje se ne preporučuje.,1.39,+1.0,-4.0,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_007_OvdjeNemaSignala.wav,untitled.mp3,12.93,14.07,NPC dijalog: OvdjeNemaSignala,,Ovdje nema signala.,1.14,-1.0,-4.7,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_008_JaCekamVlak.wav,untitled.mp3,15.03,16.22,NPC dijalog: JaCekamVlak,,Ja čekam vlak.,1.19,+2.4,-1.5,-22.2,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_009_TrebaoJeDociUtorak.wav,untitled.mp3,17.03,18.37,NPC dijalog: TrebaoJeDociUtorak,,Trebao je doći u utorak.,1.34,+2.6,-6.4,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_010_KojiUtorak.wav,untitled.mp3,19.23,20.02,NPC dijalog: KojiUtorak,,Koji utorak?,0.79,+4.8,-6.1,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_011_ToJosUtvrdjujemo.wav,untitled.mp3,20.98,22.17,NPC dijalog: ToJosUtvrdjujemo,,To još utvrđujemo.,1.19,+2.2,-7.2,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_012_DobrodosliNaStajalisteBezPovratka.wav,untitled.mp3,22.88,25.27,NPC dijalog: DobrodosliNaStajalisteBezPovratka,,Dobrodošli na stajalište bez povratka.,2.39,-0.5,-4.3,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_013_ImeJePrivremeno.wav,untitled.mp3,25.88,27.02,NPC dijalog: ImeJePrivremeno,,Ime je privremeno.,1.14,-2.4,-5.5,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_014_VecSedamdesetGodina.wav,untitled.mp3,27.58,28.87,NPC dijalog: VecSedamdesetGodina,,Već sedamdeset godina.,1.29,+1.6,-8.2,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_015_KartuNaPregledMolim.wav,untitled.mp3,29.83,31.37,NPC dijalog: KartuNaPregledMolim,,"Kartu na pregled, molim.",1.54,+0.3,-7.0,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_016_AkoJeNemateMozemoSePraviti.wav,untitled.mp3,31.83,35.12,NPC dijalog: AkoJeNemateMozemoSePraviti,,"Ako je nemate, možemo se praviti.",3.29,+0.1,-4.7,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_017_NeStojiteNaRubuPerona.wav,untitled.mp3,36.18,37.82,NPC dijalog: NeStojiteNaRubuPerona,,Ne stojite na rubu perona.,1.64,+0.1,-4.6,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_018_PeronJeOtisaoPrijeTridesetGodina.wav,untitled.mp3,38.73,40.77,NPC dijalog: PeronJeOtisaoPrijeTridesetGodina,,Peron je otišao prije trideset godina.,2.04,-0.1,-5.4,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_019_Cudno.wav,untitled.mp3,42.13,42.82,NPC dijalog: Cudno,,Čudno.,0.69,+5.3,-4.6,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_020_ViJosImateSjenu.wav,untitled.mp3,43.43,44.72,NPC dijalog: ViJosImateSjenu,,Vi još imate sjenu.,1.29,+5.7,-5.7,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_021_Aha.wav,untitled.mp3,45.58,46.22,NPC dijalog: Aha,,Aha.,0.64,-3.4,-4.0,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_022_PrviPutSeSpustate.wav,untitled.mp3,46.98,48.32,NPC dijalog: PrviPutSeSpustate,,Prvi put se spuštate?,1.34,+1.1,-5.1,-21.0,,0
+audio/voice/npc_hz_putnik/hr-HR/HZ_023_ToSeVidiPoKoljenima.wav,untitled.mp3,49.03,50.37,NPC dijalog: ToSeVidiPoKoljenima,,To se vidi po koljenima.,1.34,-0.6,-5.8,-21.0,,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_BOZE_DRAGI_001.wav,boze dragi.wav,2.04,3.68,boze dragi,boze_dragi,,1.64,+11.0,-4.9,-22.5,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_BOZE_DRAGI_002.wav,boze dragi.wav,4.01,7.33,boze dragi,boze_dragi,,3.32,+6.8,-1.5,-25.2,-24.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_JA_VAMA_MOGU_OBJASNITI_001.wav,ja vama mogu objasniti.wav,1.45,8.5,ja vama mogu objasniti,ja_vama_mogu_objasniti,,7.05,+8.2,-1.5,-23.3,-21.5,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_PISE_VAM_LIJEPO_NA_VRATIMA_001.wav,pise vam lijepo na vratima.wav,1.84,8.15,pise vam lijepo na vratima,pise_vam_lijepo_na_vratima,,6.31,+7.1,-3.3,-22.9,-21.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_POSEBNE_I_RIJETKE_REPLIKE_001.wav,posebne i rijetke replike.wav,0.44,3.93,posebne i rijetke replike,posebne_i_rijetke_replike,,3.49,+2.6,-4.2,-23.4,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_POSEBNE_I_RIJETKE_REPLIKE_002.wav,posebne i rijetke replike.wav,4.37,5.83,posebne i rijetke replike,posebne_i_rijetke_replike,,1.46,+8.4,-2.9,-22.6,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_POSEBNE_I_RIJETKE_REPLIKE_003.wav,posebne i rijetke replike.wav,6.06,49.9,posebne i rijetke replike,posebne_i_rijetke_replike,,43.84,+5.0,-1.5,-24.5,-22.8,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_POSEBNE_I_RIJETKE_REPLIKE_004.wav,posebne i rijetke replike.wav,50.27,53.67,posebne i rijetke replike,posebne_i_rijetke_replike,,3.40,+5.8,-1.5,-23.6,-21.2,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_POSEBNE_I_RIJETKE_REPLIKE_005.wav,posebne i rijetke replike.wav,54.19,58.87,posebne i rijetke replike,posebne_i_rijetke_replike,,4.68,+8.0,-1.5,-22.7,-21.3,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_POSEBNE_I_RIJETKE_REPLIKE_006.wav,posebne i rijetke replike.wav,59.62,62.39,posebne i rijetke replike,posebne_i_rijetke_replike,,2.77,+7.2,-2.4,-23.6,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_001.wav,disanje uzdisaji i neverbalni zvukovi.wav,0.9,3.97,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,3.07,-1.3,-10.0,-28.5,-27.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_002.wav,disanje uzdisaji i neverbalni zvukovi.wav,4.94,6.89,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,1.95,+7.7,-9.3,-28.3,-27.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_003.wav,disanje uzdisaji i neverbalni zvukovi.wav,8.02,8.77,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,0.75,-3.9,-13.7,-30.3,-27.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_004.wav,disanje uzdisaji i neverbalni zvukovi.wav,9.95,10.93,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,0.98,+5.3,-14.5,-29.5,-27.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_005.wav,disanje uzdisaji i neverbalni zvukovi.wav,11.79,13.29,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,1.50,+3.0,-1.5,-39.3,-32.3,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_006.wav,disanje uzdisaji i neverbalni zvukovi.wav,13.87,16.96,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,3.09,-3.7,-15.6,-29.2,-27.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_007.wav,disanje uzdisaji i neverbalni zvukovi.wav,18.51,19.37,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,0.86,-4.1,-11.2,-29.8,-27.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_008.wav,disanje uzdisaji i neverbalni zvukovi.wav,20.66,21.38,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,0.72,-3.1,-6.1,-31.5,-27.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_009.wav,disanje uzdisaji i neverbalni zvukovi.wav,22.1,22.73,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,0.63,+13.1,-12.5,-30.2,-27.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_010.wav,disanje uzdisaji i neverbalni zvukovi.wav,23.32,24.57,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,1.25,+14.4,-7.4,-29.0,-28.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_011.wav,disanje uzdisaji i neverbalni zvukovi.wav,25.18,26.59,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,1.41,+11.8,-10.4,-29.4,-27.5,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_012.wav,disanje uzdisaji i neverbalni zvukovi.wav,28.14,29.43,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,1.29,+16.9,-11.1,-28.6,-27.6,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_013.wav,disanje uzdisaji i neverbalni zvukovi.wav,30.76,45.9,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,15.14,+4.8,-7.9,-30.1,-27.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DISANJE_UZDISAJI_I_NEVERBALNI_ZVUKOVI_014.wav,disanje uzdisaji i neverbalni zvukovi.wav,46.74,48.25,disanje uzdisaji i neverbalni zvukovi,disanje_uzdisaji_i_neverbalni_zvukovi,,1.51,-1.0,-9.5,-31.7,-27.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_001.wav,kratke reakcije i barks.wav,1.36,3.67,kratke reakcije i barks,kratke_reakcije_i_barks,,2.31,+2.4,-5.2,-23.6,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_002.wav,kratke reakcije i barks.wav,4.6,5.81,kratke reakcije i barks,kratke_reakcije_i_barks,,1.21,+3.9,-6.4,-23.3,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_003.wav,kratke reakcije i barks.wav,6.39,7.53,kratke reakcije i barks,kratke_reakcije_i_barks,,1.14,+3.5,-7.2,-23.4,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_004.wav,kratke reakcije i barks.wav,8.34,9.92,kratke reakcije i barks,kratke_reakcije_i_barks,,1.58,+5.4,-3.3,-23.4,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_005.wav,kratke reakcije i barks.wav,10.52,12.72,kratke reakcije i barks,kratke_reakcije_i_barks,,2.20,+14.2,-6.3,-22.4,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_006.wav,kratke reakcije i barks.wav,13.2,15.32,kratke reakcije i barks,kratke_reakcije_i_barks,,2.12,+5.5,-4.5,-23.4,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_007.wav,kratke reakcije i barks.wav,15.96,17.39,kratke reakcije i barks,kratke_reakcije_i_barks,,1.43,+9.1,-8.2,-22.5,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_008.wav,kratke reakcije i barks.wav,17.99,19.95,kratke reakcije i barks,kratke_reakcije_i_barks,,1.96,+9.5,-5.1,-22.3,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_009.wav,kratke reakcije i barks.wav,20.48,22.57,kratke reakcije i barks,kratke_reakcije_i_barks,,2.09,+3.9,-3.7,-23.2,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_010.wav,kratke reakcije i barks.wav,23.04,24.39,kratke reakcije i barks,kratke_reakcije_i_barks,,1.35,+3.8,-5.3,-23.0,-21.2,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_011.wav,kratke reakcije i barks.wav,25.14,27.09,kratke reakcije i barks,kratke_reakcije_i_barks,,1.95,+5.0,-4.6,-23.3,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_012.wav,kratke reakcije i barks.wav,27.88,30.14,kratke reakcije i barks,kratke_reakcije_i_barks,,2.26,+4.8,-6.4,-22.5,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_KRATKE_REAKCIJE_I_BARKS_013.wav,kratke reakcije i barks.wav,30.59,32.36,kratke reakcije i barks,kratke_reakcije_i_barks,,1.77,+6.0,-1.5,-23.7,-21.8,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_RIJETKI_FILOZOFSKI_DIJALOZI_001.wav,rijetki filozofski dijalozi.wav,1.17,3.39,rijetki filozofski dijalozi,rijetki_filozofski_dijalozi,,2.22,+4.5,-3.4,-22.7,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_RIJETKI_FILOZOFSKI_DIJALOZI_002.wav,rijetki filozofski dijalozi.wav,4.13,17.58,rijetki filozofski dijalozi,rijetki_filozofski_dijalozi,,13.45,+6.5,-3.7,-22.6,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_RIJETKI_FILOZOFSKI_DIJALOZI_003.wav,rijetki filozofski dijalozi.wav,17.95,27.66,rijetki filozofski dijalozi,rijetki_filozofski_dijalozi,,9.71,+6.1,-1.6,-23.0,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_RIJETKI_FILOZOFSKI_DIJALOZI_004.wav,rijetki filozofski dijalozi.wav,28.04,32.4,rijetki filozofski dijalozi,rijetki_filozofski_dijalozi,,4.36,+5.6,-5.6,-22.2,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_RIJETKI_FILOZOFSKI_DIJALOZI_005.wav,rijetki filozofski dijalozi.wav,33.06,39.09,rijetki filozofski dijalozi,rijetki_filozofski_dijalozi,,6.03,+7.2,-2.7,-22.5,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_RIJETKI_FILOZOFSKI_DIJALOZI_006.wav,rijetki filozofski dijalozi.wav,39.46,42.37,rijetki filozofski dijalozi,rijetki_filozofski_dijalozi,,2.91,+5.0,-3.2,-22.7,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_PRIJETNJE_I_LJUTNJA_001.wav,prijetnje i ljutnja.wav,0.89,3.49,prijetnje i ljutnja,prijetnje_i_ljutnja,,2.60,+3.1,-6.6,-25.6,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_PRIJETNJE_I_LJUTNJA_002.wav,prijetnje i ljutnja.wav,4.0,10.51,prijetnje i ljutnja,prijetnje_i_ljutnja,,6.51,+7.5,-1.7,-23.0,-21.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_PRIJETNJE_I_LJUTNJA_003.wav,prijetnje i ljutnja.wav,10.99,32.03,prijetnje i ljutnja,prijetnje_i_ljutnja,,21.04,+5.4,-3.0,-22.9,-21.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_PRIJETNJE_I_LJUTNJA_004.wav,prijetnje i ljutnja.wav,32.45,43.58,prijetnje i ljutnja,prijetnje_i_ljutnja,,11.13,+7.1,-1.5,-22.8,-21.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DUGO_CEKANJE_I_IDLE_DIALOGUE_001.wav,dugo cekanje i idle dialogue.wav,0.62,3.49,dugo cekanje i idle dialogue,dugo_cekanje_i_idle_dialogue,,2.87,+3.5,-2.4,-23.2,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DUGO_CEKANJE_I_IDLE_DIALOGUE_002.wav,dugo cekanje i idle dialogue.wav,4.19,7.22,dugo cekanje i idle dialogue,dugo_cekanje_i_idle_dialogue,,3.03,+7.8,-6.1,-22.9,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DUGO_CEKANJE_I_IDLE_DIALOGUE_003.wav,dugo cekanje i idle dialogue.wav,7.44,9.4,dugo cekanje i idle dialogue,dugo_cekanje_i_idle_dialogue,,1.96,+4.8,-8.2,-23.1,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DUGO_CEKANJE_I_IDLE_DIALOGUE_004.wav,dugo cekanje i idle dialogue.wav,9.82,13.8,dugo cekanje i idle dialogue,dugo_cekanje_i_idle_dialogue,,3.98,+5.5,-1.5,-23.5,-21.8,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DUGO_CEKANJE_I_IDLE_DIALOGUE_005.wav,dugo cekanje i idle dialogue.wav,14.02,17.24,dugo cekanje i idle dialogue,dugo_cekanje_i_idle_dialogue,,3.22,+5.3,-3.1,-23.0,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DUGO_CEKANJE_I_IDLE_DIALOGUE_006.wav,dugo cekanje i idle dialogue.wav,17.61,41.88,dugo cekanje i idle dialogue,dugo_cekanje_i_idle_dialogue,,24.27,+5.4,-3.3,-22.7,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_INVENTAR_I_OPREMA_001.wav,inventar i oprema.wav,2.67,4.4,inventar i oprema,inventar_i_oprema,,1.73,+4.1,-4.5,-23.1,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_INVENTAR_I_OPREMA_002.wav,inventar i oprema.wav,5.09,12.18,inventar i oprema,inventar_i_oprema,,7.09,+10.3,-1.5,-22.9,-21.6,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_INVENTAR_I_OPREMA_003.wav,inventar i oprema.wav,12.58,27.65,inventar i oprema,inventar_i_oprema,,15.07,+2.9,-1.5,-26.3,-24.2,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_INVENTAR_I_OPREMA_004.wav,inventar i oprema.wav,27.86,33.95,inventar i oprema,inventar_i_oprema,,6.09,+5.7,-2.5,-23.0,-21.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_INVENTAR_I_OPREMA_005.wav,inventar i oprema.wav,34.32,39.81,inventar i oprema,inventar_i_oprema,,5.49,+6.4,-3.2,-22.7,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_INVENTAR_I_OPREMA_006.wav,inventar i oprema.wav,40.14,49.91,inventar i oprema,inventar_i_oprema,,9.77,+6.4,-2.2,-23.1,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_SMRT_I_POVRATAK_IGRACA_001.wav,smrt i povratak igraca.wav,1.77,4.0,smrt i povratak igraca,smrt_i_povratak_igraca,,2.23,+5.4,-3.4,-23.0,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_SMRT_I_POVRATAK_IGRACA_002.wav,smrt i povratak igraca.wav,5.14,6.42,smrt i povratak igraca,smrt_i_povratak_igraca,,1.28,+3.5,-6.5,-23.9,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_SMRT_I_POVRATAK_IGRACA_003.wav,smrt i povratak igraca.wav,7.17,10.11,smrt i povratak igraca,smrt_i_povratak_igraca,,2.94,+8.2,-5.3,-22.4,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_SMRT_I_POVRATAK_IGRACA_004.wav,smrt i povratak igraca.wav,10.65,12.21,smrt i povratak igraca,smrt_i_povratak_igraca,,1.56,+8.3,-3.6,-22.3,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_SMRT_I_POVRATAK_IGRACA_005.wav,smrt i povratak igraca.wav,12.43,15.19,smrt i povratak igraca,smrt_i_povratak_igraca,,2.76,+7.5,-1.5,-23.3,-22.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_SMRT_I_POVRATAK_IGRACA_006.wav,smrt i povratak igraca.wav,15.89,21.62,smrt i povratak igraca,smrt_i_povratak_igraca,,5.73,+7.8,-6.0,-22.4,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_SMRT_I_POVRATAK_IGRACA_007.wav,smrt i povratak igraca.wav,22.29,33.04,smrt i povratak igraca,smrt_i_povratak_igraca,,10.75,+4.2,-1.5,-23.5,-21.7,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_SMRT_I_POVRATAK_IGRACA_008.wav,smrt i povratak igraca.wav,33.88,39.52,smrt i povratak igraca,smrt_i_povratak_igraca,,5.64,+6.5,-2.9,-22.7,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_SMRT_I_POVRATAK_IGRACA_009.wav,smrt i povratak igraca.wav,39.83,46.16,smrt i povratak igraca,smrt_i_povratak_igraca,,6.33,+4.9,-4.3,-22.9,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_SMRT_I_POVRATAK_IGRACA_010.wav,smrt i povratak igraca.wav,46.56,47.92,smrt i povratak igraca,smrt_i_povratak_igraca,,1.36,+6.3,-7.2,-22.8,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_SMRT_I_POVRATAK_IGRACA_011.wav,smrt i povratak igraca.wav,48.91,50.27,smrt i povratak igraca,smrt_i_povratak_igraca,,1.36,+17.8,-4.8,-23.0,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_ODBIJANJE_I_NEUSPJEH_001.wav,odbijanje i neuspjeh.wav,0.64,3.24,odbijanje i neuspjeh,odbijanje_i_neuspjeh,,2.60,+4.1,-5.4,-24.9,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_ODBIJANJE_I_NEUSPJEH_002.wav,odbijanje i neuspjeh.wav,4.01,5.08,odbijanje i neuspjeh,odbijanje_i_neuspjeh,,1.07,+8.7,-5.5,-23.2,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_ODBIJANJE_I_NEUSPJEH_003.wav,odbijanje i neuspjeh.wav,5.72,6.32,odbijanje i neuspjeh,odbijanje_i_neuspjeh,,0.60,+7.7,-6.9,-24.8,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_ODBIJANJE_I_NEUSPJEH_004.wav,odbijanje i neuspjeh.wav,6.92,8.03,odbijanje i neuspjeh,odbijanje_i_neuspjeh,,1.11,+11.0,-4.9,-23.0,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_ODBIJANJE_I_NEUSPJEH_005.wav,odbijanje i neuspjeh.wav,8.31,11.22,odbijanje i neuspjeh,odbijanje_i_neuspjeh,,2.91,+7.9,-5.2,-22.3,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_ODBIJANJE_I_NEUSPJEH_006.wav,odbijanje i neuspjeh.wav,11.8,15.59,odbijanje i neuspjeh,odbijanje_i_neuspjeh,,3.79,+5.7,-4.5,-23.3,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_ODBIJANJE_I_NEUSPJEH_007.wav,odbijanje i neuspjeh.wav,16.02,23.0,odbijanje i neuspjeh,odbijanje_i_neuspjeh,,6.98,+8.6,-3.1,-22.7,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_ODBIJANJE_I_NEUSPJEH_008.wav,odbijanje i neuspjeh.wav,23.59,28.39,odbijanje i neuspjeh,odbijanje_i_neuspjeh,,4.80,+6.1,-3.3,-22.2,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_ODBIJANJE_I_NEUSPJEH_009.wav,odbijanje i neuspjeh.wav,28.61,37.53,odbijanje i neuspjeh,odbijanje_i_neuspjeh,,8.92,+5.1,-2.7,-22.2,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_ODBIJANJE_I_NEUSPJEH_010.wav,odbijanje i neuspjeh.wav,38.08,43.83,odbijanje i neuspjeh,odbijanje_i_neuspjeh,,5.75,+6.0,-3.7,-22.2,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_QUEST_DIALOGUE_001.wav,quest dialogue.wav,1.56,8.65,quest dialogue,quest_dialogue,,7.09,+7.1,-1.5,-23.3,-22.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_QUEST_DIALOGUE_002.wav,quest dialogue.wav,9.01,22.94,quest dialogue,quest_dialogue,,13.93,+6.1,-3.1,-22.4,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_QUEST_DIALOGUE_003.wav,quest dialogue.wav,23.28,35.81,quest dialogue,quest_dialogue,,12.53,+6.0,-1.5,-23.3,-21.6,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_QUEST_DIALOGUE_004.wav,quest dialogue.wav,36.23,42.92,quest dialogue,quest_dialogue,,6.69,+5.4,-1.5,-23.3,-21.3,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_QUEST_DIALOGUE_005.wav,quest dialogue.wav,43.34,51.67,quest dialogue,quest_dialogue,,8.33,+6.6,-2.8,-23.0,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_QUEST_DIALOGUE_006.wav,quest dialogue.wav,52.16,57.64,quest dialogue,quest_dialogue,,5.48,+5.5,-2.1,-22.3,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_QUEST_DIALOGUE_007.wav,quest dialogue.wav,57.91,58.98,quest dialogue,quest_dialogue,,1.07,+3.2,-1.5,-25.9,-23.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_QUEST_DIALOGUE_008.wav,quest dialogue.wav,59.23,64.16,quest dialogue,quest_dialogue,,4.93,+8.8,-3.7,-22.8,-21.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DOKUMENTI_I_DOZVOLE_001.wav,dokumenti i dozvole.wav,1.84,3.79,dokumenti i dozvole,dokumenti_i_dozvole,,1.95,+9.2,-3.1,-22.1,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DOKUMENTI_I_DOZVOLE_002.wav,dokumenti i dozvole.wav,4.12,8.16,dokumenti i dozvole,dokumenti_i_dozvole,,4.04,+8.2,-3.7,-22.1,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DOKUMENTI_I_DOZVOLE_003.wav,dokumenti i dozvole.wav,8.66,24.4,dokumenti i dozvole,dokumenti_i_dozvole,,15.74,+1.5,-1.5,-27.5,-25.8,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DOKUMENTI_I_DOZVOLE_004.wav,dokumenti i dozvole.wav,24.81,28.17,dokumenti i dozvole,dokumenti_i_dozvole,,3.36,+4.8,-1.5,-24.1,-22.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DOKUMENTI_I_DOZVOLE_005.wav,dokumenti i dozvole.wav,28.43,31.39,dokumenti i dozvole,dokumenti_i_dozvole,,2.96,+7.2,-2.5,-22.9,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DOKUMENTI_I_DOZVOLE_006.wav,dokumenti i dozvole.wav,31.83,36.75,dokumenti i dozvole,dokumenti_i_dozvole,,4.92,+5.4,-5.3,-22.8,-21.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DOKUMENTI_I_DOZVOLE_007.wav,dokumenti i dozvole.wav,37.13,46.68,dokumenti i dozvole,dokumenti_i_dozvole,,9.55,+5.3,-3.9,-23.5,-21.0,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DOKUMENTI_I_DOZVOLE_008.wav,dokumenti i dozvole.wav,47.13,59.43,dokumenti i dozvole,dokumenti_i_dozvole,,12.30,+5.4,-1.5,-24.1,-22.1,0
+audio/voice/npc_salterusa/hr-HR/SALTERUSA_DOKUMENTI_I_DOZVOLE_009.wav,dokumenti i dozvole.wav,59.74,63.84,dokumenti i dozvole,dokumenti_i_dozvole,,4.10,+7.5,-1.5,-22.9,-21.2,0
