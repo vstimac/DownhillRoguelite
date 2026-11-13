@@ -9,6 +9,15 @@ Beta. Tested on x86_64 desktops (Arch/CachyOS, Ubuntu). Feedback goes in the Dis
 
 You need a GPU with Vulkan drivers (Mesa or the NVIDIA driver). Nothing else is required.
 
+## Updates
+
+From Beta 2.9 the game updates itself: when a new version is out, **Update** appears at the top of
+the title menu. Pick it and the game downloads the update (a small one when it can), checks it,
+installs it and starts again. Your `Models` folder and saves are left alone. The game folder must be
+somewhere you can write to. Options → Gameplay → **Check for new versions** turns the check off.
+
+Builds older than Beta 2.9 cannot update themselves: download the newest build once.
+
 ## The companion's voice (optional)
 
 The companion walking beside you can talk back when you speak to them. That needs a language

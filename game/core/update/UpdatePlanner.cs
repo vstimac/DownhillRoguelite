@@ -13,6 +13,13 @@ public enum UpdateKind
     Full,
 }
 
+/// <summary>Which build a game folder holds: each has its own downloads on a release.</summary>
+public enum UpdatePlatform
+{
+    Windows,
+    Linux,
+}
+
 /// <summary>What the newest release offers this game folder.</summary>
 public sealed record UpdateOffer(
     UpdateKind Kind,
@@ -41,16 +48,21 @@ public sealed record UpdateOffer(
 /// - else a release with a Windows build decides: up to date if its tag is this folder's base or
 ///   installed version, otherwise the whole build (a build made on the team's PC, "*-windows.zip",
 ///   is preferred over the CI's "*-windows-full.zip", which lacks the licensed character art);
-/// - a release with neither (only Linux, or nothing attached yet) is passed over.
+/// - a release with neither (only the other system's files, or nothing attached yet) is passed over.
+///
+/// Linux folders follow the same rules with their own files: the small update is
+/// "DownhillRoguelite-update-&lt;version&gt;-linux-for-&lt;base&gt;.tar.gz" and the whole build "*-linux*.tar.gz".
 /// </summary>
 public static class UpdatePlanner
 {
     public const string Repo = "vstimac/DownhillRoguelite";
     public const string ReleasesUrl = "https://api.github.com/repos/" + Repo + "/releases?per_page=20";
     public const string PatchPrefix = "DownhillRoguelite-update-";
+    public const string LinuxMark = "-linux";
+    public const string LinuxArchive = ".tar.gz";
 
     /// <summary>The update for a folder whose full release is <paramref name="baseTag"/> and which reports <paramref name="installed"/>, or null when it is up to date (or nothing fits).</summary>
-    public static UpdateOffer? Plan(string releasesJson, string baseTag, string installed, bool includePrerelease = false)
+    public static UpdateOffer? Plan(string releasesJson, string baseTag, string installed, bool includePrerelease = false, UpdatePlatform platform = UpdatePlatform.Windows)
     {
         baseTag = baseTag.Trim();
         installed = installed.Trim();
@@ -93,13 +105,13 @@ public static class UpdatePlanner
                 foreach (JsonElement asset in assets.EnumerateArray())
                 {
                     string assetName = Text(asset, "name");
-                    string? version = PatchVersion(assetName, baseTag);
+                    string? version = PatchVersion(assetName, baseTag, platform);
                     if (version != null && patch == null)
                     {
                         patch = asset;
                         patchVersion = version;
                     }
-                    else if (IsFullWindowsBuild(assetName))
+                    else if (IsFullBuild(assetName, platform))
                     {
                         // The team's own build first; the CI's "-full" one only if there is no other.
                         if (full == null || (IsCiBuild(Text(full.Value, "name")) && !IsCiBuild(assetName)))
@@ -130,19 +142,61 @@ public static class UpdatePlanner
     }
 
     /// <summary>The version in "DownhillRoguelite-update-&lt;version&gt;-for-&lt;base&gt;.zip" when it is made for <paramref name="baseTag"/>, else null.</summary>
-    public static string? PatchVersion(string assetName, string baseTag)
+    public static string? PatchVersion(string assetName, string baseTag) => PatchVersion(assetName, baseTag, UpdatePlatform.Windows);
+
+    /// <summary>The same for a platform: Linux updates are "DownhillRoguelite-update-&lt;version&gt;-linux-for-&lt;base&gt;.tar.gz".</summary>
+    public static string? PatchVersion(string assetName, string baseTag, UpdatePlatform platform)
     {
         if (baseTag.Length == 0 || !assetName.StartsWith(PatchPrefix, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
         string suffix = "-for-" + baseTag + ".zip";
+        if (platform == UpdatePlatform.Linux)
+        {
+            suffix = LinuxMark + "-for-" + baseTag + LinuxArchive;
+        }
         if (!assetName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
         string version = assetName.Substring(PatchPrefix.Length, assetName.Length - PatchPrefix.Length - suffix.Length);
-        return version.Length > 0 ? version : null;
+        // A Windows name never carries the Linux mark ("2.9-linux" is not a Windows version).
+        if (version.Length == 0 || version.EndsWith(LinuxMark, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+        return version;
+    }
+
+    /// <summary>The name a small update must have on a release for <paramref name="platform"/> folders based on <paramref name="baseTag"/>.</summary>
+    public static string PatchName(string version, string baseTag, UpdatePlatform platform)
+    {
+        if (platform == UpdatePlatform.Linux)
+        {
+            return PatchPrefix + version + LinuxMark + "-for-" + baseTag + LinuxArchive;
+        }
+        return PatchPrefix + version + "-for-" + baseTag + ".zip";
+    }
+
+    /// <summary>A whole build for <paramref name="platform"/> (not an update).</summary>
+    public static bool IsFullBuild(string assetName, UpdatePlatform platform)
+    {
+        if (platform == UpdatePlatform.Linux)
+        {
+            return IsFullLinuxBuild(assetName);
+        }
+        return IsFullWindowsBuild(assetName);
+    }
+
+    /// <summary>A whole Linux build: "...-linux....tar.gz" (not an update).</summary>
+    public static bool IsFullLinuxBuild(string assetName)
+    {
+        if (assetName.StartsWith(PatchPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        return assetName.Contains(LinuxMark, StringComparison.OrdinalIgnoreCase) && assetName.EndsWith(LinuxArchive, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>A whole Windows build: "...-windows.zip" or the CI's "...-windows-full.zip" (not an update).</summary>

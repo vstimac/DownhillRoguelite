@@ -14,6 +14,11 @@ Options:
     --update ZIP    an update zip already made by make_update.py (default: make one now)
     --full ZIP      also attach a whole Windows build (package_windows.py); new players and folders
                     without base.txt take it
+    --linux-base DIR    a Linux full release folder (build_linux.sh's stage/ with base.txt): also make
+                        and attach the small Linux update against it
+    --linux-update TAR  a Linux update already made by make_update.py --platform linux
+    --linux-full TAR    also attach a whole Linux build (*-linux*.tar.gz from build_linux.sh): Linux
+                        players without a matching base take it, and it becomes their new base
     --notes FILE    release notes (Markdown); default: a short line
     --prerelease    publish as a pre-release: the game only offers it with -- --update-prerelease,
                     so the whole path can be tried before players see it
@@ -73,6 +78,9 @@ def main():
     parser.add_argument("--base", default=BASE)
     parser.add_argument("--update")
     parser.add_argument("--full")
+    parser.add_argument("--linux-base")
+    parser.add_argument("--linux-update")
+    parser.add_argument("--linux-full")
     parser.add_argument("--notes")
     parser.add_argument("--prerelease", action="store_true")
     parser.add_argument("--draft", action="store_true")
@@ -107,6 +115,34 @@ def main():
         if not os.path.basename(args.full).endswith("-windows.zip"):
             fail("a whole Windows build must be named *-windows.zip")
         files.append(args.full)
+
+    # Linux: its own small update (made against a Linux base) and, when given, a whole build.
+    linux_update = args.linux_update
+    if args.linux_base:
+        linux_base_txt = os.path.join(args.linux_base, "base.txt")
+        if not os.path.isfile(linux_base_txt):
+            fail(f"no base.txt in {args.linux_base}")
+        linux_base_id = open(linux_base_txt, encoding="utf-8").read().strip()
+        linux_name = f"DownhillRoguelite-update-{args.version}-linux-for-{linux_base_id}.tar.gz"
+        if linux_update is None:
+            run(sys.executable, "-I", os.path.join(ROOT, "scripts", "make_update.py"), args.linux_base, args.version, OUT, "--platform", "linux")
+            linux_update = os.path.join(OUT, linux_name)
+        if os.path.basename(linux_update) != linux_name:
+            fail(f"the Linux update must be named {linux_name} (the game finds it by that name)")
+    if linux_update:
+        name = os.path.basename(linux_update)
+        if not (name.startswith("DownhillRoguelite-update-") and "-linux-for-" in name and name.endswith(".tar.gz")):
+            fail("a Linux update must be named DownhillRoguelite-update-<version>-linux-for-<base>.tar.gz")
+        if not os.path.isfile(linux_update):
+            fail(f"no Linux update at {linux_update}")
+        files.append(linux_update)
+    if args.linux_full:
+        name = os.path.basename(args.linux_full)
+        if name.startswith("DownhillRoguelite-update-") or "-linux" not in name or not name.endswith(".tar.gz"):
+            fail("a whole Linux build must be named *-linux*.tar.gz")
+        if not os.path.isfile(args.linux_full):
+            fail(f"no Linux build at {args.linux_full}")
+        files.append(args.linux_full)
 
     notes = args.notes
     if notes is None:

@@ -17,7 +17,8 @@ namespace DownhillRoguelite.Debug;
 /// <summary>
 /// The game keeps itself up to date: UpdatePlanner picks the right download from GitHub's release
 /// list (a small update for this folder's full release, else a whole new build; drafts, pre-releases
-/// and Linux-only releases passed over); the updater script built into the game's code installs it
+/// and releases with only the other system's files passed over; Linux folders get their own downloads
+/// and install them in-game); the updater script built into the game's code installs it
 /// (checked by SHA-256, a damaged download changes nothing, a new full release clears old updates
 /// and keeps the player's Models and logs); the title screen puts "Update" first. Everything runs
 /// on local files: no network.
@@ -45,6 +46,8 @@ public partial class UpdateTests : Node
             {
                 GD.Print("SKIP  the updater script runs only on Windows");
             }
+            TestLinuxPlanner();
+            TestLinuxInstaller();
             await TestTitleScreen();
         }
         catch (Exception error)
@@ -107,6 +110,130 @@ public partial class UpdateTests : Node
         Check("asset names are read strictly", UpdatePlanner.PatchVersion("DownhillRoguelite-update--for-v0.2.5-beta.zip", Base) == null
             && !UpdatePlanner.IsFullWindowsBuild("DownhillRoguelite-linux-beta.tar.gz") && !UpdatePlanner.IsFullWindowsBuild("DownhillRoguelite-update-2.7-for-x-windows.zip")
             && UpdatePlanner.IsFullWindowsBuild("DownhillRoguelite-windows-full.zip"), "");
+    }
+
+    private void TestLinuxPlanner()
+    {
+        const string LinuxBase = "v0.2.9-beta";
+        string both = Feed(
+            Release("v0.3.0-beta", "2026-12-01T10:00:00Z",
+                Asset("DownhillRoguelite-update-3.0-for-v0.2.5-beta.zip", 5, "w1"),
+                Asset("DownhillRoguelite-update-3.0-linux-for-v0.2.9-beta.tar.gz", 7, "l1")),
+            Release("v0.2.9-beta", "2026-11-20T10:00:00Z",
+                Asset("DownhillRoguelite-update-2.9-for-v0.2.5-beta.zip", 5, "w0"),
+                Asset("DownhillRoguelite-linux-x86_64.tar.gz", 400, "l0")));
+        UpdateOffer? offer = UpdatePlanner.Plan(both, LinuxBase, LinuxBase, false, UpdatePlatform.Linux);
+        Check("a Linux folder is offered the Linux small update, not the Windows one", offer != null && offer.Kind == UpdateKind.Patch && offer.Version == "3.0"
+            && offer.Sha256 == "l1" && offer.AssetName.EndsWith(".tar.gz"), Describe(offer));
+        Check("a Linux folder on that version is up to date", UpdatePlanner.Plan(both, LinuxBase, "3.0", false, UpdatePlatform.Linux) == null, "");
+        offer = UpdatePlanner.Plan(both, Base, Base);
+        Check("a Windows folder still gets its own update from the same release", offer != null && offer.Version == "3.0" && offer.Sha256 == "w1", Describe(offer));
+        offer = UpdatePlanner.Plan(both, "", "old", false, UpdatePlatform.Linux);
+        Check("a Linux folder with no base gets the whole newest Linux build", offer != null && offer.Kind == UpdateKind.Full && offer.Tag == "v0.2.9-beta"
+            && offer.Sha256 == "l0", Describe(offer));
+
+        // A release with only Windows files is passed over for Linux, and the other way round.
+        string windowsOnly = Feed(
+            Release("v0.3.1-beta", "2026-12-05T10:00:00Z", Asset("DownhillRoguelite-update-3.1-for-v0.2.5-beta.zip", 5, "w2"), Asset("DownhillRoguelite-beta-3.1-windows.zip", 9, "w3")),
+            Release("v0.2.9-beta", "2026-11-20T10:00:00Z", Asset("DownhillRoguelite-linux-x86_64.tar.gz", 400, "l0")));
+        Check("a Windows-only release offers Linux nothing new", UpdatePlanner.Plan(windowsOnly, LinuxBase, LinuxBase, false, UpdatePlatform.Linux) == null, "");
+        Check("Linux and Windows names are never mixed up",
+            UpdatePlanner.PatchVersion("DownhillRoguelite-update-3.0-linux-for-v0.2.9-beta.tar.gz", LinuxBase) == null
+            && UpdatePlanner.PatchVersion("DownhillRoguelite-update-3.0-for-v0.2.9-beta.zip", LinuxBase, UpdatePlatform.Linux) == null
+            && UpdatePlanner.PatchVersion("DownhillRoguelite-update-3.0-linux-for-v0.2.9-beta.tar.gz", LinuxBase, UpdatePlatform.Linux) == "3.0"
+            && UpdatePlanner.PatchName("3.0", LinuxBase, UpdatePlatform.Linux) == "DownhillRoguelite-update-3.0-linux-for-v0.2.9-beta.tar.gz"
+            && UpdatePlanner.PatchName("3.0", Base, UpdatePlatform.Windows) == "DownhillRoguelite-update-3.0-for-v0.2.5-beta.zip"
+            && UpdatePlanner.IsFullLinuxBuild("DownhillRoguelite-linux-beta-2.7.tar.gz") && !UpdatePlanner.IsFullLinuxBuild("DownhillRoguelite-update-3.0-linux-for-x.tar.gz")
+            && !UpdatePlanner.IsFullLinuxBuild("DownhillRoguelite-beta-3.0-windows.zip") && !UpdatePlanner.IsFullWindowsBuild("DownhillRoguelite-linux-x86_64.tar.gz"), "");
+    }
+
+    /// <summary>The in-game installer Linux uses (it runs anywhere: here on local .tar.gz files).</summary>
+    private void TestLinuxInstaller()
+    {
+        const string LinuxBase = "v0.2.9-beta";
+        string data = "data_DownhillRoguelite_linuxbsd_x86_64";
+        string game = Directory.CreateDirectory(Path.Combine(_scratch, "linux game")).FullName;
+        File.WriteAllText(Path.Combine(game, "base.txt"), LinuxBase + "\n");
+        File.WriteAllText(Path.Combine(game, "version.txt"), LinuxBase + "\n");
+        File.WriteAllText(Path.Combine(game, UpdateInstaller.LinuxExe), "old binary");
+        File.WriteAllText(Path.Combine(game, UpdateInstaller.Pck), "old pck");
+        Directory.CreateDirectory(Path.Combine(game, data));
+        File.WriteAllText(Path.Combine(game, data, "DownhillRoguelite.dll"), "old code");
+        Directory.CreateDirectory(Path.Combine(game, "Models"));
+        File.WriteAllText(Path.Combine(game, "Models", "model.gguf"), "the player's model");
+
+        string patch = TarGz("DownhillRoguelite-update-3.0-linux-for-v0.2.9-beta.tar.gz", new()
+        {
+            ["patches/update.pck"] = "patch 3.0",
+            [data + "/DownhillRoguelite.dll"] = "new code 3.0",
+            ["version.txt"] = "3.0\n",
+        });
+        string feed = Path.Combine(_scratch, "linux-feed.json");
+        File.WriteAllText(feed, Feed(Release("v0.3.0-beta", "2026-12-01T10:00:00Z", Asset(Path.GetFileName(patch), new FileInfo(patch).Length, Sha(patch), patch))));
+        UpdateOffer? offer = Task.Run(() => UpdateCheck.FindAsync(game, feed, false, UpdatePlatform.Linux)).GetAwaiter().GetResult();
+        string error = Install(offer, game);
+        Check("Linux: the small update installs from inside the game", error.Length == 0 && Read(game, "patches/update.pck") == "patch 3.0"
+            && Read(game, data + "/DownhillRoguelite.dll") == "new code 3.0" && Read(game, "version.txt").Trim() == "3.0"
+            && Read(game, "base.txt").Trim() == LinuxBase && Read(game, UpdateInstaller.LinuxExe) == "old binary", error);
+        offer = Task.Run(() => UpdateCheck.FindAsync(game, feed, false, UpdatePlatform.Linux)).GetAwaiter().GetResult();
+        Check("Linux: after it the folder is up to date", offer == null, Describe(offer));
+
+        string damaged = TarGz("DownhillRoguelite-update-3.1-linux-for-v0.2.9-beta.tar.gz", new() { ["patches/update.pck"] = "patch 3.1", ["version.txt"] = "3.1\n" });
+        UpdateOffer bad = new(UpdateKind.Patch, "3.1", "v0.3.1-beta", "Beta 3.1", Path.GetFileName(damaged), damaged, new FileInfo(damaged).Length, new string((char)48, 64), "");
+        error = Install(bad, game);
+        Check("Linux: a damaged download is refused and the game is left as it was", error.Contains("damaged") && Read(game, "version.txt").Trim() == "3.0"
+            && Read(game, "patches/update.pck") == "patch 3.0", error);
+
+        string full = TarGz("DownhillRoguelite-linux-x86_64.tar.gz", new()
+        {
+            ["./" + UpdateInstaller.LinuxExe] = "binary 3.2",
+            ["./" + UpdateInstaller.Pck] = "pck 3.2",
+            ["./" + data + "/DownhillRoguelite.dll"] = "code 3.2",
+            ["./base.txt"] = "v0.3.2-beta\n",
+            ["./version.txt"] = "v0.3.2-beta\n",
+        });
+        UpdateOffer whole = new(UpdateKind.Full, "v0.3.2-beta", "v0.3.2-beta", "Beta 3.2", Path.GetFileName(full), full, new FileInfo(full).Length, Sha(full), "");
+        error = Install(whole, game);
+        Check("Linux: a new full build installs, drops the old small update and becomes the base", error.Length == 0 && Read(game, UpdateInstaller.LinuxExe) == "binary 3.2"
+            && Read(game, UpdateInstaller.Pck) == "pck 3.2" && !Directory.Exists(Path.Combine(game, "patches")) && Read(game, "base.txt").Trim() == "v0.3.2-beta"
+            && Read(game, "version.txt").Trim() == "v0.3.2-beta" && Read(game, "Models/model.gguf") == "the player's model", error);
+        Check("Linux: nothing is left behind next to the game", !File.Exists(Path.Combine(game, ".update-write-test"))
+            && Directory.GetFiles(game, "*.new", SearchOption.AllDirectories).Length == 0, "");
+    }
+
+    /// <summary>Runs the in-game installer; returns "" or what went wrong.</summary>
+    private static string Install(UpdateOffer? offer, string game)
+    {
+        if (offer == null)
+        {
+            return "no update was offered";
+        }
+        try
+        {
+            Task.Run(() => UpdateInstaller.InstallAsync(offer, game, UpdatePlatform.Linux)).GetAwaiter().GetResult();
+            return "";
+        }
+        catch (Exception error)
+        {
+            return error.GetBaseException().Message;
+        }
+    }
+
+    private string TarGz(string name, Dictionary<string, string> files)
+    {
+        string path = Path.Combine(_scratch, name);
+        using FileStream file = File.Create(path);
+        using GZipStream zipped = new(file, CompressionLevel.Fastest);
+        using System.Formats.Tar.TarWriter writer = new(zipped, System.Formats.Tar.TarEntryFormat.Pax);
+        foreach (KeyValuePair<string, string> entry in files)
+        {
+            System.Formats.Tar.PaxTarEntry item = new(System.Formats.Tar.TarEntryType.RegularFile, entry.Key)
+            {
+                DataStream = new MemoryStream(new UTF8Encoding(false).GetBytes(entry.Value)),
+            };
+            writer.WriteEntry(item);
+        }
+        return path;
     }
 
     private void TestEmbeddedScript()

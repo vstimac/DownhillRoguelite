@@ -9,11 +9,12 @@ namespace DownhillRoguelite.Core.Update;
 
 /// <summary>
 /// Keeps play-testers on the newest release. The title screen starts a check in the background
-/// (exported Windows builds only, and only while Options → "Check for new versions" is on); when
-/// GitHub has a newer release for this folder (UpdatePlanner), the menu offers "Update". Picking it
-/// writes the updater (export/playtest/update.ps1, built into the game's code) to the temp folder,
-/// runs it in its own window and closes the game; the updater waits, installs and starts the game
-/// again. Without a connection nothing is shown and nothing waits.
+/// (exported Windows and Linux builds, and only while Options → "Check for new versions" is on); when
+/// GitHub has a newer release for this folder (UpdatePlanner), the menu offers "Update". On Windows,
+/// picking it writes the updater (export/playtest/update.ps1, built into the game's code) to the temp
+/// folder, runs it in its own window and closes the game; the updater waits, installs and starts the
+/// game again. On Linux the game installs the update itself (UpdateInstaller) and starts again.
+/// Without a connection nothing is shown and nothing waits.
 ///
 /// Test switches (after "--"): --update-feed=&lt;url or .json file&gt; reads that release list instead of
 /// GitHub's, --update-prerelease also takes pre-releases, --update-dir=&lt;folder&gt; treats that folder
@@ -24,6 +25,7 @@ public static class UpdateCheck
     public const string ScriptResource = "DownhillRoguelite.update.ps1";
     private const string FeedArg = "--update-feed=";
     private const string DirArg = "--update-dir=";
+    private const string PlatformArg = "--update-platform=";
 
     private static int _started;
     private static volatile UpdateOffer? _offer;
@@ -44,7 +46,24 @@ public static class UpdateCheck
         }
     }
 
-    /// <summary>Checking applies here: an exported Windows build (or a test folder), with the option on.</summary>
+    /// <summary>Which build this is: Linux has its own downloads on a release (test switch: --update-platform=linux).</summary>
+    public static UpdatePlatform Platform
+    {
+        get
+        {
+            string name = Arg(PlatformArg) ?? OS.GetName();
+            if (string.Equals(name, "Linux", StringComparison.OrdinalIgnoreCase))
+            {
+                return UpdatePlatform.Linux;
+            }
+            return UpdatePlatform.Windows;
+        }
+    }
+
+    /// <summary>True where the game installs the update itself instead of handing over to the updater window (Linux).</summary>
+    public static bool InstallsInGame => Platform == UpdatePlatform.Linux;
+
+    /// <summary>Checking applies here: an exported Windows or Linux build (or a test folder), with the option on.</summary>
     public static bool Applies
     {
         get
@@ -57,7 +76,7 @@ public static class UpdateCheck
             {
                 return true;
             }
-            return OS.HasFeature("template") && OS.GetName() == "Windows";
+            return OS.HasFeature("template") && (OS.GetName() == "Windows" || OS.GetName() == "Linux");
         }
     }
 
@@ -75,7 +94,7 @@ public static class UpdateCheck
         {
             try
             {
-                _offer = await FindAsync(dir, feed, prerelease);
+                _offer = await FindAsync(dir, feed, prerelease, Platform);
                 _status = _offer == null ? "up to date" : $"found {_offer.Kind} {_offer.Version}";
             }
             catch (Exception error)
@@ -88,7 +107,10 @@ public static class UpdateCheck
     }
 
     /// <summary>Reads the folder's markers and the release list, and plans (tests call it directly).</summary>
-    public static async Task<UpdateOffer?> FindAsync(string gameDir, string? feed, bool includePrerelease)
+    public static Task<UpdateOffer?> FindAsync(string gameDir, string? feed, bool includePrerelease) => FindAsync(gameDir, feed, includePrerelease, UpdatePlatform.Windows);
+
+    /// <summary>The same for a platform's downloads.</summary>
+    public static async Task<UpdateOffer?> FindAsync(string gameDir, string? feed, bool includePrerelease, UpdatePlatform platform)
     {
         string baseTag = ReadLine(Path.Combine(gameDir, "base.txt"));
         string installed = ReadLine(Path.Combine(gameDir, "version.txt"));
@@ -108,7 +130,7 @@ public static class UpdateCheck
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
             json = await client.GetStringAsync(feed ?? UpdatePlanner.ReleasesUrl);
         }
-        return UpdatePlanner.Plan(json, baseTag, installed, includePrerelease);
+        return UpdatePlanner.Plan(json, baseTag, installed, includePrerelease, platform);
     }
 
     /// <summary>
@@ -147,6 +169,17 @@ public static class UpdateCheck
         }
         int pid = OS.CreateProcess("powershell.exe", args.ToArray(), restart);
         GD.Print($"UpdateCheck: started the updater for {offer.Version} (pid {pid})");
+        return pid > 0;
+    }
+
+    /// <summary>
+    /// Linux: starts this game again (same arguments) once an in-game install is done; the caller
+    /// then quits. True when the new process started.
+    /// </summary>
+    public static bool Restart()
+    {
+        int pid = OS.CreateProcess(OS.GetExecutablePath(), OS.GetCmdlineArgs());
+        GD.Print($"UpdateCheck: restarting after the update (pid {pid})");
         return pid > 0;
     }
 

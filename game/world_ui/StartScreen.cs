@@ -31,7 +31,7 @@ public partial class StartScreen : CanvasLayer
 
     [Export] public string Title { get; set; } = "Downhill Roguelite";
     [Export] public string Subtitle { get; set; } = "Every run begins at the summit.";
-    [Export] public string VersionText { get; set; } = "Beta 2.8";
+    [Export] public string VersionText { get; set; } = "Beta 2.9";
     /// <summary>Largest title size in pixels; it shrinks with the window's height.</summary>
     [Export] public int TitleSize { get; set; } = 92;
     /// <summary>The dark wash behind the menu column (left edge; it fades out towards the middle).</summary>
@@ -86,6 +86,7 @@ public partial class StartScreen : CanvasLayer
     private MenuItem? _characterItem;
     private MenuItem? _lastFocus;
     private MenuItem? _updateItem;
+    private System.Threading.Tasks.Task? _install;
     private float _warmup;
     private bool _padUsed;
     private Vector2 _screen = new(1280, 720);
@@ -145,6 +146,10 @@ public partial class StartScreen : CanvasLayer
         if (_updateItem == null && !Started && UpdateCheck.Offer is UpdateOffer offer)
         {
             OfferUpdate(offer);
+        }
+        if (_install != null)
+        {
+            FollowInstall();
         }
         if (_warmup > 0.0f)
         {
@@ -333,6 +338,19 @@ public partial class StartScreen : CanvasLayer
 
     private void ApplyUpdate(UpdateOffer offer)
     {
+        if (_install != null)
+        {
+            return;
+        }
+        if (UpdateCheck.InstallsInGame)
+        {
+            // Linux: the game downloads and installs the update itself, then starts again.
+            string dir = UpdateCheck.GameDir;
+            UpdatePlatform platform = UpdateCheck.Platform;
+            _install = System.Threading.Tasks.Task.Run(() => UpdateInstaller.InstallAsync(offer, dir, platform));
+            UpdateHint("Updating...");
+            return;
+        }
         try
         {
             if (UpdateCheck.Launch(offer))
@@ -345,13 +363,53 @@ public partial class StartScreen : CanvasLayer
         {
             GD.PushWarning("StartScreen: could not start the updater: " + error.Message);
         }
-        if (_updateItem != null)
+        UpdateHint("Couldn't start the updater. Run \"Update game.bat\" in the game folder, or download it from GitHub.");
+    }
+
+    /// <summary>Shows how an in-game install is going; when it is done the game starts again.</summary>
+    private void FollowInstall()
+    {
+        if (_install == null)
         {
-            _updateItem.Hint = "Couldn't start the updater. Run \"Update game.bat\" in the game folder, or download it from GitHub.";
-            if (_hint != null)
+            return;
+        }
+        if (!_install.IsCompleted)
+        {
+            string stage = UpdateInstaller.Stage;
+            if (stage == "Downloading")
             {
-                _hint.Text = _updateItem.Hint;
+                stage += $" {UpdateInstaller.Fraction * 100.0f:0}%";
             }
+            UpdateHint(stage + "... The game starts again when it is done.");
+            return;
+        }
+        System.Threading.Tasks.Task finished = _install;
+        _install = null;
+        if (finished.IsFaulted)
+        {
+            string why = finished.Exception?.GetBaseException().Message ?? "unknown error";
+            GD.PushWarning("StartScreen: the update failed: " + why);
+            UpdateHint($"The update didn't work: {why}. You can try again, or download the game from GitHub.");
+            return;
+        }
+        if (UpdateCheck.Restart())
+        {
+            GetTree().Quit();
+            return;
+        }
+        UpdateHint("Updated. Close the game and start it again.");
+    }
+
+    private void UpdateHint(string text)
+    {
+        if (_updateItem == null)
+        {
+            return;
+        }
+        _updateItem.Hint = text;
+        if (_hint != null)
+        {
+            _hint.Text = text;
         }
     }
 
