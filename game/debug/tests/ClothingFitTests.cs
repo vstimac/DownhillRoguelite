@@ -49,6 +49,8 @@ public partial class ClothingFitTests : Node3D
             return;
         }
         Aabb glovesBefore = gloves.Mesh.GetAabb();
+        // The pack swings on its straps; measure it at its fit, where a moved handle puts it.
+        clothing!.BackpackMount?.StopSimulating();
         Vector3 packBefore = pack.GlobalPosition;
         handles["leather_gloves-Left"].Position = new Vector3(0.0f, 0.2f, 0.0f);
         handles["trail_backpack"].Position = new Vector3(0.0f, 0.0f, 0.1f);

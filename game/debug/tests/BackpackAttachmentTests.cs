@@ -109,14 +109,17 @@ public partial class BackpackAttachmentTests : Node3D
                 await Frames(2);
                 Input.ActionRelease("player_jump");
                 bool jumped = player.Velocity.Y > 0;
-                await Frames(90);
+                // Headless frames can run faster than physics ticks, so wait for the landing itself.
+                await Frames(10);
+                for (int i = 0; i < 600 && !player.IsOnFloor(); i++) { await Frames(1); }
+                await Frames(10);
                 Check(id + " samples a physics jump and landing", jumped && player.IsOnFloor(),
                     "jumped=" + jumped + " floor=" + player.IsOnFloor() + " packing=" + GameEvents.IsPacking + " screen=" + GameEvents.IsScreenOpen);
                 Dive dive = player.GetNode<Dive>("Dive");
                 dive.RagdollDive = false;
                 phase = "dive";
                 bool dived = dive.TryDive();
-                for (int i = 0; i < 240 && dive.Diving; i++) { await Frames(1); }
+                for (int i = 0; i < 1200 && dive.Diving; i++) { await Frames(1); }
                 await Frames(30);
                 Check(id + " samples a complete dive transition", dived && !dive.Diving && !GameEvents.IsDowned,
                     "dived=" + dived + " diving=" + dive.Diving + " downed=" + GameEvents.IsDowned);
@@ -142,7 +145,7 @@ public partial class BackpackAttachmentTests : Node3D
                 ragdoll.GoDown(Vector3.Forward * 2, Vector3.Zero);
                 await Frames(20);
                 bool fell = ragdoll.Downed;
-                for (int i = 0; i < 510 && ragdoll.Downed; i++) { await Frames(1); }
+                for (int i = 0; i < 2400 && ragdoll.Downed; i++) { await Frames(1); }
                 await Frames(45);
                 Check(id + " samples native ragdoll and recovery", fell && !ragdoll.Downed);
                 rig.SkeletonUpdated -= Observe;
