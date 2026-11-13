@@ -67,6 +67,14 @@ files and only then publishes. Options: `--prerelease` (try the whole path first
 
 Bump `StartScreen.VersionText` before building, so the corner shows the new number.
 
+### What a normal release carries
+
+Two small files: the Windows update and the Linux update, both made against the current base
+(Beta 2.9 for both systems). The README's download buttons point at the base release's whole builds
+(`releases/download/v0.2.9-beta/...`), not at the newest release: a new player downloads the base
+once and the game updates itself on first start. Whole builds are uploaded again only when a new
+base is made (updates have grown large); then move the README's two links to that release.
+
 ### Linux files for a release
 
 The Linux preset exports the data (`DownhillRoguelite.pck`) and the code (`data_*` folder) next to
