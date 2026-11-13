@@ -9,11 +9,12 @@ Offset = Vector3(0, -0.08, 0.24)
 FitBackpackToBody = true
 BackpackClearance = 0.015
 Colour = Color(0.36, 0.29, 0.18, 1)
+Textured = true
 [resource]
 script = ExtResource("1_item")
 ItemId = "trail_backpack"
-DisplayName = "Trail pack (prototype)"
-Description = "A removable external pack attached to the carrier frame. The existing inventory grid remains the storage container. Prototype geometry."
+DisplayName = "Trail pack"
+Description = "A big external pack with a lid, side pouches and a bedroll, strapped to the carrier frame. The inventory grid stays the storage."
 MassKg = 1.2
 SizeCells = Vector3i(4, 5, 3)
 Category = 4

@@ -126,7 +126,23 @@ public static class ClothingPrototypes
         return garment;
     }
 
+    /// <summary>The carrier's pack model (art/characters/backpack, see its prepare_pack.py).</summary>
+    public const string PackModelPath = "res://art/characters/backpack/trail_pack.tscn";
+
+    /// <summary>The pack: the modelled one, or the box prototype when the model is missing.</summary>
     public static Node3D Backpack()
+    {
+        if (ResourceLoader.Exists(PackModelPath) && ResourceLoader.Load(PackModelPath) is PackedScene scene
+            && scene.Instantiate() is Node3D model)
+        {
+            model.Name = "PackModel";
+            return model;
+        }
+        return BoxBackpack();
+    }
+
+    /// <summary>The box prototype pack (the fallback, and a plain shape for tests).</summary>
+    public static Node3D BoxBackpack()
     {
         Node3D root = new() { Name = "PrototypeBackpack" };
         Color canvas = new(0.36f, 0.29f, 0.18f);

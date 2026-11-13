@@ -46,6 +46,12 @@ public partial class BackpackAttachment : BoneAttachment3D
     /// <summary>The pack's extent in the pivot's frame (metres, as the model is placed).</summary>
     public Aabb PackBounds()
     {
+        // A model can name its main body (metadata harness_bounds, in its own space), so the harness
+        // and the swing leave out pouches and other parts hung on its sides.
+        if (Model.HasMeta("harness_bounds") && Model.GetMeta("harness_bounds").VariantType == Variant.Type.Aabb)
+        {
+            return Model.Transform * Model.GetMeta("harness_bounds").AsAabb();
+        }
         Aabb bounds = ModelFit.Bounds(Model);
         if (Model is MeshInstance3D own && own.Mesh != null)
         {

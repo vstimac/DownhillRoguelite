@@ -35,7 +35,8 @@ public partial class BackpackAttachmentTests : Node3D
                 player.Health?.Refill();
                 player.Stamina?.Refill();
                 await Frames(15);
-                Check(id + " mesh front has the configured torso clearance", Mathf.Abs(FrontGap(rig, mount) - mount.Clearance) < 0.0001f);
+                float gap = FrontGap(rig, mount);
+                Check(id + " mesh front has the configured torso clearance", Mathf.Abs(gap - mount.Clearance) < 0.0001f, "gap=" + gap.ToString("0.0000") + " clearance=" + mount.Clearance.ToString("0.0000"));
                 int observations = 0;
                 float worst = 0;
                 void Observe()
@@ -206,7 +207,8 @@ public partial class BackpackAttachmentTests : Node3D
         {
             if (node is not MeshInstance3D mesh || mesh.Mesh == null) { continue; }
             Transform3D toModel = mount.Model.GlobalTransform.AffineInverse() * mesh.GlobalTransform;
-            Transform3D placement = rest * mount.Pivot.Transform * mount.Model.Transform * toModel;
+            // The fit itself, without the pack's swing (BackpackMotion), which comes on top of it.
+            Transform3D placement = mount.RestPivot(rig) * mount.Model.Transform * toModel;
             for (int i = 0; i < 8; i++)
             {
                 Vector3 point = frame.Transposed() * (placement * mesh.Mesh.GetAabb().GetEndpoint(i) - rest.Origin) * metres;

@@ -82,7 +82,7 @@ public static class GameOptions
     /// <summary>The chosen character's id (CarrierRoster); an unknown or missing one falls back to the first.</summary>
     public static string Character { get; private set; } = "modular";
     public static Color BaseShirtColour { get; private set; } = new(0.28f, 0.35f, 0.43f);
-    public static Color BasePackColour { get; private set; } = new(0.36f, 0.29f, 0.18f);
+    public static Color BasePackColour { get; private set; } = new(0.25f, 0.34f, 0.22f);
 
     private static bool _loaded;
     private static string _path = DefaultPath;
@@ -129,7 +129,7 @@ public static class GameOptions
         DialogueLanguage = DialogueText.SystemDefault();
         Character = "modular";
         BaseShirtColour = new Color(0.28f, 0.35f, 0.43f);
-        BasePackColour = new Color(0.36f, 0.29f, 0.18f);
+        BasePackColour = new Color(0.25f, 0.34f, 0.22f);
     }
 
     /// <summary>Reads the saved options (once; later calls do nothing).</summary>

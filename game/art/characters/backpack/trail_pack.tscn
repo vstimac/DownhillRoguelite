@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://art/characters/backpack/trail_pack.glb" id="1_pack"]
+
+[node name="TrailPack" type="Node3D"]
+metadata/harness_bounds = AABB(-0.1665, -0.2085, -0.134, 0.3315, 0.4675, 0.261)
+
+[node name="Model" parent="." instance=ExtResource("1_pack")]
+transform = Transform3D(0.85, 0, 0, 0, 0.85, 0, 0, 0, 0.85, -0.039, -0.455, -0.026)
