@@ -635,7 +635,12 @@ public partial class PlayerRagdoll : Node
         {
             ground = hit["position"].AsVector3().Y;
         }
-        Body.GlobalPosition = new Vector3(hips.X, ground, hips.Z);
+        float feet = ground;
+        if (_rollingOut)
+        {
+            feet = Mathf.Max(ground, hips.Y - RecoverHipsHeight);
+        }
+        Body.GlobalPosition = new Vector3(hips.X, feet, hips.Z);
         _hipsHeight = hips.Y - ground;
     }
 
@@ -648,10 +653,14 @@ public partial class PlayerRagdoll : Node
     [Export] public float ThrowRollSweet { get; set; } = 0.6f;
     /// <summary>No cue this soon after the throw, so the press that threw him doesn't count (s).</summary>
     [Export] public float ThrowRollDelay { get; set; } = 0.2f;
-    /// <summary>With the roll primed, he rolls out once the hips are this low (m).</summary>
-    [Export] public float RollLandHeight { get; set; } = 0.5f;
-    /// <summary>How fast the roll takes over from the ragdoll (s); a plain get-up uses GetUpBlendTime.</summary>
-    [Export] public float RollOutBlendTime { get; set; } = 0.2f;
+    /// <summary>How fast the flight pose takes over from the ragdoll once the roll is primed (s); a plain get-up uses GetUpBlendTime.</summary>
+    [Export] public float RollOutBlendTime { get; set; } = 0.15f;
+    /// <summary>The hips' height above the feet when he is upright: where the body is put under a recovering ragdoll (m).</summary>
+    [Export] public float RecoverHipsHeight { get; set; } = 0.95f;
+    /// <summary>Closer to the ground than this when the ragdoll lets go, he rolls at once instead of waiting for a landing (m).</summary>
+    [Export] public float RollAtOnceBelow { get; set; } = 0.12f;
+    /// <summary>The flight pose is dropped after this long if no ground ever comes (s).</summary>
+    [Export] public float FlightPoseTimeout { get; set; } = 4.0f;
     [Export] public string TooEarlyHint { get; set; } = "Too early: no roll this time";
 
     /// <summary>The roll was timed right and waits for the ground (tests read it).</summary>
@@ -679,10 +688,6 @@ public partial class PlayerRagdoll : Node
         }
         if (_rollPrimed)
         {
-            if (_hipsHeight <= RollLandHeight)
-            {
-                RollOut();
-            }
             return;
         }
         bool falling = _bones[0].Body.LinearVelocity.Y < 0.0f;
@@ -706,6 +711,7 @@ public partial class PlayerRagdoll : Node
         if (cue.InWindow)
         {
             _rollPrimed = true;
+            RecoverInAir();
         }
         else
         {
@@ -714,15 +720,66 @@ public partial class PlayerRagdoll : Node
         }
     }
 
-    private void RollOut()
+    /// <summary>
+    /// The roll is timed right: the ragdoll lets go while he is still in the air. The flight pose
+    /// fades in over it, the body takes the ragdoll's speed and falls on as a normal jump, and the
+    /// landing is the dive's own roll (GameEvents.RollPrimed: soft landing, Roll clip, momentum kept).
+    /// </summary>
+    private void RecoverInAir()
     {
         _rollingOut = true;
         _gettingUp = true;
         _blend = 0.0f;
         Dive? dive = Body?.GetNodeOrNull<Dive>("Dive");
-        if (dive?.Animator != null)
+        if (dive?.Animator != null && dive.Animator.PlayAction(dive.FlightClip, 0.0f, 1.0f, true))
         {
-            dive.Animator.PlayAction(dive.RollClip, 0.0f, 1.0f, false);
+            _flightPose = dive.FlightClip;
+            _flightPoseTime = 0.0f;
+        }
+    }
+
+    private StringName _flightPose = "";
+    private float _flightPoseTime;
+
+    /// <summary>The ragdoll has let go mid-air: hand the speed to the body and let the landing roll.</summary>
+    private void FinishAirRecovery(Vector3 hipsVelocity, float heightAboveGround)
+    {
+        if (Body == null)
+        {
+            return;
+        }
+        Body.Velocity = hipsVelocity;
+        if (heightAboveGround <= RollAtOnceBelow)
+        {
+            // Already at the ground: no landing will be reported, so the roll starts now.
+            GameEvents.PublishVaulted(true);
+            GameEvents.PublishRolled();
+        }
+        else
+        {
+            GameEvents.PublishRollPrimed(true);
+        }
+    }
+
+    /// <summary>Drops a flight pose that never met the ground (the dive's roll replaces it on a landing).</summary>
+    private void UpdateFlightPose(float dt)
+    {
+        if (_flightPose.IsEmpty)
+        {
+            return;
+        }
+        CharacterAnimator? animator = RiseAnimator();
+        if (animator == null || animator.ActionClip != _flightPose)
+        {
+            _flightPose = "";
+            return;
+        }
+        _flightPoseTime += dt;
+        bool landed = !Downed && Body != null && Body.IsOnFloor() && _flightPoseTime > 0.3f;
+        if (landed || _flightPoseTime >= FlightPoseTimeout)
+        {
+            animator.StopAction();
+            _flightPose = "";
         }
     }
 
@@ -735,6 +792,14 @@ public partial class PlayerRagdoll : Node
 
     private void StandUp()
     {
+        bool recovered = _rollingOut;
+        Vector3 hipsVelocity = Vector3.Zero;
+        float feetHeight = 0.0f;
+        if (recovered && _bones.Count > 0 && Body != null)
+        {
+            hipsVelocity = _bones[0].Body.LinearVelocity;
+            feetHeight = Body.GlobalPosition.Y - (_bones[0].Body.GlobalPosition.Y - _hipsHeight);
+        }
         _simulator?.PhysicalBonesStopSimulation();
         if (_simulator != null)
         {
@@ -754,6 +819,10 @@ public partial class PlayerRagdoll : Node
         }
         ClearRoll();
         GameEvents.PublishDowned(false);
+        if (recovered)
+        {
+            FinishAirRecovery(hipsVelocity, feetHeight);
+        }
     }
 
     private void OnBalanceUpdated(BalanceSnapshot snapshot)
@@ -808,6 +877,7 @@ public partial class PlayerRagdoll : Node
     public override void _Process(double delta)
     {
         UpdateRise((float)delta);
+        UpdateFlightPose((float)delta);
         // Dying while upright collapses the carrier too.
         if (Health != null && Health.Dead && !Downed && Body != null)
         {
