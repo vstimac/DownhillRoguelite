@@ -63,7 +63,7 @@ public partial class StationManager : Node3D
     [Export] public float MeasureStep { get; set; } = 6.0f;
 
     /// <summary>The last line on the summit stone: what to do first.</summary>
-    [Export] public string SummitGoal { get; set; } = "Go down. Reach Station 1 before dark.";
+    [Export] public string SummitGoal { get; set; } = "Go downhill: reach the fire at Station 1 before dark.";
 
     public int ShelterStation { get; private set; }
     public IReadOnlyDictionary<int, StationSite> Stations => _stations;
@@ -273,12 +273,13 @@ public partial class StationManager : Node3D
         }
         if (_summitLabel != null && _run != null)
         {
-            string kit = "an empty pack";
+            string kit = "nothing yet";
             if (_run.StartingKit.Count > 0)
             {
                 kit = string.Join(", ", _run.StartingKit);
             }
-            _summitLabel.Text = $"Summit\nrun {_run.RunNumber} · mountain {_run.Seed}\nyou carry {kit}\n{SummitGoal}";
+            // The run number and the mountain's seed are in the journal and the run summary, not on the sign.
+            _summitLabel.Text = $"SUMMIT\n{SummitGoal}\nIn your pack: {kit}";
         }
     }
 
