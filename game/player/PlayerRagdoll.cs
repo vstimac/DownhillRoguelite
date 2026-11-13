@@ -428,15 +428,25 @@ public partial class PlayerRagdoll : Node
             return;
         }
 
-        if (!_gettingUp)
+        // A primed roll takes the landing: no impact damage on the way into it.
+        if (!_gettingUp && !_rollPrimed)
         {
             ApplyImpacts(dt);
         }
         FollowHips();
+        if (_launched && !_gettingUp)
+        {
+            RollCue();
+        }
 
         if (_gettingUp)
         {
-            _blend += dt / GetUpBlendTime;
+            float blendTime = GetUpBlendTime;
+            if (_rollingOut)
+            {
+                blendTime = RollOutBlendTime;
+            }
+            _blend += dt / Mathf.Max(blendTime, 0.01f);
             _simulator.Influence = Mathf.Clamp(1.0f - _blend, 0.0f, 1.0f);
             if (_blend >= 1.0f)
             {
@@ -549,6 +559,101 @@ public partial class PlayerRagdoll : Node
             ground = hit["position"].AsVector3().Y;
         }
         Body.GlobalPosition = new Vector3(hips.X, ground, hips.Z);
+        _hipsHeight = hips.Y - ground;
+    }
+
+    [ExportGroup("Roll out of a thrown jump or dive")]
+    /// <summary>Thrown on purpose (jump, dive), Space or Ctrl just before the ground rolls him back onto his feet.</summary>
+    [Export] public bool RollFromThrow { get; set; } = true;
+    /// <summary>The hips' height above the ground in which the press counts: nearest and furthest, in m.</summary>
+    [Export] public Vector2 ThrowRollWindow { get; set; } = new(0.25f, 1.3f);
+    /// <summary>The height the cue marks as the best moment, in m.</summary>
+    [Export] public float ThrowRollSweet { get; set; } = 0.6f;
+    /// <summary>No cue this soon after the throw, so the press that threw him doesn't count (s).</summary>
+    [Export] public float ThrowRollDelay { get; set; } = 0.2f;
+    /// <summary>With the roll primed, he rolls out once the hips are this low (m).</summary>
+    [Export] public float RollLandHeight { get; set; } = 0.5f;
+    /// <summary>How fast the roll takes over from the ragdoll (s); a plain get-up uses GetUpBlendTime.</summary>
+    [Export] public float RollOutBlendTime { get; set; } = 0.2f;
+    [Export] public string TooEarlyHint { get; set; } = "Too early: no roll this time";
+
+    /// <summary>The roll was timed right and waits for the ground (tests read it).</summary>
+    public bool RollPrimed => _rollPrimed;
+    /// <summary>He is rolling out of a throw right now.</summary>
+    public bool RollingOut => _rollingOut;
+
+    private static readonly StringName ActionRollJump = "player_jump";
+    private static readonly StringName ActionRollDive = "player_dive";
+    private float _hipsHeight;
+    private bool _rollPrimed;
+    private bool _rollSpent;
+    private bool _rollingOut;
+
+    /// <summary>
+    /// The quick-time moment of a thrown jump or dive: while he falls, a cue closes in on the ground
+    /// (the same one a hard fall shows); Space or Ctrl inside the window primes a roll, a press
+    /// outside it spends the chance. Primed, he rolls onto his feet at the ground instead of lying there.
+    /// </summary>
+    private void RollCue()
+    {
+        if (!RollFromThrow || _rollingOut)
+        {
+            return;
+        }
+        if (_rollPrimed)
+        {
+            if (_hipsHeight <= RollLandHeight)
+            {
+                RollOut();
+            }
+            return;
+        }
+        bool falling = _bones[0].Body.LinearVelocity.Y < 0.0f;
+        if (_rollSpent || _downTime < ThrowRollDelay || !falling || _hipsHeight < ThrowRollWindow.X * 0.5f)
+        {
+            GameEvents.PublishVaultCue(VaultCue.None);
+            return;
+        }
+        VaultCue cue = new(true, _hipsHeight, ThrowRollWindow.X, ThrowRollWindow.Y, ThrowRollSweet);
+        GameEvents.PublishVaultCue(cue);
+        if (Input.IsActionJustPressed(ActionRollJump) || Input.IsActionJustPressed(ActionRollDive))
+        {
+            TryThrowRoll(cue);
+        }
+    }
+
+    /// <summary>The press itself (tests call it): in the window it primes the roll, outside it the chance is gone.</summary>
+    public void TryThrowRoll(VaultCue cue)
+    {
+        GameEvents.PublishVaultCue(VaultCue.None);
+        if (cue.InWindow)
+        {
+            _rollPrimed = true;
+        }
+        else
+        {
+            _rollSpent = true;
+            GameEvents.PublishHint(TooEarlyHint);
+        }
+    }
+
+    private void RollOut()
+    {
+        _rollingOut = true;
+        _gettingUp = true;
+        _blend = 0.0f;
+        Dive? dive = Body?.GetNodeOrNull<Dive>("Dive");
+        if (dive?.Animator != null)
+        {
+            dive.Animator.PlayAction(dive.RollClip, 0.0f, 1.0f, false);
+        }
+    }
+
+    private void ClearRoll()
+    {
+        _rollPrimed = false;
+        _rollSpent = false;
+        _rollingOut = false;
     }
 
     private void StandUp()
@@ -561,6 +666,11 @@ public partial class PlayerRagdoll : Node
         _bodyShape?.SetDeferred(CollisionShape3D.PropertyName.Disabled, false);
         _gettingUp = false;
         Downed = false;
+        if (_launched)
+        {
+            GameEvents.PublishVaultCue(VaultCue.None);
+        }
+        ClearRoll();
         GameEvents.PublishDowned(false);
     }
 
@@ -595,6 +705,7 @@ public partial class PlayerRagdoll : Node
     {
         GoDown(velocity, upperPush);
         _launched = Downed;
+        ClearRoll();
     }
 
     /// <summary>True while down from a throw on purpose (dive, jump), which gets up sooner.</summary>
