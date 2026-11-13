@@ -29,9 +29,34 @@ public partial class NpcPersona : Resource
     /// <summary>Uniform scale for the model (generated models often come in about 1 m tall).</summary>
     [Export] public float ModelScale { get; set; } = 1.0f;
 
-    /// <summary>The speaker record for a conversation with them, at this spot.</summary>
+    /// <summary>
+    /// A Croatian speaker (the šalteruša): the model answers in Croatian, or in English when Options →
+    /// Dialogue text is English, the same way a recorded Croatian line gets an English subtitle.
+    /// </summary>
+    [Export] public bool Croatian { get; set; }
+    /// <summary>The silent lines in Croatian (Croatian speakers, Hrvatski chosen); empty: SilentLines.</summary>
+    [Export] public string[] SilentLinesHr { get; set; } = System.Array.Empty<string>();
+    [Export(PropertyHint.MultilineText)] public string CroatianReplies { get; set; } =
+        "Language: always reply in Croatian (standard Croatian, ijekavian), never in English, even when the carrier writes in English.";
+    [Export(PropertyHint.MultilineText)] public string EnglishReplies { get; set; } =
+        "Language: you are Croatian, but write your replies in English, keeping the odd Croatian word.";
+
+    /// <summary>The speaker record for a conversation with them, at this spot (in the chosen dialogue language).</summary>
     public SpeakerInfo Speaker(Vector3 at)
     {
-        return new SpeakerInfo(Id, DisplayName, Persona, SilentLines, at, VoicePitch);
+        if (!Croatian)
+        {
+            return new SpeakerInfo(Id, DisplayName, Persona, SilentLines, at, VoicePitch);
+        }
+        if (GameOptions.DialogueLanguage == DialogueLanguage.English)
+        {
+            return new SpeakerInfo(Id, DisplayName, Persona + "\n\n" + EnglishReplies, SilentLines, at, VoicePitch);
+        }
+        string[] silent = SilentLines;
+        if (SilentLinesHr.Length > 0)
+        {
+            silent = SilentLinesHr;
+        }
+        return new SpeakerInfo(Id, DisplayName, Persona + "\n\n" + CroatianReplies, silent, at, VoicePitch);
     }
 }

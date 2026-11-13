@@ -13,6 +13,8 @@ State as of 2026-11-13. `game/debug/tests/DialogueLanguageTests.tscn` checks wha
   `player_text.csv` has `text` and `text_en`. A line without `text_en` falls back to its own words.
   Code: `core/DialogueLanguage.cs` (`DialogueText.FromCroatian` / `FromEnglish`), `VoiceLine.Shown`,
   `TextTable.Get`, `Salterusa.ShownChoices`.
+- The šalteruša's model conversation (no recording) answers in Croatian with Hrvatski chosen and
+  in English with English chosen (`NpcPersona.Croatian`); her lines without a model have both too.
 - English voices (the narrator's 500 lines, the companion, the newspaper seller) are not translated
   into Croatian: only Croatian dialogue gets an English version.
 
@@ -37,5 +39,5 @@ State as of 2026-11-13. `game/debug/tests/DialogueLanguageTests.tscn` checks wha
    warning would be "Ne stojte").
 3. **Šalteruša and the story bible:** the session that built her listed 7 points for the director
    (the biggest: she "remembers" players who come back after dying, while the bible keeps death and
-   memory OPEN). The descriptions in her manifest were kept as they were.
+   memory OPEN). Settled so far (2026-11-13): her model replies in Croatian. The rest stays open.
 4. **The president's 33 unrecorded lines** are subtitles only (reading time instead of a voice).

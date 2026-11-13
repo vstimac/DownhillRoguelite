@@ -74,6 +74,17 @@ public partial class DialogueLanguageTests : Node
             && promptHr.Contains("šalteru") && clerk.Prompt.Contains("counter"), $"{hr[0]} / {en[0]}");
         clerk.Free();
 
+        // Her model conversation: Croatian replies with Hrvatski, English text with English; a fresh chat when it changes.
+        NpcPersona persona = ResourceLoader.Load<NpcPersona>("res://narrative/npcs/salterusa.tres");
+        GameOptions.SetDialogueLanguage(DialogueLanguage.Croatian);
+        SpeakerInfo hrTalk = persona.Speaker(Vector3.Zero);
+        GameOptions.SetDialogueLanguage(DialogueLanguage.English);
+        SpeakerInfo enTalk = persona.Speaker(Vector3.Zero);
+        Check("the šalteruša's model replies in Croatian, or English text when English is chosen", persona.Croatian
+            && hrTalk.Persona.EndsWith(persona.CroatianReplies) && hrTalk.SilentLines[0] == "Sljedeći. Molim."
+            && enTalk.Persona.EndsWith(persona.EnglishReplies) && enTalk.SilentLines[0] == "Next. Molim." && hrTalk.Persona != enTalk.Persona,
+            $"{hrTalk.SilentLines[0]} / {enTalk.SilentLines[0]}");
+
         GameEvents.SpeechStarted -= OnSpeech;
         GameOptions.UseFile(GameOptions.DefaultPath);
         GD.Print(_failures.Count == 0 ? "DIALOGUE LANGUAGE TESTS: PASS" : "DIALOGUE LANGUAGE TESTS: FAIL (" + string.Join(", ", _failures) + ")");
