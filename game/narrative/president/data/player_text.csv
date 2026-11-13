@@ -1,75 +1,75 @@
-id,text
-npc_name,Predsednik odmorišta (parodija)
-npc_title,upravitelj Odmorišta Konačnih Rezultata
-npc_description,"Karikatura u izmišljenom svijetu. Sve što govori je originalna satira, ne stvarne izjave; glas, ako ga ima, je sintetiziran."
-place_name,Odmorište Konačnih Rezultata
-prompt_talk,E  Razgovaraj
-prompt_skip,E  Preskoči
-c_descending,Ali ja se spuštam.
-c_who,Tko si ti?
-c_rest,Samo se želim odmoriti.
-c_job,Imaš posao?
-c_leave,Idem dalje.
-c_accept,Prihvaćam.
-c_decline,"Ne, hvala."
-c_handin_results,Donio sam zapisnike.
-c_truth,Ti ne znaš rezultat.
-c_agree,Rezultati su sjajni.
-c_silent,(Šuti.)
-c_handin_bridge,Most je spreman za drugu fazu.
-c_handin_victory,Transparent stoji dolje.
-c_shop,Što prodaješ?
-c_shop_seal,Pečat poverenja ({cost} naklonosti)
-c_shop_sandwich,Sendvič strateških rezervi ({cost} naklonosti)
-c_shop_map,Mapa optimizma ({cost} naklonosti)
-c_shop_done,"Ništa, hvala."
-c_podium_speak,Održi govor.
-c_podium_skip,Bez govora.
-c_secret,Zašto si još ovdje?
-c_secret_down,"Dolje. Kao svi."
-c_secret_back,Je li se vratio?
-c_secret_why,Zašto onda čekaš?
-c_secret_meet,A ako ga sretnem?
-podium_name,Govornica
-podium_description,"Drvena govornica s mikrofonom bez kabla. Jedan govor po spustu: više izdržljivosti na kratko, ali vas se i više čuje."
-podium_used,Govor je već održan na ovom spustu.
-coffee_name,Automat za kavu
-coffee_description,Ne radi. Na naljepnici piše da radi.
-board_name,Istorijske pobede
-board_count,Istorijske pobede: {count}
-stairs_name,Stepenice
-stairs_description,Vode u zid.
-bridge_scaffold,"Most: prva faza (skele)"
-bridge_built,"Most: druga faza"
-bridge_description,"Prečac preko mosta još ne postoji na stazi. Kad ga staza dobije, ovo je ključ za njega."
-worker_name,Radnik-automat
-worker_description,Čeka nalog. Bilo čiji.
-worker_prompt,E  Pošalji na most
-worker_sent,Radnik-automat kreće prema mostu. ({count}/{total})
-stand_name,Tribina
-stand_description,Ovdje ide transparent. Odozgo se ne vidi.
-stand_prompt,E  Postavi transparent
-quest_results_title,Nema konačnih rezultata
-quest_results_why,"Nađi tri zapisnika niz stazu i vrati ih predsjedniku na sljedećem odmorištu."
-quest_results_progress,Zapisnici: {count}/{total}
-quest_contractors_title,Samo izvođači radova
-quest_contractors_why,"Pošalji dva radnika-automata na most ili donesi četiri jedinice materijala."
-quest_contractors_progress,"Radnici: {workers}/{workers_total} · materijal: {material}/{material_total}"
-quest_victory_title,Istorijska pobeda
-quest_victory_why,"Nosi transparent (12 kg) do tribine {drop} m niže. Ne daj da padne."
-quest_victory_progress,"Do tribine: {metres} m"
-quest_ready,Gotovo: vrati se predsjedniku
-quest_done,Završeno
-hint_document_lost,"Vjetar je odnio zapisnik. Oštećena kopija čeka na sljedećem odmorištu."
-hint_banner_torn,Transparent se poderao.
-hint_banner_no_room,Transparent (12 kg) ne stane u ruksak. Napravi mjesta pa pitaj ponovo.
-hint_mandate,Privremeni mandat: vraćen si s četvrtinom zdravlja. Jednom po spustu.
-hint_podium_buff,"Govor održan: +10% izdržljivosti na minutu, ali te se i bolje čuje."
-hint_rest_sleep,Odmor: spavaš do zore.
-hint_rest_early,"Odmor: za spavanje je prerano. Ležaj je pod nadstrešnicom kad padne mrak."
-hint_bought,Kupljeno: {item}.
-hint_no_room,Nema mjesta u ruksaku.
-hint_megaphone,Megafon! Sve u blizini je na trenutak zbunjeno.
-hint_megaphone_wait,Megafon se još hladi.
-hint_map,"Mapa optimizma: do sljedeće stanice samo {short} m. (Ostali izvori kažu {real} m.)"
-hint_badge,Značka: Posljednje saopštenje.
+id,text,text_en
+npc_name,Predsednik odmorišta (parodija),President of the Rest Stop (parody)
+npc_title,upravitelj Odmorišta Konačnih Rezultata,manager of the Rest Stop of Final Results
+npc_description,"Karikatura u izmišljenom svijetu. Sve što govori je originalna satira, ne stvarne izjave; glas, ako ga ima, je sintetiziran.","A caricature in an invented world. Everything he says is original satire, not real statements; his voice, if any, is synthesized."
+place_name,Odmorište Konačnih Rezultata,Rest Stop of Final Results
+prompt_talk,E  Razgovaraj,E  Talk
+prompt_skip,E  Preskoči,E  Skip
+c_descending,Ali ja se spuštam.,But I'm going down.
+c_who,Tko si ti?,Who are you?
+c_rest,Samo se želim odmoriti.,I just want to rest.
+c_job,Imaš posao?,Got any work?
+c_leave,Idem dalje.,I'm moving on.
+c_accept,Prihvaćam.,I accept.
+c_decline,"Ne, hvala.","No, thanks."
+c_handin_results,Donio sam zapisnike.,I've brought the records.
+c_truth,Ti ne znaš rezultat.,You don't know the result.
+c_agree,Rezultati su sjajni.,The results are brilliant.
+c_silent,(Šuti.),(Say nothing.)
+c_handin_bridge,Most je spreman za drugu fazu.,The bridge is ready for phase two.
+c_handin_victory,Transparent stoji dolje.,The banner is standing down there.
+c_shop,Što prodaješ?,What are you selling?
+c_shop_seal,Pečat poverenja ({cost} naklonosti),Seal of trust ({cost} favour)
+c_shop_sandwich,Sendvič strateških rezervi ({cost} naklonosti),Strategic-reserve sandwich ({cost} favour)
+c_shop_map,Mapa optimizma ({cost} naklonosti),Map of optimism ({cost} favour)
+c_shop_done,"Ništa, hvala.","Nothing, thanks."
+c_podium_speak,Održi govor.,Give a speech.
+c_podium_skip,Bez govora.,No speech.
+c_secret,Zašto si još ovdje?,Why are you still here?
+c_secret_down,Dolje. Kao svi.,Down. Like everyone.
+c_secret_back,Je li se vratio?,Did he come back?
+c_secret_why,Zašto onda čekaš?,Then why do you wait?
+c_secret_meet,A ako ga sretnem?,And if I meet him?
+podium_name,Govornica,Podium
+podium_description,"Drvena govornica s mikrofonom bez kabla. Jedan govor po spustu: više izdržljivosti na kratko, ali vas se i više čuje.","A wooden podium with a cordless microphone. One speech per descent: more stamina for a while, but you can be heard further too."
+podium_used,Govor je već održan na ovom spustu.,The speech has already been given on this descent.
+coffee_name,Automat za kavu,Coffee machine
+coffee_description,Ne radi. Na naljepnici piše da radi.,Out of order. The sticker says it works.
+board_name,Istorijske pobede,Historic victories
+board_count,Istorijske pobede: {count},Historic victories: {count}
+stairs_name,Stepenice,Stairs
+stairs_description,Vode u zid.,They lead into a wall.
+bridge_scaffold,Most: prva faza (skele),Bridge: phase one (scaffolding)
+bridge_built,Most: druga faza,Bridge: phase two
+bridge_description,"Prečac preko mosta još ne postoji na stazi. Kad ga staza dobije, ovo je ključ za njega.","The shortcut over the bridge isn't on the route yet. When the route gets it, this is the key to it."
+worker_name,Radnik-automat,Automaton worker
+worker_description,Čeka nalog. Bilo čiji.,Waiting for orders. Anyone's.
+worker_prompt,E  Pošalji na most,E  Send to the bridge
+worker_sent,Radnik-automat kreće prema mostu. ({count}/{total}),The automaton worker sets off for the bridge. ({count}/{total})
+stand_name,Tribina,Grandstand
+stand_description,Ovdje ide transparent. Odozgo se ne vidi.,The banner goes here. It can't be seen from above.
+stand_prompt,E  Postavi transparent,E  Put up the banner
+quest_results_title,Nema konačnih rezultata,No final results
+quest_results_why,Nađi tri zapisnika niz stazu i vrati ih predsjedniku na sljedećem odmorištu.,Find three records down the route and bring them back to the president at the next rest stop.
+quest_results_progress,Zapisnici: {count}/{total},Records: {count}/{total}
+quest_contractors_title,Samo izvođači radova,Contractors only
+quest_contractors_why,Pošalji dva radnika-automata na most ili donesi četiri jedinice materijala.,Send two automaton workers to the bridge or bring four units of material.
+quest_contractors_progress,Radnici: {workers}/{workers_total} · materijal: {material}/{material_total},Workers: {workers}/{workers_total} · material: {material}/{material_total}
+quest_victory_title,Istorijska pobeda,Historic victory
+quest_victory_why,Nosi transparent (12 kg) do tribine {drop} m niže. Ne daj da padne.,Carry the banner (12 kg) to the grandstand {drop} m further down. Don't let it fall.
+quest_victory_progress,Do tribine: {metres} m,To the grandstand: {metres} m
+quest_ready,Gotovo: vrati se predsjedniku,Done: go back to the president
+quest_done,Završeno,Finished
+hint_document_lost,Vjetar je odnio zapisnik. Oštećena kopija čeka na sljedećem odmorištu.,The wind took a record. A damaged copy waits at the next rest stop.
+hint_banner_torn,Transparent se poderao.,The banner has torn.
+hint_banner_no_room,Transparent (12 kg) ne stane u ruksak. Napravi mjesta pa pitaj ponovo.,The banner (12 kg) doesn't fit in your pack. Make room and ask again.
+hint_mandate,Privremeni mandat: vraćen si s četvrtinom zdravlja. Jednom po spustu.,Temporary mandate: you're back with a quarter of your health. Once per descent.
+hint_podium_buff,"Govor održan: +10% izdržljivosti na minutu, ali te se i bolje čuje.","Speech given: +10% stamina for a minute, but you can be heard better too."
+hint_rest_sleep,Odmor: spavaš do zore.,Rest: you sleep until dawn.
+hint_rest_early,Odmor: za spavanje je prerano. Ležaj je pod nadstrešnicom kad padne mrak.,Rest: it's too early to sleep. The bed is under the shelter when it gets dark.
+hint_bought,Kupljeno: {item}.,Bought: {item}.
+hint_no_room,Nema mjesta u ruksaku.,No room in your pack.
+hint_megaphone,Megafon! Sve u blizini je na trenutak zbunjeno.,Megaphone! Everything nearby is confused for a moment.
+hint_megaphone_wait,Megafon se još hladi.,The megaphone is still cooling down.
+hint_map,Mapa optimizma: do sljedeće stanice samo {short} m. (Ostali izvori kažu {real} m.),Map of optimism: only {short} m to the next station. (Other sources say {real} m.)
+hint_badge,Značka: Posljednje saopštenje.,Badge: The Last Announcement.

@@ -5,12 +5,14 @@ namespace DownhillRoguelite.Narrative;
 
 /// <summary>
 /// Player-side words for a feature (choices, names, hints) from a CSV with the header id,text, so
-/// none of them live in code. {name} placeholders are filled by Format. A missing id shows as [id],
+/// none of them live in code; an optional text_en column holds the English, used when Options →
+/// Dialogue text is English. {name} placeholders are filled by Format. A missing id shows as [id],
 /// so a gap is visible instead of crashing.
 /// </summary>
 public sealed class TextTable
 {
     private readonly Dictionary<string, string> _texts = new();
+    private readonly Dictionary<string, string> _english = new();
 
     public int Count => _texts.Count;
 
@@ -23,13 +25,19 @@ public sealed class TextTable
             GD.PushWarning($"TextTable: can't open {path} ({FileAccess.GetOpenError()}).");
             return table;
         }
-        file.GetCsvLine();
+        string[] header = file.GetCsvLine();
+        int english = System.Array.FindIndex(header, h => h.Trim().TrimStart('﻿') == "text_en");
         while (!file.EofReached())
         {
             string[] row = file.GetCsvLine();
             if (row.Length >= 2 && row[0].Trim().Length > 0)
             {
-                table._texts[row[0].Trim().TrimStart('﻿')] = row[1];
+                string id = row[0].Trim().TrimStart('﻿');
+                table._texts[id] = row[1];
+                if (english > 0 && english < row.Length && row[english].Length > 0)
+                {
+                    table._english[id] = row[english];
+                }
             }
         }
         return table;
@@ -41,7 +49,7 @@ public sealed class TextTable
     {
         if (_texts.TryGetValue(id, out string? text))
         {
-            return text;
+            return Core.DialogueText.FromCroatian(text, _english.TryGetValue(id, out string? english) ? english : "");
         }
         return "[" + id + "]";
     }

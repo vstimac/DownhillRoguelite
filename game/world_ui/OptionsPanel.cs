@@ -400,6 +400,14 @@ public partial class OptionsPanel : ParchmentPanel
         });
         Add(access, ChoiceRow.Toggle("Subtitles", GameOptions.Subtitles, GameOptions.SetSubtitles,
             "Spoken lines are written on screen, on the side the voice comes from."));
+        Add(access, new ChoiceRow
+        {
+            Label = "Dialogue text",
+            Hint = "The language of subtitles and conversation answers. Voices stay as recorded: a Croatian voice with English chosen gets English subtitles.",
+            Options = new[] { "English", "Hrvatski" },
+            Selected = (int)GameOptions.DialogueLanguage,
+            Changed = i => GameOptions.SetDialogueLanguage((DialogueLanguage)i),
+        });
 
         // Mouse: applied in this order (MouseLookFilter): desktop pointer settings (Raw input off only),
         // in-game acceleration, sensitivity, smoothing.

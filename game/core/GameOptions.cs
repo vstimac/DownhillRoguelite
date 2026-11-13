@@ -76,6 +76,8 @@ public static class GameOptions
     public static bool Subtitles { get; private set; } = true;
     /// <summary>The title screen asks GitHub for a newer release and offers to update (core/update/UpdateCheck).</summary>
     public static bool CheckForUpdates { get; private set; } = true;
+    /// <summary>Language of dialogue text (subtitles and conversation answers only); voices are never changed.</summary>
+    public static DialogueLanguage DialogueLanguage { get; private set; } = DialogueText.SystemDefault();
 
     /// <summary>The chosen character's id (CarrierRoster); an unknown or missing one falls back to the first.</summary>
     public static string Character { get; private set; } = "modular";
@@ -124,6 +126,7 @@ public static class GameOptions
         InvertLook = false;
         Subtitles = true;
         CheckForUpdates = true;
+        DialogueLanguage = DialogueText.SystemDefault();
         Character = "modular";
         BaseShirtColour = new Color(0.28f, 0.35f, 0.43f);
         BasePackColour = new Color(0.36f, 0.29f, 0.18f);
@@ -177,6 +180,7 @@ public static class GameOptions
         InvertLook = (bool)file.GetValue(Section, "invert_look", InvertLook);
         Subtitles = (bool)file.GetValue(Section, "subtitles", Subtitles);
         CheckForUpdates = (bool)file.GetValue(Section, "check_updates", CheckForUpdates);
+        DialogueLanguage = (DialogueLanguage)Mathf.Clamp((int)file.GetValue(Section, "dialogue_language", (int)DialogueLanguage), 0, 1);
         Changed?.Invoke();
     }
 
@@ -208,6 +212,7 @@ public static class GameOptions
     public static void SetInvertLook(bool on) => Set(() => InvertLook = on);
     public static void SetSubtitles(bool on) => Set(() => Subtitles = on);
     public static void SetCheckForUpdates(bool on) => Set(() => CheckForUpdates = on);
+    public static void SetDialogueLanguage(DialogueLanguage language) => Set(() => DialogueLanguage = language);
 
     /// <summary>Every option back to its default and saved, keeping the chosen character (Options → Reset all).</summary>
     public static void RestoreDefaults()
@@ -268,6 +273,7 @@ public static class GameOptions
         file.SetValue(Section, "invert_look", InvertLook);
         file.SetValue(Section, "subtitles", Subtitles);
         file.SetValue(Section, "check_updates", CheckForUpdates);
+        file.SetValue(Section, "dialogue_language", (int)DialogueLanguage);
         file.Save(_path);
     }
 }
