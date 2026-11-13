@@ -21,7 +21,7 @@ assignees: []
 <!-- e.g., one small task; occasional help -->
 
 ### Rights and collaboration
-- [ ] I have read [CONTRIBUTING.md](../../CONTRIBUTING.md) and [RIGHTS.md](../../RIGHTS.md).
+- [ ] I have read [CONTRIBUTING.md](../../CONTRIBUTING.md) and [RIGHTS.md](../../docs/RIGHTS.md).
 - [ ] I will not upload copyrighted third-party assets, commercial music, unauthorized voices or confidential data.
 
 *Project contributions are volunteer unless any separate arrangement is agreed directly and in writing before work begins.*

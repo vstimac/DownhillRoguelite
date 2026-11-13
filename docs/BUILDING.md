@@ -32,7 +32,7 @@ game runs with a fallback) or `[FAIL]` (missing and needed).
 
 Install Godot 4.7.2 .NET and the .NET SDK, then from Git Bash: `bash scripts/fetch_nobodywho.sh
 windows` and `dotnet build`. Export with the "Windows Desktop" preset (unchanged by the Linux
-scripts). The smoke test: `bash .claude/skills/smoke-test/smoke.sh`.
+scripts). The smoke test: `godot --headless --path game --quit-after 300` (check the output for errors).
 
 ## Assets that aren't in git
 

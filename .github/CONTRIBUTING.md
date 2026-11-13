@@ -14,7 +14,7 @@ Current beta: [Releases](https://github.com/vstimac/DownhillRoguelite/releases).
 
 ## Getting started with code
 
-1. Read [README](../README.md), [CLAUDE.md](../CLAUDE.md) and [BUILDING.md](docs/BUILDING.md).
+1. Read the [README](../README.md) and [BUILDING.md](../docs/BUILDING.md).
 2. Check open issues to avoid duplicate work. For bigger changes, describe the scope in an issue first.
 3. Fork the repository, branch from `main` (or an explicitly agreed working branch).
 4. Make one focused change, add or update documentation and run `dotnet build`.
@@ -27,12 +27,12 @@ Current beta: [Releases](https://github.com/vstimac/DownhillRoguelite/releases).
 
 - C# with explicit `if/else` blocks, one class per file, PascalCase public members.
 - Use exported/configurable values rather than magic numbers for tunables.
-- Prefer focused changes, tested incrementally; follow [CLAUDE.md](../CLAUDE.md).
+- Prefer focused changes, tested incrementally.
 
 ## Licensing of contributions
 
 - **Code:** By contributing your own code, you agree to its distribution under the repository's [MIT license](../LICENSE). Ensure you have the legal right to make that grant (including from an employer if applicable). Preserve third-party licensing and notices.
-- **Art, audio, writing, voice, models:** Not automatically covered by MIT. Before uploading, clearly state the author, provenance, license and permitted game/marketing/source distribution uses. Seek agreement on the license and credits in the issue first. See [RIGHTS.md](../RIGHTS.md).
+- **Art, audio, writing, voice, models:** Not automatically covered by MIT. Before uploading, clearly state the author, provenance, license and permitted game/marketing/source distribution uses. Seek agreement on the license and credits in the issue first. See [RIGHTS.md](../docs/RIGHTS.md).
 - **Music:** Do not submit commercial tracks or samples without documented composition and recording permissions.
 - **AI-generated content:** Disclose how it was created, confirm you may use it, and do not label it as real gameplay or a finished 3D asset when it is not.
 - **Real people and brands:** No unauthorized impersonation, endorsements, recordings or logo copying; recognizable satirical depictions require review.

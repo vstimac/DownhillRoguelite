@@ -24,4 +24,4 @@ Closes #
 | --- | --- | --- | --- |
 | | | | |
 
-See [RIGHTS.md](../RIGHTS.md) and [CONTRIBUTING.md](../CONTRIBUTING.md) for the complete policy.
+See [RIGHTS.md](../docs/RIGHTS.md) and [CONTRIBUTING.md](../CONTRIBUTING.md) for the complete policy.

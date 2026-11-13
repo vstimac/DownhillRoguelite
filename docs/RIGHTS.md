@@ -6,7 +6,7 @@ This repository contains original source code and material with **separate right
 
 ## 1. MIT-licensed source code
 
-The root [LICENSE](LICENSE) applies to **original source code owned by the project authors** and contributed to the project under MIT, such as original C# and script files. It also covers original software documentation to the extent the authors have the rights to license it.
+The root [LICENSE](../LICENSE) applies to **original source code owned by the project authors** and contributed to the project under MIT, such as original C# and script files. It also covers original software documentation to the extent the authors have the rights to license it.
 
 **It does not relicense or supersede independently licensed third-party code, including Godot addons and external libraries.** Check the license supplied with each dependency.
 
@@ -18,8 +18,8 @@ MIT permits copying and modifying covered code with the copyright notice and lic
 
 | Content / location | Current treatment | Before redistributing |
 | --- | --- | --- |
-| Kenney / Quaternius asset packs in `art/` and `audio/sfx/` | Attributed as CC0 in [art/CREDITS.md](game/art/CREDITS.md) | Check the actual pack's included `LICENSE.txt` and source provenance |
-| `art/characters/mixamo/` | Adobe Mixamo terms | Do **not** publish raw FBX character / animation packages; follow [Mixamo notes](game/art/characters/mixamo/README.md) |
+| Kenney / Quaternius asset packs in `art/` and `audio/sfx/` | Attributed as CC0 in [art/CREDITS.md](../game/art/CREDITS.md) | Check the actual pack's included `LICENSE.txt` and source provenance |
+| `art/characters/mixamo/` | Adobe Mixamo terms | Do **not** publish raw FBX character / animation packages; follow [Mixamo notes](../game/art/characters/mixamo/README.md) |
 | `art/characters/*character-pack.png` | Concept illustration, includes recognizable satirical personalities | Not a model pack; do not imply affiliation, endorsement or permission to commercially use any real person's likeness |
 | `audio/narrator/` | Original script; voice output made using ElevenLabs | Review voice permissions, service terms and use of any cloned voice |
 | `audio/music/`, `audio/ambience/` | Some procedurally generated audio | Confirm source and all incorporated audio elements before releasing |
@@ -28,7 +28,7 @@ MIT permits copying and modifying covered code with the copyright notice and lic
 | Optional `*.gguf` models | Not shipped in the repo | Distribute only under the model's actual license and with required notices |
 | Posters, logos and original character art | Not automatically MIT | Use only with verified rights and a suitable separate license |
 
-For details, see [art/CREDITS.md](game/art/CREDITS.md). Do not infer a universal open-content license from an engine project being open source.
+For details, see [art/CREDITS.md](../game/art/CREDITS.md). Do not infer a universal open-content license from an engine project being open source.
 
 ## 3. Songs, sound recordings and voices
 
@@ -56,7 +56,7 @@ The project is not officially affiliated with or endorsed by the people, bands, 
 - Give provenance information (author, download page, license version, required attribution) and store relevant notices in the repository.
 - A contribution is not an offer of paid work; any compensation or ownership terms must be agreed separately in writing **before** work begins.
 
-See [CONTRIBUTING.md](.github/CONTRIBUTING.md).
+See [CONTRIBUTING.md](../.github/CONTRIBUTING.md).
 
 ## 6. Before distributing a new release
 
