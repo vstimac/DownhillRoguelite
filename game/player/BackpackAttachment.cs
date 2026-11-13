@@ -36,6 +36,8 @@ public partial class BackpackAttachment : BoneAttachment3D
 
     /// <summary>Counts every change of the fit (the harness starts over from a new fit).</summary>
     public int FitVersion { get; private set; }
+    /// <summary>The fit itself: where the pivot sits under the bone when nothing swings it (tests, tools).</summary>
+    public Transform3D FitTransform => _fitted;
     /// <summary>The harness moves the pivot (it hangs from the straps, not from the bone).</summary>
     public bool Simulated { get; private set; }
     /// <summary>Where the fit puts the pivot now, in world space (follows the bone).</summary>
@@ -114,7 +116,10 @@ public partial class BackpackAttachment : BoneAttachment3D
     {
         _fitted = _anchorInBone * _adjustment * _anchorInBone.AffineInverse() * _placement;
         FitVersion++;
-        if (!Simulated) { Pivot.Transform = _fitted; }
+        // A new fit is a fresh start: the pack goes there at once (the harness hangs it from its
+        // straps again on the next skeleton update).
+        StopSimulating();
+        Pivot.Transform = _fitted;
     }
 
     public static BackpackAttachment? Create(Skeleton3D rig, Node3D model, string bone,

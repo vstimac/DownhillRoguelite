@@ -139,36 +139,36 @@ public partial class ClothingFitTests : Node3D
         await Frame();
         clothing = fitting.GetNode<ClothingVisualController>("Preview/ClothingVisuals");
         BackpackAttachment mount = clothing.BackpackMount!;
-        Transform3D fitted = mount.Pivot.Transform;
+        Transform3D fitted = mount.FitTransform;
         Transform3D authored = mount.Model.Transform;
         Vector3 originalOffset = mount.LocalOffset;
         bool stable = true;
         for (int i = 0; i < 6; i++)
         {
-            stable &= mount.Refit() && mount.Pivot.Transform.IsEqualApprox(fitted);
+            stable &= mount.Refit() && mount.FitTransform.IsEqualApprox(fitted);
         }
         Check("automatic refitting preserves a rotated and scaled saved hand fit without drift", stable, "");
         mount.LocalOffset += new Vector3(0, 0.025f, 0.02f);
-        bool changed = mount.Refit() && !mount.Pivot.Transform.IsEqualApprox(fitted);
+        bool changed = mount.Refit() && !mount.FitTransform.IsEqualApprox(fitted);
         mount.LocalOffset = originalOffset;
         Check("changing automatic placement and restoring it also restores the same hand fit",
-            changed && mount.Refit() && mount.Pivot.Transform.IsEqualApprox(fitted), "");
+            changed && mount.Refit() && mount.FitTransform.IsEqualApprox(fitted), "");
         for (int i = 0; i < 6; i++)
         {
             ClothingFitter.Fit(clothing.Skeleton, "modular", "trail_backpack", mount);
         }
         Check("reapplying saved fitting does not accumulate transforms or alter the authored model root",
-            mount.Pivot.Transform.IsEqualApprox(fitted) && mount.Model.Transform.IsEqualApprox(authored), "");
+            mount.FitTransform.IsEqualApprox(fitted) && mount.Model.Transform.IsEqualApprox(authored), "");
         Transform3D singular = new(Basis.FromScale(Vector3.Zero), Vector3.Zero);
         Check("an invalid hand fit leaves the current valid fit intact",
-            !mount.ApplyAdjustment(singular) && mount.Pivot.Transform.IsEqualApprox(fitted), "");
+            !mount.ApplyAdjustment(singular) && mount.FitTransform.IsEqualApprox(fitted), "");
 
         fitting.Outfit = System.Array.Empty<string>();
         ClothingFit.Use(new ClothingFit());
         fitting.Rebuild();
         await Frame();
         clothing = fitting.GetNode<ClothingVisualController>("Preview/ClothingVisuals");
-        Vector3 basePosition = clothing.BackpackMount!.Pivot.Position;
+        Vector3 basePosition = clothing.BackpackMount!.FitTransform.Origin;
         Check("an empty outfit exposes exactly one selectable base pack in the isolated preview",
             Handles(fitting).ContainsKey("base_pack") && CountPacks(clothing.Skeleton!) == 1
             && clothing.BackpackMount!.EquippedItemId.Length == 0, "");
@@ -176,9 +176,9 @@ public partial class ClothingFitTests : Node3D
         fitting.Rebuild();
         await Frame();
         clothing = fitting.GetNode<ClothingVisualController>("Preview/ClothingVisuals");
-        Transform3D fittedBase = clothing.BackpackMount!.Pivot.Transform;
+        Transform3D fittedBase = clothing.BackpackMount!.FitTransform;
         Check("a saved base-pack fit is applied when the cosmetic pack is created",
-            Mathf.Abs(clothing.BackpackMount!.Pivot.Position.DistanceTo(basePosition) - 0.04f) < 0.001f, "");
+            Mathf.Abs(clothing.BackpackMount!.FitTransform.Origin.DistanceTo(basePosition) - 0.04f) < 0.001f, "");
         ItemDefinition trailPack = GD.Load<ItemDefinition>("res://inventory/items/trail_backpack.tres");
         WornPiece[] slots = new WornPiece[EquipmentSlots.Count];
         slots[(int)EquipSlot.Back] = new WornPiece(trailPack.ItemId, trailPack.DisplayName, trailPack.MaxDurability, trailPack.MaxDurability, trailPack);
@@ -189,7 +189,7 @@ public partial class ClothingFitTests : Node3D
             clothing.ShowGear(equipped);
             restoredOnce &= clothing.BackpackMount?.EquippedItemId == trailPack.ItemId && CountPacks(clothing.Skeleton!) == 1;
             clothing.ShowGear(GearSnapshot.None);
-            restoredOnce &= clothing.BackpackMount?.Pivot.Transform.IsEqualApprox(fittedBase) == true && CountPacks(clothing.Skeleton!) == 1;
+            restoredOnce &= clothing.BackpackMount?.FitTransform.IsEqualApprox(fittedBase) == true && CountPacks(clothing.Skeleton!) == 1;
         }
         Check("removing equipped packs repeatedly restores one base pack with its own saved fit", restoredOnce, "");
 
@@ -201,13 +201,13 @@ public partial class ClothingFitTests : Node3D
             fitting.Rebuild();
             await Frame();
             clothing = fitting.GetNode<ClothingVisualController>("Preview/ClothingVisuals");
-            Transform3D otherOriginal = clothing.BackpackMount!.Pivot.Transform;
+            Transform3D otherOriginal = clothing.BackpackMount!.FitTransform;
             ClothingFit.Use(restored);
             fitting.Rebuild();
             await Frame();
             clothing = fitting.GetNode<ClothingVisualController>("Preview/ClothingVisuals");
             Check("another character never inherits the modular character's backpack fit",
-                clothing.BackpackMount!.Pivot.Transform.IsEqualApprox(otherOriginal)
+                clothing.BackpackMount!.FitTransform.IsEqualApprox(otherOriginal)
                 && Handles(fitting)["base_pack"].Transform.IsEqualApprox(Transform3D.Identity), "");
         }
         else { GD.Print("SKIP  cross-character fit check: vucic model is not installed"); }
