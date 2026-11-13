@@ -200,7 +200,7 @@ public partial class UiTests : Node3D
     private void TestDescent()
     {
         string text = Ui!.Descent!.Text;
-        Check("the descent note shows elevation, circle and weather", text.Contains("Elevation") && text.Contains("Limbo") && text.Contains("Weather"),
+        Check("the descent note shows elevation, circle and weather", text.Contains("below the summit") && text.Contains("Limbo") && text.Contains("Weather"),
             text.Replace("\n", " | "));
     }
 

@@ -54,6 +54,6 @@ public partial class WaypointMarker : Node3D
         }
         Vector3 offset = GlobalPosition - from;
         float distance = new Vector2(offset.X, offset.Z).Length();
-        _label.Text = $"{Number} · {distance:0} m";
+        _label.Text = $"Cairn {Number} · {distance:0} m away";
     }
 }

@@ -73,12 +73,12 @@ public partial class DescentPanel : ParchmentPanel
         string next = "";
         if (estimate.Valid && _clock != null)
         {
-            string dark = "before dark";
+            string dark = "you get there before dark";
             if (!estimate.BeforeNightfall)
             {
-                dark = "after dark";
+                dark = "it will be dark before you get there";
             }
-            next = $"\nStation {estimate.Station}: {estimate.DistanceMeters / 1000.0f:0.0} km, ~{TimeText.Real(estimate.TotalSeconds)}, {dark}";
+            next = $"\nNext fire: Station {estimate.Station} · {estimate.DistanceMeters / 1000.0f:0.0} km · ~{TimeText.Real(estimate.TotalSeconds)}\n{dark}";
         }
         string job = "";
         ContractNote? active = GameEvents.ActiveContract;
@@ -93,7 +93,7 @@ public partial class DescentPanel : ParchmentPanel
             }
             job = "\n" + JobLine(active.Value, now, hoursPerSecond);
         }
-        _body.Text = $"Elevation {elevation:0} m  ·  {depth} m down\nCircle {circle}\nWeather: {sky}\n{time}{next}" + job;
+        _body.Text = $"{depth} m below the summit\nCircle {circle}\nWeather: {sky}\n{time}{next}" + job;
         if (circle != _lastPlace)
         {
             _lastPlace = circle;
