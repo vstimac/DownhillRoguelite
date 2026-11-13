@@ -41,6 +41,8 @@ public partial class Hud : CanvasLayer
     public NeedIcon? ThirstIcon { get; private set; }
     public NeedIcon? WarmthIcon { get; private set; }
     public ContextRing? Ring { get; private set; }
+    public SideHearts? SideHearts { get; private set; }
+    public const string SideHeartsPiece = "side_hearts";
     public LowStatAlerts? Alerts { get; private set; }
     public DescentPanel? Descent { get; private set; }
     public ObjectivePanel? Objectives { get; private set; }
@@ -90,6 +92,8 @@ public partial class Hud : CanvasLayer
         // Under everything else: the ring that follows the carrier on screen.
         Ring = new ContextRing { Name = "ContextRing" };
         _play.AddChild(Ring);
+        SideHearts = new SideHearts { Name = "SideHearts", Ring = Ring };
+        _play.AddChild(SideHearts);
         Hearts = new HeartRow { Name = "Hearts" };
         _play.AddChild(Hearts);
         HungerIcon = Need("Hunger", InkIcon.Stomach, UiStyle.Hunger);
@@ -166,6 +170,14 @@ public partial class Hud : CanvasLayer
         _root.AddChild(LayoutEditor);
         // New names for the pieces that changed shape, so a layout saved for the old dials isn't applied to them.
         LayoutEditor.AddPiece("hearts", Hearts);
+        LayoutEditor.AddPiece(SideHeartsPiece, SideHearts);
+        if (SideHearts != null)
+        {
+            // Moved by hand (Alt and drag) they stay where they were put; until then they follow the carrier.
+            UiLayoutEditor editor = LayoutEditor;
+            SideHearts.Pinned = () => editor.Moved.ContainsKey(SideHeartsPiece);
+            SideHearts.Arranging = () => editor.Editing;
+        }
         LayoutEditor.AddPiece("need_hunger", HungerIcon);
         LayoutEditor.AddPiece("need_thirst", ThirstIcon);
         LayoutEditor.AddPiece("need_warmth", WarmthIcon);
@@ -214,6 +226,7 @@ public partial class Hud : CanvasLayer
     private void OnVitals(VitalsSnapshot vitals)
     {
         Hearts?.SetValue(vitals.Health, vitals.MaxHealth);
+        SideHearts?.SetValue(vitals.Health, vitals.MaxHealth);
         HungerIcon?.SetValue(vitals.Hunger, 100.0f);
         ThirstIcon?.SetValue(vitals.Thirst, 100.0f);
         // Warmth is what the cold hasn't taken: full while warm or sheltered.
