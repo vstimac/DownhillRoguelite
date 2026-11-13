@@ -1,6 +1,6 @@
 # narrative
 
-Story data for the narrator companion. See docs/narrative.md for the setting.
+Story data for the narrator companion. See docs/STORY_BIBLE.md (the shared narrative baseline: read it before writing lines) and docs/narrative.md for the earlier setting.
 
 `data/metadata.csv`: 500 narrator lines with trigger, circle, phase and pacing metadata. Imported with the "keep" importer so Godot treats it as a plain file, not a translation table. Read it with `FileAccess.GetCsvLine`.
 

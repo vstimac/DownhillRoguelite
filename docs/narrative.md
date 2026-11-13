@@ -1,5 +1,12 @@
 # Narrative: the endless descent
 
+> **Story bible (2026-11-13):** `docs/STORY_BIBLE.md` is now the shared narrative baseline for
+> every agent and writer. This file is the earlier setting (2026-11-06) and its Dante circle table
+> still describes the game's stages. **Open conflict, awaiting the director:** the premise below
+> ("you descend to become a god") answers a question the bible keeps OPEN ("why is descending
+> necessary?", section 9). Until it is decided, don't build new content on the godhood premise and
+> don't remove the existing godhood lines either.
+
 Adopted 2026-11-06 from the director's concept. This gives the endless procedural descent its reason: the world is infinite because the pursuit is infinite.
 
 > **You descend to become a god. The mountain never ends.**
