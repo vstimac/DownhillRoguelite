@@ -43,7 +43,8 @@ public partial class OptionsApplier : Node
         GameOptions.Load();
         AddChild(new ColourFilterLayer { Name = "ColourFilter" });
         GameOptions.Changed += Apply;
-        GetTree().Root.ContentScaleFactor = GameOptions.UiScale;
+        GetTree().Root.SizeChanged += ApplyUiScale;
+        ApplyUiScale();
         ApplyVolumes();
         // After the scene is in, so its sun and environment are there to set.
         Callable.From(ApplyQuality).CallDeferred();
@@ -57,6 +58,10 @@ public partial class OptionsApplier : Node
     public override void _ExitTree()
     {
         GameOptions.Changed -= Apply;
+        if (IsInstanceValid(GetTree().Root))
+        {
+            GetTree().Root.SizeChanged -= ApplyUiScale;
+        }
     }
 
     /// <summary>Sets the hush (0 silent – 1 full) and applies it at once.</summary>
@@ -66,11 +71,40 @@ public partial class OptionsApplier : Node
         ApplyVolumes();
     }
 
+    /// <summary>The window height the interface is drawn for at 1.00x: taller windows grow it in step.</summary>
+    [Export] public float ReferenceHeight { get; set; } = 1080.0f;
+    /// <summary>The most a tall screen grows the interface by itself (4K is 2x).</summary>
+    [Export] public float MaxAutoScale { get; set; } = 2.0f;
+
+    /// <summary>How much a window of this height grows the interface before the player's own setting (never shrinks it).</summary>
+    public static float AutoScale(float windowHeight, float referenceHeight, float most)
+    {
+        if (referenceHeight <= 0.0f)
+        {
+            return 1.0f;
+        }
+        return Mathf.Clamp(windowHeight / referenceHeight, 1.0f, Mathf.Max(most, 1.0f));
+    }
+
+    /// <summary>
+    /// The interface keeps its size on the screen whatever the resolution: 1440p and 4K windows scale
+    /// it up from the 1080p layout, and Options' "Interface and text size" multiplies that.
+    /// </summary>
+    private void ApplyUiScale()
+    {
+        Window root = GetTree().Root;
+        float scale = GameOptions.UiScale * AutoScale(root.Size.Y, ReferenceHeight, MaxAutoScale);
+        if (!Mathf.IsEqualApprox(root.ContentScaleFactor, scale))
+        {
+            root.ContentScaleFactor = scale;
+        }
+    }
+
     /// <summary>On a change in Options (at start the lines follow DebugDraw3D's own start-up and --promo).</summary>
     private void Apply()
     {
         Window root = GetTree().Root;
-        root.ContentScaleFactor = GameOptions.UiScale;
+        ApplyUiScale();
         Debug.DebugDraw3D.SetEnabled(GameOptions.PathLines);
         ApplyVolumes();
         ApplyQuality();

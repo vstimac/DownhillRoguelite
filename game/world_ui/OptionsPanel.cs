@@ -390,7 +390,7 @@ public partial class OptionsPanel : ParchmentPanel
         Add(access, new SliderRow
         {
             Label = "Interface and text size",
-            Hint = "Grows every page, dial and note together, for 2K and 4K screens. Applies when you let go.",
+            Hint = "Big screens already get a bigger interface by themselves; this makes it larger or smaller still. Applies when you let go.",
             Min = 0.75,
             Max = 1.5,
             StepSize = 0.05,
