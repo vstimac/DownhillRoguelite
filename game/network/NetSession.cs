@@ -43,6 +43,10 @@ public partial class NetSession : Node
 
     [Export] public int DefaultPort { get; set; } = 7777;
     [Export] public int MaxPlayers { get; set; } = 4;
+    /// <summary>The UDP port LanDiscovery answers on while hosting (the game itself uses the ENet port).</summary>
+    [Export] public int DiscoveryPort { get; set; } = 7778;
+    /// <summary>A `--join=lan` test client gives up looking for a host after this many seconds.</summary>
+    [Export] public float DiscoverTimeout { get; set; } = 10.0f;
     /// <summary>States sent per second.</summary>
     [Export] public float SendRate { get; set; } = 15.0f;
     /// <summary>A fallen player is back this many seconds later.</summary>
@@ -75,6 +79,30 @@ public partial class NetSession : Node
     public long LocalId { get; private set; } = 1;
     public int Port { get; private set; }
     public ulong SessionSeed { get; private set; }
+    /// <summary>The expedition's name in other players' server browsers (set before Host; empty: "nickname's Expedition").</summary>
+    public string ServerName { get; set; } = "";
+    /// <summary>Hosting answers LAN discovery (shows in the others' server browsers).</summary>
+    public bool LanVisible { get; set; } = true;
+    /// <summary>Room in this session (2 to MaxPlayers), chosen when hosting.</summary>
+    public int SessionMax { get; private set; } = 4;
+    /// <summary>Everyone in the session, this player included (0 when not in one).</summary>
+    public int PlayerCount
+    {
+        get
+        {
+            if (!Active)
+            {
+                return 0;
+            }
+            return _peers.Count + 1;
+        }
+    }
+    /// <summary>The descent is under way: the host has reached a station (before that, the expedition is "waiting" at the summit).</summary>
+    public bool InProgress => _lastStation > 0;
+    /// <summary>The port LanDiscovery listens on while hosting (0: not answering).</summary>
+    public int DiscoveryBoundPort => _discovery?.BoundPort ?? 0;
+    /// <summary>What a `--join=lan` client found ("name address:port players/max"), for the test probe.</summary>
+    public string Discovered { get; private set; } = "";
     public IReadOnlyDictionary<long, NetPeer> Peers => _peers;
     public IReadOnlyDictionary<long, RemoteCarrier> Remotes => _remotes;
     /// <summary>Shared supplies taken this session (by anyone).</summary>
@@ -111,6 +139,9 @@ public partial class NetSession : Node
     private Difficulty _savedDifficulty = Difficulty.Normal;
     private bool _difficultySaved;
     private NetHud? _hud;
+    private LanDiscovery? _discovery;
+    private LanScanner? _finder;
+    private double _findTimer;
     private NetMobs? _mobs;
     private NetPings? _pings;
     public NetPings? Pings => _pings;
@@ -201,6 +232,14 @@ public partial class NetSession : Node
             {
                 join = arg["--join=".Length..];
             }
+            else if (arg.StartsWith("--net-server-name=", StringComparison.Ordinal))
+            {
+                ServerName = arg["--net-server-name=".Length..];
+            }
+            else if (arg.StartsWith("--net-discovery-port=", StringComparison.Ordinal) && int.TryParse(arg["--net-discovery-port=".Length..], out int discovery))
+            {
+                DiscoveryPort = discovery;
+            }
             else if (arg.StartsWith("--net-probe=", StringComparison.Ordinal) && float.TryParse(arg["--net-probe=".Length..],
                 System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float seconds))
             {
@@ -223,6 +262,10 @@ public partial class NetSession : Node
         if (hostPort > 0)
         {
             Host(name, hostPort);
+        }
+        else if (join == "lan")
+        {
+            FindAndJoin(name);
         }
         else if (join.Length > 0)
         {
@@ -269,13 +312,20 @@ public partial class NetSession : Node
     /// <summary>Hosts a session on this port; false (and Status says why) if the port can't be opened.</summary>
     public bool Host(string name, int port)
     {
+        return Host(name, port, MaxPlayers);
+    }
+
+    /// <summary>Hosts with room for this many (2 to MaxPlayers); answers LAN discovery while LanVisible.</summary>
+    public bool Host(string name, int port, int maxPlayers)
+    {
         if (Active)
         {
             Leave();
         }
         LocalName = CleanName(name);
+        SessionMax = Mathf.Clamp(maxPlayers, 2, Mathf.Max(MaxPlayers, 2));
         _peer = new ENetMultiplayerPeer();
-        Error error = _peer.CreateServer(port, Mathf.Max(MaxPlayers - 1, 1));
+        Error error = _peer.CreateServer(port, Mathf.Max(SessionMax - 1, 1));
         if (error != Error.Ok)
         {
             SetStatus($"Couldn't host on port {port} ({error}). Is another game using it?");
@@ -300,7 +350,16 @@ public partial class NetSession : Node
         {
             SetStatus($"Hosting on port {port}. Others join with this computer's address.");
         }
-        Log($"hosting on port {port}, seed {SessionSeed}, up to {MaxPlayers} players");
+        Log($"hosting on port {port}, seed {SessionSeed}, up to {SessionMax} players");
+        if (LanVisible)
+        {
+            if (ServerName.Trim().Length == 0)
+            {
+                ServerName = $"{LocalName}'s Expedition";
+            }
+            _discovery = new LanDiscovery { Name = "LanDiscovery", Session = this, DiscoveryPort = DiscoveryPort };
+            AddChild(_discovery);
+        }
         return true;
     }
 
@@ -367,6 +426,12 @@ public partial class NetSession : Node
     private void EndSession(string hint)
     {
         bool wasActive = Active;
+        if (_discovery != null)
+        {
+            _discovery.Stop();
+            _discovery.QueueFree();
+            _discovery = null;
+        }
         if (_peer != null)
         {
             _peer.Close();
@@ -468,7 +533,7 @@ public partial class NetSession : Node
     {
         Log("connection failed");
         EndSession("");
-        SetStatus("Couldn't connect. Check the address, the port, and that the host is running and reachable.");
+        SetStatus("The host refused the connection or couldn't be reached: it may be full or closed. Check the address, the port, and that the host is running.");
     }
 
     private void OnServerDisconnected()
@@ -499,10 +564,10 @@ public partial class NetSession : Node
             DisconnectLater(sender);
             return;
         }
-        if (_peers.Count + 1 >= MaxPlayers)
+        if (_peers.Count + 1 >= SessionMax)
         {
             Log($"turned away peer {sender}: the session is full");
-            RpcId(sender, MethodName.Rejected, $"The session is full ({MaxPlayers} players).");
+            RpcId(sender, MethodName.Rejected, $"The expedition is full ({SessionMax} players).");
             DisconnectLater(sender);
             return;
         }
@@ -873,6 +938,16 @@ public partial class NetSession : Node
     public override void _Process(double delta)
     {
         _clock += delta;
+        if (_finder != null)
+        {
+            _findTimer += delta;
+            if (_findTimer > DiscoverTimeout)
+            {
+                Log("found no expedition on the home network");
+                StopFinding();
+                SetStatus("No expedition found on the home network.");
+            }
+        }
         if (!Active)
         {
             return;
@@ -1561,6 +1636,47 @@ public partial class NetSession : Node
     {
         return position.IsFinite() && position.Length() < WorldLimit && Mathf.IsFinite(yaw) && Mathf.IsFinite(clipPosition)
             && Mathf.IsFinite(clipSpeed) && Mathf.Abs(clipSpeed) < 10.0f;
+    }
+
+    // --- Joining the first expedition found on the home network (`--join=lan`) ---
+
+    private void FindAndJoin(string name)
+    {
+        _finder = new LanScanner { Name = "LanScanner", DiscoveryPort = DiscoveryPort };
+        AddChild(_finder);
+        _findTimer = 0.0;
+        _finder.Changed += () => OnFound(name);
+        _finder.Start();
+        Log($"looking for an expedition on the home network (UDP {DiscoveryPort})");
+    }
+
+    private void OnFound(string name)
+    {
+        if (_finder == null)
+        {
+            return;
+        }
+        foreach (LanServerInfo server in _finder.Servers)
+        {
+            if (server.Joinable)
+            {
+                Discovered = $"{server.Name.Replace(' ', '_')} {server.Endpoint} {server.Players}/{server.MaxPlayers}";
+                Log($"discovered {server}");
+                StopFinding();
+                Join(name, server.Address, server.Port);
+                return;
+            }
+        }
+    }
+
+    private void StopFinding()
+    {
+        if (_finder != null)
+        {
+            _finder.Stop();
+            _finder.QueueFree();
+            _finder = null;
+        }
     }
 
     private void DisconnectLater(long id)

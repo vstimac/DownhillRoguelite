@@ -2,7 +2,9 @@
 # Co-op test with local processes: one host and up to three clients, all headless on this machine.
 # Each runs the game with a NetProbe that prints what it sees and quits; then the lines are checked:
 # everyone joined on the same seed, everyone sees everyone, states flow, no supply is picked up
-# twice, and a fallen player watches a teammate, is seen fallen, and comes back.
+# twice, and a fallen player watches a teammate, is seen fallen, and comes back. The last client
+# (with three or more) finds the host by LAN discovery (UDP, on the port after the game's) instead of
+# being given its address.
 # Usage (from game/): bash tools/coop_test.sh [clients=3] [port=7790] [log dir]
 set -u
 CLIENTS="${1:-3}"
@@ -12,9 +14,11 @@ GODOT="${GODOT:-godot}"
 mkdir -p "$LOGS"
 # Clients start LEAD seconds after the host, a second apart; all reach for the supply at the same
 # moment (GRAB, by the computer's clock) and the host reports before the clients leave.
+# SLACK gives slow machines (four games starting at once) time to be in the session before the grab.
 LEAD=8
-CLIENT_SECONDS=34
-GRAB=$(( $(date +%s) + LEAD + CLIENTS + 14 ))
+SLACK=4
+CLIENT_SECONDS=$((34 + SLACK))
+GRAB=$(( $(date +%s) + LEAD + CLIENTS + 14 + SLACK ))
 HOST_SECONDS=$((LEAD + CLIENT_SECONDS - 4))
 # Client 1 falls just after the grab and comes back RESPAWN seconds later, before anyone reports.
 DIE=$((GRAB + 2))
@@ -36,8 +40,10 @@ SAYAT=$((GRAB + 8))
 # goes down later and client 2 helps it up.
 DOWN3=$((GRAB + 9))
 HELP2=$((GRAB + 11))
+DISCOVERY=$((PORT + 1))
+EXPEDITION="Harness Expedition"
 
-"$GODOT" --headless --path . -- --host="$PORT" --net-name=Host --net-probe="$HOST_SECONDS" --net-linger=20 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" --net-spawn-at="$SPAWN" --net-step-away-at="$AWAY" --net-advance=8 > "$LOGS/host.log" 2>&1 &
+"$GODOT" --headless --path . -- --host="$PORT" --net-name=Host --net-server-name="$EXPEDITION" --net-discovery-port="$DISCOVERY" --net-probe="$HOST_SECONDS" --net-linger=20 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" --net-spawn-at="$SPAWN" --net-step-away-at="$AWAY" --net-advance=8 > "$LOGS/host.log" 2>&1 &
 PIDS="$!"
 sleep "$LEAD"
 for i in $(seq 1 "$CLIENTS"); do
@@ -45,7 +51,9 @@ for i in $(seq 1 "$CLIENTS"); do
     if [ "$i" = "1" ]; then DIES="--net-die-at=$DIE --net-say-at=$SAYAT --net-bleed=2"; fi
     if [ "$i" = "2" ]; then DIES="--net-strike-at=$STRIKE --net-ping-at=$PINGAT --net-help-at=$HELP2"; fi
     if [ "$i" = "3" ]; then DIES="--net-drop-at=$DROPAT --net-die-at=$DOWN3 --net-bleed=8 --net-web-at=$WEBAT"; fi
-    "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --net-name="Client$i" --net-probe="$CLIENT_SECONDS" --net-linger=6 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" $DIES > "$LOGS/client$i.log" 2>&1 &
+    JOIN="127.0.0.1:$PORT"
+    if [ "$i" = "$CLIENTS" ] && [ "$CLIENTS" -ge 3 ]; then JOIN="lan"; fi
+    "$GODOT" --headless --path . -- --join="$JOIN" --net-discovery-port="$DISCOVERY" --net-name="Client$i" --net-probe="$CLIENT_SECONDS" --net-linger=6 --net-grab-at="$GRAB" --net-respawn="$RESPAWN" $DIES > "$LOGS/client$i.log" 2>&1 &
     PIDS="$PIDS $!"
     sleep 1
 done
@@ -162,6 +170,15 @@ for i in $(seq 1 "$CLIENTS"); do
     if [ "$(num "$LOGS/client$i.log" loot_received)" -ge "${shared:-0}" ] 2>/dev/null; then same=$((same + 1)); fi
 done
 check "its loot appeared for everyone ($shared items; $same of $CLIENTS clients got all)" "$([ "${shared:-0}" -ge 1 ] && [ "$same" -eq "$CLIENTS" ]; echo $?)"
+if [ "$CLIENTS" -ge 3 ]; then
+    found=$(grep -h "\[NetProbe\] role" "$LOGS/client$CLIENTS.log" | grep -o 'discovered="[^"]*"' | head -1)
+    fplayers=$(echo "$found" | grep -o ' [0-9]*/[0-9]*"' | tr -d ' "' | cut -d/ -f1)
+    fmax=$(echo "$found" | grep -o '/[0-9]*"' | tr -d '/"')
+    answered=$(grep -ho "\[LanDiscovery\] answered [^ ]* players=[0-9]*/[0-9]*" "$LOGS/host.log" | grep -o "players=[0-9]*" | cut -d= -f2 | sort -u | xargs)
+    match=1
+    for n in $answered; do if [ "$n" = "$fplayers" ]; then match=0; fi; done
+    check "client $CLIENTS found the host by LAN discovery ($found; host answered with players $answered)" "$(echo "$found" | grep -q "discovered=\"Harness_Expedition [0-9.]*:$PORT " && [ "$fmax" = "4" ] && [ "$match" = "0" ] && grep -q "joined=True" "$LOGS/client$CLIENTS.log"; echo $?)"
+fi
 errors=$(grep -h "ERROR\|Unhandled exception" "$LOGS"/*.log | grep -v "ObjectDB\|leaked\|resources still in use" | sort -u | head -5)
 if [ -n "$errors" ]; then echo "Errors in the logs:"; echo "$errors"; fi
 echo "logs: $LOGS"

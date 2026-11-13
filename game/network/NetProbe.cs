@@ -15,7 +15,8 @@ namespace DownhillRoguelite.Network;
 /// `--net-die-at=unix seconds` its carrier falls then: it should watch a teammate, the others should
 /// see it fallen, and it should come back. `--net-spawn-at=unix seconds` brings an enemy beside this
 /// carrier then; `--net-strike-at=unix seconds` strikes every other machine's creature shown here
-/// (the blow goes to its owner). At the grab moment it notes the clock, so the harness can compare
+/// (the blow goes to its owner). A client started with `--join=lan` finds the host by LAN discovery
+/// first; its report names what it found (discovered="name address:port players/max"). At the grab moment it notes the clock, so the harness can compare
 /// everyone's hour. The harness reads the lines.
 /// </summary>
 public partial class NetProbe : Node
@@ -283,7 +284,7 @@ public partial class NetProbe : Node
             + $"taken={session.TakenSupplies.Count} granted={session.ClaimsGranted} refused={session.ClaimsRefused} fell={_fell} watched={_watched} back={_back} "
             + $"saw_fallen={_sawFallen} looks={Looks(session)} owned={session.Mobs?.OwnedCount ?? 0} saw_puppets={_sawPuppets} "
             + $"hits_sent={session.Mobs?.HitsSent ?? 0} hits_applied={session.Mobs?.HitsApplied ?? 0} loot_shared={session.Mobs?.LootShared ?? 0} "
-            + $"loot_received={session.Mobs?.LootReceived ?? 0} clock_at_grab={_clockAtGrab:0.000} strikes_sent={session.Mobs?.StrikesSent ?? 0} dropped={_droppedId.Length > 0} strikes_taken={session.Mobs?.StrikesTaken ?? 0} pings_sent={session.Pings?.Sent ?? 0} pings_seen={session.Pings?.Seen ?? 0} webs_sent={session.Webs?.Sent ?? 0} webs_received={session.Webs?.Received ?? 0} chat_sent={session.Chat?.Sent ?? 0} chat_seen={session.Chat?.Seen ?? 0} downs={session.Revive?.Downs ?? 0} revived={session.Revive?.Revived ?? 0} helped_up={session.Revive?.Helped ?? 0} status=\"{session.Status}\"");
+            + $"loot_received={session.Mobs?.LootReceived ?? 0} clock_at_grab={_clockAtGrab:0.000} strikes_sent={session.Mobs?.StrikesSent ?? 0} dropped={_droppedId.Length > 0} strikes_taken={session.Mobs?.StrikesTaken ?? 0} pings_sent={session.Pings?.Sent ?? 0} pings_seen={session.Pings?.Seen ?? 0} webs_sent={session.Webs?.Sent ?? 0} webs_received={session.Webs?.Received ?? 0} chat_sent={session.Chat?.Sent ?? 0} chat_seen={session.Chat?.Seen ?? 0} downs={session.Revive?.Downs ?? 0} revived={session.Revive?.Revived ?? 0} helped_up={session.Revive?.Helped ?? 0} discovered=\"{session.Discovered}\" lan_port={session.DiscoveryBoundPort} status=\"{session.Status}\"");
     }
 
     /// <summary>Each remote carrier's name, character and shirt colour, as shown here.</summary>
