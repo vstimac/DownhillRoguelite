@@ -30,6 +30,37 @@ public partial class BackpackAttachment : BoneAttachment3D
     private Transform3D _placement = Transform3D.Identity;
     private Transform3D _anchorInBone = Transform3D.Identity;
     private Transform3D _adjustment = Transform3D.Identity;
+    private Transform3D _sway = Transform3D.Identity;
+
+    /// <summary>
+    /// BackpackMotion's swing, in the pack's own frame (identity when it hangs still). Applied after the
+    /// fit, so refitting keeps it and the fit never drifts with it.
+    /// </summary>
+    public void SetSway(Transform3D sway)
+    {
+        if (!sway.IsFinite()) { return; }
+        _sway = sway;
+        ApplyPlacement();
+    }
+
+    /// <summary>The pack's extent in the pivot's frame (metres, as the model is placed).</summary>
+    public Aabb PackBounds()
+    {
+        Aabb bounds = ModelFit.Bounds(Model);
+        if (Model is MeshInstance3D own && own.Mesh != null)
+        {
+            if (bounds.Size.LengthSquared() < 0.000001f) { bounds = own.Mesh.GetAabb(); }
+            else { bounds = bounds.Merge(own.Mesh.GetAabb()); }
+        }
+        return Model.Transform * bounds;
+    }
+
+    /// <summary>The pivot (without sway) in the skeleton's rest pose, in the skeleton's space.</summary>
+    public Transform3D RestPivot(Skeleton3D rig)
+    {
+        Transform3D placed = _anchorInBone * _adjustment * _anchorInBone.AffineInverse() * _placement;
+        return rig.GetBoneGlobalRest(BoneIdx) * placed;
+    }
 
     /// <summary>Replaces the authored hand fit; automatic refitting preserves it without stacking.</summary>
     public bool ApplyAdjustment(Transform3D local)
@@ -42,7 +73,7 @@ public partial class BackpackAttachment : BoneAttachment3D
 
     private void ApplyPlacement()
     {
-        Pivot.Transform = _anchorInBone * _adjustment * _anchorInBone.AffineInverse() * _placement;
+        Pivot.Transform = _anchorInBone * _adjustment * _anchorInBone.AffineInverse() * _placement * _sway;
     }
 
     public static BackpackAttachment? Create(Skeleton3D rig, Node3D model, string bone,
@@ -70,6 +101,9 @@ public partial class BackpackAttachment : BoneAttachment3D
             attachment.Free();
             return null;
         }
+        // The harness (straps, sternum strap, hip belt) and the pack's swing come with every pack.
+        attachment.AddChild(new BackpackMotion { Name = "BackpackMotion" });
+        attachment.AddChild(new BackpackHarness { Name = "BackpackHarness" });
         rig.AddChild(attachment);
         return attachment;
     }

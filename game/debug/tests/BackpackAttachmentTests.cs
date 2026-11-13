@@ -46,6 +46,36 @@ public partial class BackpackAttachmentTests : Node3D
                     observations++;
                 }
                 rig.SkeletonUpdated += Observe;
+                // The harness: rebuilt from every final pose, unbroken, finite; the swing stays bounded.
+                BackpackHarness? harness = mount.GetNodeOrNull<BackpackHarness>("BackpackHarness");
+                BackpackMotion? motion = mount.GetNodeOrNull<BackpackMotion>("BackpackMotion");
+                int rebuildsBefore = harness?.Rebuilds ?? 0;
+                float widestStep = 0;
+                float mostTilt = 0;
+                float mostDrop = 0;
+                bool finite = true;
+                int straps = 0;
+                void Harness()
+                {
+                    if (harness == null) { return; }
+                    straps = 0;
+                    for (int strap = 0; strap < 4; strap++)
+                    {
+                        System.Collections.Generic.IReadOnlyList<Vector3> path = harness.Drawn(strap);
+                        if (path.Count > 1) { straps++; }
+                        for (int i = 1; i < path.Count; i++)
+                        {
+                            finite &= path[i].IsFinite();
+                            widestStep = Mathf.Max(widestStep, path[i].DistanceTo(path[i - 1]));
+                        }
+                    }
+                    if (motion != null)
+                    {
+                        mostTilt = Mathf.Max(mostTilt, Mathf.Max(Mathf.Abs(motion.TiltDegrees.X), Mathf.Abs(motion.TiltDegrees.Y)));
+                        mostDrop = Mathf.Max(mostDrop, Mathf.Abs(motion.Drop));
+                    }
+                }
+                rig.SkeletonUpdated += Harness;
                 Input.ActionPress("player_move_forward");
                 for (int i = 0; i < 30; i++) { await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); }
                 Input.ActionPress("player_brake");
@@ -73,6 +103,15 @@ public partial class BackpackAttachmentTests : Node3D
                 for (int i = 0; i < 240 && dive.Diving; i++) { await Frames(1); }
                 await Frames(30);
                 Check(id + " samples a complete dive transition", dived && !dive.Diving && !GameEvents.IsDowned);
+                rig.SkeletonUpdated -= Harness;
+                Check(id + " fits a harness: both shoulder straps, the sternum strap and the hip belt", harness?.Fitted == true && straps == 4,
+                    harness?.Problem + " straps=" + straps);
+                Check(id + " rebuilds the straps from the final pose through walk, sprint, jump and dive, unbroken and finite",
+                    harness != null && harness.Rebuilds - rebuildsBefore > 100 && widestStep < 0.09f && finite,
+                    "rebuilds=" + (harness?.Rebuilds - rebuildsBefore) + " widest step=" + widestStep.ToString("0.000") + " m");
+                Check(id + " swings the pack within its bounds and lets it settle", motion != null && mostTilt > 0.05f
+                    && mostTilt <= motion.MaxTiltDegrees + 0.01f && mostDrop <= motion.MaxDrop + 0.0001f,
+                    "most tilt=" + mostTilt.ToString("0.00") + " deg, most drop=" + mostDrop.ToString("0.000") + " m");
                 player.Teleport(new Vector3(-10, 0.1f, 12), 0);
                 await Frames(15);
                 PlayerRagdoll ragdoll = player.GetNode<PlayerRagdoll>("Ragdoll");
