@@ -214,6 +214,10 @@ public partial class CarrierTorch : Node3D
 
     public override void _Process(double delta)
     {
+        if (!Remote && !Fitting)
+        {
+            GameEvents.PublishTorchLeft(Left);
+        }
         if (!Lit || Remote || Fitting)
         {
             return;

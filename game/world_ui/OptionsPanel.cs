@@ -323,7 +323,7 @@ public partial class OptionsPanel : ParchmentPanel
         Add(gameplay, new ChoiceRow
         {
             Label = "Survival stats",
-            Hint = "Hand-drawn dials, or plain bars with numbers from 0 to 100.",
+            Hint = "Hunger, thirst and warmth as rings around their icons, or as plain bars under them.",
             Options = new[] { "Dials", "Bars (0-100)" },
             Selected = (int)GameOptions.Stats,
             Changed = i => GameOptions.SetStats((StatStyle)i),

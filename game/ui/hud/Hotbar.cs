@@ -15,6 +15,16 @@ namespace DownhillRoguelite.Ui;
 public partial class Hotbar : Control
 {
     public const int Slots = 9;
+    /// <summary>One slot's side, in px: small, so the bar sits low and out of the way.</summary>
+    [Export] public float SlotSize { get; set; } = 50.0f;
+    [Export] public float SlotGap { get; set; } = 4.0f;
+    /// <summary>Paper showing above and below the slots, in px.</summary>
+    [Export] public float StripPad { get; set; } = 5.0f;
+    /// <summary>Paper showing left of the first and right of the last slot, in px.</summary>
+    [Export] public float EdgePad { get; set; } = 8.0f;
+    [Export] public float ArrowWidth { get; set; } = 24.0f;
+    /// <summary>Room above the strip inside the bar's own box, in px (the selected item's name floats there).</summary>
+    [Export] public float NameRoom { get; set; } = 6.0f;
 
     public int Selected { get; private set; }
     public IReadOnlyList<ItemSlot> SlotNodes => _slots;
@@ -41,23 +51,25 @@ public partial class Hotbar : Control
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
-        float slot = 64.0f;
-        float gap = 6.0f;
-        Size = new Vector2(Slots * (slot + gap) + 80.0f, slot + 34.0f);
-        ColorRect strip = new() { MouseFilter = MouseFilterEnum.Ignore, Position = new Vector2(30, 10), Size = new Vector2(Size.X - 60, slot + 16) };
-        strip.Material = UiStyle.Parchment(strip.Size, 23.0f, 4.0f, 4.0f);
+        float slot = SlotSize;
+        float gap = SlotGap;
+        Size = new Vector2(Slots * (slot + gap) - gap + 2.0f * (ArrowWidth + EdgePad), slot + 2.0f * StripPad + NameRoom);
+        ColorRect strip = new() { MouseFilter = MouseFilterEnum.Ignore, Position = new Vector2(ArrowWidth, NameRoom), Size = new Vector2(Size.X - 2.0f * ArrowWidth, slot + 2.0f * StripPad) };
+        strip.Material = UiStyle.Parchment(strip.Size, 23.0f, 3.0f, 3.0f);
         AddChild(strip);
         for (int i = 0; i < Slots; i++)
         {
-            ItemSlot s = new() { Position = new Vector2(40 + i * (slot + gap), 18), Size = new Vector2(slot, slot), KeyHint = (i + 1).ToString(), Index = i };
+            ItemSlot s = new() { Position = new Vector2(ArrowWidth + EdgePad + i * (slot + gap), NameRoom + StripPad), Size = new Vector2(slot, slot), KeyHint = (i + 1).ToString(), Index = i };
             s.Clicked += OnSlotClicked;
             AddChild(s);
             _slots.Add(s);
         }
-        _left = new InkButton { Glyph = InkButton.GlyphKind.Left, Position = new Vector2(0, 26), Size = new Vector2(30, 40) };
+        float arrowHeight = slot * 0.7f;
+        float arrowTop = NameRoom + StripPad + (slot - arrowHeight) * 0.5f;
+        _left = new InkButton { Glyph = InkButton.GlyphKind.Left, Position = new Vector2(0, arrowTop), Size = new Vector2(ArrowWidth, arrowHeight) };
         _left.Pressed += () => Select((Selected + Slots - 1) % Slots);
         AddChild(_left);
-        _right = new InkButton { Glyph = InkButton.GlyphKind.Right, Position = new Vector2(Size.X - 30, 26), Size = new Vector2(30, 40) };
+        _right = new InkButton { Glyph = InkButton.GlyphKind.Right, Position = new Vector2(Size.X - ArrowWidth, arrowTop), Size = new Vector2(ArrowWidth, arrowHeight) };
         _right.Pressed += () => Select((Selected + 1) % Slots);
         AddChild(_right);
         _name = UiStyle.MakeLabel("", UiStyle.TextSize, false, UiStyle.Paper);
@@ -175,7 +187,7 @@ public partial class Hotbar : Control
         }
         _name.Text = item.DisplayName;
         Vector2 size = UiStyle.Hand.GetStringSize(_name.Text, HorizontalAlignment.Left, -1, UiStyle.TextSize);
-        _name.Position = new Vector2(_slots[Selected].Position.X + 32 - size.X * 0.5f, -14);
+        _name.Position = new Vector2(_slots[Selected].Position.X + SlotSize * 0.5f - size.X * 0.5f, NameRoom - 30.0f);
         _nameTween?.Kill();
         _nameTween = CreateTween();
         _name.Modulate = new Color(1, 1, 1, 1);

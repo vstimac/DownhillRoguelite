@@ -6,11 +6,13 @@ using Godot;
 namespace DownhillRoguelite.Ui;
 
 /// <summary>
-/// The journal UI (the director's Don't Starve-inspired design): builds and lays out every piece
-/// and keeps them fed with real game data. During play: survival dials top left (health, hunger,
-/// thirst, stamina from VitalsSnapshot), the descent note and compass top right, the equipment
-/// sheet on the left, the hotbar along the bottom, the look-at tooltip on the right and paper notes
-/// for events. Pages: inventory (I), map (M, through the field map), journal (J), conversation
+/// The journal UI (the director's hand-drawn parchment design, laid out like an action-adventure
+/// HUD so the vitals are read at a glance): builds and lays out every piece and keeps them fed with
+/// real game data. During play: health as a row of hearts top left with small hunger, thirst and
+/// warmth icons under it (they grow and pulse only when they need a look), a ring beside the
+/// carrier for stamina and the torch's time, the compass as a thin strip along the top, the descent
+/// note top right, the equipment sheet on the left, a slim hotbar along the bottom, the look-at
+/// tooltip on the right and paper notes for events. Pages: inventory (I), map (M, through the field map), journal (J), conversation
 /// with the companion (Enter); Esc closes the
 /// open page. Pages drag by their title, HUD pieces with Alt held (UiLayoutEditor).
 /// While a page is open the mouse belongs to it (GameEvents.IsScreenOpen). Re-lays out
@@ -25,16 +27,26 @@ public partial class Hud : CanvasLayer
     private static readonly StringName ActionTalk = "talk_open";
     private static readonly StringName ActionRadio = "radio_open";
 
-    public StatDial? HealthDial { get; private set; }
-    public StatDial? HungerDial { get; private set; }
-    public StatDial? ThirstDial { get; private set; }
-    public StatDial? StaminaDial { get; private set; }
+    /// <summary>Screen margin of the corner pieces, in px.</summary>
+    [Export] public float Margin { get; set; } = 18.0f;
+    /// <summary>Gap between neighbouring pieces, in px.</summary>
+    [Export] public float Gap { get; set; } = 10.0f;
+    /// <summary>The compass strip and hotbar sit this far from the screen's top and bottom, in px.</summary>
+    [Export] public float EdgeGap { get; set; } = 8.0f;
+    /// <summary>Room kept under the need icons for the low-stat list, in px.</summary>
+    [Export] public float AlertsHeight { get; set; } = 170.0f;
+
+    public HeartRow? Hearts { get; private set; }
+    public NeedIcon? HungerIcon { get; private set; }
+    public NeedIcon? ThirstIcon { get; private set; }
+    public NeedIcon? WarmthIcon { get; private set; }
+    public ContextRing? Ring { get; private set; }
     public LowStatAlerts? Alerts { get; private set; }
     public DescentPanel? Descent { get; private set; }
     public ObjectivePanel? Objectives { get; private set; }
     public AchievementToast? Achievements { get; private set; }
     public ObjectiveBanner? Banner { get; private set; }
-    public CompassDial? Compass { get; private set; }
+    public CompassStrip? Compass { get; private set; }
     public EquipmentPanel? Equipment { get; private set; }
     public Hotbar? Hotbar { get; private set; }
     public InteractionTooltip? Tooltip { get; private set; }
@@ -72,15 +84,19 @@ public partial class Hud : CanvasLayer
         _play.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         _root.AddChild(_play);
 
-        HealthDial = Dial(InkIcon.Heart, UiStyle.Health);
-        HungerDial = Dial(InkIcon.Stomach, UiStyle.Hunger);
-        ThirstDial = Dial(InkIcon.Drop, UiStyle.Thirst);
-        StaminaDial = Dial(InkIcon.Boot, UiStyle.Stamina);
-        Alerts = new LowStatAlerts { Name = "LowStatAlerts", Position = new Vector2(24, 140), Size = new Vector2(300, 140) };
+        // Under everything else: the ring that follows the carrier on screen.
+        Ring = new ContextRing { Name = "ContextRing" };
+        _play.AddChild(Ring);
+        Hearts = new HeartRow { Name = "Hearts" };
+        _play.AddChild(Hearts);
+        HungerIcon = Need("Hunger", InkIcon.Stomach, UiStyle.Hunger);
+        ThirstIcon = Need("Thirst", InkIcon.Drop, UiStyle.Thirst);
+        WarmthIcon = Need("Warmth", InkIcon.Snowflake, UiStyle.Cold);
+        Alerts = new LowStatAlerts { Name = "LowStatAlerts", Size = new Vector2(300, AlertsHeight) };
         _play.AddChild(Alerts);
         Descent = new DescentPanel { Size = new Vector2(350, 172) };
         _play.AddChild(Descent);
-        Compass = new CompassDial { Size = new Vector2(132, 132) };
+        Compass = new CompassStrip { Name = "Compass" };
         _play.AddChild(Compass);
         Objectives = new ObjectivePanel { Name = "Objectives" };
         _play.AddChild(Objectives);
@@ -138,12 +154,13 @@ public partial class Hud : CanvasLayer
         // The player can drag everything: pages by their title, HUD pieces with Alt held.
         LayoutEditor = new UiLayoutEditor { Name = "LayoutEditor" };
         _root.AddChild(LayoutEditor);
-        LayoutEditor.AddPiece("health", HealthDial);
-        LayoutEditor.AddPiece("hunger", HungerDial);
-        LayoutEditor.AddPiece("thirst", ThirstDial);
-        LayoutEditor.AddPiece("stamina", StaminaDial);
+        // New names for the pieces that changed shape, so a layout saved for the old dials isn't applied to them.
+        LayoutEditor.AddPiece("hearts", Hearts);
+        LayoutEditor.AddPiece("need_hunger", HungerIcon);
+        LayoutEditor.AddPiece("need_thirst", ThirstIcon);
+        LayoutEditor.AddPiece("need_warmth", WarmthIcon);
         LayoutEditor.AddPiece("descent", Descent);
-        LayoutEditor.AddPiece("compass", Compass);
+        LayoutEditor.AddPiece("compass_strip", Compass);
         LayoutEditor.AddPiece("objectives", Objectives);
         LayoutEditor.AddPiece("equipment", Equipment);
         LayoutEditor.AddPiece("hotbar", Hotbar);
@@ -175,23 +192,29 @@ public partial class Hud : CanvasLayer
         }
     }
 
-    private StatDial Dial(InkIcon icon, Color colour)
+    private NeedIcon Need(string name, InkIcon icon, Color colour)
     {
-        StatDial dial = new() { Icon = icon, RingColour = colour, Size = new Vector2(96, 116) };
-        _play!.AddChild(dial);
-        return dial;
+        NeedIcon need = new() { Name = name, Icon = icon, RingColour = colour };
+        _play!.AddChild(need);
+        return need;
     }
+
+    private int _heartRows = 1;
 
     private void OnVitals(VitalsSnapshot vitals)
     {
-        HealthDial?.SetValue(vitals.Health, vitals.MaxHealth);
-        HungerDial?.SetValue(vitals.Hunger, 100.0f);
-        ThirstDial?.SetValue(vitals.Thirst, 100.0f);
-        StaminaDial?.SetValue(vitals.Stamina, Mathf.Max(vitals.MaxStamina, 1.0f));
+        Hearts?.SetValue(vitals.Health, vitals.MaxHealth);
+        HungerIcon?.SetValue(vitals.Hunger, 100.0f);
+        ThirstIcon?.SetValue(vitals.Thirst, 100.0f);
+        // Warmth is what the cold hasn't taken: full while warm or sheltered.
+        WarmthIcon?.SetValue((1.0f - Mathf.Clamp(GameEvents.CarrierCold, 0.0f, 1.0f)) * 100.0f, 100.0f);
+        if (Hearts != null && Hearts.RowsUsed != _heartRows)
+        {
+            // More (or fewer) rows of hearts: the icons under them move.
+            _heartRows = Hearts.RowsUsed;
+            Layout();
+        }
     }
-
-    /// <summary>Right edge of the four survival dials (they start at x 18, 104 px apart, 96 px wide).</summary>
-    public const float DialsRight = 18 + 3 * 104 + 96;
 
     /// <summary>Places everything for the current window size.</summary>
     public void Layout()
@@ -202,55 +225,91 @@ public partial class Hud : CanvasLayer
     /// <summary>Places everything for a screen of <paramref name="screen"/> pixels (also used by tests).</summary>
     public void LayoutFor(Vector2 screen)
     {
-        StatDial?[] dials = { HealthDial, HungerDial, ThirstDial, StaminaDial };
-        for (int i = 0; i < dials.Length; i++)
+        float cornerRight = Margin;
+        float needsBottom = Margin;
+        if (Hearts != null)
         {
-            if (dials[i] != null)
+            Hearts.Position = new Vector2(Margin, EdgeGap + 4.0f);
+            cornerRight = Hearts.Position.X + Hearts.Size.X;
+            needsBottom = Hearts.Position.Y + Hearts.Size.Y;
+        }
+        NeedIcon?[] needs = { HungerIcon, ThirstIcon, WarmthIcon };
+        float needsTop = needsBottom + 2.0f;
+        for (int i = 0; i < needs.Length; i++)
+        {
+            if (needs[i] != null)
             {
-                dials[i]!.Position = new Vector2(18 + i * 104, 14);
+                needs[i]!.Position = new Vector2(Margin + i * (needs[i]!.Size.X + Gap), needsTop);
+                needsBottom = needs[i]!.Position.Y + needs[i]!.Size.Y;
             }
         }
+        if (Alerts != null)
+        {
+            Alerts.Position = new Vector2(Margin, needsBottom + Gap);
+        }
+        float stripBottom = EdgeGap;
+        float stripRight = 0.0f;
         if (Compass != null)
         {
-            Compass.Position = new Vector2(screen.X - 150, 10);
+            // Top centre; in a narrow window it slides right, clear of the hearts.
+            Compass.Position = new Vector2(Mathf.Max((screen.X - Compass.Size.X) * 0.5f, cornerRight + Gap), EdgeGap);
+            stripBottom = Compass.Position.Y + Compass.Size.Y;
+            stripRight = Compass.Position.X + Compass.Size.X;
         }
+        float descentLeft = screen.X - Margin;
+        float descentBottom = stripBottom;
         if (Descent != null)
         {
-            Descent.Position = new Vector2(screen.X - 150 - 360, 16);
+            descentLeft = screen.X - Margin - Descent.Size.X;
+            float top = Margin - 4.0f;
+            if (descentLeft < stripRight + Gap)
+            {
+                // No room beside the compass strip: the note goes under it.
+                top = stripBottom + Gap * 0.6f;
+            }
+            Descent.Position = new Vector2(descentLeft, top);
+            descentBottom = top + Descent.Size.Y;
         }
+        float hotbarTop = screen.Y - EdgeGap;
+        if (Hotbar != null)
+        {
+            Hotbar.Position = new Vector2((screen.X - Hotbar.Size.X) * 0.5f, screen.Y - Hotbar.Size.Y - EdgeGap);
+            hotbarTop = Hotbar.Position.Y;
+        }
+        float equipmentRight = Margin;
         if (Equipment != null)
         {
-            Equipment.Position = new Vector2(14, Mathf.Max(150, screen.Y * 0.5f - 160));
+            // Left side, mid height: under the low-stat list when the screen is tall enough, never over the hotbar's row.
+            float top = Mathf.Max(needsBottom + Gap + AlertsHeight, screen.Y * 0.5f - Equipment.Size.Y * 0.5f);
+            top = Mathf.Min(top, hotbarTop - Gap - Equipment.Size.Y);
+            Equipment.Position = new Vector2(Margin - 4.0f, Mathf.Max(top, needsBottom + Gap));
+            equipmentRight = Equipment.Position.X + Equipment.Size.X;
         }
         ObjectivesStacked = false;
         if (Objectives != null)
         {
-            // Top centre, between the dials and the descent note, when there's room; else under the descent note
-            // (the default 1152 px window), with the notes following under it.
-            float left = DialsRight + 10.0f;
-            float right = screen.X - 150 - 360 - 10.0f - ObjectivePanel.PanelWidth;
+            // Top centre under the compass strip, between the hearts and the descent note, when there's room;
+            // else under the descent note, with the notes following under it.
+            float left = cornerRight + Gap;
+            float right = descentLeft - Gap - ObjectivePanel.PanelWidth;
             if (right >= left)
             {
-                Objectives.Position = new Vector2(Mathf.Clamp((screen.X - ObjectivePanel.PanelWidth) * 0.5f, left, right), 14);
+                Objectives.Position = new Vector2(Mathf.Clamp((screen.X - ObjectivePanel.PanelWidth) * 0.5f, left, right), stripBottom + Gap * 0.8f);
                 if (Banner != null)
                 {
                     Banner.MinTop = Objectives.Position.Y + Objectives.MaxHeight + 12.0f;
-                    Banner.FreeSpan = new Vector2(0.0f, screen.X);
+                    Banner.FreeSpan = new Vector2(equipmentRight + 12.0f, screen.X);
                 }
             }
             else
             {
                 ObjectivesStacked = true;
-                Objectives.Position = new Vector2(screen.X - 150 - 360, 16 + 172 + 8);
+                Objectives.Position = new Vector2(descentLeft, descentBottom + 8.0f);
                 if (Banner != null)
                 {
-                    // The card goes between the equipment sheet and the goal note, under the dials.
-                    float free = 12.0f;
-                    if (Equipment != null)
-                    {
-                        free = Equipment.Position.X + Equipment.Size.X + 12.0f;
-                    }
-                    Banner.MinTop = 150.0f;
+                    // The card goes between the equipment sheet and the goal note, under the corner vitals.
+                    float free = equipmentRight + 12.0f;
+                    Banner.MinTop = needsBottom + Gap;
                     Banner.FreeSpan = new Vector2(free, Objectives.Position.X - 12.0f);
                     if (Banner.FreeSpan.Y - Banner.FreeSpan.X < Banner.MinWidth)
                     {
@@ -262,10 +321,6 @@ public partial class Hud : CanvasLayer
             }
         }
         PlaceNotes(screen);
-        if (Hotbar != null)
-        {
-            Hotbar.Position = new Vector2((screen.X - Hotbar.Size.X) * 0.5f, screen.Y - Hotbar.Size.Y - 10);
-        }
         Tooltip?.SetHome(new Vector2(screen.X - 350, screen.Y - 300));
         foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, MapPage, Journal, Talk, RadioPage })
         {
@@ -292,12 +347,16 @@ public partial class Hud : CanvasLayer
         {
             return;
         }
-        float top = 200.0f;
+        float top = Margin + 182.0f;
+        if (Descent != null)
+        {
+            top = Descent.Position.Y + Descent.Size.Y + Gap + 2.0f;
+        }
         if (ObjectivesStacked && Objectives != null && Objectives.Visible)
         {
             top = Objectives.Position.Y + Objectives.Size.Y + 8.0f;
         }
-        Notes.Position = new Vector2(screen.X - 18 - Notes.Size.X, top);
+        Notes.Position = new Vector2(screen.X - Margin - Notes.Size.X, top);
     }
 
     /// <summary>Someone was spoken to (a traveller with E, the companion with Enter): open the conversation.</summary>

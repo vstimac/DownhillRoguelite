@@ -261,7 +261,7 @@ public partial class ObjectiveTests : Node3D
             {
                 problems.Add("card outside at " + size);
             }
-            Control?[] underCard = { Ui.HealthDial, Ui.StaminaDial, Ui.Equipment, Ui.Hotbar, Ui.Descent };
+            Control?[] underCard = { Ui.Hearts, Ui.HungerIcon, Ui.ThirstIcon, Ui.WarmthIcon, Ui.Compass, Ui.Equipment, Ui.Hotbar, Ui.Descent };
             foreach (Control? other in underCard)
             {
                 if (other != null && shown.Intersects(new Rect2(other.Position, other.Size)))
@@ -282,7 +282,7 @@ public partial class ObjectiveTests : Node3D
             {
                 problems.Add("outside at " + size);
             }
-            Control?[] others = { Ui.HealthDial, Ui.HungerDial, Ui.ThirstDial, Ui.StaminaDial, Ui.Descent, Ui.Compass };
+            Control?[] others = { Ui.Hearts, Ui.HungerIcon, Ui.ThirstIcon, Ui.WarmthIcon, Ui.Descent, Ui.Compass };
             foreach (Control? other in others)
             {
                 if (other != null && goal.Intersects(new Rect2(other.Position, other.Size)))
@@ -296,7 +296,7 @@ public partial class ObjectiveTests : Node3D
             }
         }
         Ui.Layout();
-        Check("the goal note fits from 1024 to 2560 px wide without covering the dials, descent note, compass or notes", problems.Count == 0,
+        Check("the goal note fits from 1024 to 2560 px wide without covering the hearts, need icons, descent note, compass or notes", problems.Count == 0,
             "[" + string.Join(", ", problems) + "]");
     }
 

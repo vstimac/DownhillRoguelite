@@ -76,6 +76,11 @@ public partial class DebugSceneControls : Node
         {
             DebugDraw3D.SetEnabled(false);
         }
+        // `--hud-demo` puts the HUD in its busy states for a rendered check: hurt, hungry, winded, a torch burning.
+        if (System.Array.IndexOf(args, "--hud-demo") >= 0)
+        {
+            Callable.From(HudDemo).CallDeferred();
+        }
         // `--herd=Horse` (or `--herd=Sheep:6`) brings a group of animals close, for screenshots.
         // `--walk-seconds=3` walks forward that long, then stops.
         foreach (string arg in args)
@@ -158,6 +163,19 @@ public partial class DebugSceneControls : Node
                 Weather.Forced = kind;
             }
         }
+    }
+
+    /// <summary>Hurts, starves and winds the carrier and lights a torch, so a rendered frame shows the hearts, need icons and ring at work.</summary>
+    private void HudDemo()
+    {
+        if (PlayerBody == null)
+        {
+            return;
+        }
+        PlayerBody.Health?.TakeDamage(PlayerBody.Health.Max * 0.45f, "a HUD demo");
+        PlayerBody.GetNodeOrNull<CarrierNeeds>("Needs")?.SetNeeds(18.0f, 70.0f);
+        PlayerBody.Stamina?.SetCurrent(PlayerBody.Stamina.EffectiveMax * 0.4f);
+        GameEvents.RequestTorch(240.0f);
     }
 
     public override void _ExitTree()
