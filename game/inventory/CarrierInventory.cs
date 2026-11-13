@@ -74,6 +74,9 @@ public partial class CarrierInventory : Node
         GameEvents.UseItemRequested += OnUseItemRequested;
         GameEvents.CargoGrantRequested += OnCargoGrantRequested;
         GameEvents.CargoHandOverRequested += OnCargoHandOverRequested;
+        GameEvents.PackPlaceRequested += OnPackPlaceRequested;
+        GameEvents.PackTakeOutRequested += OnPackTakeOutRequested;
+        GameEvents.PackArrangeRequested += OnPackArrangeRequested;
         foreach (string path in StartingItemPaths)
         {
             if (ItemText.AtPath(path) is ItemDefinition item)
@@ -113,6 +116,9 @@ public partial class CarrierInventory : Node
         GameEvents.UseItemRequested -= OnUseItemRequested;
         GameEvents.CargoGrantRequested -= OnCargoGrantRequested;
         GameEvents.CargoHandOverRequested -= OnCargoHandOverRequested;
+        GameEvents.PackPlaceRequested -= OnPackPlaceRequested;
+        GameEvents.PackTakeOutRequested -= OnPackTakeOutRequested;
+        GameEvents.PackArrangeRequested -= OnPackArrangeRequested;
         // Managed references keep resources alive until the GC runs; drop them with the node.
         _loose.Clear();
         _all.Clear();
@@ -149,6 +155,151 @@ public partial class CarrierInventory : Node
         }
         _loose.Add(new StoredItem(item.Definition, item.Durability, item.Appearance, item.InstanceId));
         Publish();
+    }
+
+    /// <summary>
+    /// Puts one copy (loose, or already packed somewhere else) at a cell in an orientation. Nothing
+    /// changes and false comes back if it doesn't fit there; a packed copy then stays where it was.
+    /// </summary>
+    public bool PlaceInstance(string instanceId, Vector3I origin, int orientation)
+    {
+        if (Grid == null || instanceId.Length == 0)
+        {
+            return false;
+        }
+        foreach (PackedItem packed in Grid.Items)
+        {
+            if (packed.InstanceId != instanceId)
+            {
+                continue;
+            }
+            Grid.Remove(packed);
+            PackedItem? moved = Grid.Place(packed.Definition, origin, orientation);
+            bool fits = moved != null;
+            if (moved == null)
+            {
+                moved = Grid.Place(packed.Definition, packed.Origin, packed.Orientation);
+            }
+            if (moved != null)
+            {
+                moved.Durability = packed.Durability;
+                moved.Appearance = packed.Appearance;
+                moved.InstanceId = packed.InstanceId;
+            }
+            if (fits)
+            {
+                Publish();
+            }
+            return fits;
+        }
+        int loose = _loose.FindIndex(copy => copy.InstanceId == instanceId);
+        if (loose < 0)
+        {
+            return false;
+        }
+        PackedItem? placed = Grid.Place(_loose[loose].Definition, origin, orientation);
+        if (placed == null)
+        {
+            return false;
+        }
+        placed.Durability = _loose[loose].Durability;
+        placed.Appearance = _loose[loose].Appearance;
+        placed.InstanceId = _loose[loose].InstanceId;
+        _loose.RemoveAt(loose);
+        Publish();
+        return true;
+    }
+
+    /// <summary>Takes one packed copy out of the pack; it lies loose beside it. False if it isn't packed.</summary>
+    public bool TakeOutInstance(string instanceId)
+    {
+        if (Grid == null)
+        {
+            return false;
+        }
+        foreach (PackedItem packed in Grid.Items)
+        {
+            if (packed.InstanceId == instanceId)
+            {
+                Unpack(packed);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Packs everything again, heaviest first, low and close to the back; returns what didn't fit.</summary>
+    public List<ItemDefinition> ArrangeAll()
+    {
+        List<ItemDefinition> all = new();
+        if (Grid == null)
+        {
+            return all;
+        }
+        foreach (PackedItem packed in Grid.Items)
+        {
+            all.Add(packed.Definition);
+        }
+        all.AddRange(LooseItems);
+        all.Sort((a, b) => b.MassKg.CompareTo(a.MassKg));
+        return Repack(all, PickupPreferredX);
+    }
+
+    // The pack can only be rearranged while it stands open on the ground.
+    private void OnPackPlaceRequested(string instanceId, Vector3I origin, int orientation)
+    {
+        if (GameEvents.IsPackOpen)
+        {
+            PlaceInstance(instanceId, origin, orientation);
+        }
+    }
+
+    private void OnPackTakeOutRequested(string instanceId)
+    {
+        if (GameEvents.IsPackOpen)
+        {
+            TakeOutInstance(instanceId);
+        }
+    }
+
+    private void OnPackArrangeRequested()
+    {
+        if (GameEvents.IsPackOpen)
+        {
+            ArrangeAll();
+        }
+    }
+
+    /// <summary>Where every copy sits, for the pages that draw the pack.</summary>
+    public PackLayout Layout()
+    {
+        if (Backpack == null || Grid == null)
+        {
+            return PackLayout.Empty;
+        }
+        List<PackLayoutEntry> entries = new();
+        foreach (PackedItem packed in Grid.Items)
+        {
+            entries.Add(new PackLayoutEntry(packed.InstanceId, packed.Definition.ItemId, DefinitionPath(packed.Definition), true,
+                packed.Origin, packed.Size, packed.Orientation, packed.Definition.MassKg));
+        }
+        foreach (StoredItem copy in _loose)
+        {
+            entries.Add(new PackLayoutEntry(copy.InstanceId, copy.Definition.ItemId, DefinitionPath(copy.Definition), false,
+                Vector3I.Zero, copy.Definition.SizeCells, GridOrientations.Identity, copy.Definition.MassKg));
+        }
+        Vector3 centre = LoadCalculator.CenterOfMass(Backpack, Grid, out float mass);
+        return new PackLayout(Backpack.DisplayName, Backpack.GridSize, Backpack.CellSize, mass, centre, entries);
+    }
+
+    /// <summary>The file an item's definition comes from; contract cargo is a copy, so it names its source.</summary>
+    private static string DefinitionPath(ItemDefinition item)
+    {
+        if (item.SourceItemPath.Length > 0)
+        {
+            return item.SourceItemPath;
+        }
+        return item.ResourcePath;
     }
 
     /// <summary>Reorders pack and loose copies without changing ownership or wear. Pockets stay in place.</summary>
@@ -788,6 +939,7 @@ public partial class CarrierInventory : Node
         if (Backpack != null && Grid != null)
         {
             GameEvents.PublishLoad(LoadCalculator.Calculate(Backpack, Grid));
+            GameEvents.PublishPackLayout(Layout());
         }
         List<string> ids = new();
         List<string> cargo = new();
