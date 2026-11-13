@@ -332,6 +332,8 @@ public partial class OptionsPanel : ParchmentPanel
             "Off: only the number keys 1-9 choose from the hotbar."));
         Add(gameplay, ChoiceRow.Toggle("Route and debug lines (F3)", GameOptions.PathLines, GameOptions.SetPathLines,
             "Lines in the world showing the planned route and the carrier's balance."));
+        Add(gameplay, ChoiceRow.Toggle("Check for new versions", GameOptions.CheckForUpdates, GameOptions.SetCheckForUpdates,
+            "The title screen looks for a newer release on GitHub and offers to update; the game restarts by itself."));
         if (ShowCharacter)
         {
             CharacterRow(gameplay);

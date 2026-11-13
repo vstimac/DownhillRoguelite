@@ -22,4 +22,8 @@
     <Title>Let's Play: Downhill Roguelite</Title>
     <Version>1.0.0</Version>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- The same update rules as the game and update.ps1. -->
+    <Compile Include="../../core/update/UpdatePlanner.cs" Link="UpdatePlanner.cs" />
+  </ItemGroup>
 </Project>

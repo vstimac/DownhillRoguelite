@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using DownhillRoguelite.Core;
+using DownhillRoguelite.Core.Update;
 using DownhillRoguelite.Ui;
 using Godot;
 
@@ -62,6 +63,8 @@ public partial class StartScreen : CanvasLayer
     public Label? FooterKeys => _keys;
     public Label? FooterHint => _hint;
     public Label? VersionLabel => _version;
+    /// <summary>The "Update" entry, once a newer release was found (core/update/UpdateCheck).</summary>
+    public MenuItem? UpdateItem => _updateItem;
 
     private readonly List<MenuItem> _items = new();
     private Control? _root;
@@ -82,6 +85,7 @@ public partial class StartScreen : CanvasLayer
     private MenuCamera? _camera;
     private MenuItem? _characterItem;
     private MenuItem? _lastFocus;
+    private MenuItem? _updateItem;
     private float _warmup;
     private bool _padUsed;
     private Vector2 _screen = new(1280, 720);
@@ -113,6 +117,7 @@ public partial class StartScreen : CanvasLayer
         HideWorldUi();
         GetViewport().SizeChanged += Relayout;
         Relayout();
+        UpdateCheck.Start();
     }
 
     public override void _ExitTree()
@@ -137,6 +142,10 @@ public partial class StartScreen : CanvasLayer
 
     public override void _Process(double delta)
     {
+        if (_updateItem == null && !Started && UpdateCheck.Offer is UpdateOffer offer)
+        {
+            OfferUpdate(offer);
+        }
         if (_warmup > 0.0f)
         {
             _warmup -= (float)delta;
@@ -296,6 +305,54 @@ public partial class StartScreen : CanvasLayer
         _menu?.AddChild(item);
         _items.Add(item);
         return item;
+    }
+
+    /// <summary>Puts "Update" at the top of the menu for <paramref name="offer"/> (the background check calls it once; tests too).</summary>
+    public void OfferUpdate(UpdateOffer offer)
+    {
+        if (_updateItem != null || _menu == null)
+        {
+            return;
+        }
+        string size = offer.SizeMb >= 1.0 ? $"{offer.SizeMb:0} MB" : "under 1 MB";
+        string what = offer.Kind == UpdateKind.Patch ? "a small update" : "the whole game";
+        _updateItem = AddItem("Update", $"{offer.ReleaseName} is out: {what}, {size}. The game closes, updates and starts again.", () => ApplyUpdate(offer));
+        _menu.MoveChild(_updateItem, 0);
+        _items.Remove(_updateItem);
+        _items.Insert(0, _updateItem);
+        if (_version != null)
+        {
+            _version.Text = VersionText + "  ·  new version out";
+        }
+        Relayout();
+        if (Current == Page.Main && GetViewport().GuiGetFocusOwner() == null)
+        {
+            _updateItem.GrabFocus();
+        }
+    }
+
+    private void ApplyUpdate(UpdateOffer offer)
+    {
+        try
+        {
+            if (UpdateCheck.Launch(offer))
+            {
+                GetTree().Quit();
+                return;
+            }
+        }
+        catch (System.Exception error)
+        {
+            GD.PushWarning("StartScreen: could not start the updater: " + error.Message);
+        }
+        if (_updateItem != null)
+        {
+            _updateItem.Hint = "Couldn't start the updater. Run \"Update game.bat\" in the game folder, or download it from GitHub.";
+            if (_hint != null)
+            {
+                _hint.Text = _updateItem.Hint;
+            }
+        }
     }
 
     /// <summary>The menu entry with this text, or null.</summary>

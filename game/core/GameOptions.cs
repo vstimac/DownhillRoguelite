@@ -74,6 +74,8 @@ public static class GameOptions
     public static bool InvertLook { get; private set; }
     /// <summary>Spoken lines are captioned on screen.</summary>
     public static bool Subtitles { get; private set; } = true;
+    /// <summary>The title screen asks GitHub for a newer release and offers to update (core/update/UpdateCheck).</summary>
+    public static bool CheckForUpdates { get; private set; } = true;
 
     /// <summary>The chosen character's id (CarrierRoster); an unknown or missing one falls back to the first.</summary>
     public static string Character { get; private set; } = "modular";
@@ -121,6 +123,7 @@ public static class GameOptions
         RawInput = true;
         InvertLook = false;
         Subtitles = true;
+        CheckForUpdates = true;
         Character = "modular";
         BaseShirtColour = new Color(0.28f, 0.35f, 0.43f);
         BasePackColour = new Color(0.36f, 0.29f, 0.18f);
@@ -173,6 +176,7 @@ public static class GameOptions
         RawInput = (bool)file.GetValue(Section, "raw_input", RawInput);
         InvertLook = (bool)file.GetValue(Section, "invert_look", InvertLook);
         Subtitles = (bool)file.GetValue(Section, "subtitles", Subtitles);
+        CheckForUpdates = (bool)file.GetValue(Section, "check_updates", CheckForUpdates);
         Changed?.Invoke();
     }
 
@@ -203,6 +207,7 @@ public static class GameOptions
     public static void SetRawInput(bool on) => Set(() => RawInput = on);
     public static void SetInvertLook(bool on) => Set(() => InvertLook = on);
     public static void SetSubtitles(bool on) => Set(() => Subtitles = on);
+    public static void SetCheckForUpdates(bool on) => Set(() => CheckForUpdates = on);
 
     /// <summary>Every option back to its default and saved, keeping the chosen character (Options → Reset all).</summary>
     public static void RestoreDefaults()
@@ -262,6 +267,7 @@ public static class GameOptions
         file.SetValue(Section, "raw_input", RawInput);
         file.SetValue(Section, "invert_look", InvertLook);
         file.SetValue(Section, "subtitles", Subtitles);
+        file.SetValue(Section, "check_updates", CheckForUpdates);
         file.Save(_path);
     }
 }

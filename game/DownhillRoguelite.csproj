@@ -12,4 +12,8 @@
     <!-- The launcher is its own program (tools/launcher), not part of the game. -->
     <Compile Remove="tools/**" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The updater travels inside the game's code, so every update also updates the updater (core/update/UpdateCheck.cs). -->
+    <EmbeddedResource Include="export/playtest/update.ps1" LogicalName="DownhillRoguelite.update.ps1" />
+  </ItemGroup>
 </Project>
