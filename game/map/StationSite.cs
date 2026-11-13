@@ -9,7 +9,7 @@ namespace DownhillRoguelite.Map;
 /// A station on its terrace: a camp round a fire with flickering light (stone ring, log seats), a
 /// tent with a bedroll (SleepSpot), graves, a trader's corner, banners at the way in with the
 /// station's name, and a tall faint beacon that can be seen
-/// from far down the slope and through the dark. The fire crackles (audio/ambience/fire.wav), so
+/// from far down the slope and through the dark. The fire crackles (audio/sonniss/fire/campfire_loop.ogg), so
 /// you can hear a station before you see it.
 /// </summary>
 public partial class StationSite : Node3D
@@ -59,7 +59,7 @@ public partial class StationSite : Node3D
     [Export] public Color WoodColor { get; set; } = new(0.4f, 0.28f, 0.18f);
     [Export] public Color CanvasColor { get; set; } = new(0.45f, 0.42f, 0.36f);
     [Export] public Color BedrollColor { get; set; } = new(0.35f, 0.3f, 0.45f);
-    [Export(PropertyHint.File, "*.wav")] public string FireSoundPath { get; set; } = "res://audio/ambience/fire.wav";
+    [Export(PropertyHint.File, "*.ogg,*.wav")] public string FireSoundPath { get; set; } = "res://audio/sonniss/fire/campfire_loop.ogg";
     [Export] public float FireVolumeDb { get; set; } = 2.0f;
     /// <summary>Distance the fire can be heard from, in m.</summary>
     [Export] public float FireHearing { get; set; } = 35.0f;
@@ -85,6 +85,10 @@ public partial class StationSite : Node3D
             wav.LoopMode = AudioStreamWav.LoopModeEnum.Forward;
             wav.LoopBegin = 0;
             wav.LoopEnd = Mathf.FloorToInt((float)wav.GetLength() * wav.MixRate);
+        }
+        else if (stream is AudioStreamOggVorbis ogg)
+        {
+            ogg.Loop = true;
         }
         AudioStreamPlayer3D sound = new()
         {

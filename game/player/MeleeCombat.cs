@@ -133,12 +133,12 @@ public partial class MeleeCombat : Node
     [Export] public float ReachAbove { get; set; } = 2.0f;
 
     [ExportGroup("Sounds")]
-    [Export] public string[] SwingSounds { get; set; } = { "res://audio/combat/sword_swing_0.wav", "res://audio/combat/sword_swing_1.wav", "res://audio/combat/sword_swing_2.wav" };
-    [Export] public string[] HitSounds { get; set; } = { "res://audio/combat/sword_hit_0.wav", "res://audio/combat/sword_hit_1.wav" };
-    [Export] public string[] BlockSounds { get; set; } = { "res://audio/combat/sword_block_0.wav", "res://audio/combat/sword_block_1.wav" };
+    [Export] public string[] SwingSounds { get; set; } = { "res://audio/sonniss/combat/sword_swing_0.ogg", "res://audio/sonniss/combat/sword_swing_1.ogg", "res://audio/sonniss/combat/sword_swing_2.ogg" };
+    [Export] public string[] HitSounds { get; set; } = { "res://audio/sonniss/combat/sword_hit_0.ogg", "res://audio/sonniss/combat/sword_hit_1.ogg", "res://audio/sonniss/combat/sword_hit_2.ogg" };
+    [Export] public string[] BlockSounds { get; set; } = { "res://audio/sonniss/combat/shield_block_0.ogg", "res://audio/sonniss/combat/shield_block_1.ogg", "res://audio/sonniss/combat/shield_block_2.ogg" };
     [Export] public string DrawSound { get; set; } = "res://audio/combat/sword_draw_0.wav";
     [Export] public string SheatheSound { get; set; } = "res://audio/combat/sword_sheathe_0.wav";
-    [Export] public string KickSound { get; set; } = "res://audio/combat/sword_kick_0.wav";
+    [Export] public string KickSound { get; set; } = "res://audio/sonniss/combat/body_hit_0.ogg";
     [Export] public float VolumeDb { get; set; } = -2.0f;
 
     public Stance State { get; private set; } = Stance.Sheathed;

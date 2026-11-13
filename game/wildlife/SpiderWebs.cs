@@ -37,7 +37,7 @@ public partial class SpiderWebs : Node3D
     [Export] public float SnareSpeed { get; set; } = 0.35f;
     [Export] public string SnareHint { get; set; } = "You blunder into a spider web. It clings to your legs…";
     [Export] public string BurnHint { get; set; } = "Your torch burns through a spider web.";
-    [Export] public string[] TearSounds { get; set; } = { "res://audio/creatures/web_tear_0.wav", "res://audio/creatures/web_tear_1.wav" };
+    [Export] public string[] TearSounds { get; set; } = { "res://audio/sonniss/creatures/web_tear_0.ogg", "res://audio/creatures/web_tear_0.wav" };
     [Export] public StringName SoundBus { get; set; } = "Ambience";
     [Export] public float TearVolumeDb { get; set; } = -2.0f;
     [Export] public Color Thread { get; set; } = new(0.86f, 0.87f, 0.92f, 0.55f);

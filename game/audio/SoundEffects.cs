@@ -5,10 +5,13 @@ using Godot;
 namespace DownhillRoguelite.Audio;
 
 /// <summary>
-/// One-shot sounds for game events, from the Kenney sound packs (audio/sfx): landings and falls
-/// (impacts by how hard), picking up (cloth), eating and drinking, packing (belt and straps), the map
-/// (book), a boon chosen and a station reached (interface chimes), the end of a run (a bell). Each
-/// event picks a random variant, slightly detuned, through a small pool of players.
+/// One-shot sounds for game events: landings and falls (impacts by how hard), picking up (cloth),
+/// eating and drinking, closing the pack (belt), the map (book) and a boon chosen from the Kenney packs
+/// (audio/sfx); opening the pack (a canvas bag), a station reached (a distant bell), the end of a run, the
+/// torch caught and snuffed, clothes put on and taken off, a mend, an item dropped, being thrown,
+/// caught in a web, a night slept, a text read and an achievement from the Sonniss GDC bundle
+/// (audio/sonniss, docs/audio/sonniss_sources.csv). Each event picks a random variant, slightly
+/// detuned, through a small pool of players.
 /// </summary>
 public partial class SoundEffects : Node
 {
@@ -22,6 +25,15 @@ public partial class SoundEffects : Node
     private const string Impact = "res://audio/sfx/kenney_impact_sounds/";
     private const string Rpg = "res://audio/sfx/kenney_rpg_audio/";
     private const string Ui = "res://audio/sfx/kenney_interface_sounds/";
+    private const string Sonniss = "res://audio/sonniss/";
+
+    /// <summary>Every key the game plays (tests check each one loads).</summary>
+    public static readonly string[] Keys =
+    {
+        "land", "land_hard", "fall", "pickup", "eat", "drink", "pack_open", "pack_close", "map_open", "map_close",
+        "boon", "station", "run_end", "torch_light", "torch_snuff", "cloth", "mend", "drop", "launch", "snared",
+        "sleep", "read", "achievement",
+    };
 
     private readonly Dictionary<string, AudioStream[]> _sets = new();
     private readonly AudioStreamPlayer[] _players = new AudioStreamPlayer[6];
@@ -66,13 +78,23 @@ public partial class SoundEffects : Node
         Load("pickup", Rpg, "cloth{0}.ogg", 4, 1);
         Load("eat", Rpg, "handleSmallLeather{0}.ogg", 2, 1, true);
         Load("drink", Ui, "glass_00{0}.ogg", 6, 1);
-        Load("pack_open", Rpg, "beltHandle1.ogg", 1);
+        LoadFiles("pack_open", Sonniss + "foley/pack_open.ogg");
         Load("pack_close", Rpg, "beltHandle2.ogg", 1);
         Load("map_open", Rpg, "bookOpen.ogg", 1);
         Load("map_close", Rpg, "bookClose.ogg", 1);
         Load("boon", Ui, "confirmation_00{0}.ogg", 4, 1);
-        Load("station", Ui, "bong_001.ogg", 1);
-        Load("run_end", Impact, "impactBell_heavy_00{0}.ogg", 5);
+        LoadFiles("station", Sonniss + "ui/station_bell.ogg");
+        LoadFiles("run_end", Sonniss + "ui/run_end.ogg");
+        LoadFiles("torch_light", Sonniss + "fire/torch_light.ogg");
+        LoadFiles("torch_snuff", Sonniss + "fire/torch_snuff.ogg");
+        LoadFiles("cloth", Sonniss + "foley/cloth_0.ogg", Sonniss + "foley/cloth_1.ogg");
+        LoadFiles("mend", Sonniss + "foley/mend_snip.ogg");
+        LoadFiles("drop", Rpg + "dropLeather.ogg");
+        LoadFiles("launch", Sonniss + "foley/launch_whoosh.ogg");
+        LoadFiles("snared", Sonniss + "creatures/web_snare_0.ogg");
+        LoadFiles("sleep", Sonniss + "foley/music_box.ogg");
+        LoadFiles("read", Sonniss + "foley/page_turn.ogg");
+        LoadFiles("achievement", Sonniss + "ui/achievement.ogg");
         for (int i = 0; i < _players.Length; i++)
         {
             _players[i] = new AudioStreamPlayer { Bus = Bus };
@@ -92,6 +114,16 @@ public partial class SoundEffects : Node
         GameEvents.BoonChosen += OnBoon;
         GameEvents.StationReached += OnStation;
         GameEvents.RunEnded += OnRunEnded;
+        GameEvents.TorchChanged += OnTorch;
+        GameEvents.WearRequested += OnWear;
+        GameEvents.TakeOffRequested += OnTakeOff;
+        GameEvents.Mended += OnMended;
+        GameEvents.ItemDropped += OnDropped;
+        GameEvents.Launched += OnLaunched;
+        GameEvents.Snared += OnSnared;
+        GameEvents.Slept += OnSlept;
+        GameEvents.LoreRead += OnRead;
+        GameEvents.AchievementUnlocked += OnAchievement;
     }
 
     public override void _ExitTree()
@@ -105,6 +137,16 @@ public partial class SoundEffects : Node
         GameEvents.BoonChosen -= OnBoon;
         GameEvents.StationReached -= OnStation;
         GameEvents.RunEnded -= OnRunEnded;
+        GameEvents.TorchChanged -= OnTorch;
+        GameEvents.WearRequested -= OnWear;
+        GameEvents.TakeOffRequested -= OnTakeOff;
+        GameEvents.Mended -= OnMended;
+        GameEvents.ItemDropped -= OnDropped;
+        GameEvents.Launched -= OnLaunched;
+        GameEvents.Snared -= OnSnared;
+        GameEvents.Slept -= OnSlept;
+        GameEvents.LoreRead -= OnRead;
+        GameEvents.AchievementUnlocked -= OnAchievement;
         foreach (AudioStreamPlayer player in _players)
         {
             if (player != null)
@@ -128,6 +170,20 @@ public partial class SoundEffects : Node
                 file = pattern.Replace("{0}", "");
             }
             if (ResourceLoader.Exists(folder + file) && ResourceLoader.Load<AudioStream>(folder + file) is AudioStream stream)
+            {
+                found.Add(stream);
+            }
+        }
+        _sets[key] = found.ToArray();
+    }
+
+    /// <summary>Loads a set from explicit paths; a missing file is skipped.</summary>
+    private void LoadFiles(string key, params string[] paths)
+    {
+        List<AudioStream> found = new();
+        foreach (string path in paths)
+        {
+            if (ResourceLoader.Exists(path) && ResourceLoader.Load<AudioStream>(path) is AudioStream stream)
             {
                 found.Add(stream);
             }
@@ -238,5 +294,65 @@ public partial class SoundEffects : Node
     private void OnRunEnded(RunSummary summary)
     {
         Play("run_end", 2.0f);
+    }
+
+    private void OnTorch(bool lit)
+    {
+        if (lit)
+        {
+            Play("torch_light");
+        }
+        else
+        {
+            Play("torch_snuff", -3.0f);
+        }
+    }
+
+    private void OnWear(string itemId)
+    {
+        Play("cloth");
+    }
+
+    private void OnTakeOff(EquipSlot slot)
+    {
+        Play("cloth");
+    }
+
+    private void OnMended(string what, float amount)
+    {
+        if (amount > 0.0f)
+        {
+            Play("mend");
+        }
+    }
+
+    private void OnDropped(string itemId)
+    {
+        Play("drop", -4.0f);
+    }
+
+    private void OnLaunched(string cause)
+    {
+        Play("launch");
+    }
+
+    private void OnSnared(float seconds, float speedFactor)
+    {
+        Play("snared");
+    }
+
+    private void OnSlept(float hours)
+    {
+        Play("sleep", -2.0f);
+    }
+
+    private void OnRead(LoreNote note)
+    {
+        Play("read");
+    }
+
+    private void OnAchievement(string id, string title)
+    {
+        Play("achievement");
     }
 }
