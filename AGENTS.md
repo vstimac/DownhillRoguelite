@@ -16,9 +16,11 @@ opening, endings), read `docs/STORY_BIBLE.md`, the director's shared narrative b
   offer options and ask the director before canonizing an answer.
 - The bible is direction, not an implementation order. Don't build quests, events, mechanics or
   audio triggers from it alone; check the code and get approval for the specific task.
-- Never merge conflicting lore by yourself; write the conflict down and ask. Known conflict:
-  `docs/narrative.md` (2026-11-06, "you descend to become a god", the narrator's godhood lines in
-  `game/narrative/data/metadata.csv`) gives a reason for descending that the bible leaves OPEN.
+- Never merge conflicting lore by yourself; write the conflict down and ask.
+- Godhood (settled 2026-11-13): "you descend to become a god" in `docs/narrative.md` and the
+  narrator's godhood lines (`game/narrative/data/metadata.csv`) are one point of view, the carrier's
+  and the narrator's belief, not a fact about the world. Keep them. "Why descend" stays OPEN as a
+  world fact: other characters may see the descent differently, and no text should confirm godhood.
 - Use the bible's "Narrative change proposal" format (section 10) and label every new lore claim
   LOCKED / PROVISIONAL / OPEN. Approved decisions go into the bible's decision log.
 
