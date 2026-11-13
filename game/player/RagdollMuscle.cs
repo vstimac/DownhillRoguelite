@@ -10,14 +10,16 @@ internal sealed class RagdollMuscle
     public int ChildIndex { get; }
     public int ParentIndex { get; }
     public float Inertia { get; }
+    public Vector3 ParentHingeAxis { get; }
     public Quaternion Target { get; set; } = Quaternion.Identity;
 
-    public RagdollMuscle(PhysicalBone3D child, PhysicalBone3D parent, int childIndex, int parentIndex, float inertia)
+    public RagdollMuscle(PhysicalBone3D child, PhysicalBone3D parent, int childIndex, int parentIndex, float inertia, Vector3 parentHingeAxis)
     {
         Child = child;
         Parent = parent;
         ChildIndex = childIndex;
         ParentIndex = parentIndex;
         Inertia = inertia;
+        ParentHingeAxis = parentHingeAxis;
     }
 }

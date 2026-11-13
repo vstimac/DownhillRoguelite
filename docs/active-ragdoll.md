@@ -29,9 +29,15 @@ F3 toggles lines. Lab falls use a higher safe-impact threshold; normal gameplay 
   continues to drive the character, clothes and backpack. The controller capsule is not moved
   by the recovery pose; local bone-mounted equipment and blade traces follow the local skeleton.
 - `RagdollMuscles` captures final relative arm orientations in SkeletonUpdated. For the first
-  0.45 seconds of a living fall, four joints resist deformation using conservative effective
+  0.45 seconds of a living fall, the two elbow hinges resist deformation using conservative effective
   limb inertia, implicit spring/damping gains and a 1.5 Nm per-muscle torque cap. Each torque
-  has an equal opposite torque on its parent. Elbow torques act only on the hinge axis.
+  has an equal opposite torque on its parent. Shoulder cone joints stay passive. Elbow springs
+  extract only hinge twist and use the parent's constraint axis; forbidden swing is never a target.
+  The drive waits two physics steps and releases for the entire fall if hinge axes separate by
+  more than five degrees, leaving alignment to the native constraint solver.
+- Physical muscles are **off by default** (`RagdollMuscles.Enabled`, explicitly false in Player.tscn).
+  The lab's **Toggle arm muscles (opt-in)** button enables them for a trial. Turning them off stops
+  impulses immediately; turning them back on during a fall waits for the next fall.
 - Above MaxControlledSpeed (4 m/s), muscles relax for the remainder of the fall. Fast throws and
   dives retain the passive ragdoll; muscles cannot re-engage mid-fall. Death is passive too.
   No root lift, global upright target or position/velocity override is added.
@@ -85,3 +91,22 @@ hybrid-fixed-full-smoke.log, hybrid-branch-ActiveRagdollTests.log,
 hybrid-branch-RagdollJointTests.log, hybrid-lab-probe.log and hybrid-coop-summary.log.
 Test saves are isolated from player saves.
 The remaining terrain/GC timing issue needs investigation before a release.
+
+## Elbow follow-up, 2026-11-14
+
+The original hybrid is the standalone ragdoll commit `832a1217`; its patch has no network files.
+The elbow fix and opt-in switch are a separate ragdoll-only follow-up. Co-op work stays separate.
+
+`ActiveRagdollElbowTests` exercises actual enabled muscle impulses at 1, 2 and 3 m/s, retaining
+the original joint test's 16-degree limit over six held physics frames. The identical new trial
+against the original `832a1217` implementation fails at 16.03 degrees; the corrected elbow-only
+drive reaches 9.98 degrees with 124 paired impulses. The original `RagdollJointTests` source and
+all its thresholds are unchanged. The existing ankle/neck/wrist swing sensitivity is not hidden
+by raising a limit. Test saves and A/B logs are isolated in `mp-wt/.validation/`.
+
+Follow-up validation: ActiveRagdollTests passes 55 checks; the enabled-elbow trial passes at
+30 / 60 / 120 FPS (7.50 / 9.98 / 9.89 degrees). The unchanged original joint test passes all
+eight checks at 60 FPS (14.65 degrees sideways, 9.93 degrees excess swing). Build and import pass;
+the final full suite passes 76/77 scenes, with only the existing TerrainTests streaming timing check failing
+at 18.6 ms against 16 ms (a previous run's plant timing was 17.3 ms). The lab's explicit opt-in control and default-off status were also
+checked in an OpenGL render. No test threshold was raised.

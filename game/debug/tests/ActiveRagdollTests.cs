@@ -36,6 +36,12 @@ public partial class ActiveRagdollTests : Node3D
         Check("a 0.2-radian error produces the expected 2 Nm correction", correction.IsEqualApprox(Vector3.Right * 2));
         Quaternion sameRotation = new(-target.X, -target.Y, -target.Z, -target.W);
         Check("quaternion sign cannot reverse the muscle", correction.IsEqualApprox(RagdollMuscles.CalculateTorque(sameRotation, Quaternion.Identity, Vector3.Zero, 10, 0.7f, 5)));
+        Vector3 hinge = RagdollMuscles.CalculateHingeTorque(new Quaternion(Vector3.Right, 0.5f), Quaternion.Identity,
+            Vector3.Right * 3, Vector3.Up, 10, 0.7f, 5);
+        Check("an elbow never drives forbidden swing or off-axis damping", hinge.IsZeroApprox());
+        Quaternion mixed = new Quaternion(Vector3.Right, 0.8f) * new Quaternion(Vector3.Up, 0.2f);
+        Vector3 twist = RagdollMuscles.CalculateHingeTorque(mixed, Quaternion.Identity, Vector3.Zero, Vector3.Up, 10, 0, 5);
+        Check("elbow drive extracts twist before applying the spring", twist.IsEqualApprox(Vector3.Up * 2));
         Vector3 capped = RagdollMuscles.CalculateTorque(new Quaternion(Vector3.Forward, 2.8f), Quaternion.Identity, Vector3.Back * 40, 100, 2, 5);
         Check("large errors and speed cannot exceed the torque cap", capped.IsFinite() && Mathf.Abs(capped.Length() - 5) < 0.0001f);
     }
@@ -57,6 +63,7 @@ public partial class ActiveRagdollTests : Node3D
             balance.SetPhysicsProcess(false);
             ActiveBalancePose pose = body.GetNode<ActiveBalancePose>("Model/Rig/Skeleton3D/ActiveBalancePose");
             RagdollMuscles muscles = body.GetNode<RagdollMuscles>("RagdollMuscles");
+            Check("the shipped player keeps physical muscles off by default", !muscles.Enabled);
             PlayerRagdoll ragdoll = body.GetNode<PlayerRagdoll>("Ragdoll");
             FootIK feet = body.GetNode<FootIK>("FootIK");
             Skeleton3D skeleton = body.GetNode<Skeleton3D>("Model/Rig/Skeleton3D");
@@ -140,6 +147,12 @@ public partial class ActiveRagdollTests : Node3D
             await Frames(20);
 
             ragdoll.SafeImpactSpeed = 100;
+            ragdoll.GoDown(-body.GlobalBasis.Z * 2, Vector3.Zero);
+            await Frames(8);
+            Check("disabled muscles never apply a physical impulse", ragdoll.Downed && muscles.Weight == 0 && muscles.AppliedPairs == 0);
+            body.Teleport(start, yaw);
+            await Frames(20);
+            muscles.Enabled = true;
             ragdoll.GoDown(-body.GlobalBasis.Z * (muscles.MaxControlledSpeed + 2), Vector3.Zero);
             await Frames(8);
             Check("high-energy launches remain passive for the whole fall", ragdoll.Downed && muscles.Weight == 0 && muscles.AppliedPairs == 0);
@@ -154,6 +167,13 @@ public partial class ActiveRagdollTests : Node3D
                 && muscles.AppliedPairs > 0 && muscles.PeakTorque > 0.01f && muscles.PeakTorque <= muscles.MaxTorque + 0.001f,
                 $"weight {muscles.Weight:0.00}, pairs {muscles.AppliedPairs}, peak {muscles.PeakTorque:0.00}");
             Check("pose corrections release the simulated body", pose.Weight == 0 && pose.HipShift.IsZeroApprox());
+            int beforeDisable = muscles.AppliedPairs;
+            muscles.Enabled = false;
+            await Frames(4);
+            Check("switching muscles off stops all impulses immediately", muscles.Weight == 0 && muscles.AppliedPairs == beforeDisable);
+            muscles.Enabled = true;
+            await Frames(4);
+            Check("reenabling mid-fall waits until a fresh fall", muscles.Weight == 0 && muscles.AppliedPairs == beforeDisable);
             await Frames(35);
             int afterRelax = muscles.AppliedPairs;
             await Frames(10);

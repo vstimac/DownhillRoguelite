@@ -39,14 +39,15 @@ public partial class ActiveRagdollLab : Node3D
         AddRamp();
         CanvasLayer layer = new();
         AddChild(layer);
-        ParchmentPanel paper = new() { Title = "Active recovery", Position = new Vector2(18, 18), Size = new Vector2(315, 590) };
+        ParchmentPanel paper = new() { Title = "Active recovery", Position = new Vector2(18, 18), Size = new Vector2(315, 640) };
         layer.AddChild(paper);
-        VBoxContainer rows = new() { Position = new Vector2(16, 65), Size = new Vector2(283, 500) };
+        VBoxContainer rows = new() { Position = new Vector2(16, 65), Size = new Vector2(283, 550) };
         paper.AddChild(rows);
         Button(rows, "Small knock left", () => Knock(-KnockSpeed));
         Button(rows, "Small knock right", () => Knock(KnockSpeed));
         Button(rows, "Physical fall", Fall);
         Button(rows, "Toggle recovery + muscles (A/B)", Toggle);
+        Button(rows, "Toggle arm muscles (opt-in)", () => _muscles.Enabled = !_muscles.Enabled);
         Button(rows, "Reset on flat ground", ResetPlayer);
         Button(rows, "Try the slope", () => ResetAt(new Vector3(9, 1.7f, 0)));
         Button(rows, "Replay demonstration", StartDemo);
@@ -119,8 +120,10 @@ public partial class ActiveRagdollLab : Node3D
     {
         string enabled = "off";
         if (_pose.Enabled) { enabled = "on"; }
+        string muscleMode = "off";
+        if (_muscles.Enabled) { muscleMode = "on"; }
         _status.Text = $"Recovery {enabled} | {_balance.State}\nEffort {_pose.Effort:0.00} | hips {_pose.HipShift.Length() * 100:0.0} cm\n"
-            + $"Arm muscles {_muscles.Weight:0.00}\nPeak torque {_muscles.PeakTorque:0.00} Nm\n"
+            + $"Arm muscles {muscleMode} | weight {_muscles.Weight:0.00}\nPeak torque {_muscles.PeakTorque:0.00} Nm\n"
             + "WASD move | Shift run\nC brake | Space jump | Ctrl dive\nF3 debug | F10 labs\nGreen: support | red: COM\nCyan: hip correction (4x)\nWalking uses clips + procedural IK.";
     }
 

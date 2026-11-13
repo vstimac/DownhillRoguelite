@@ -106,6 +106,7 @@ Health = NodePath("../Health")
 
 [node name="RagdollMuscles" type="Node" parent="." node_paths=PackedStringArray("Ragdoll", "Skeleton")]
 script = ExtResource("25_muscles")
+Enabled = false
 Ragdoll = NodePath("../Ragdoll")
 Skeleton = NodePath("../Model/Rig/Skeleton3D")
 

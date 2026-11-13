@@ -13,7 +13,12 @@ public partial class RagdollMuscles : Node
 {
     [Export] public PlayerRagdoll? Ragdoll { get; set; }
     [Export] public Skeleton3D? Skeleton { get; set; }
-    [Export] public bool Enabled { get; set; } = true;
+    /// <summary>Experimental physical drive: opt in explicitly. Off never applies impulses.</summary>
+    [Export] public bool Enabled
+    {
+        get => _enabled;
+        set { _enabled = value; if (!value) { Weight = 0; _relaxed = true; } }
+    }
     [Export] public float HoldSeconds { get; set; } = 0.45f;
     [Export] public float Frequency { get; set; } = 2.5f;
     [Export] public float DampingRatio { get; set; } = 1.0f;
@@ -22,8 +27,12 @@ public partial class RagdollMuscles : Node
     [Export] public float MaxImpulseDelta { get; set; } = 0.05f;
     /// <summary>Fast throws/impacts relax the muscles for the remainder of the fall (m/s).</summary>
     [Export] public float MaxControlledSpeed { get; set; } = 4.0f;
-    [Export] public string ChestBone { get; set; } = "DEF-spine.003";
-    [Export] public string[] ArmBones { get; set; } = { "DEF-upper_arm.L", "DEF-forearm.L", "DEF-upper_arm.R", "DEF-forearm.R" };
+    /// <summary>Let the native joints settle before adding any muscle impulse (physics steps).</summary>
+    [Export] public int WarmupSteps { get; set; } = 2;
+    /// <summary>Release the entire arm hold when a hinge is loaded off-axis; the solver owns alignment.</summary>
+    [Export] public float MaxHingeMisalignmentDegrees { get; set; } = 5.0f;
+    /// <summary>Hold elbow flexion only. Shoulder swing stays with the native cone constraints.</summary>
+    [Export] public string[] ArmBones { get; set; } = { "DEF-forearm.L", "DEF-forearm.R" };
     public float Weight { get; private set; }
     public float PeakTorque { get; private set; }
     public int AppliedPairs { get; private set; }
@@ -31,6 +40,8 @@ public partial class RagdollMuscles : Node
     private readonly List<RagdollMuscle> _muscles = new();
     private float _elapsed;
     private bool _relaxed;
+    private int _warmup;
+    private bool _enabled;
 
     public override void _Ready()
     {
@@ -38,18 +49,29 @@ public partial class RagdollMuscles : Node
         if (Ragdoll == null || Skeleton == null) { return; }
         for (int i = 0; i < ArmBones.Length; i++)
         {
-            string parent = ChestBone;
-            if (i % 2 == 1) { parent = ArmBones[i - 1]; }
             PhysicalBone3D? childBody = Ragdoll.BodyOf(ArmBones[i]);
-            PhysicalBone3D? parentBody = Ragdoll.BodyOf(parent);
             int childIndex = Skeleton.FindBone(ArmBones[i]);
-            int parentIndex = Skeleton.FindBone(parent);
+            int parentIndex = -1;
+            PhysicalBone3D? parentBody = null;
+            if (childIndex >= 0)
+            {
+                parentIndex = Skeleton.GetBoneParent(childIndex);
+                while (parentIndex >= 0)
+                {
+                    parentBody = Ragdoll.BodyOf(Skeleton.GetBoneName(parentIndex));
+                    if (parentBody != null) { break; }
+                    parentIndex = Skeleton.GetBoneParent(parentIndex);
+                }
+            }
             if (childBody != null && parentBody != null && childIndex >= 0 && parentIndex >= 0)
             {
                 float childInertia = InertiaOf(childBody);
                 float parentInertia = InertiaOf(parentBody);
                 float effectiveInertia = 1 / (1 / childInertia + 1 / parentInertia);
-                _muscles.Add(new RagdollMuscle(childBody, parentBody, childIndex, parentIndex, effectiveInertia));
+                Basis childRest = Skeleton.GetBoneGlobalRest(childIndex).Basis.Orthonormalized() * childBody.BodyOffset.Basis.Orthonormalized();
+                Basis parentRest = Skeleton.GetBoneGlobalRest(parentIndex).Basis.Orthonormalized() * parentBody.BodyOffset.Basis.Orthonormalized();
+                Vector3 parentAxis = (parentRest.Inverse() * childRest * childBody.JointOffset.Basis.Z).Normalized();
+                _muscles.Add(new RagdollMuscle(childBody, parentBody, childIndex, parentIndex, effectiveInertia, parentAxis));
             }
         }
         // Modifier results are transient. Capture the final pose in this callback, never later.
@@ -68,7 +90,7 @@ public partial class RagdollMuscles : Node
 
     private void CapturePose()
     {
-        if (Skeleton == null || Ragdoll == null || Ragdoll.Downed) { return; }
+        if (!Enabled || Skeleton == null || Ragdoll == null || Ragdoll.Downed) { return; }
         foreach (RagdollMuscle muscle in _muscles)
         {
             Basis child = Skeleton.GetBoneGlobalPose(muscle.ChildIndex).Basis.Orthonormalized() * muscle.Child.BodyOffset.Basis.Orthonormalized();
@@ -98,13 +120,15 @@ public partial class RagdollMuscles : Node
         Clear();
         PeakTorque = 0;
         AppliedPairs = 0;
-        _relaxed = false;
+        _relaxed = !Enabled;
+        _warmup = Mathf.Max(0, WarmupSteps);
         if (downed) { _elapsed = 0; }
     }
 
     public override void _PhysicsProcess(double delta)
     {
         Weight = 0;
+        if (!Enabled) { return; }
         if (Ragdoll == null || !Ragdoll.Downed || delta <= 0) { return; }
         _elapsed += (float)delta;
         if (!Enabled || _relaxed || Ragdoll.Health?.Dead == true || HoldSeconds <= 0 || _elapsed >= HoldSeconds) { return; }
@@ -119,6 +143,15 @@ public partial class RagdollMuscles : Node
                 _relaxed = true;
                 return;
             }
+        }
+        if (_warmup > 0) { _warmup--; return; }
+        foreach (RagdollMuscle muscle in _muscles)
+        {
+            if (muscle.Child.JointType != PhysicalBone3D.JointTypeEnum.Hinge) { continue; }
+            Vector3 held = (muscle.Parent.GlobalBasis * muscle.ParentHingeAxis).Normalized();
+            Vector3 own = (muscle.Child.GlobalBasis * muscle.Child.JointOffset.Basis.Z).Normalized();
+            if (held.AngleTo(own) > Mathf.DegToRad(Mathf.Max(0, MaxHingeMisalignmentDegrees)))
+            { _relaxed = true; return; }
         }
         Weight = Mathf.Clamp(1 - _elapsed / HoldSeconds, 0, 1);
         float dt = Mathf.Min((float)delta, Mathf.Max(0, MaxImpulseDelta));
@@ -138,10 +171,12 @@ public partial class RagdollMuscles : Node
             Vector3 torque = CalculateTorque(target, current, relativeSpeed, stiffness / stability, damping / stability, MaxTorque) * Weight;
             if (muscle.Child.JointType == PhysicalBone3D.JointTypeEnum.Hinge)
             {
-                // An elbow only has one degree of freedom. Never fight the constraint solver
-                // by trying to reproduce an animated twist or sideways bend at this joint.
-                Vector3 axis = (muscle.Child.GlobalBasis * muscle.Child.JointOffset.Basis.Z).Normalized();
-                torque = axis * torque.Dot(axis);
+                // Extract hinge twist before computing the spring, rather than projecting a
+                // full 3D rotation error afterwards. The latter couples forbidden swing into
+                // the hinge drive. Use the parent's constraint axis, not a deflected child axis.
+                Vector3 axis = (muscle.Parent.GlobalBasis * muscle.ParentHingeAxis).Normalized();
+                torque = CalculateHingeTorque(target, current, relativeSpeed, axis,
+                    stiffness / stability, damping / stability, MaxTorque) * Weight;
             }
             if (!torque.IsFinite()) { continue; }
             Vector3 impulse = torque * dt;
@@ -162,5 +197,20 @@ public partial class RagdollMuscles : Node
         Vector3 rotation = Vector3.Zero;
         if (length > 0.00001f) { rotation = vector * (2 * Mathf.Atan2(length, error.W) / length); }
         return (rotation * Mathf.Max(0, stiffness) - relativeSpeed * Mathf.Max(0, damping)).LimitLength(Mathf.Max(0, limit));
+    }
+
+    /// <summary>Only the signed twist about the permitted hinge axis may drive an elbow.</summary>
+    public static Vector3 CalculateHingeTorque(Quaternion target, Quaternion current, Vector3 relativeSpeed, Vector3 axis, float stiffness, float damping, float limit)
+    {
+        if (axis.LengthSquared() < 0.000001f) { return Vector3.Zero; }
+        axis = axis.Normalized();
+        Quaternion error = (target * current.Inverse()).Normalized();
+        if (error.W < 0) { error = new Quaternion(-error.X, -error.Y, -error.Z, -error.W); }
+        float sine = new Vector3(error.X, error.Y, error.Z).Dot(axis);
+        float angle = 0;
+        if (sine * sine + error.W * error.W > 0.000001f) { angle = 2 * Mathf.Atan2(sine, error.W); }
+        float magnitude = angle * Mathf.Max(0, stiffness) - relativeSpeed.Dot(axis) * Mathf.Max(0, damping);
+        float cap = Mathf.Max(0, limit);
+        return axis * Mathf.Clamp(magnitude, -cap, cap);
     }
 }
