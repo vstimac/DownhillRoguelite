@@ -93,6 +93,28 @@ public partial class Salterusa : Node3D, IInteractable, IDescribed, IMeleeTarget
         "Can we just talk?",
         "Goodbye.",
     };
+    /// <summary>The same choices in Croatian, shown when Options → Dialogue text is Hrvatski (same order).</summary>
+    [Export] public string[] ChoiceTextsHr { get; set; } =
+    {
+        "Treba mi dozvola za dalje dolje.",
+        "Što mi treba da prođem ovuda?",
+        "Možete li mi pregledati opremu?",
+        "Možemo li samo razgovarati?",
+        "Doviđenja.",
+    };
+    /// <summary>The choices in the chosen dialogue language.</summary>
+    public string[] ShownChoices
+    {
+        get
+        {
+            string[] shown = new string[ChoiceTexts.Length];
+            for (int i = 0; i < shown.Length; i++)
+            {
+                shown[i] = DialogueText.FromEnglish(ChoiceTexts[i], i < ChoiceTextsHr.Length ? ChoiceTextsHr[i] : "");
+            }
+            return shown;
+        }
+    }
     /// <summary>What each choice asks for: a manifest event, "talk" (the conversation page) or "bye".</summary>
     [Export] public string[] ChoiceEvents { get; set; } = { "documents", "quest", "gear", "talk", "bye" };
     /// <summary>Events whose lines are said in manifest order (a thread), not shuffled.</summary>
@@ -139,9 +161,9 @@ public partial class Salterusa : Node3D, IInteractable, IDescribed, IMeleeTarget
         {
             if (Talking)
             {
-                return "E  Hurry her along";
+                return DialogueText.FromEnglish("E  Hurry her along", "E  Požuri je");
             }
-            return "E  Step up to the counter";
+            return DialogueText.FromEnglish("E  Step up to the counter", "E  Priđi šalteru");
         }
     }
     public Resource? IconSource => null;
@@ -549,7 +571,7 @@ public partial class Salterusa : Node3D, IInteractable, IDescribed, IMeleeTarget
     private void ShowChoices()
     {
         ChoicesShown = true;
-        GameEvents.PublishDialogueChoices(Title, ChoiceTexts);
+        GameEvents.PublishDialogueChoices(Title, ShownChoices);
     }
 
     private void HideChoices()
