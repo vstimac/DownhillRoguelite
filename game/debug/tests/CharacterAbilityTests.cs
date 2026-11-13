@@ -47,7 +47,7 @@ public partial class CharacterAbilityTests : Node3D
         Check("temporary effects expire without changing permanent stats", !run.Character.Active && Near(run.Character.ImpactFactor, 1)
             && Near(stamina.WalkDrainPerSecond(0, 1, false, false), baseCost) && Near(stamina.EffectiveMax, 90));
         run.BeginCharacterRun("modular"); stamina.SetCurrent(0);
-        Check("Second Wind restores stamina and clears reachable exhaustion", run.TryUseCharacterAbility() && Near(stamina.Current, 40) && !stamina.Exhausted);
+        Check("Restore 40% stamina restores stamina and clears reachable exhaustion", run.TryUseCharacterAbility() && Near(stamina.Current, 40) && !stamina.Exhausted);
         run.Character.Tick(74);
         Check("ability remains unavailable until its full cooldown ends", !run.TryUseCharacterAbility());
         run.Character.Tick(1);
