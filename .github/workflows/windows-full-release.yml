@@ -80,7 +80,7 @@ jobs:
           if (-not (Test-Path build/windows/DownhillRoguelite.pck)) { throw 'Missing game PCK' }
           $files = Get-ChildItem build/windows -Recurse -File
           if ($files.Count -lt 2) { throw 'Incomplete export' }
-          Compress-Archive -Path build/windows/* -DestinationPath ../../DownhillRoguelite-windows-full.zip -Force
+          Compress-Archive -Path build/windows/* -DestinationPath ../DownhillRoguelite-windows-full.zip -Force
       - uses: actions/upload-artifact@v4
         with:
           name: DownhillRoguelite-windows-full
