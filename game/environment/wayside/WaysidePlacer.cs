@@ -35,6 +35,10 @@ public partial class WaysidePlacer : Node3D
     [Export] public float NearDistance { get; set; } = 70.0f;
     [Export] public float NearInterval { get; set; } = 0.25f;
     [Export] public float GroundSink { get; set; } = 0.05f;
+    /// <summary>The set pieces to keep clear of; a sibling named SetPieces is used when this is empty.</summary>
+    [Export] public SetPiecePlacer? SetPieces { get; set; }
+    /// <summary>Space kept between a point of interest and the edge of a set piece, in m.</summary>
+    [Export] public float SetPieceClearance { get; set; } = 3.0f;
 
     public readonly record struct Placement(WaysideDefinition Definition, int Stage, int Index, Vector3 Position)
     {
@@ -62,6 +66,10 @@ public partial class WaysidePlacer : Node3D
     public override void _Ready()
     {
         _run = GetNodeOrNull<RunState>("/root/RunState");
+        if (SetPieces == null)
+        {
+            SetPieces = GetParent()?.GetNodeOrNull<SetPiecePlacer>("SetPieces");
+        }
         Reload();
         GameEvents.LocomotionUpdated += OnLocomotion;
         GameEvents.RespawnRequested += OnRespawn;
@@ -241,7 +249,25 @@ public partial class WaysidePlacer : Node3D
                 return false;
             }
         }
-        return true;
+        return !NearSetPiece(route, stage, x, z);
+    }
+
+    /// <summary>Whether a spot is inside (or too close to) a set piece planned for the stage.</summary>
+    public bool NearSetPiece(IRouteQuery route, int stage, float x, float z)
+    {
+        if (SetPieces == null)
+        {
+            return false;
+        }
+        foreach (SetPiecePlacer.Placement piece in SetPieces.PlanFor(route, stage))
+        {
+            float gap = piece.Piece.Radius + SetPieceClearance;
+            if (new Vector2(piece.Centre.X - x, piece.Centre.Z - z).LengthSquared() < gap * gap)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>A definition allowed at this circle, by weight, preferring ones the stage doesn't have yet.</summary>

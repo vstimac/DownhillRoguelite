@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="BoonDefinition" format=3]
+
+[ext_resource type="Script" uid="uid://wiwl5ne4vej" path="res://progression/BoonDefinition.cs" id="1_boon"]
+
+[resource]
+script = ExtResource("1_boon")
+Id = "mules_bargain"
+DisplayName = "Mule's Bargain"
+Description = "Carry like a mule, and walk like one."
+Glow = Color(0.95, 0.6, 0.45, 1)
+LoadDrain = 0.6
+WalkSpeed = 0.92

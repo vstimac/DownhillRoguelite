@@ -17,6 +17,9 @@ public partial class PerfLog : Node
     [Export] public bool CpuBreakdown { get; set; }
     /// <summary>After the warm-up, count the nodes that run every frame by script (`--perf-nodes`).</summary>
     [Export] public bool Counting { get; set; }
+    /// <summary>`--perf-hitch`: stop each part in turn for HitchSample seconds and print the worst frame without it.</summary>
+    [Export] public bool HitchHunt { get; set; }
+    [Export] public float HitchSample { get; set; } = 32.0f;
     /// <summary>Seconds to wait before the breakdown, and to settle and to measure each part.</summary>
     [Export] public float WarmUp { get; set; } = 20.0f;
     [Export] public float Settle { get; set; } = 0.5f;
@@ -25,6 +28,12 @@ public partial class PerfLog : Node
     private float _timer;
     private int _frames;
     private double _process;
+    private double _worstProcess;
+    private double _worstFrame;
+    private int _gen0;
+    private int _gen1;
+    private int _gen2;
+    private System.TimeSpan _gcPause;
     private double _physics;
     private double _renderCpu;
     private double _renderGpu;
@@ -34,8 +43,16 @@ public partial class PerfLog : Node
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
+        // Measure the uncapped frame: the options' frame-rate cap would hide where the time goes.
+        Engine.MaxFps = 0;
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
+            // `--perf-remove=Name,Name`: take those parts out of the scene after loading, then print the
+            // worst frame over HitchSample seconds and quit (a hitch outside any _Process is found by halving runs).
+            if (arg.StartsWith("--perf-remove=", System.StringComparison.Ordinal))
+            {
+                RemoveAndMeasure(arg["--perf-remove=".Length..].Split(','));
+            }
             // `--perf-physics=30`: physics ticks per second, to see the physics share of a frame.
             if (arg.StartsWith("--perf-physics=", System.StringComparison.Ordinal) && int.TryParse(arg["--perf-physics=".Length..], out int ticks))
             {
@@ -47,7 +64,11 @@ public partial class PerfLog : Node
         {
             GetTree().CreateTimer(WarmUp).Timeout += CountProcessing;
         }
-        if (Breakdown && !CpuBreakdown)
+        if (HitchHunt)
+        {
+            RunHitchHunt();
+        }
+        else if (Breakdown && !CpuBreakdown)
         {
             RunBreakdown();
         }
@@ -202,6 +223,123 @@ public partial class PerfLog : Node
         GD.Print("[perf-cpu] done");
     }
 
+    /// <summary>
+    /// Finds what causes a rare long frame by halving: stops half of the remaining parts, and if the
+    /// worst frame stays long the cause is in the other half. Prints each step and the part found.
+    /// </summary>
+    private async void RunHitchHunt()
+    {
+        await ToSignal(GetTree().CreateTimer(WarmUp), SceneTreeTimer.SignalName.Timeout);
+        Node? scene = GetTree().CurrentScene;
+        if (scene == null)
+        {
+            return;
+        }
+        float all = await WorstFrameMs();
+        float threshold = all * 0.5f;
+        GD.Print($"[perf-hitch] everything: worst {all:0.0} ms");
+        System.Collections.Generic.List<Node> parts = new();
+        foreach (Node child in GetTree().Root.GetChildren())
+        {
+            if (child != scene && child != this)
+            {
+                parts.Add(child);
+            }
+        }
+        foreach (Node child in scene.GetChildren())
+        {
+            if (child != this && child.ProcessMode != ProcessModeEnum.Disabled)
+            {
+                parts.Add(child);
+            }
+        }
+        while (parts.Count > 1)
+        {
+            int half = parts.Count / 2;
+            System.Collections.Generic.List<Node> first = parts.GetRange(0, half);
+            System.Collections.Generic.List<Node> second = parts.GetRange(half, parts.Count - half);
+            System.Collections.Generic.List<ProcessModeEnum> modes = new();
+            foreach (Node part in first)
+            {
+                modes.Add(part.ProcessMode);
+                part.ProcessMode = ProcessModeEnum.Disabled;
+            }
+            float worst = await WorstFrameMs();
+            for (int i = 0; i < first.Count; i++)
+            {
+                if (IsInstanceValid(first[i]))
+                {
+                    first[i].ProcessMode = modes[i];
+                }
+            }
+            System.Collections.Generic.List<string> names = first.ConvertAll(part => part.Name.ToString());
+            bool gone = worst < threshold;
+            GD.Print($"[perf-hitch] without {string.Join(", ", names)}: worst {worst:0.0} ms ({(gone ? "gone" : "still there")})");
+            if (gone)
+            {
+                parts = first;
+            }
+            else
+            {
+                parts = second;
+            }
+        }
+        if (parts.Count == 1)
+        {
+            GD.Print($"[perf-hitch] suspect: {parts[0].GetPath()} (check it alone: it may be outside the scene's processing)");
+        }
+        GD.Print("[perf-hitch] done");
+    }
+
+    private async void RemoveAndMeasure(string[] names)
+    {
+        await ToSignal(GetTree().CreateTimer(WarmUp * 0.5f), SceneTreeTimer.SignalName.Timeout);
+        Node? scene = GetTree().CurrentScene;
+        System.Collections.Generic.List<string> removed = new();
+        System.Collections.Generic.List<string> parts = new();
+        foreach (Node child in GetTree().Root.GetChildren())
+        {
+            parts.Add(child.Name);
+        }
+        if (scene != null)
+        {
+            foreach (Node child in scene.GetChildren())
+            {
+                parts.Add(child.Name);
+            }
+        }
+        GD.Print("[perf-remove] parts: " + string.Join(",", parts));
+        foreach (string name in names)
+        {
+            Node? part = scene?.GetNodeOrNull(name) ?? GetTree().Root.GetNodeOrNull(name);
+            if (part != null && part != this && part != scene)
+            {
+                part.QueueFree();
+                removed.Add(name);
+            }
+        }
+        await ToSignal(GetTree().CreateTimer(WarmUp * 0.5f), SceneTreeTimer.SignalName.Timeout);
+        float worst = await WorstFrameMs();
+        GD.Print($"[perf-remove] without {string.Join(",", removed)}: worst {worst:0.0} ms");
+        GetTree().Quit();
+    }
+
+    private async System.Threading.Tasks.Task<float> WorstFrameMs()
+    {
+        await ToSignal(GetTree().CreateTimer(Settle), SceneTreeTimer.SignalName.Timeout);
+        ulong start = Time.GetTicksUsec();
+        ulong last = start;
+        ulong worst = 0;
+        while (Time.GetTicksUsec() - start < (ulong)(HitchSample * 1000000.0f))
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            ulong now = Time.GetTicksUsec();
+            worst = System.Math.Max(worst, now - last);
+            last = now;
+        }
+        return worst / 1000.0f;
+    }
+
     /// <summary>Waits Settle, then the average real frame time over Sample seconds, in ms.</summary>
     private async System.Threading.Tasks.Task<float> FrameMs()
     {
@@ -247,7 +385,10 @@ public partial class PerfLog : Node
     {
         Rid viewport = GetViewport().GetViewportRid();
         _frames++;
-        _process += Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000.0;
+        double process = Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000.0;
+        _process += process;
+        _worstProcess = System.Math.Max(_worstProcess, process);
+        _worstFrame = System.Math.Max(_worstFrame, delta * 1000.0);
         _physics += Performance.GetMonitor(Performance.Monitor.TimePhysicsProcess) * 1000.0;
         _renderCpu += RenderingServer.ViewportGetMeasuredRenderTimeCpu(viewport) + RenderingServer.GetFrameSetupTimeCpu();
         _renderGpu += RenderingServer.ViewportGetMeasuredRenderTimeGpu(viewport);
@@ -263,7 +404,16 @@ public partial class PerfLog : Node
             + $"render cpu {_renderCpu / n:0.00} ms, gpu {_renderGpu / n:0.00} ms | draw calls {_drawCalls / n:0}, "
             + $"triangles {_triangles / n / 1000.0:0}k | nodes {Performance.GetMonitor(Performance.Monitor.ObjectNodeCount):0}, "
             + $"objects {Performance.GetMonitor(Performance.Monitor.ObjectCount):0} | physics active {Performance.GetMonitor(Performance.Monitor.Physics3DActiveObjects):0}, "
-            + $"pairs {Performance.GetMonitor(Performance.Monitor.Physics3DCollisionPairs):0}, islands {Performance.GetMonitor(Performance.Monitor.Physics3DIslandCount):0}");
+            + $"pairs {Performance.GetMonitor(Performance.Monitor.Physics3DCollisionPairs):0}, islands {Performance.GetMonitor(Performance.Monitor.Physics3DIslandCount):0}"
+            + $" | worst frame {_worstFrame:0.0} ms (process {_worstProcess:0.0} ms), frames {_frames}"
+            + $" | GC {System.GC.CollectionCount(0) - _gen0}/{System.GC.CollectionCount(1) - _gen1}/{System.GC.CollectionCount(2) - _gen2}"
+            + $" pause {(System.GC.GetTotalPauseDuration() - _gcPause).TotalMilliseconds:0.0} ms, heap {System.GC.GetTotalMemory(false) / 1048576.0:0} MB");
+        _gen0 = System.GC.CollectionCount(0);
+        _gen1 = System.GC.CollectionCount(1);
+        _gen2 = System.GC.CollectionCount(2);
+        _gcPause = System.GC.GetTotalPauseDuration();
+        _worstProcess = 0.0;
+        _worstFrame = 0.0;
         _timer = 0.0f;
         _frames = 0;
         _process = 0.0;

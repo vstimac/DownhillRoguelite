@@ -69,6 +69,9 @@ public partial class ItemSlot : Control
         MouseExited += () => SetHover(false);
         Resized += Layout;
         Layout();
+        // Sixty of these wait in closed pages: only a slot on screen needs its icon checked each frame.
+        VisibilityChanged += () => SetProcess(IsVisibleInTree());
+        SetProcess(IsVisibleInTree());
     }
 
     private void Layout()

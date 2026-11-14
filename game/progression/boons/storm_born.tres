@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="BoonDefinition" format=3]
+
+[ext_resource type="Script" uid="uid://wiwl5ne4vej" path="res://progression/BoonDefinition.cs" id="1_boon"]
+
+[resource]
+script = ExtResource("1_boon")
+Id = "storm_born"
+DisplayName = "Storm-Born"
+Description = "Wet rock and fresh snow feel like a dry path."
+Glow = Color(0.5, 0.85, 0.9, 1)
+Condition = 3
+Grip = 1.25
+WalkDrain = 0.85

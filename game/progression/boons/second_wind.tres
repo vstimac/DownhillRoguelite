@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="BoonDefinition" format=3]
+
+[ext_resource type="Script" uid="uid://wiwl5ne4vej" path="res://progression/BoonDefinition.cs" id="1_boon"]
+
+[resource]
+script = ExtResource("1_boon")
+Id = "second_wind"
+DisplayName = "Second Wind"
+Description = "Short of breath, but quick to catch it again."
+Glow = Color(0.55, 1, 0.65, 1)
+StaminaRecovery = 1.6
+StaminaMax = 0.85

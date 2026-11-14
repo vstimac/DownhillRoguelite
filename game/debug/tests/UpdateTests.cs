@@ -107,6 +107,16 @@ public partial class UpdateTests : Node
             Release("v0.2.9-beta", "2026-11-20T10:00:00Z", Asset("DownhillRoguelite-update-2.9-for-v0.2.5-beta.zip", 5, "e2")));
         offer = UpdatePlanner.Plan(shuffled, Base, "2.8");
         Check("the most recently published release decides", offer != null && offer.Version == "2.9", Describe(offer));
+
+        // A folder ahead of everything published (a test build of 2.9 while 2.9 is still uploading)
+        // is never offered an older full game or an older small update.
+        Check("a folder ahead of the published releases is offered nothing older",
+            UpdatePlanner.Plan(today, "v0.2.9-beta", "2.9") == null && UpdatePlanner.Plan(shuffled, Base, "3.0") == null,
+            Describe(UpdatePlanner.Plan(today, "v0.2.9-beta", "2.9")));
+        Check("versions compare as numbers, tags and versions alike",
+            UpdatePlanner.CompareVersions("v0.2.9-beta", "2.9") == 0 && UpdatePlanner.CompareVersions("v0.3.0-beta", "3.0") == 0
+            && UpdatePlanner.CompareVersions("2.10", "2.9") > 0 && UpdatePlanner.CompareVersions("2.9.1", "2.9") > 0
+            && UpdatePlanner.CompareVersions("(unknown)", "2.9") == null, "");
         Check("asset names are read strictly", UpdatePlanner.PatchVersion("DownhillRoguelite-update--for-v0.2.5-beta.zip", Base) == null
             && !UpdatePlanner.IsFullWindowsBuild("DownhillRoguelite-linux-beta.tar.gz") && !UpdatePlanner.IsFullWindowsBuild("DownhillRoguelite-update-2.7-for-x-windows.zip")
             && UpdatePlanner.IsFullWindowsBuild("DownhillRoguelite-windows-full.zip"), "");

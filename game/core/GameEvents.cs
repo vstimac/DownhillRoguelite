@@ -492,6 +492,29 @@ public static partial class GameEvents
     /// <summary>Forgets the active contract without an ending (a new run started).</summary>
     public static void ClearActiveContract() => ActiveContract = null;
 
+    /// <summary>
+    /// Forgets the moment-to-moment state the scene's nodes have published (what is focused, downed,
+    /// packing, a page or conversation open...). Called before the scene is loaded afresh ("Save and
+    /// main menu"), so nothing in the new scene reads a node of the old one or a state it never set.
+    /// </summary>
+    public static void ForgetSceneState()
+    {
+        Focused = null;
+        IsPacking = false;
+        IsDowned = false;
+        InShelter = false;
+        IsScreenOpen = false;
+        IsMapOpen = false;
+        PagesFrozen = false;
+        IsVaulting = false;
+        RollPrimed = false;
+        IsNarrating = false;
+        IsSpeaking = false;
+        IsConversing = false;
+        SwordDrawn = false;
+        MapPencilWanted = false;
+    }
+
     /// <summary>Raised the first time in a run the carrier finds a relic (comes close to it, or picks it up).</summary>
     public static event Action<RelicNote>? RelicDiscovered;
 

@@ -51,8 +51,9 @@ public partial class StationWaterReserve : Node3D, IInteractable, IDescribed
     {
         if (_label != null)
         {
-            _label.Text = "Water reserve · pump missing";
-            if (Restored) { _label.Text = "Water reserve · " + Remaining + " flasks left"; }
+            _label.Text = "Water reserve · dry: its pump is up at the workshop";
+            if (Restored && Remaining > 0) { _label.Text = "Water reserve · E: take a flask (" + Remaining + " left)"; }
+            else if (Restored) { _label.Text = "Water reserve · empty"; }
         }
         if (ReferenceEquals(GameEvents.Focused, this)) { GameEvents.PublishFocus(this); }
     }

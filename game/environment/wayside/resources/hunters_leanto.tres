@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WaysideDefinition" format=3]
+
+[ext_resource type="Script" path="res://environment/wayside/WaysideDefinition.cs" id="1_wayside"]
+
+[resource]
+script = ExtResource("1_wayside")
+Id = "WS_LEANTO"
+Title = "A hunter's lean-to"
+Description = "Branches laid over a frame, still keeping the wind off. A torch and a coil of cord hang inside, left for whoever comes next."
+Prompt = "Take the torch and cord"
+TakenText = "A hunter's lean-to off the path: a torch and some cord."
+ItemPaths = PackedStringArray("res://inventory/items/torch.tres", "res://inventory/items/cord.tres")
+MinCircle = 0
+Weight = 0.8
+PennantColor = Color(0.45, 0.6, 0.3, 1)
+Look = 0

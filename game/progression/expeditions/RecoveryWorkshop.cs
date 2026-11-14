@@ -39,7 +39,7 @@ public partial class RecoveryWorkshop : Node3D, IInteractable, IDescribed
         AddMesh(new BoxMesh { Size = new Vector3(1.2f, 0.65f, 0.04f) }, new Vector3(-0.7f, 3.5f, 0), flag);
         _module = AddMesh(new BoxMesh { Size = new Vector3(0.45f, 0.5f, 0.4f) }, new Vector3(0, 0.92f, 0),
             new StandardMaterial3D { AlbedoColor = new Color(0.25f, 0.52f, 0.56f), Metallic = 0.5f });
-        AddChild(WorldLabel.Readable(new Label3D { Text = "Pump workshop\nRecover → Station 1\nWater reserve + boon", FontSize = 36,
+        AddChild(WorldLabel.Readable(new Label3D { Text = "Pump workshop\nCarry the pump down to Station 1\nIt brings the water back there, and a boon", FontSize = 36,
             PixelSize = 0.006f, Position = new Vector3(0, 2.2f, 0), Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, OutlineSize = 8 }, 75));
         GameEvents.ContractAccepted += OnAccepted;
     }

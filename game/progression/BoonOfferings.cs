@@ -14,6 +14,9 @@ public partial class BoonOfferings : Node3D
 {
     [Export] public BoonDefinition[] Boons { get; set; } = System.Array.Empty<BoonDefinition>();
     [Export] public int OfferCount { get; set; } = 3;
+    /// <summary>Bargains: boons with a price (progression/boons/). From BargainsFromStation on, the middle offering is one of them.</summary>
+    [Export] public BoonDefinition[] Bargains { get; set; } = System.Array.Empty<BoonDefinition>();
+    [Export] public int BargainsFromStation { get; set; } = 2;
     /// <summary>Expedition rules: arrival gives shelter; completed work earns the station's boon.</summary>
     [Export] public bool RequireCompletedWork { get; set; }
     /// <summary>Offerings stand on an arc this far downhill of the station's fire, in m.</summary>
@@ -63,6 +66,12 @@ public partial class BoonOfferings : Node3D
             picked.Add(pool[index]);
             pool.RemoveAt(index);
         }
+        // The bargain has its own stream, so the plain offerings stay what they were for this mountain.
+        if (Bargains.Length > 0 && station >= BargainsFromStation && picked.Count > 0)
+        {
+            SplitMix64 bargains = new(SplitMix64.Mix(seed ^ 0xBA4641ul, (ulong)station));
+            picked[picked.Count / 2] = Bargains[bargains.NextInt(Bargains.Length)];
+        }
         return picked;
     }
 
@@ -103,7 +112,15 @@ public partial class BoonOfferings : Node3D
         {
             return false;
         }
-        chosen.Boon.ApplyTo(_run.Modifiers);
+        if (chosen.Boon.IsConditional)
+        {
+            // Works only in its situation: RunState switches it on and off (and saves it without its effect).
+            _run.AddConditionalBoon(chosen.Boon);
+        }
+        else
+        {
+            chosen.Boon.ApplyTo(_run.Modifiers);
+        }
         _run.Boons.Add(chosen.Boon.DisplayName);
         for (int i = _stones.Count - 1; i >= 0; i--)
         {
@@ -113,7 +130,12 @@ public partial class BoonOfferings : Node3D
                 _stones.RemoveAt(i);
             }
         }
-        GameEvents.PublishBoonChosen($"{chosen.Boon.DisplayName} ({chosen.Boon.Effects()})");
+        string effects = chosen.Boon.Gifts();
+        if (chosen.Boon.IsBargain)
+        {
+            effects += "; price: " + chosen.Boon.Costs();
+        }
+        GameEvents.PublishBoonChosen($"{chosen.Boon.DisplayName} ({effects})");
         return true;
     }
 
