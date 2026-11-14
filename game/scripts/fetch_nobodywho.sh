@@ -24,11 +24,13 @@ fi
 
 mkdir -p "$work/x"
 case "$which_libs" in
-    linux)   pattern="*/$NOBODYWHO_LINUX_SO" ;;
-    windows) pattern="*/$NOBODYWHO_WINDOWS_DLL" ;;
-    all)     pattern="*/libnobodywho-*" ;;
+    linux)   pattern="*$NOBODYWHO_LINUX_SO" ;;
+    windows) pattern="*$NOBODYWHO_WINDOWS_DLL" ;;
+    all)     pattern="*libnobodywho-*" ;;
     *) echo "Unknown choice '$which_libs' (linux, windows or all)"; exit 2 ;;
 esac
+# Info-ZIP's * also matches directory separators and an empty prefix. Releases
+# with libraries at the archive root and releases with a parent folder both work.
 unzip -q -o "$zip" "$pattern" -d "$work/x"
 
 mkdir -p "$dest"
