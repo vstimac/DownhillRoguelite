@@ -68,6 +68,36 @@ public partial class BackpackHarness : Node3D
     [Export] public float MaxTurnDegrees { get; set; } = 10.0f;
     /// <summary>The pack's back panel stays this far off the body, in m.</summary>
     [Export] public float PackClearance { get; set; } = 0.012f;
+    [ExportGroup("Load")]
+    /// <summary>
+    /// The pack is held to the back like a magnet whose grip weakens as the load grows: empty it sits
+    /// almost still, full it swings and pulls at the carrier's balance (GameEvents.PackSway). Off: the
+    /// fixed PackMass and gives above.
+    /// </summary>
+    [Export] public bool FollowLoad { get; set; } = true;
+    /// <summary>The empty pack's own mass, in kg; what is packed adds to it.</summary>
+    [Export] public float EmptyPackMass { get; set; } = 2.5f;
+    /// <summary>The load (kg) at which the pack swings its fullest.</summary>
+    [Export] public float FullSwingLoad { get; set; } = 30.0f;
+    /// <summary>The straps' give, the swing's reach and the damping as multiples of the values above: empty, then full.</summary>
+    [Export] public Vector2 GiveRange { get; set; } = new(0.08f, 6.0f);
+    [Export] public Vector2 SwingRange { get; set; } = new(0.15f, 1.5f);
+    [Export] public Vector2 DampingRange { get; set; } = new(4.0f, 0.45f);
+    /// <summary>How quickly the hold follows a change of load (1/s), so packing doesn't jolt it.</summary>
+    [Export] public float LoadEase { get; set; } = 3.0f;
+    /// <summary>How much the pack's resting angle follows the upper back (1) rather than the line from the shoulders to the hips (0).</summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public float FollowChest { get; set; } = 0.8f;
+    /// <summary>Move the pack's resting place out of the body each update where the body bends into it (the straps and the back panel then agree).</summary>
+    [Export] public bool KeepOutOfBody { get; set; } = true;
+    /// <summary>How far (m) the resting place was moved out of the body at the last update.</summary>
+    public float Lift { get; private set; }
+    /// <summary>The load share the pack is held for now: 0 empty, 1 at FullSwingLoad or more.</summary>
+    public float LoadShare { get; private set; }
+    /// <summary>Whose pack this is: the local player's sways their balance; a teammate's only looks.</summary>
+    public bool WornByPlayer { get; private set; }
+    /// <summary>For a pack nobody packs here (a teammate's, the lab): its load in kg; negative uses the player's load.</summary>
+    [Export] public float LoadOverride { get; set; } = -1.0f;
+
     /// <summary>The body moving further than this (m) in one update was moved (a teleport): the pack starts over at its fit.</summary>
     [Export] public float TeleportDistance { get; set; } = 1.5f;
     /// <summary>The pack further than this (m) from its fit starts over there (a safety net).</summary>
@@ -172,6 +202,8 @@ public partial class BackpackHarness : Node3D
     private Vector3 _awayOnSpine;
     private Vector3 _topInPack;
     private Basis _packAxes = Basis.Identity;
+    /// <summary>The pack's turn at its fit in the upper spine bone's frame (FollowChest).</summary>
+    private Quaternion _turnOnSpine = Quaternion.Identity;
     /// <summary>Where the pack came to rest, in the held frame (on the body, the straps pulling): the swing is around it.</summary>
     private Transform3D _rest = Transform3D.Identity;
 
@@ -204,6 +236,95 @@ public partial class BackpackHarness : Node3D
         AddChild(_beltBuckle);
         Measure();
         _rig.SkeletonUpdated += Rebuild;
+        Node? up = _rig;
+        while (up != null)
+        {
+            if (up is PlayerController)
+            {
+                WornByPlayer = true;
+                break;
+            }
+            up = up.GetParent();
+        }
+        LoadShare = TargetShare();
+    }
+
+    /// <summary>The load this pack carries now, in kg.</summary>
+    public float LoadMass()
+    {
+        if (LoadOverride >= 0.0f)
+        {
+            return LoadOverride;
+        }
+        if (WornByPlayer)
+        {
+            return Mathf.Max(Core.GameEvents.CurrentLoad.Mass, 0.0f);
+        }
+        return 0.0f;
+    }
+
+    private float TargetShare()
+    {
+        if (!FollowLoad)
+        {
+            return 0.0f;
+        }
+        return Mathf.Clamp(LoadMass() / Mathf.Max(FullSwingLoad, 0.1f), 0.0f, 1.0f);
+    }
+
+    /// <summary>The pack's mass now: its own and its load (or the fixed PackMass when it doesn't follow the load).</summary>
+    public float CurrentPackMass()
+    {
+        if (!FollowLoad)
+        {
+            return PackMass;
+        }
+        return EmptyPackMass + LoadMass();
+    }
+
+    /// <summary>Sets the hold for the load: a light pack is gripped tight, a heavy one swings and gives.</summary>
+    private void ApplyLoad(float dt)
+    {
+        if (_physics == null)
+        {
+            return;
+        }
+        float target = TargetShare();
+        if (dt > 0.0f)
+        {
+            LoadShare = Mathf.Lerp(LoadShare, target, 1.0f - Mathf.Exp(-LoadEase * dt));
+        }
+        float swing = 1.0f;
+        float give = 1.0f;
+        float damping = 1.0f;
+        if (FollowLoad)
+        {
+            // The grip lets go faster than linearly: a half-full pack is still fairly steady.
+            float loose = LoadShare * LoadShare;
+            give = Mathf.Lerp(GiveRange.X, GiveRange.Y, loose);
+            swing = Mathf.Lerp(SwingRange.X, SwingRange.Y, LoadShare);
+            damping = Mathf.Lerp(DampingRange.X, DampingRange.Y, LoadShare);
+            float mass = CurrentPackMass();
+            if (!Mathf.IsEqualApprox(mass, _physics.Mass))
+            {
+                _physics.SetMass(mass);
+            }
+        }
+        _physics.GiveScale = give;
+        _physics.MaxDistance = MaxSwing * swing;
+        _physics.MaxAngle = Mathf.DegToRad(MaxTurnDegrees * swing);
+        _physics.LinearDamping = PackDamping * damping;
+        _physics.AngularDamping = PackTurnDamping * damping;
+    }
+
+    /// <summary>Tells the balance how far the pack hangs off its resting place (only the player's own pack).</summary>
+    private void PublishSway(Vector3 offset)
+    {
+        if (!WornByPlayer || _physics == null)
+        {
+            return;
+        }
+        Core.GameEvents.PublishPackSway(offset, _physics.Mass);
     }
 
     public override void _ExitTree()
@@ -526,6 +647,7 @@ public partial class BackpackHarness : Node3D
         }
         if (!Simulate || _physics == null)
         {
+            PublishSway(Vector3.Zero);
             _pack.StopSimulating();
             DrawStraps();
             return;
@@ -556,6 +678,7 @@ public partial class BackpackHarness : Node3D
         }
         if (_wasLimp)
         {
+            PublishSway(Vector3.Zero);
             _pack.StopSimulating();
             _lastHips = _rig.GlobalTransform * _rig.GetBoneGlobalPose(_hips).Origin;
             DrawStraps();
@@ -574,11 +697,19 @@ public partial class BackpackHarness : Node3D
             _hull?.Pose(false);
             int substeps = Mathf.Clamp(Mathf.CeilToInt(dt * StepsPerSecond), 1, 24);
             Transform3D rest = HeldFrame() * _rest;
-            _physics.MaxDistance = MaxSwing;
-            _physics.MaxAngle = Mathf.DegToRad(MaxTurnDegrees);
-            _physics.Step(dt, substeps, Held(), rest);
+            // Where the bending body has come into the resting place, the straps hold it that much further out.
+            Vector3 lift = Vector3.Zero;
+            if (KeepOutOfBody)
+            {
+                lift = _physics.OutOfBody(rest);
+            }
+            rest.Origin += lift;
+            Lift = lift.Length();
+            ApplyLoad(dt);
+            _physics.Step(dt, substeps, Held(lift), rest);
             StepMicroseconds = (long)(Time.GetTicksUsec() - started);
             SwingDistance = _physics.Position.DistanceTo(rest.Origin);
+            PublishSway(_physics.Position - rest.Origin);
             SwingAngle = _physics.Rotation.AngleTo(rest.Basis.GetRotationQuaternion());
             Transform3D hung = HungPivot();
             if (!hung.IsFinite() || SwingDistance > ResetDistance)
@@ -618,6 +749,13 @@ public partial class BackpackHarness : Node3D
             return new Transform3D(spine.Basis.Orthonormalized() * _packAxes, top - spine.Basis.Orthonormalized() * _packAxes * _topInPack);
         }
         Basis turn = world * _packAxes;
+        if (FollowChest > 0.0f && !_turnOnSpine.IsEqualApprox(Quaternion.Identity))
+        {
+            // Hung from the shoulders, the pack turns mostly with the upper back; the hip belt only
+            // draws its bottom part of the way along when the chest leans further than the hips.
+            Quaternion chest = spine.Basis.Orthonormalized().GetRotationQuaternion() * _turnOnSpine;
+            turn = new Basis(turn.GetRotationQuaternion().Slerp(chest.Normalized(), FollowChest));
+        }
         return new Transform3D(turn, top - turn * _topInPack);
     }
 
@@ -629,12 +767,12 @@ public partial class BackpackHarness : Node3D
         return new Basis(across, down, out_);
     }
 
-    /// <summary>Where the straps hold each tie now.</summary>
-    private List<Vector3> Held()
+    /// <summary>Where the straps hold each tie now (moved out by <paramref name="lift"/>, where the body has come into the pack's place).</summary>
+    private List<Vector3> Held(Vector3 lift = default)
     {
         Transform3D frame = HeldFrame();
         _held.Clear();
-        foreach (Vector3 local in _ties) { _held.Add(frame * local); }
+        foreach (Vector3 local in _ties) { _held.Add(frame * local + lift); }
         return _held;
     }
 
@@ -729,7 +867,8 @@ public partial class BackpackHarness : Node3D
         {
             fit = OnTheBody(fit, panel, torso);
         }
-        _physics.Clear(_hull, PackMass, box.Size * _scale, fit);
+        _physics.Clear(_hull, CurrentPackMass(), box.Size * _scale, fit);
+        PublishSway(Vector3.Zero);
         _ties.Clear();
         // The held frame, measured at the fit: the pack's top (between the shoulder straps' ends) on
         // the upper spine, its bottom (between the hip belt's ends, else the shoulder straps' lower
@@ -767,6 +906,8 @@ public partial class BackpackHarness : Node3D
         _awayOnSpine = spine.Basis.Inverse() * (fit.Basis * awayRel);
         _topInPack = topRel;
         _packAxes = Axes((bottomRel - topRel).Normalized(), awayRel).Transposed();
+        _turnOnSpine = Quaternion.Identity;
+        _turnOnSpine = spine.Basis.Orthonormalized().GetRotationQuaternion().Inverse() * HeldFrame().Basis.GetRotationQuaternion();
         // The straps' ends sewn to the pack, tied to the held frame, pulled a little in towards the
         // body (the straps' tension: the back panel stops the pack on the body, so it lies snug). The
         // shoulder straps' tops hold it, the rest give a little.

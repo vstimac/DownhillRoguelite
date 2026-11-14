@@ -25,6 +25,15 @@ public partial class BackpackAttachmentLab : ClothingLab
     {
         base._Ready();
         _look = GetNode<CarrierModel>("World/Player/CarrierModel");
+        // `-- --gauge-demo`: the balance dial over the carrier, fed a wobble that sweeps from side to side.
+        if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--gauge-demo") >= 0)
+        {
+            CanvasLayer layer = new() { Name = "GaugeDemo" };
+            AddChild(layer);
+            layer.AddChild(new BalanceGauge { Name = "BalanceGauge" });
+            GetNode<Node>("World/Player/Balance").ProcessMode = ProcessModeEnum.Disabled;
+            _gaugeDemo = true;
+        }
         _details = UiStyle.MakeLabel("", 14);
         _details.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         ControlList.AddChild(_details); ControlList.MoveChild(_details, 0);
@@ -75,6 +84,12 @@ public partial class BackpackAttachmentLab : ClothingLab
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             if (arg == "--no-pack") { HidePack = true; DrawMount = false; continue; }
+            // `-- --pack-load=25`: the pack holds 25 kg (its swing and pull on the balance follow).
+            if (arg.StartsWith("--pack-load=", StringComparison.Ordinal) && float.TryParse(arg.Substring(12), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float load))
+            {
+                CallDeferred(MethodName.SetLoad, load);
+                continue;
+            }
             if (!arg.StartsWith("--pack-view=", StringComparison.Ordinal)) { continue; }
             Vector3 eye = new(0, 1.3f, 3);
             if (arg.EndsWith("side", StringComparison.Ordinal)) { eye = new Vector3(3, 1.3f, 0); }
@@ -99,6 +114,20 @@ public partial class BackpackAttachmentLab : ClothingLab
     }
 
     private BackpackAttachment? Pack() => _look.Clothing?.BackpackMount;
+
+    private void SetLoad(float kg)
+    {
+        if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--pack-fixed") >= 0 && Harness() is BackpackHarness fixedHarness) { fixedHarness.FollowLoad = false; }
+        if (Harness() is BackpackHarness harness)
+        {
+            harness.LoadOverride = kg;
+            return;
+        }
+        // The pack is fitted a moment after start: try again shortly.
+        if (++_loadTries < 100) { GetTree().CreateTimer(0.05).Timeout += () => SetLoad(kg); }
+    }
+    private int _loadTries;
+    private static int LogEvery() { if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--pack-log-all") >= 0) { return 1; } return 10; }
     private BackpackHarness? Harness() => Pack()?.GetNodeOrNull<BackpackHarness>("BackpackHarness");
 
     private bool _showHull;
@@ -120,7 +149,8 @@ public partial class BackpackAttachmentLab : ClothingLab
         CheckButton ties = new() { Text = "Show strap ties (pack > body)", ButtonPressed = true };
         ties.Toggled += value => _showTies = value;
         ControlList.AddChild(ties);
-        Tune("Pack mass (kg)", 1, 30, 0.5, h => h.PackMass, (h, v) => h.PackMass = v);
+        Tune("Load in the pack (kg; -1: the real one)", -1, 60, 1, h => h.LoadOverride, (h, v) => h.LoadOverride = v);
+        Tune("Pack mass (kg, load off)", 1, 30, 0.5, h => h.PackMass, (h, v) => h.PackMass = v);
         Tune("Shoulder give (x1e-5)", 0, 200, 0.5, h => h.ShoulderGive * 100000f, (h, v) => h.ShoulderGive = v / 100000f);
         Tune("Lower give (x1e-5)", 0, 500, 1, h => h.LowerGive * 100000f, (h, v) => h.LowerGive = v / 100000f);
         Tune("Snug pull (m)", 0, 0.15, 0.005, h => h.Snug, (h, v) => h.Snug = v);
@@ -166,10 +196,10 @@ public partial class BackpackAttachmentLab : ClothingLab
     {
         base._Process(delta);
         // `-- --pack-log`: the hanging pack's state every 10 frames (tuning the strap simulation).
-        if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--pack-log") >= 0 && Pack() is BackpackAttachment logged && ++_logFrame % 10 == 0
+        if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--pack-log") >= 0 && Pack() is BackpackAttachment logged && ++_logFrame % LogEvery() == 0
             && logged.GetNodeOrNull<BackpackHarness>("BackpackHarness") is BackpackHarness harness && harness.Physics is PackPhysics physics)
         {
-            GD.Print($"pack f{_logFrame} swing={harness.SwingDistance:0.000} m / {Mathf.RadToDeg(harness.SwingAngle):0.0} deg panel inside={physics.DeepestInside:0.000} widest tie={physics.WidestTie:0.000} us={harness.StepMicroseconds} ties={physics.Ties} resets={harness.Resets}");
+            GD.Print($"pack f{_logFrame} at={GetNode<Node3D>("World/Player").GlobalPosition} lift={harness.Lift:0.000} at#{physics.DeepestContact} bone={physics.DeepestBone}:{(logged.GetParent() as Skeleton3D)?.GetBoneName(Math.Max(physics.DeepestBone, 0))} packbone={(logged.GetParent() as Skeleton3D)?.GetBoneName(logged.BoneIdx)} swing={harness.SwingDistance:0.000} m / {Mathf.RadToDeg(harness.SwingAngle):0.0} deg panel inside={physics.DeepestInside:0.000} widest tie={physics.WidestTie:0.000} us={harness.StepMicroseconds} ties={physics.Ties} resets={harness.Resets} load={harness.LoadMass():0} kg share={harness.LoadShare:0.00} mass={physics.Mass:0.0} sway={Core.GameEvents.PackSway.Length():0.000}");
         }
         if (HidePack && Pack() is BackpackAttachment hidden) { hidden.Visible = false; }
         _refresh -= (float)delta;
@@ -186,8 +216,20 @@ public partial class BackpackAttachmentLab : ClothingLab
         _sync = false;
     }
 
+    private bool _gaugeDemo;
+    private float _demoTime;
+
     public override void _PhysicsProcess(double delta)
     {
+        if (_gaugeDemo)
+        {
+            _demoTime += (float)delta;
+            float roll = 1.35f * Mathf.Sin(_demoTime * 1.3f);
+            BalanceState state = BalanceState.Wobbling;
+            if (Mathf.Abs(roll) >= 1.0f) { state = BalanceState.Stumbling; }
+            GameEvents.PublishBalance(new BalanceSnapshot(state, 0.0f, Vector2.Zero, new Vector2(roll, 0.0f), 0.0f, false, Vector3.Forward, Vector3.Right,
+                Vector3.Zero, new Vector2(0.12f, 0.15f), Vector3.Zero, 1.0f, Vector2.Zero, Vector2.Zero, Vector2.Zero, Vector2.Zero, Vector2.Zero, "demo", 30.0f));
+        }
         // `-- --pack-hull`: the body surface the straps and the pack collide with (measured from the
         // skinned meshes' vertices, one outline per bone, coloured by bone). Add Godot's own
         // `--debug-collisions` to see the physics capsules too: the straps never touch those.

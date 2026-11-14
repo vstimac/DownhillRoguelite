@@ -24,6 +24,8 @@ public sealed class PackPhysics
     public float MaxAngle = float.PositiveInfinity;
     /// <summary>The bones whose outlines the back panel rests on (the torso; null: all), so a swinging arm doesn't knock the pack.</summary>
     public ICollection<int>? PanelBones;
+    /// <summary>Every strap's give is multiplied by this (the harness loosens the hold as the load grows).</summary>
+    public float GiveScale = 1.0f;
 
     // The pack: centre of mass, orientation, motion, mass and turning inertia (its own axes).
     public Vector3 Position;
@@ -32,6 +34,11 @@ public sealed class PackPhysics
     public Vector3 Spin;
     private float _inverseMass = 1.0f / 8.0f;
     private Vector3 _inverseInertia = Vector3.One;
+    private Vector3 _size = Vector3.One;
+    private float _mass = 8.0f;
+
+    /// <summary>The pack's mass now, in kg (its own and what is in it).</summary>
+    public float Mass => _mass;
 
     /// <summary>
     /// Strap points: offset from the centre of mass (pack axes), where their strap pulls them (the same,
@@ -67,17 +74,25 @@ public sealed class PackPhysics
         _heldBefore.Clear();
         _heldNow.Clear();
         _contacts.Clear();
-        _inverseMass = 1.0f / Mathf.Max(mass, 0.1f);
-        // A box's inertia about its own axes.
-        float a = size.X * size.X, b = size.Y * size.Y, c = size.Z * size.Z;
-        Vector3 inertia = new(mass * (b + c) / 12.0f, mass * (a + c) / 12.0f, mass * (a + b) / 12.0f);
-        _inverseInertia = new Vector3(1.0f / Mathf.Max(inertia.X, 0.0001f), 1.0f / Mathf.Max(inertia.Y, 0.0001f), 1.0f / Mathf.Max(inertia.Z, 0.0001f));
+        _size = size;
+        SetMass(mass);
         _restBefore = fit;
         _restNow = fit;
         Position = fit.Origin;
         Rotation = fit.Basis.GetRotationQuaternion();
         Velocity = Vector3.Zero;
         Spin = Vector3.Zero;
+    }
+
+    /// <summary>Changes the pack's mass (and with it its turning inertia, as a box of its size) without stopping its swing.</summary>
+    public void SetMass(float mass)
+    {
+        _mass = Mathf.Max(mass, 0.1f);
+        _inverseMass = 1.0f / _mass;
+        // A box's inertia about its own axes.
+        float a = _size.X * _size.X, b = _size.Y * _size.Y, c = _size.Z * _size.Z;
+        Vector3 inertia = new(_mass * (b + c) / 12.0f, _mass * (a + c) / 12.0f, _mass * (a + b) / 12.0f);
+        _inverseInertia = new Vector3(1.0f / Mathf.Max(inertia.X, 0.0001f), 1.0f / Mathf.Max(inertia.Y, 0.0001f), 1.0f / Mathf.Max(inertia.Z, 0.0001f));
     }
 
     /// <summary>
@@ -142,6 +157,52 @@ public sealed class PackPhysics
         InsideAfter = Inside();
     }
 
+    /// <summary>
+    /// How far <paramref name="pose"/> (the pack's resting place, centre of mass frame) must move to
+    /// bring its back panel out of the body as it is posed now: a bending, turning torso comes into
+    /// where the pack rests, and a resting place inside the body would set the straps pulling the
+    /// pack in against the panel pushing it out. Zero when it's clear.
+    /// </summary>
+    /// <summary>The back panel point (its index) and the body bone that were deepest at the last OutOfBody.</summary>
+    public int DeepestContact { get; private set; } = -1;
+    public int DeepestBone { get; private set; } = -1;
+
+    public Vector3 OutOfBody(Transform3D pose)
+    {
+        DeepestContact = -1;
+        DeepestBone = -1;
+        Vector3 total = Vector3.Zero;
+        if (_hull == null || _contacts.Count == 0)
+        {
+            return total;
+        }
+        _hull.Between(1.0f);
+        for (int pass = 0; pass < 3; pass++)
+        {
+            Vector3 deepest = Vector3.Zero;
+            for (int i = 0; i < _contacts.Count; i++)
+            {
+                Vector3 q = pose.Origin + total + pose.Basis * _contacts[i];
+                Vector3 pushed = q;
+                if (_hull.Collide(ref pushed, PackClearance, PanelBones, out _, out int bone, out _) && pushed.DistanceSquaredTo(q) > deepest.LengthSquared())
+                {
+                    deepest = pushed - q;
+                    if (pass == 0)
+                    {
+                        DeepestContact = i;
+                        DeepestBone = bone;
+                    }
+                }
+            }
+            if (deepest.LengthSquared() < 0.0000001f)
+            {
+                break;
+            }
+            total += deepest;
+        }
+        return total;
+    }
+
     /// <summary>How deep the back panel is inside the body now (without moving it).</summary>
     private float Inside()
     {
@@ -203,7 +264,7 @@ public sealed class PackPhysics
             WidestTie = Mathf.Max(WidestTie, length);
             if (length < 0.0000001f) { continue; }
             Vector3 n = delta / length;
-            float move = length / (BodyWeight(r, n) + give / (h * h));
+            float move = length / (BodyWeight(r, n) + give * GiveScale / (h * h));
             Push(r, n * move);
         }
     }

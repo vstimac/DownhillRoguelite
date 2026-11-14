@@ -266,6 +266,9 @@ public partial class BalanceController : Node
             gravityTorque = new Vector2(
                 loadWeight * (loadHeight * Mathf.Sin(_tilt.X) + loadOffset.X),
                 loadWeight * (loadHeight * Mathf.Sin(_tilt.Y) + loadOffset.Y));
+            // The pack swinging on its straps (BackpackHarness): a heavy pack swung aside drags the
+            // carrier that way, so a full pack's wobble is something to balance against.
+            gravityTorque += PackSwayTorque(forward, right);
             Vector2 holdTarget = new(
                 loadWeight * (loadHeight * Mathf.Sin(target.X) + compensatedLoad.X),
                 loadWeight * (loadHeight * Mathf.Sin(target.Y) + compensatedLoad.Y));
@@ -452,6 +455,19 @@ public partial class BalanceController : Node
         // A cape (GameEvents.CurrentGear.WindCatch) adds area at body height.
         float moment = (Settings.WindBodyArea + GameEvents.CurrentGear.WindCatch) * Settings.WindBodyHeight + Settings.WindAreaPerKg * loadMass * loadHeight;
         return new Vector2(pressure.Dot(right), pressure.Dot(forward)) * moment;
+    }
+
+    /// <summary>The pull of the pack's swing about the feet, in carrier axes (roll, pitch), in N·m.</summary>
+    private Vector2 PackSwayTorque(Vector3 forward, Vector3 right)
+    {
+        Vector3 sway = GameEvents.PackSway;
+        float mass = GameEvents.PackSwayMass;
+        if (mass <= 0.0f || sway.IsZeroApprox() || Settings.PackSwayFactor <= 0.0f)
+        {
+            return Vector2.Zero;
+        }
+        float weight = mass * _gravity * Settings.PackSwayFactor;
+        return new Vector2(weight * sway.Dot(right), weight * sway.Dot(forward));
     }
 
     /// <summary>Support half size from how far apart the feet stand, smoothed.</summary>

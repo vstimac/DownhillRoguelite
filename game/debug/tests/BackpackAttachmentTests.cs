@@ -49,6 +49,11 @@ public partial class BackpackAttachmentTests : Node3D
                 rig.SkeletonUpdated += Observe;
                 // The harness: simulated on every final pose, unbroken, finite; the pack hangs from it near its fit.
                 BackpackHarness? harness = mount.GetNodeOrNull<BackpackHarness>("BackpackHarness");
+                if (harness != null)
+                {
+                    // An empty pack is held still against the back; the swing needs something in it.
+                    harness.LoadOverride = 20.0f;
+                }
                 int rebuildsBefore = harness?.Rebuilds ?? 0;
                 int resetsBefore = harness?.Resets ?? 0;
                 float widestStep = 0;

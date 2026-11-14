@@ -59,6 +59,7 @@ public partial class UiTests : Node3D
         await TestHearts(PlayerBody.Health);
         await TestNeedIcons(needs);
         await TestRing(PlayerBody);
+        await TestBalanceGauge(PlayerBody);
         TestDescent();
         await TestHotbar(needs);
         await TestTooltip();
@@ -130,6 +131,46 @@ public partial class UiTests : Node3D
     }
 
     /// <summary>The ring beside the carrier: hidden while stamina is full, up when it drops, glued to him on screen, and a lit torch adds its arc.</summary>
+    /// <summary>
+    /// The balance dial: hidden while steady; shown once the load sets him wobbling, the needle on the
+    /// side he tips to and the opposite lean key lit; a stumble asks for a brace; hidden again once steady.
+    /// </summary>
+    private async Task TestBalanceGauge(PlayerController player)
+    {
+        BalanceGauge? gauge = Ui!.Balance;
+        Balance.BalanceController? balance = player.GetNodeOrNull<Balance.BalanceController>("Balance");
+        if (gauge == null || balance == null)
+        {
+            Check("the HUD has a balance dial and the carrier a balance to show", false, $"dial {gauge != null}, balance {balance != null}");
+            return;
+        }
+        // Stand the real balance down, and feed the dial readings of our own.
+        balance.ProcessMode = ProcessModeEnum.Disabled;
+        await Feed(new Vector2(0.1f, 0.0f), BalanceState.Stable, 1.6f);
+        bool hiddenSteady = !gauge.Visible && gauge.Alpha < 0.01f;
+        await Feed(new Vector2(0.8f, 0.1f), BalanceState.Wobbling, 0.5f);
+        bool shownRight = gauge.Visible && gauge.Alpha > 0.9f && gauge.Needle > 0.5f && gauge.LitSide == -1 && gauge.Hint.Length > 0;
+        await Feed(new Vector2(-1.2f, 0.0f), BalanceState.Stumbling, 0.5f);
+        bool stumble = gauge.Needle < -0.9f && gauge.LitSide == 1 && gauge.Hint.Contains("brace") && gauge.Hint.Contains(BalanceGauge.KeyLabel("balance_lean_left"));
+        await Feed(Vector2.Zero, BalanceState.Stable, 2.5f);
+        bool hiddenAgain = !gauge.Visible;
+        balance.ProcessMode = ProcessModeEnum.Inherit;
+        Check("the balance dial shows while the load wobbles him, needle to the tipping side, the other lean key lit, a brace asked for in a stumble, and goes once steady",
+            hiddenSteady && shownRight && stumble && hiddenAgain,
+            $"steady hidden {hiddenSteady}, wobble right {shownRight} (needle {gauge.Needle:0.00}, lit {gauge.LitSide}), stumble {stumble} (\"{gauge.Hint}\"), hidden again {hiddenAgain}; keys {BalanceGauge.KeyLabel("balance_lean_left")}/{BalanceGauge.KeyLabel("balance_lean_right")}");
+    }
+
+    private async Task Feed(Vector2 imbalance, BalanceState state, float seconds)
+    {
+        float dt = 1.0f / Engine.PhysicsTicksPerSecond;
+        for (float elapsed = 0.0f; elapsed < seconds; elapsed += dt)
+        {
+            GameEvents.PublishBalance(new BalanceSnapshot(state, elapsed, Vector2.Zero, imbalance, 0.0f, false, Vector3.Forward, Vector3.Right,
+                Vector3.Zero, new Vector2(0.12f, 0.15f), Vector3.Zero, 1.0f, Vector2.Zero, Vector2.Zero, Vector2.Zero, Vector2.Zero, Vector2.Zero, "test", 20.0f));
+            await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+        }
+    }
+
     private async Task TestRing(PlayerController player)
     {
         ContextRing ring = Ui!.Ring!;

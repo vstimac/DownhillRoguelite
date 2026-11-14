@@ -509,6 +509,8 @@ public static partial class GameEvents
         IsVaulting = false;
         RollPrimed = false;
         RollSave.Reset();
+        PackSway = Godot.Vector3.Zero;
+        PackSwayMass = 0.0f;
         IsNarrating = false;
         IsSpeaking = false;
         IsConversing = false;
@@ -778,6 +780,20 @@ public static partial class GameEvents
     public static void PublishBalance(BalanceSnapshot snapshot)
     {
         BalanceUpdated?.Invoke(snapshot);
+    }
+
+    /// <summary>
+    /// How far the player's pack hangs off its resting place on the back (world, m) and its mass with
+    /// what is in it (kg), from its strap physics each frame: a heavy pack swung aside pulls the
+    /// carrier's balance that way (BalanceController).
+    /// </summary>
+    public static Godot.Vector3 PackSway { get; private set; }
+    public static float PackSwayMass { get; private set; }
+
+    public static void PublishPackSway(Godot.Vector3 offset, float mass)
+    {
+        PackSway = offset;
+        PackSwayMass = mass;
     }
 
     /// <summary>Where the carrier is (its feet), updated with every LocomotionSnapshot; for many small readers like world items.</summary>

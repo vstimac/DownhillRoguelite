@@ -41,6 +41,8 @@ public partial class Hud : CanvasLayer
     public NeedIcon? ThirstIcon { get; private set; }
     public NeedIcon? WarmthIcon { get; private set; }
     public ContextRing? Ring { get; private set; }
+    /// <summary>The balance dial over the carrier while the load sets him wobbling.</summary>
+    public BalanceGauge? Balance { get; private set; }
     public SideHearts? SideHearts { get; private set; }
     public const string SideHeartsPiece = "side_hearts";
     public LowStatAlerts? Alerts { get; private set; }
@@ -122,6 +124,8 @@ public partial class Hud : CanvasLayer
         Captions = new Subtitles { Name = "Subtitles" };
         _play.AddChild(Captions);
         _play.AddChild(new VaultPrompt { Name = "VaultPrompt" });
+        Balance = new BalanceGauge { Name = "BalanceGauge" };
+        _play.AddChild(Balance);
         Choices = new DialogueChoices { Name = "DialogueChoices" };
         _play.AddChild(Choices);
 
