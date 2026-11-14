@@ -1,7 +1,7 @@
 """
 Packs a Windows export into the zip players download, the same way every time.
 
-    python scripts/package_windows.py [export_dir] [zip_path] [version]
+    python scripts/package_windows.py [export_dir] [zip_path] [version] [--coop]
 
 Defaults: export_dir = ../Builds/DownhillRoguelite-playtest1 (the "Windows Desktop" preset's
 export path), zip_path = ../Builds/DownhillRoguelite-playtest1-windows.zip.
@@ -39,6 +39,9 @@ def fail(message):
 
 
 def main():
+    coop = "--coop" in sys.argv
+    if coop:
+        sys.argv.remove("--coop")
     export_dir = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "..", "..", "Builds", TOP))
     zip_path = os.path.abspath(sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "..", "..", "Builds", TOP + "-windows.zip"))
 
@@ -64,6 +67,22 @@ def main():
     wallpapers = os.path.join(ROOT, "export", "playtest", WALLPAPER)
     shutil.copytree(wallpapers, os.path.join(export_dir, WALLPAPER), dirs_exist_ok=True)
     wallpaper_files = sorted(os.listdir(wallpapers))
+
+    if coop:
+        message = "This co-op test uses a separate download. Both players need the same co-op package."
+        with open(os.path.join(export_dir, "README.txt"), "w", encoding="utf-8") as f:
+            f.write("Downhill Roguelite - " + version + "\n\n"
+                    + message + "\n\n"
+                    "Start DownhillRoguelite.exe, then choose Co-op.\n"
+                    "Host: enter a nickname and choose Host (UDP port 7777).\n"
+                    "Join on the same network: choose the host from the LAN list, or enter its local IP:7777.\n"
+                    "On one computer: join 127.0.0.1:7777.\n"
+                    "Over the internet: use the host's public IP and forward UDP 7777 to the host.\n\n"
+                    "The public singleplayer updater is disabled for this test.\n")
+        with open(os.path.join(export_dir, "Update game.bat"), "w", encoding="ascii") as f:
+            f.write("@echo off\necho " + message + "\npause\n")
+        with open(os.path.join(export_dir, "update.ps1"), "w", encoding="ascii") as f:
+            f.write("Write-Host '" + message + "'\nexit 0\n")
 
     if os.path.isfile(os.path.join(export_dir, COMPANION)):
         system32 = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
