@@ -20,6 +20,8 @@ public partial class DiveTests : Node3D
     [Export] public PlayerController? PlayerBody { get; set; }
     [Export] public TerrainStreamer? Streamer { get; set; }
     [Export] public float SettleTime { get; set; } = 1.0f;
+    /// <summary>Run the same roll and throw regressions with the optional protective elbow drive.</summary>
+    [Export] public bool EnableProtectiveMuscles { get; set; }
 
     private readonly List<string> _failures = new();
     private CharacterAnimator? _animator;
@@ -37,6 +39,7 @@ public partial class DiveTests : Node3D
             return;
         }
         // The animated dive and roll (RagdollDive off); the ragdoll throws are checked at the end.
+        PlayerBody.GetNode<RagdollMuscles>("RagdollMuscles").Enabled = EnableProtectiveMuscles;
         dive.RagdollDive = false;
         PlayerBody.RagdollJump = false;
         await Place(PlayerBody, Streamer.SpawnPoint);

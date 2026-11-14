@@ -23,6 +23,8 @@
 [ext_resource type="Script" path="res://player/BodyDynamics.cs" id="19_body_dynamics"]
 [ext_resource type="Script" path="res://player/CharacterAbility.cs" id="20_character_ability"]
 [ext_resource type="Script" path="res://player/CarrierTorch.cs" id="23_torch"]
+[ext_resource type="Script" path="res://player/ActiveBalancePose.cs" id="24_active_balance"]
+[ext_resource type="Script" path="res://player/RagdollMuscles.cs" id="25_muscles"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.3
@@ -49,6 +51,10 @@ script = ExtResource("9_spine_lean")
 script = ExtResource("19_body_dynamics")
 Body = NodePath("../../../..")
 
+[node name="ActiveBalancePose" type="SkeletonModifier3D" parent="Model/Rig/Skeleton3D" node_paths=PackedStringArray("Body")]
+script = ExtResource("24_active_balance")
+Body = NodePath("../../../..")
+
 [node name="CarrierModel" type="Node3D" parent="." node_paths=PackedStringArray("Driver", "DriverModel")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 script = ExtResource("17_carrier_model")
@@ -61,10 +67,11 @@ Body = NodePath("..")
 Animations = NodePath("../Model/AnimationPlayer")
 Visual = NodePath("../Model")
 
-[node name="FootIK" type="Node3D" parent="." node_paths=PackedStringArray("Body", "Skeleton")]
+[node name="FootIK" type="Node3D" parent="." node_paths=PackedStringArray("Body", "Skeleton", "RecoveryPose")]
 script = ExtResource("6_foot_ik")
 Body = NodePath("..")
 Skeleton = NodePath("../Model/Rig/Skeleton3D")
+RecoveryPose = NodePath("../Model/Rig/Skeleton3D/ActiveBalancePose")
 
 [node name="Balance" type="Node" parent="."]
 script = ExtResource("7_balance")
@@ -96,6 +103,12 @@ script = ExtResource("12_ragdoll")
 Body = NodePath("..")
 Skeleton = NodePath("../Model/Rig/Skeleton3D")
 Health = NodePath("../Health")
+
+[node name="RagdollMuscles" type="Node" parent="." node_paths=PackedStringArray("Ragdoll", "Skeleton")]
+script = ExtResource("25_muscles")
+Enabled = false
+Ragdoll = NodePath("../Ragdoll")
+Skeleton = NodePath("../Model/Rig/Skeleton3D")
 
 [node name="HurtVignette" type="CanvasLayer" parent="."]
 script = ExtResource("13_vignette")
