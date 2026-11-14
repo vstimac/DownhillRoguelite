@@ -33,6 +33,15 @@ uniform vec3 haze_tint : source_color = vec3(0.92, 0.95, 1.0);
 // The sea of mist far below: how bright it is against the horizon colour, and its texture.
 uniform float mist_brightness = 1.06;
 uniform float mist_scale = 0.35;
+// The distance fog as it lies over the sky (DayNightCycle sets these). Far trees and far ground fade
+// into fog_color, so the sky behind them has to be that colour too, or they stand out as flat shapes.
+uniform vec3 fog_color : source_color = vec3(0.55, 0.55, 0.56);
+// How much fog lies over the sky at the horizon and below it: as much as over the furthest ground.
+uniform float fog_low : hint_range(0.0, 1.0) = 0.0;
+// How much fog lies over the whole sky, overhead too.
+uniform float fog_high : hint_range(0.0, 1.0) = 0.0;
+// The fog thins from fog_low at the horizon to nothing this far above it (in direction.y).
+uniform float fog_top = 0.45;
 
 float hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -79,6 +88,7 @@ void sky() {
 	vec3 color;
 	if (up >= 0.0) {
 		color = mix(horizon_color, top_color, pow(clamp(up / (1.0 + horizon_dip), 0.0, 1.0), 0.6));
+		color = mix(color, fog_color, fog_low * (1.0 - smoothstep(0.0, fog_top, up)));
 	} else {
 		// Below the horizon: a sea of mist over the valleys, brightest at the horizon, soft and patchy.
 		float depth_below = clamp(-up * 3.0, 0.0, 1.0);
@@ -87,21 +97,25 @@ void sky() {
 		vec3 sea = haze * mix(mist_brightness, mist_brightness * 0.82, depth_below) * (0.92 + 0.12 * mist);
 		color = mix(haze, sea, smoothstep(0.0, 0.08, -up));
 		color = mix(color, ground_color, depth_below * depth_below * 0.35 * (1.0 - darkness * 0.5));
+		color = mix(color, fog_color, fog_low);
 	}
 
 	// Far mountain ranges around the horizon, three layers: the furthest palest, the nearest darkest.
+	// The fog climbs them: in thick air only the crests stand clear of it.
+	float range_reach = range_height * mix(2.5, 1.1, fog_low);
+	float range_solid = range_height * mix(0.8, 0.05, fog_low);
 	float azimuth = atan(dir.z, dir.x);
 	for (int i = 2; i >= 0; i--) {
 		float layer = float(i);
 		float top = ridge(azimuth, layer) - layer * 0.012;
-		if (up < top && up > top - range_height * 2.5) {
+		if (up < top && up > top - range_reach) {
 			float shade = range_darkness * (1.0 - layer * 0.3);
 			vec3 mountain = mix(haze, ground_color, shade);
 			// Snow catches the light on the highest ridges by day.
 			float snowline = smoothstep(top - range_height * 0.35, top, up) * (1.0 - darkness) * step(0.6 * range_height, top);
 			mountain = mix(mountain, haze * 1.08, snowline * 0.5);
 			// Fade the foot of each range into the mist.
-			float foot = smoothstep(top - range_height * 2.5, top - range_height * 0.8, up);
+			float foot = smoothstep(top - range_reach, top - range_solid, up);
 			color = mix(color, mountain, foot);
 		}
 	}
@@ -137,5 +151,5 @@ void sky() {
 		color = mix(color, lit * (0.8 + 0.4 * density), cloud * 0.9);
 	}
 
-	COLOR = color;
+	COLOR = mix(color, fog_color, fog_high);
 }
