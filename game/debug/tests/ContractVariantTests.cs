@@ -78,6 +78,7 @@ public partial class ContractVariantTests : Node3D
         TestAbandon(Director, inventory);
         TestDeadline(Director);
         TestJobWords();
+        TestNewJobsAndCargoUse(Director, inventory);
 
         GameEvents.ContractResolved -= OnResolved;
         if (_failures.Count == 0)
@@ -110,6 +111,55 @@ public partial class ContractVariantTests : Node3D
     }
 
     /// <summary>Makes the director offer only <paramref name="definition"/>, and pins it at <paramref name="station"/>.</summary>
+    /// <summary>Beta 3.1's jobs are valid, and a job's cargo (a med kit here) can't be used up by the carrier.</summary>
+    private void TestNewJobsAndCargoUse(ContractDirector director, CarrierInventory inventory)
+    {
+        string[] paths =
+        {
+            "res://progression/contracts/resources/ct_006_fuel_for_the_fire.tres",
+            "res://progression/contracts/resources/ct_007_rope_two_fires_down.tres",
+            "res://progression/contracts/resources/ct_008_medicine_whole.tres",
+        };
+        List<string> problems = new();
+        ContractDefinition? medicine = null;
+        foreach (string path in paths)
+        {
+            ContractDefinition? definition = GD.Load<ContractDefinition>(path);
+            if (definition == null)
+            {
+                problems.Add(path + " missing");
+                continue;
+            }
+            string problem = definition.Problem();
+            if (problem.Length > 0)
+            {
+                problems.Add(definition.Id + ": " + problem);
+            }
+            if (definition.Id == "CT_008")
+            {
+                medicine = definition;
+            }
+        }
+        inventory.Clear();
+        bool kept = false;
+        if (medicine != null)
+        {
+            ContractInstance? job = OfferOnly(director, medicine, 2);
+            if (job != null && director.Accept(job) == ContractResult.Ok)
+            {
+                GameEvents.RequestItemUse("med_kit");
+                GameEvents.RequestUseItem("med_kit");
+                kept = CargoIn(inventory, job.InstanceId) != null;
+                director.Abandon();
+            }
+        }
+        inventory.Clear();
+        director.Contracts = _shipped;
+        director.Reload();
+        Check("the fuel, rope and medicine jobs are valid, and a job's med kit can't be used up",
+            problems.Count == 0 && medicine != null && kept, string.Join("; ", problems) + " cargo still packed after use: " + kept);
+    }
+
     private ContractInstance? OfferOnly(ContractDirector director, ContractDefinition definition, int station)
     {
         director.Contracts = new[] { definition };

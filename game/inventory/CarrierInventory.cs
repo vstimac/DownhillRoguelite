@@ -799,7 +799,7 @@ public partial class CarrierInventory : Node
         {
             foreach (PackedItem item in Grid.Items)
             {
-                if (item.Definition.ItemId == itemId)
+                if (item.Definition.ItemId == itemId && !item.Definition.IsContractCargo)
                 {
                     Consume(item);
                     return;
@@ -810,7 +810,7 @@ public partial class CarrierInventory : Node
         {
             foreach (ItemDefinition pocketed in Equipment.PocketItems)
             {
-                if (pocketed.ItemId == itemId)
+                if (pocketed.ItemId == itemId && !pocketed.IsContractCargo)
                 {
                     RemovePocketItem(pocketed);
                     return;
@@ -819,7 +819,7 @@ public partial class CarrierInventory : Node
         }
         for (int i = 0; i < _loose.Count; i++)
         {
-            if (_loose[i].Definition.ItemId == itemId)
+            if (_loose[i].Definition.ItemId == itemId && !_loose[i].Definition.IsContractCargo)
             {
                 _all.Remove(_loose[i].Definition);
                 _loose.RemoveAt(i);
@@ -846,7 +846,7 @@ public partial class CarrierInventory : Node
         {
             foreach (ItemDefinition pocketed in Equipment.PocketItems)
             {
-                if (pocketed.ItemId != itemId)
+                if (pocketed.ItemId != itemId || pocketed.IsContractCargo)
                 {
                     continue;
                 }
@@ -876,7 +876,8 @@ public partial class CarrierInventory : Node
         }
         foreach (PackedItem item in Grid.Items)
         {
-            if (item.Definition.ItemId != itemId)
+            // A job's cargo isn't the carrier's to use up: it is delivered whole (or the job fails).
+            if (item.Definition.ItemId != itemId || item.Definition.IsContractCargo)
             {
                 continue;
             }

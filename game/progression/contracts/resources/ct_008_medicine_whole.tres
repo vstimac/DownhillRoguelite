@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ContractDefinition" format=3]
+
+[ext_resource type="Script" path="res://progression/contracts/ContractDefinition.cs" id="1_contract"]
+
+[resource]
+script = ExtResource("1_contract")
+Id = "CT_008"
+DisplayName = "Medicine, Whole"
+Kind = 1
+Giver = "the medic at this fire"
+OfferText = "Bandages and three small bottles. The bottles matter: pack it deep, and land soft."
+CargoItemPath = "res://inventory/items/med_kit.tres"
+StationsAhead = 1
+MinStation = 2
+Score = 45
+Weight = 0.8
+Fragility = 1.4
+MinCondition = 60.0
+DeadlineDays = 0.0
+MinCircle = 0
+MaxCircle = -1

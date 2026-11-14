@@ -99,6 +99,9 @@
 [ext_resource type="Script" path="res://narrative/president/PresidentDirector.cs" id="63_president"]
 [ext_resource type="Script" path="res://progression/RunKeeper.cs" id="102_run_keeper"]
 [ext_resource type="Script" path="res://audio/CircleAmbience.cs" id="103_circle_ambience"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_006_fuel_for_the_fire.tres" id="111_ct_006_fuel_for_the_fire"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_007_rope_two_fires_down.tres" id="111_ct_007_rope_two_fires_down"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_008_medicine_whole.tres" id="111_ct_008_medicine_whole"]
 [ext_resource type="Resource" path="res://progression/boons/mules_bargain.tres" id="110_bargain_mules_bargain"]
 [ext_resource type="Resource" path="res://progression/boons/quick_feet.tres" id="110_bargain_quick_feet"]
 [ext_resource type="Resource" path="res://progression/boons/second_wind.tres" id="110_bargain_second_wind"]
@@ -393,7 +396,7 @@ Bargains = [ExtResource("110_bargain_mules_bargain"), ExtResource("110_bargain_q
 
 [node name="Contracts" type="Node3D" parent="." unique_id=286667526]
 script = ExtResource("50_contracts")
-Contracts = [ExtResource("51_courier_parcel"), ExtResource("54_ct_001_letter_downhill"), ExtResource("54_ct_002_stone_for_the_scale"), ExtResource("54_ct_003_glass_truth"), ExtResource("54_ct_004_empty_hands"), ExtResource("54_ct_005_someones_last_map")]
+Contracts = [ExtResource("51_courier_parcel"), ExtResource("54_ct_001_letter_downhill"), ExtResource("54_ct_002_stone_for_the_scale"), ExtResource("54_ct_003_glass_truth"), ExtResource("54_ct_004_empty_hands"), ExtResource("54_ct_005_someones_last_map"), ExtResource("111_ct_006_fuel_for_the_fire"), ExtResource("111_ct_007_rope_two_fires_down"), ExtResource("111_ct_008_medicine_whole")]
 
 [node name="Lore" type="Node3D" parent="." unique_id=1586556100]
 script = ExtResource("52_lore")
