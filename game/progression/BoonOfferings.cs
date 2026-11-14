@@ -20,9 +20,12 @@ public partial class BoonOfferings : Node3D
     /// <summary>Expedition rules: arrival gives shelter; completed work earns the station's boon.</summary>
     [Export] public bool RequireCompletedWork { get; set; }
     /// <summary>Offerings stand on an arc this far downhill of the station's fire, in m.</summary>
-    [Export] public float Distance { get; set; } = 3.5f;
-    /// <summary>Angle between neighbouring offerings on the arc, in degrees.</summary>
-    [Export] public float Spread { get; set; } = 38.0f;
+    [Export] public float Distance { get; set; } = 4.0f;
+    /// <summary>
+    /// Angle between neighbouring offerings on the arc, in degrees: wide enough that the stones stand
+    /// further apart than their labels are wide (BoonStone.LabelWidthMetres), so no two labels meet.
+    /// </summary>
+    [Export] public float Spread { get; set; } = 48.0f;
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
 
     public IReadOnlyList<BoonStone> Stones => _stones;

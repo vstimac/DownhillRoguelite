@@ -184,6 +184,24 @@ public partial class ProgressionTests : Node3D
         {
             farthest = Mathf.Max(farthest, stone.GlobalPosition.DistanceTo(station));
         }
+        // No label runs over another: under each name the effect and price stack downward, and the
+        // stones stand further apart than a label is wide.
+        bool stacked = true;
+        string stacks = "";
+        float closest = float.MaxValue;
+        for (int i = 0; i < offerings.Stones.Count; i++)
+        {
+            (float nameBottom, float effectTop, float effectBottom, float lowest) = offerings.Stones[i].LabelStack();
+            stacked = stacked && effectTop < nameBottom && effectBottom < effectTop && lowest <= effectBottom && lowest > 0.0f;
+            stacks += $" [{nameBottom:0.00}/{effectTop:0.00}-{effectBottom:0.00}/{lowest:0.00}]";
+            for (int j = i + 1; j < offerings.Stones.Count; j++)
+            {
+                closest = Mathf.Min(closest, offerings.Stones[i].GlobalPosition.DistanceTo(offerings.Stones[j].GlobalPosition));
+            }
+        }
+        Check("the offerings' labels stack under their names and don't reach the next stone",
+            stacked && closest > BoonStone.LabelWidthMetres,
+            $"stacks{stacks}, stones {closest:0.00} m apart, labels {BoonStone.LabelWidthMetres:0.00} m wide");
         BoonStone? lightStep = null;
         foreach (BoonStone stone in offerings.Stones)
         {
