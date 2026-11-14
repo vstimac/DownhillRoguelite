@@ -81,6 +81,40 @@ function New-Offer($kind, $ver, $release, $asset) {
     return @{ Kind = $kind; Version = $ver; Tag = [string]$release.tag_name; Name = $title; Url = [string]$asset.browser_download_url; Size = [long]$asset.size; Sha256 = $sha; Asset = [string]$asset.name }
 }
 
+# Same as UpdatePlanner.VersionNumbers: "v0.2.9-beta" and "2.9" are both 2.9; $null when not a version.
+function Get-VersionNumbers([string]$text) {
+    if (-not $text) { return $null }
+    $t = $text.Trim()
+    if ($t.StartsWith('v', [StringComparison]::OrdinalIgnoreCase)) { $t = $t.Substring(1) }
+    $dash = $t.IndexOf('-')
+    if ($dash -ge 0) { $t = $t.Substring(0, $dash) }
+    $parts = $t.Split('.')
+    if ($parts.Count -lt 2) { return $null }
+    $numbers = New-Object System.Collections.Generic.List[int]
+    foreach ($p in $parts) {
+        if ($p -notmatch '^[0-9]+$') { return $null }
+        $numbers.Add([int]$p)
+    }
+    if ($numbers.Count -ge 3 -and $numbers[0] -eq 0) { $numbers.RemoveAt(0) }
+    while ($numbers.Count -gt 2 -and $numbers[$numbers.Count - 1] -eq 0) { $numbers.RemoveAt($numbers.Count - 1) }
+    return ,$numbers.ToArray()
+}
+
+# True only when both are versions and $offered is not newer than $local.
+function Test-NotNewer([string]$offered, [string]$local) {
+    $a = Get-VersionNumbers $offered
+    $b = Get-VersionNumbers $local
+    if ($null -eq $a -or $null -eq $b) { return $false }
+    $count = [Math]::Max($a.Count, $b.Count)
+    for ($i = 0; $i -lt $count; $i++) {
+        $l = 0; $r = 0
+        if ($i -lt $a.Count) { $l = $a[$i] }
+        if ($i -lt $b.Count) { $r = $b[$i] }
+        if ($l -ne $r) { return ($l -lt $r) }
+    }
+    return $true
+}
+
 # Same rules as UpdatePlanner.Plan: the newest release with something for this folder decides.
 function Find-Update($releases, [string]$baseTag, [string]$installed, [bool]$pre) {
     if (-not $installed) { $installed = $baseTag }
@@ -104,10 +138,13 @@ function Find-Update($releases, [string]$baseTag, [string]$installed, [bool]$pre
         }
         if ($patch) {
             if ($patchVersion -ieq $installed) { return $null }
+            if (Test-NotNewer $patchVersion $installed) { return $null }
             return New-Offer 'Patch' $patchVersion $r $patch
         }
         if ($full) {
             if (([string]$r.tag_name -ieq $baseTag) -or ([string]$r.tag_name -ieq $installed)) { return $null }
+            # A folder built ahead of the newest published release must not be offered an older game.
+            if ((Test-NotNewer ([string]$r.tag_name) $baseTag) -or (Test-NotNewer ([string]$r.tag_name) $installed)) { return $null }
             return New-Offer 'Full' ([string]$r.tag_name) $r $full
         }
     }

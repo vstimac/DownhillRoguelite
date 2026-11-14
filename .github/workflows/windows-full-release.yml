@@ -44,7 +44,7 @@ jobs:
             Invoke-WebRequest "$base/$file" -OutFile ".ci/$file"
             $line = Get-Content .ci/SHA512-SUMS.txt | Where-Object { $_ -match [regex]::Escape($file) + '$' } | Select-Object -First 1
             if (-not $line) { throw "No SHA512 entry for $file" }
-            $expected = ($line.Trim() -split '\\s+')[0].ToLowerInvariant()
+            $expected = ($line.Trim() -split '\s+')[0].ToLowerInvariant()
             $actual = (Get-FileHash ".ci/$file" -Algorithm SHA512).Hash.ToLowerInvariant()
             if ($expected -ne $actual) { throw "Checksum mismatch: $file" }
           }

@@ -123,7 +123,7 @@ public static class UpdatePlanner
             }
             if (patch != null)
             {
-                if (string.Equals(patchVersion, installed, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(patchVersion, installed, StringComparison.OrdinalIgnoreCase) || IsNotNewer(patchVersion, installed))
                 {
                     return null;
                 }
@@ -132,6 +132,12 @@ public static class UpdatePlanner
             if (full != null)
             {
                 if (string.Equals(tag, baseTag, StringComparison.OrdinalIgnoreCase) || string.Equals(tag, installed, StringComparison.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
+                // A folder built ahead of the newest published release (a test build, or a release
+                // still being uploaded) must not be offered an older game.
+                if (IsNotNewer(tag, baseTag) || IsNotNewer(tag, installed))
                 {
                     return null;
                 }
@@ -208,6 +214,86 @@ public static class UpdatePlanner
         }
         return assetName.EndsWith("-windows.zip", StringComparison.OrdinalIgnoreCase)
             || assetName.EndsWith("-windows-full.zip", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// The game version a tag or version names, as numbers: "v0.2.9-beta" and "2.9" are both [2, 9],
+    /// "2.9.1" is [2, 9, 1] and "v0.3.0-beta" is [3, 0]. Null when it isn't a version ("", "(unknown)").
+    /// </summary>
+    public static int[]? VersionNumbers(string text)
+    {
+        string trimmed = text.Trim();
+        if (trimmed.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = trimmed.Substring(1);
+        }
+        int dash = trimmed.IndexOf('-');
+        if (dash >= 0)
+        {
+            trimmed = trimmed.Substring(0, dash);
+        }
+        string[] parts = trimmed.Split('.');
+        if (parts.Length < 2)
+        {
+            return null;
+        }
+        List<int> numbers = new();
+        foreach (string part in parts)
+        {
+            if (!int.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out int number))
+            {
+                return null;
+            }
+            numbers.Add(number);
+        }
+        // Release tags carry a leading "0." ("v0.2.9-beta" is Beta 2.9).
+        if (numbers.Count >= 3 && numbers[0] == 0)
+        {
+            numbers.RemoveAt(0);
+        }
+        // "3.0" and "3" name the same version: drop trailing zeros past the second number.
+        while (numbers.Count > 2 && numbers[numbers.Count - 1] == 0)
+        {
+            numbers.RemoveAt(numbers.Count - 1);
+        }
+        return numbers.ToArray();
+    }
+
+    /// <summary>Compares two versions by <see cref="VersionNumbers"/>; null when either isn't a version.</summary>
+    public static int? CompareVersions(string a, string b)
+    {
+        int[]? left = VersionNumbers(a);
+        int[]? right = VersionNumbers(b);
+        if (left == null || right == null)
+        {
+            return null;
+        }
+        int count = Math.Max(left.Length, right.Length);
+        for (int i = 0; i < count; i++)
+        {
+            int l = 0;
+            int r = 0;
+            if (i < left.Length)
+            {
+                l = left[i];
+            }
+            if (i < right.Length)
+            {
+                r = right[i];
+            }
+            if (l != r)
+            {
+                return l.CompareTo(r);
+            }
+        }
+        return 0;
+    }
+
+    /// <summary>True only when both are versions and <paramref name="offered"/> is not newer than <paramref name="local"/>.</summary>
+    private static bool IsNotNewer(string offered, string local)
+    {
+        int? comparison = CompareVersions(offered, local);
+        return comparison != null && comparison.Value <= 0;
     }
 
     private static bool IsCiBuild(string assetName) => assetName.EndsWith("-windows-full.zip", StringComparison.OrdinalIgnoreCase);
