@@ -54,7 +54,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $templateDir | Out-Null
           Expand-Archive .ci/templates.zip -DestinationPath .ci/templates
           Copy-Item .ci/templates/templates/* $templateDir -Recurse -Force
-          $exe = Get-ChildItem .ci/godot -Filter '*mono_win64.exe' -Recurse | Select-Object -First 1
+          $exe = Get-ChildItem .ci/godot -Filter '*mono_win64_console.exe' -Recurse | Select-Object -First 1
           if (-not $exe) { throw 'Godot Mono executable missing' }
           "GODOT_EXE=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Fetch optional native library
