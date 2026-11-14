@@ -14,7 +14,7 @@ namespace DownhillRoguelite.Debug;
 /// Headless checks for points of interest between stations (the purpose patch):
 /// - The shipped definitions are valid; broken and duplicate ones are skipped without a crash.
 /// - Placement: one or two per stage over 20 stages, on the ground, clear of every path and away
-///   from stations, the same for the same seed and different for another.
+///   from stations and set pieces, the same for the same seed and different for another.
 /// - Near one, it is built in the world and published as the nearest (distance and side), and the
 ///   goals name it ("Off the path: …").
 /// - E takes what it holds once (packed, WaysideUsed raised, the goals stop naming it); a second E
@@ -90,6 +90,10 @@ public partial class WaysideTests : Node3D
     private void TestPlacement(WaysidePlacer placer, IRouteQuery route)
     {
         List<string> problems = new();
+        if (placer.SetPieces == null)
+        {
+            problems.Add("no set pieces to keep clear of");
+        }
         List<Vector3> first = new();
         int total = 0;
         for (int stage = 0; stage < 20; stage++)
@@ -126,6 +130,10 @@ public partial class WaysideTests : Node3D
                         problems.Add(placement.Key + " on path " + path);
                     }
                 }
+                if (placer.NearSetPiece(route, stage, at.X, at.Z))
+                {
+                    problems.Add(placement.Key + " inside a set piece");
+                }
                 float side = Mathf.Abs(route.RoutePoint(at.Z).X - at.X);
                 if (side < placer.SideDistance.X - 0.01f || side > placer.SideDistance.Y + 0.01f)
                 {
@@ -151,7 +159,7 @@ public partial class WaysideTests : Node3D
         _run.Seed = seed;
         placer.Forget();
         bool differs = other.Count != first.Count || other.Zip(first).Any(pair => !pair.First.IsEqualApprox(pair.Second));
-        Check("one or two per stage, on the ground, clear of paths and stations, repeatable per seed", problems.Count == 0 && repeatable && differs,
+        Check("one or two per stage, on the ground, clear of paths, stations and set pieces, repeatable per seed", problems.Count == 0 && repeatable && differs,
             total + " over 20 stages, repeatable " + repeatable + ", another seed differs " + differs + ", problems [" + string.Join(", ", problems.Take(8)) + "]");
     }
 
