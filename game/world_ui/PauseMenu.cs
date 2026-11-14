@@ -52,6 +52,11 @@ public partial class PauseMenu : CanvasLayer
         AddChild(_click);
         GetViewport().SizeChanged += Relayout;
         Relayout();
+        // Check: `-- --return-to-menu-test` goes back to the title screen after a moment.
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--return-to-menu-test") >= 0 && !StartScreen.ReturnedFromRun)
+        {
+            GetTree().CreateTimer(12.0, true).Timeout += ReturnToMenu;
+        }
         // Render checks: `-- --options` opens the menu on its Options page after a moment.
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--options") >= 0)
         {
@@ -156,6 +161,20 @@ public partial class PauseMenu : CanvasLayer
     }
 
     /// <summary>The menu's first page: the entries, Resume focused.</summary>
+    /// <summary>
+    /// Saves the run and goes back to the title screen without closing the game: the scene is loaded
+    /// afresh (the title screen is part of it), and the run waits under Continue and Saved runs.
+    /// </summary>
+    public void ReturnToMenu()
+    {
+        GameEvents.RequestSave();
+        Network.NetSession.Instance?.Leave();
+        StartScreen.ReturnedFromRun = true;
+        GD.Print("PauseMenu: back to the main menu (run saved: " + RunSave.Exists + ")");
+        GetTree().Paused = false;
+        GetTree().ReloadCurrentScene();
+    }
+
     public void ShowMenu()
     {
         if (_options != null)
@@ -248,6 +267,7 @@ public partial class PauseMenu : CanvasLayer
             Network.NetSession.Instance?.Leave();
             Resume();
         });
+        AddItem("Save and main menu", ReturnToMenu);
         AddItem("Save and quit", () =>
         {
             GameEvents.RequestSave();

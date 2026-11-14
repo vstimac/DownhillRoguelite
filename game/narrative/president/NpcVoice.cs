@@ -108,7 +108,8 @@ public partial class NpcVoice : Node3D
         _current = line.Id;
         LineSequence++; LineElapsed = 0;
         _left = seconds;
-        GameEvents.PublishSpeech(new SpeechLine(SpeakerName, line.Text, GlobalPosition + Vector3.Up * 1.6f, seconds));
+        // The voice stays as recorded; the subtitle follows Options → Dialogue text.
+        GameEvents.PublishSpeech(new SpeechLine(SpeakerName, line.Shown, GlobalPosition + Vector3.Up * 1.6f, seconds));
         if (stream != null && _player != null && IsInsideTree())
         {
             _player.Stream = stream;

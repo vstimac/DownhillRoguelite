@@ -759,6 +759,14 @@ public static partial class GameEvents
     /// <summary>Where the carrier is (its feet), updated with every LocomotionSnapshot; for many small readers like world items.</summary>
     public static Godot.Vector3 CarrierPosition { get; private set; }
 
+    /// <summary>How cold the carrier is now (0 warm or sheltered, 1 freezing; CarrierNeeds); the HUD's warmth icon reads it.</summary>
+    public static float CarrierCold { get; private set; }
+
+    public static void PublishCold(float cold)
+    {
+        CarrierCold = cold;
+    }
+
     public static void PublishLocomotion(LocomotionSnapshot snapshot)
     {
         CarrierPosition = snapshot.Position;

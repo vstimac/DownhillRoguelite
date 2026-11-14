@@ -2,7 +2,11 @@
 # Exports the Linux build with the "Linux" preset from export_presets.cfg (the Windows preset is
 # untouched) and packs it as a .tar.gz with the player guide.
 #
-#   scripts/build_linux.sh [output-dir]        # default: build/linux
+#   scripts/build_linux.sh [output-dir] [release-tag]   # default: build/linux
+#
+# With a release tag (e.g. v0.2.9-beta) the folder is marked as that full release (base.txt and
+# version.txt): the game then updates itself from GitHub, and stage/ is the base that
+# scripts/make_update.py --platform linux makes later small updates against (keep a copy untouched).
 #   GODOT=/path/to/godot scripts/build_linux.sh
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/versions.sh"
@@ -24,6 +28,13 @@ mkdir -p "$out/stage"
 "$godot_bin" --headless --path . --export-release "Linux" "$out/stage/$name.x86_64"
 [ -f "$out/stage/$name.x86_64" ] || { fail "Export produced no binary (are the Linux export templates installed?)"; exit 1; }
 chmod +x "$out/stage/$name.x86_64"
+# The data and the code sit next to the binary (not embedded), so small updates can replace them.
+[ -f "$out/stage/$name.pck" ] || { fail "No $name.pck next to the binary: export with binary_format/embed_pck=false"; exit 1; }
+ls -d "$out/stage"/data_* >/dev/null 2>&1 || { fail "No data_ folder next to the binary: export with dotnet/embed_build_outputs=false"; exit 1; }
+if [ -n "${2:-}" ]; then
+    echo "$2" > "$out/stage/base.txt"
+    echo "$2" > "$out/stage/version.txt"
+fi
 cp ../docs/LINUX.md "$out/stage/README-LINUX.md"
 cp -r export/playtest/Wallpaper "$out/stage/Wallpaper"   # thank-you wallpapers for beta testers
 mkdir -p "$out/stage/Models"

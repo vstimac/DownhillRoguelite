@@ -16,6 +16,14 @@ public static partial class GameEvents
     /// <summary>Whether the carrier holds a burning torch now.</summary>
     public static bool CarrierTorchLit { get; private set; }
 
+    /// <summary>Seconds of burning left in the carrier's torch (0: none); the HUD's ring reads it.</summary>
+    public static float CarrierTorchLeft { get; private set; }
+
+    public static void PublishTorchLeft(float seconds)
+    {
+        CarrierTorchLeft = seconds;
+    }
+
     public static void RequestTorch(float seconds) => TorchRequested?.Invoke(seconds);
 
     public static void PublishTorch(bool lit)

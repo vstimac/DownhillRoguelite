@@ -20,6 +20,8 @@ public partial class DiveTests : Node3D
     [Export] public PlayerController? PlayerBody { get; set; }
     [Export] public TerrainStreamer? Streamer { get; set; }
     [Export] public float SettleTime { get; set; } = 1.0f;
+    /// <summary>Run the same roll and throw regressions with the optional protective elbow drive.</summary>
+    [Export] public bool EnableProtectiveMuscles { get; set; }
 
     private readonly List<string> _failures = new();
     private CharacterAnimator? _animator;
@@ -37,6 +39,7 @@ public partial class DiveTests : Node3D
             return;
         }
         // The animated dive and roll (RagdollDive off); the ragdoll throws are checked at the end.
+        PlayerBody.GetNode<RagdollMuscles>("RagdollMuscles").Enabled = EnableProtectiveMuscles;
         dive.RagdollDive = false;
         PlayerBody.RagdollJump = false;
         await Place(PlayerBody, Streamer.SpawnPoint);
@@ -329,6 +332,40 @@ public partial class DiveTests : Node3D
         Check(player.Jumps == jumps + 1 && downed && !ragdoll.Downed && seconds < 4.0f,
             $"Space throws him up as a ragdoll and he is up again {seconds:0.0} s later",
             $"jumps {player.Jumps - jumps}, downed {downed}, still down {ragdoll.Downed}, {seconds:0.0} s");
+
+        // The same throw with the roll timed right: the ragdoll lets go in the air and the landing is a roll.
+        await WaitSeconds(1.0f);
+        player.Health?.Refill();
+        player.Stamina?.Refill();
+        int rolls = 0;
+        void OnRolled() { rolls++; }
+        GameEvents.Rolled += OnRolled;
+        Input.ActionPress("player_jump");
+        await Frame();
+        await Frame();
+        Input.ActionRelease("player_jump");
+        bool cued = false;
+        for (int i = 0; i < 180 && !cued; i++)
+        {
+            await Frame();
+            VaultCue cue = GameEvents.CurrentVault;
+            if (ragdoll.Downed && cue.InWindow)
+            {
+                cued = true;
+                ragdoll.TryThrowRoll(cue);
+            }
+        }
+        float rollSeconds = 0.0f;
+        while ((ragdoll.Downed || rolls == 0) && rollSeconds < 4.0f)
+        {
+            await Frame();
+            rollSeconds += 1.0f / Engine.PhysicsTicksPerSecond;
+        }
+        GameEvents.Rolled -= OnRolled;
+        await WaitSeconds(1.5f);
+        Check(cued && rolls == 1 && !ragdoll.Downed && !GameEvents.IsDowned && !GameEvents.RollPrimed && player.IsOnFloor(),
+            $"a timed press in the throw lets the ragdoll go in the air and he rolls out on landing ({rollSeconds:0.0} s)",
+            $"cue {cued}, rolls {rolls}, downed {ragdoll.Downed}, primed left {GameEvents.RollPrimed}, on floor {player.IsOnFloor()}");
         player.RagdollJump = false;
     }
 

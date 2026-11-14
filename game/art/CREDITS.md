@@ -61,6 +61,6 @@ The forest prototypes in `art/environment/forest` (pines, grass tufts) are origi
 
 Original source code is released under the [MIT License](../LICENSE) to the extent the project authors own the rights to license that code. **The root MIT license does not make the game's art, music, voices, logos, narrative, third-party dependencies or characters MIT-licensed.**
 
-See [RIGHTS.md](../RIGHTS.md) for license boundaries, third-party permissions, publicity/likeness considerations and a release checklist. Individual asset pack licenses take precedence for their materials; do not treat the entire repository as CC0 or as a redistributable 3D asset pack.
+See [RIGHTS.md](../../docs/RIGHTS.md) for license boundaries, third-party permissions, publicity/likeness considerations and a release checklist. Individual asset pack licenses take precedence for their materials; do not treat the entire repository as CC0 or as a redistributable 3D asset pack.
 
 The separate [DownhillRoguelite character concept poster](characters/downhillroguelite-character-pack.png) is a concept illustration, not game-ready assets; the satirical images of public figures must not be interpreted as their endorsement.

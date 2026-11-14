@@ -286,7 +286,9 @@ public partial class CompanionChat : Node
         {
             return _chat;
         }
-        if (_npcChats.TryGetValue(speaker.Id, out GodotObject? existing))
+        // Keyed by persona too: a speaker whose prompt changed (Croatian or English replies) gets a fresh chat.
+        string key = speaker.Id + "#" + speaker.Persona.GetHashCode();
+        if (_npcChats.TryGetValue(key, out GodotObject? existing))
         {
             return existing;
         }
@@ -314,8 +316,8 @@ public partial class CompanionChat : Node
             _npcOrder.RemoveAt(0);
         }
         GodotObject opened = chat.AsGodotObject();
-        _npcChats[speaker.Id] = opened;
-        _npcOrder.Add(speaker.Id);
+        _npcChats[key] = opened;
+        _npcOrder.Add(key);
         return opened;
     }
 

@@ -53,7 +53,8 @@ public sealed class VoiceManifest
                 row[column["event"]].Trim(),
                 row[column["emotion"]].Trim(),
                 row[column["text_sr"]].Trim(),
-                row[column["audio_path"]].Trim());
+                row[column["audio_path"]].Trim(),
+                column.TryGetValue("text_en", out int english) && english < row.Length ? row[english].Trim() : "");
             manifest.Add(line);
         }
         return manifest;

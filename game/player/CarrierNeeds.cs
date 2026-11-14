@@ -159,6 +159,7 @@ public partial class CarrierNeeds : Node
             Cold = Mathf.Clamp((Cold + Chill) * colder * (1.0f - resistance) * (1.0f - gear.Warmth), 0.0f, 1.0f);
         }
 
+        GameEvents.PublishCold(Cold);
         ApplyStaminaModifiers(heat);
 
         if (Health != null)

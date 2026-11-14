@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using DownhillRoguelite.Core;
+using DownhillRoguelite.Core.Update;
 using DownhillRoguelite.Ui;
 using Godot;
 
@@ -24,6 +25,7 @@ public partial class StartScreen : CanvasLayer
         About,
         Achievements,
         Coop,
+        Saves,
         Starting,
     }
 
@@ -31,7 +33,7 @@ public partial class StartScreen : CanvasLayer
 
     [Export] public string Title { get; set; } = "Downhill Roguelite";
     [Export] public string Subtitle { get; set; } = "Every run begins at the summit.";
-    [Export] public string VersionText { get; set; } = "Beta 2.7 · co-op";
+    [Export] public string VersionText { get; set; } = "Co-op test 2.9.1";
     /// <summary>Largest title size in pixels; it shrinks with the window's height.</summary>
     [Export] public int TitleSize { get; set; } = 92;
     /// <summary>The dark wash behind the menu column (left edge; it fades out towards the middle).</summary>
@@ -64,6 +66,8 @@ public partial class StartScreen : CanvasLayer
     public Label? FooterKeys => _keys;
     public Label? FooterHint => _hint;
     public Label? VersionLabel => _version;
+    /// <summary>The "Update" entry, once a newer release was found (core/update/UpdateCheck).</summary>
+    public MenuItem? UpdateItem => _updateItem;
 
     private readonly List<MenuItem> _items = new();
     private Control? _root;
@@ -83,9 +87,20 @@ public partial class StartScreen : CanvasLayer
     private AchievementsPage? _achievements;
     private CoopPage? _coop;
     private bool _characterForCoop;
+    private SavesPage? _saves;
+    /// <summary>The menu's letters never get smaller than this on short screens.</summary>
+    [Export] public int SmallestItemSize { get; set; } = 20;
+    private ulong? _chosenSeed;
+    /// <summary>
+    /// The title screen is up again after "Save and main menu": the run's numbers are still those of
+    /// the run just left, so a New Run starts a new mountain and resets them (Continue does that itself).
+    /// </summary>
+    public static bool ReturnedFromRun { get; set; }
     private MenuCamera? _camera;
     private MenuItem? _characterItem;
     private MenuItem? _lastFocus;
+    private MenuItem? _updateItem;
+    private System.Threading.Tasks.Task? _install;
     private float _warmup;
     private bool _padUsed;
     private Vector2 _screen = new(1280, 720);
@@ -117,6 +132,18 @@ public partial class StartScreen : CanvasLayer
         HideWorldUi();
         GetViewport().SizeChanged += Relayout;
         Relayout();
+        UpdateCheck.Start();
+        // Check: `-- --return-to-menu-test` starts a run by itself (the pause menu then returns here, and the run is continued).
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--return-to-menu-test") >= 0)
+        {
+            GetTree().CreateTimer(3.0, true).Timeout += () =>
+            {
+                RunSave.UseFiles("user://test_menu_run.json", "user://test_menu_run_pack.json");
+                bool again = ReturnedFromRun && RunSave.Exists;
+                GD.Print("StartScreen: test run, continuing " + again);
+                BeginRun(again);
+            };
+        }
     }
 
     public override void _ExitTree()
@@ -141,6 +168,14 @@ public partial class StartScreen : CanvasLayer
 
     public override void _Process(double delta)
     {
+        if (_updateItem == null && !Started && UpdateCheck.Offer is UpdateOffer offer)
+        {
+            OfferUpdate(offer);
+        }
+        if (_install != null)
+        {
+            FollowInstall();
+        }
         if (_warmup > 0.0f)
         {
             _warmup -= (float)delta;
@@ -228,11 +263,14 @@ public partial class StartScreen : CanvasLayer
         _menu = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         _menu.AddThemeConstantOverride("separation", 4);
         _column.AddChild(_menu);
-        if (RunSave.Exists)
+        int newest = RunSave.NewestSlot();
+        if (newest > 0)
         {
-            AddItem("Continue", "Carry on the descent you left.", ContinueRun);
+            string left = RunSave.Peek(newest)?.Describe() ?? "the descent you left";
+            AddItem("Continue", "Carry on: " + left + ".", ContinueRun);
         }
         AddItem("New Run", "Start on the summit of a new mountain.", StartRun);
+        AddItem("Saved runs", "Pick one of your saved descents, or start a mountain from a seed you choose.", () => ShowPage(Page.Saves));
         if (CharacterPage.Roster(RosterPath).Count > 1)
         {
             _characterItem = AddItem("Character", "", () => ShowPage(Page.Character));
@@ -307,6 +345,12 @@ public partial class StartScreen : CanvasLayer
         };
         _root.AddChild(_coop);
         _coop.SetOpenNow(false);
+        _saves = new SavesPage { Name = "Saves" };
+        _saves.BackPressed += () => ClosePage(_saves);
+        _saves.SlotChosen += PlaySlot;
+        _saves.SeedChosen += StartRunWithSeed;
+        _root.AddChild(_saves);
+        _saves.SetOpenNow(false);
 
         _curtain = new ColorRect { Color = Colors.Black, MouseFilter = Control.MouseFilterEnum.Ignore };
         _curtain.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -335,6 +379,107 @@ public partial class StartScreen : CanvasLayer
         _menu?.AddChild(item);
         _items.Add(item);
         return item;
+    }
+
+    /// <summary>Puts "Update" at the top of the menu for <paramref name="offer"/> (the background check calls it once; tests too).</summary>
+    public void OfferUpdate(UpdateOffer offer)
+    {
+        if (_updateItem != null || _menu == null)
+        {
+            return;
+        }
+        string size = offer.SizeMb >= 1.0 ? $"{offer.SizeMb:0} MB" : "under 1 MB";
+        string what = offer.Kind == UpdateKind.Patch ? "a small update" : "the whole game";
+        _updateItem = AddItem("Update", $"{offer.ReleaseName} is out: {what}, {size}. The game closes, updates and starts again.", () => ApplyUpdate(offer));
+        _menu.MoveChild(_updateItem, 0);
+        _items.Remove(_updateItem);
+        _items.Insert(0, _updateItem);
+        if (_version != null)
+        {
+            _version.Text = VersionText + "  ·  new version out";
+        }
+        Relayout();
+        if (Current == Page.Main && GetViewport().GuiGetFocusOwner() == null)
+        {
+            _updateItem.GrabFocus();
+        }
+    }
+
+    private void ApplyUpdate(UpdateOffer offer)
+    {
+        if (_install != null)
+        {
+            return;
+        }
+        if (UpdateCheck.InstallsInGame)
+        {
+            // Linux: the game downloads and installs the update itself, then starts again.
+            string dir = UpdateCheck.GameDir;
+            UpdatePlatform platform = UpdateCheck.Platform;
+            _install = System.Threading.Tasks.Task.Run(() => UpdateInstaller.InstallAsync(offer, dir, platform));
+            UpdateHint("Updating...");
+            return;
+        }
+        try
+        {
+            if (UpdateCheck.Launch(offer))
+            {
+                GetTree().Quit();
+                return;
+            }
+        }
+        catch (System.Exception error)
+        {
+            GD.PushWarning("StartScreen: could not start the updater: " + error.Message);
+        }
+        UpdateHint("Couldn't start the updater. Run \"Update game.bat\" in the game folder, or download it from GitHub.");
+    }
+
+    /// <summary>Shows how an in-game install is going; when it is done the game starts again.</summary>
+    private void FollowInstall()
+    {
+        if (_install == null)
+        {
+            return;
+        }
+        if (!_install.IsCompleted)
+        {
+            string stage = UpdateInstaller.Stage;
+            if (stage == "Downloading")
+            {
+                stage += $" {UpdateInstaller.Fraction * 100.0f:0}%";
+            }
+            UpdateHint(stage + "... The game starts again when it is done.");
+            return;
+        }
+        System.Threading.Tasks.Task finished = _install;
+        _install = null;
+        if (finished.IsFaulted)
+        {
+            string why = finished.Exception?.GetBaseException().Message ?? "unknown error";
+            GD.PushWarning("StartScreen: the update failed: " + why);
+            UpdateHint($"The update didn't work: {why}. You can try again, or download the game from GitHub.");
+            return;
+        }
+        if (UpdateCheck.Restart())
+        {
+            GetTree().Quit();
+            return;
+        }
+        UpdateHint("Updated. Close the game and start it again.");
+    }
+
+    private void UpdateHint(string text)
+    {
+        if (_updateItem == null)
+        {
+            return;
+        }
+        _updateItem.Hint = text;
+        if (_hint != null)
+        {
+            _hint.Text = text;
+        }
     }
 
     /// <summary>The menu entry with this text, or null.</summary>
@@ -441,6 +586,12 @@ public partial class StartScreen : CanvasLayer
         if (_items.Count > 0 && (itemHeight + 4.0f) * _items.Count > room)
         {
             itemHeight = Mathf.Max(room / _items.Count - 4.0f, itemSize * 1.2f);
+            // Still too tall (every entry at once on 720p): the letters shrink a little too.
+            if ((itemHeight + 4.0f) * _items.Count > room)
+            {
+                itemSize = (int)Mathf.Max(SmallestItemSize, (room / _items.Count - 4.0f) / 1.2f);
+                itemHeight = itemSize * 1.2f;
+            }
         }
         foreach (MenuItem item in _items)
         {
@@ -464,6 +615,7 @@ public partial class StartScreen : CanvasLayer
         _about?.FitInto(full);
         _achievements?.FitInto(full);
         _coop?.FitInto(full);
+        _saves?.FitInto(full);
         _characters?.FitInto(new Rect2(screen.X * 0.5f, margin * 0.6f, screen.X * 0.5f - margin * 0.6f, screen.Y - margin * 1.2f));
     }
 
@@ -609,6 +761,10 @@ public partial class StartScreen : CanvasLayer
         {
             _coop?.OpenSheet();
         }
+        else if (page == Page.Saves)
+        {
+            _saves?.OpenSheet();
+        }
         else
         {
             UpdateCharacterHint();
@@ -638,13 +794,38 @@ public partial class StartScreen : CanvasLayer
     /// <summary>New Run: the menu fades, the camera flies into the run's camera, the world wakes and the sound fades in.</summary>
     public void StartRun()
     {
+        // A new run takes an empty slot; with all of them used, the one saved longest ago.
+        RunSave.UseSlot(RunSave.SlotForNewRun());
         BeginRun(false);
     }
 
-    /// <summary>Continue: as New Run, but RunKeeper puts the saved run back.</summary>
+    /// <summary>Continue: as New Run, but RunKeeper puts the saved run back (the one saved last).</summary>
     public void ContinueRun()
     {
+        int newest = RunSave.NewestSlot();
+        if (newest > 0)
+        {
+            RunSave.UseSlot(newest);
+        }
         BeginRun(true);
+    }
+
+    /// <summary>Saved runs: carry on the run in that slot, or start a new one there when it is empty.</summary>
+    public void PlaySlot(int slot)
+    {
+        _saves?.Close();
+        Current = Page.Main;
+        RunSave.UseSlot(slot);
+        BeginRun(RunSave.Exists);
+    }
+
+    /// <summary>Saved runs: a new run on the mountain this seed makes (the same seed, the same mountain).</summary>
+    public void StartRunWithSeed(ulong seed)
+    {
+        _saves?.Close();
+        Current = Page.Main;
+        _chosenSeed = seed;
+        StartRun();
     }
 
     private void BeginRun(bool continuing)
@@ -656,6 +837,17 @@ public partial class StartScreen : CanvasLayer
         Started = true;
         GetNodeOrNull<RunState>("/root/RunState")?.BeginCharacterRun();
         GameEvents.PublishRunBegun(continuing);
+        bool sharedRun = Network.NetSession.Instance?.Joined == true;
+        if (!sharedRun && !continuing && _chosenSeed != null)
+        {
+            GetNodeOrNull<RunState>("/root/RunState")?.StartNewRun(_chosenSeed.Value);
+        }
+        else if (!sharedRun && !continuing && ReturnedFromRun)
+        {
+            GetNodeOrNull<RunState>("/root/RunState")?.StartNewRun();
+        }
+        ReturnedFromRun = false;
+        _chosenSeed = null;
         Current = Page.Starting;
         _warmup = 0.0f;
         GetViewport().GuiReleaseFocus();

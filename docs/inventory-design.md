@@ -22,9 +22,11 @@ The player isn't managing inventory slots. They're managing a physical load stra
 
 ## Inventory states
 
-1. **Carrying:** during descent. No packing menu. The player can stabilise, tighten straps or drop cargo.
-2. **Packing:** at camps. The backpack is set down, close-up camera, grab / rotate / place items, live weight and COM preview.
-3. **Unpacked:** at camps. Equipment laid out around the pack to swap and compare.
+1. **Carrying:** during descent. A short press of Tab opens the quick look: the pack in 2.5D on a small sheet, weight and centre of mass, nothing can be moved, the world goes on. The player can stabilise, tighten straps or drop cargo.
+2. **Packing:** anywhere, at the price of time. Holding Tab makes the carrier stop and set the pack down (1.5 s in the live world, cancelled by letting go or by a fall); then the packing page opens: grab / rotate / place items, live weight and COM. Closing it shoulders the pack again (another 1.5 s). The wait is what keeps repacking from being spammed in the middle of trouble; stations are simply the safe place to do it.
+3. **Unpacked:** things taken out lie on the mat beside the pack, to swap and compare; whatever is still there when the pack goes back on is left out of the load.
+
+Decided 2026-11-13 with the director: packing is no longer station-only (it was, in the first version), and the pack is shown in 2.5D (the real 3D grid seen at a slant, item models inked like the icons, the view turning in quarter steps and the upper layers cut away on the wheel) instead of a separate in-world camera with coloured boxes. The grid, the fit check and the load calculation did not change.
 
 ## Cargo simulation levels
 

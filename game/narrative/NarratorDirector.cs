@@ -37,6 +37,8 @@ public partial class NarratorDirector : Node
     [ExportGroup("Pacing")]
     /// <summary>Seconds of quiet after a line before the next one.</summary>
     [Export] public float MinGap { get; set; } = 30.0f;
+    /// <summary>The longest an NPC's voiced line holds the narrator back (s), in case its end is never reported.</summary>
+    [Export] public float NpcLineHoldMax { get; set; } = 30.0f;
     /// <summary>Seconds after the start before the first line.</summary>
     [Export] public float OpeningDelay { get; set; } = 4.0f;
     /// <summary>Seconds between ambient musings, random in this range.</summary>
@@ -74,6 +76,13 @@ public partial class NarratorDirector : Node
     private RunState? _run;
     private float _time;
     private float _quietSince = -1000.0f;
+    private float _npcLineSince = -1000.0f;
+    private bool _npcLine;
+    /// <summary>
+    /// Somebody else has the word: the conversation page, a dialogue with an NPC, a voiced NPC line or
+    /// the companion's spoken reply. The narrator stops its line and waits out the usual gap after it.
+    /// </summary>
+    public bool Held => GameEvents.IsConversing || GameEvents.InDialogue || GameEvents.IsSpeaking || (_npcLine && _time - _npcLineSince < NpcLineHoldMax);
     private float _speakingUntil = -1.0f;
     private int _currentPriority;
     private float _nextAmbient;
@@ -144,6 +153,8 @@ public partial class NarratorDirector : Node
         GameEvents.ContractAccepted += OnContractAccepted;
         GameEvents.ContractResolved += OnContractResolved;
         GameEvents.RelicDiscovered += OnRelicDiscovered;
+        GameEvents.VoiceLineStarted += OnNpcLineStarted;
+        GameEvents.VoiceLineCompleted += OnNpcLineCompleted;
     }
 
     public override void _ExitTree()
@@ -169,6 +180,8 @@ public partial class NarratorDirector : Node
         GameEvents.ContractAccepted -= OnContractAccepted;
         GameEvents.ContractResolved -= OnContractResolved;
         GameEvents.RelicDiscovered -= OnRelicDiscovered;
+        GameEvents.VoiceLineStarted -= OnNpcLineStarted;
+        GameEvents.VoiceLineCompleted -= OnNpcLineCompleted;
         Silence();
     }
 
@@ -201,6 +214,11 @@ public partial class NarratorDirector : Node
             _speakingUntil = -1.0f;
             OnFinished();
         }
+        if (Held)
+        {
+            if (Speaking) { Silence(); }
+            _quietSince = _time;
+        }
         if (!_opened && _time >= OpeningDelay)
         {
             _opened = true;
@@ -230,8 +248,8 @@ public partial class NarratorDirector : Node
         {
             return false;
         }
-        // While the player talks with the companion, the voiced lines hold back.
-        if (GameEvents.IsConversing)
+        // While the player talks with the companion or an NPC, the voiced lines hold back.
+        if (Held)
         {
             return false;
         }
@@ -405,6 +423,14 @@ public partial class NarratorDirector : Node
         }
         return $"circle_{circle + 1}_{suffix}";
     }
+
+    private void OnNpcLineStarted(string npcId, string lineId, bool voiced)
+    {
+        _npcLine = true;
+        _npcLineSince = _time;
+    }
+
+    private void OnNpcLineCompleted(string npcId, string lineId, bool skipped) => _npcLine = false;
 
     private void OnFinished()
     {

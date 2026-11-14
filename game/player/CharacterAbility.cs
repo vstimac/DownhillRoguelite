@@ -33,5 +33,11 @@ public partial class CharacterAbility : Node
             GetViewport().SetInputAsHandled();
         }
     }
-    private void Apply(CharacterStats stats) { _stamina?.Restore(_stamina.EffectiveMax * stats.RestoreStaminaFraction); }
+    private void Apply(CharacterStats stats)
+    {
+        if (_stamina == null || stats.RestoreStaminaFraction <= 0) { return; }
+        float before = _stamina.Current;
+        _stamina.Restore(_stamina.EffectiveMax * stats.RestoreStaminaFraction);
+        GameEvents.PublishHint("Restored " + Mathf.RoundToInt(_stamina.Current - before) + " stamina.");
+    }
 }

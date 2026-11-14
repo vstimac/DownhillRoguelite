@@ -44,18 +44,14 @@ F3 toggles lines. Lab falls use a higher safe-impact threshold; normal gameplay 
 - Down/up transitions and teleport clear recovery springs. PlayerRagdoll continues to own impacts,
   hip tracking and getting up. Inspector exports on both nodes expose tuning and disable switches.
 
-## Co-op boundary
+## Multiplayer boundary
 
-Unsynchronized poses are primarily a remote presentation limitation in the current owner-simulated
-co-op beta. RemoteCarrier receives root position/yaw, clip timing, death and torch state. Its
-collision layer/mask are zero; it publishes no local gameplay events and runs neither new controller.
-Other players therefore see normal clips rather than the exact hip correction or physical limbs.
+This standalone integration has no network dependency. The separate multiplayer branch carries
+its own pose replication and shared-world authority; its co-op commit `124caa03` is not part of
+this main-branch integration.
 
-The muscles themselves are **not purely cosmetic**: torques can change local fall trajectory and
-impact damage. PlayerRagdoll tracks the physical hips with the player root, and NetSession sends
-that resulting position and existing death state through the current protocol. No second physics
-authority or bone-pose RPC is introduced. This milestone does not establish precise shared physical
-contacts or PvP hitbox agreement.
+Muscles can change fall trajectory and impact damage when explicitly enabled. They remain off
+by default, and the existing PlayerRagdoll owns physical simulation, impacts and recovery.
 
 Main's HUD commit `e9f29f82` adds display events without changing the Lit getter used here.
 The voices commit `91c3ccc7` does not touch this controller/IK integration. Those main changes
@@ -110,3 +106,22 @@ eight checks at 60 FPS (14.65 degrees sideways, 9.93 degrees excess swing). Buil
 the final full suite passes 76/77 scenes, with only the existing TerrainTests streaming timing check failing
 at 18.6 ms against 16 ms (a previous run's plant timing was 17.3 ms). The lab's explicit opt-in control and default-off status were also
 checked in an OpenGL render. No test threshold was raised.
+
+## Main integration, 2026-11-14
+
+Integrated onto main `53c4ac81`, retaining its crouched get-up and timed airborne roll handoff.
+The torch ownership regression uses the ordinary local torch actions, so the tests compile and
+run without multiplayer APIs. `DiveWithMusclesTests` repeats all 12 dive/roll checks with the
+protective elbow drive enabled; the ordinary player remains opt-in.
+
+The complete main suite passes **81/81 scenes**, including TerrainTests, the original joint test,
+55 hybrid checks, the enabled-elbow trial, both dive variants, save/UI tests and 36 update checks.
+Build, asset import, main-scene smoke and the OpenGL lab preview also pass. Logs are under
+`main-ragdoll-wt/.validation/`. The earlier terrain timing failures above are historical results
+from the multiplayer worktree, not the result of this main integration.
+
+The existing Beta 2.9 packages were verified against GitHub's asset SHA-256 values and their draft
+publication was completed. Both public full-download links return HTTP 200. The actual updater
+planner selects the 2.9 patch for Windows 2.8, the 2.9 full build for older Linux, and no update
+for either platform already on 2.9. These prebuilt 2.9 packages predate this ragdoll integration;
+the new controller changes will ship in a subsequent build/update.

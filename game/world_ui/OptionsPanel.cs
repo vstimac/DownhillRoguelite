@@ -323,7 +323,7 @@ public partial class OptionsPanel : ParchmentPanel
         Add(gameplay, new ChoiceRow
         {
             Label = "Survival stats",
-            Hint = "Hand-drawn dials, or plain bars with numbers from 0 to 100.",
+            Hint = "Hunger, thirst and warmth as rings around their icons, or as plain bars under them.",
             Options = new[] { "Dials", "Bars (0-100)" },
             Selected = (int)GameOptions.Stats,
             Changed = i => GameOptions.SetStats((StatStyle)i),
@@ -332,6 +332,10 @@ public partial class OptionsPanel : ParchmentPanel
             "Off: only the number keys 1-9 choose from the hotbar."));
         Add(gameplay, ChoiceRow.Toggle("Route and debug lines (F3)", GameOptions.PathLines, GameOptions.SetPathLines,
             "Lines in the world showing the planned route and the carrier's balance."));
+        Add(gameplay, ChoiceRow.Toggle("Hearts beside the carrier", GameOptions.SideHearts, GameOptions.SetSideHearts,
+            "Small hearts next to your character when you are hit or low on health. Hold Alt and drag to move them, like the rest of the HUD."));
+        Add(gameplay, ChoiceRow.Toggle("Check for new versions", GameOptions.CheckForUpdates, GameOptions.SetCheckForUpdates,
+            "The title screen looks for a newer release on GitHub and offers to update; the game restarts by itself."));
         if (ShowCharacter)
         {
             CharacterRow(gameplay);
@@ -388,7 +392,7 @@ public partial class OptionsPanel : ParchmentPanel
         Add(access, new SliderRow
         {
             Label = "Interface and text size",
-            Hint = "Grows every page, dial and note together, for 2K and 4K screens. Applies when you let go.",
+            Hint = "Big screens already get a bigger interface by themselves; this makes it larger or smaller still. Applies when you let go.",
             Min = 0.75,
             Max = 1.5,
             StepSize = 0.05,
@@ -398,6 +402,14 @@ public partial class OptionsPanel : ParchmentPanel
         });
         Add(access, ChoiceRow.Toggle("Subtitles", GameOptions.Subtitles, GameOptions.SetSubtitles,
             "Spoken lines are written on screen, on the side the voice comes from."));
+        Add(access, new ChoiceRow
+        {
+            Label = "Dialogue text",
+            Hint = "The language of subtitles and conversation answers. Voices stay as recorded: a Croatian voice with English chosen gets English subtitles.",
+            Options = new[] { "English", "Hrvatski" },
+            Selected = (int)GameOptions.DialogueLanguage,
+            Changed = i => GameOptions.SetDialogueLanguage((DialogueLanguage)i),
+        });
 
         // Mouse: applied in this order (MouseLookFilter): desktop pointer settings (Raw input off only),
         // in-game acceleration, sensitivity, smoothing.

@@ -13,8 +13,10 @@ using Godot;
 namespace DownhillRoguelite.Debug;
 
 /// <summary>
-/// Headless checks for the journal UI, against real game data: the dials follow the carrier's
-/// vitals (easing, warning when low); the descent note shows elevation, circle and weather; the
+/// Headless checks for the journal UI, against real game data: the hearts follow the carrier's
+/// health (easing, the last one beating when low) and the need icons ask for a look only when low;
+/// the ring beside the carrier shows when stamina drops, hides when it is full, follows him on
+/// screen and shows a burning torch's time; the descent note shows elevation, circle and weather; the
 /// hotbar lists what the pack holds with counts and its use key really eats; the tooltip slides in
 /// for what the carrier looks at; notes appear for events; the inventory page opens (taking the
 /// mouse), reorders by drag and drop and drinks through its action; the map page shows the field
@@ -54,7 +56,9 @@ public partial class UiTests : Node3D
         // GC_STRESS=1: collect garbage nonstop on another thread, which turns finalizer races (a resource
         // finalized while the game loads it again) from rare crashes into certain ones.
         if (OS.HasEnvironment("GC_STRESS")) { _ = System.Threading.Tasks.Task.Run(() => { while (true) { System.GC.Collect(); System.GC.WaitForPendingFinalizers(); System.Threading.Thread.Sleep(2); } }); }
-        await TestDials(PlayerBody.Health);
+        await TestHearts(PlayerBody.Health);
+        await TestNeedIcons(needs);
+        await TestRing(PlayerBody);
         TestDescent();
         await TestHotbar(needs);
         await TestTooltip();
@@ -83,25 +87,120 @@ public partial class UiTests : Node3D
         }
     }
 
-    private async Task TestDials(CarrierHealth health)
+    private async Task TestHearts(CarrierHealth health)
     {
+        HeartRow hearts = Ui!.Hearts!;
+        await Wait(0.2f);
+        int expected = Mathf.CeilToInt(health.EffectiveMax / hearts.HealthPerHeart - 0.001f);
+        bool full = hearts.HeartCount == expected && hearts.FilledHearts == expected && !hearts.Warning;
         health.TakeDamage(health.Max * 0.85f, "a test");
         await Wait(0.1f);
-        float value = Ui!.HealthDial!.Value;
-        float easing = Ui.HealthDial.Shown;
+        float value = hearts.Value;
+        float easing = hearts.Shown;
         await Wait(1.0f);
-        bool settled = Mathf.Abs(Ui.HealthDial.Shown - value) < 1.0f;
-        Check("survival dials follow the vitals, ease to them and warn when low",
-            Mathf.IsEqualApprox(value, health.Current) && easing > value + 1.0f && settled && Ui.HealthDial.Warning,
-            $"health {health.Current:0} shown as {value:0} (easing from {easing:0}, settled {settled}), warning {Ui.HealthDial.Warning}");
+        bool settled = Mathf.Abs(hearts.Shown - value) < 1.0f;
+        int left = Mathf.CeilToInt(health.Current / hearts.HealthPerHeart - 0.001f);
+        Check("health is a row of hearts: one per share of health, emptying with it, easing, beating when low",
+            full && Mathf.IsEqualApprox(value, health.Current) && easing > value + 1.0f && settled && hearts.Warning && hearts.FilledHearts == left && left < expected,
+            $"{expected} hearts for {health.EffectiveMax:0} health (full at first {full}); health {health.Current:0} shown as {value:0} (easing from {easing:0}, settled {settled}), "
+            + $"{hearts.FilledHearts} filled (want {left}), warning {hearts.Warning}");
         health.Refill();
         await Wait(0.2f);
+    }
+
+    /// <summary>Hunger, thirst and warmth stay small and faded while fine, and grow, turn solid and warn when low.</summary>
+    private async Task TestNeedIcons(CarrierNeeds needs)
+    {
+        NeedIcon hunger = Ui!.HungerIcon!;
+        NeedIcon thirst = Ui.ThirstIcon!;
+        NeedIcon warmth = Ui.WarmthIcon!;
+        needs.SetNeeds(90.0f, 90.0f);
+        await Wait(1.0f);
+        bool calm = hunger.Scale.X < 0.9f && hunger.Modulate.A < 0.8f && !hunger.Warning && hunger.Attention <= 0.0f;
+        float calmScale = hunger.Scale.X;
+        needs.SetNeeds(10.0f, 90.0f);
+        await Wait(1.0f);
+        bool urgent = hunger.Warning && hunger.Attention >= 1.0f && hunger.Scale.X > calmScale + 0.15f && hunger.Modulate.A > 0.95f;
+        bool othersCalm = !thirst.Warning && thirst.Scale.X < 0.9f && Mathf.IsEqualApprox(warmth.Value, (1.0f - GameEvents.CarrierCold) * 100.0f);
+        Check("the need icons stay small while fine and grow and warn only when low", calm && urgent && othersCalm,
+            $"fed: scale {calmScale:0.00}, calm {calm}; starving: scale {hunger.Scale.X:0.00}, alpha {hunger.Modulate.A:0.00}, warning {hunger.Warning}; "
+            + $"thirst scale {thirst.Scale.X:0.00}, warmth {warmth.Value:0} (cold {GameEvents.CarrierCold:0.00})");
+        needs.SetNeeds(90.0f, 90.0f);
+        await Wait(0.3f);
+    }
+
+    /// <summary>The ring beside the carrier: hidden while stamina is full, up when it drops, glued to him on screen, and a lit torch adds its arc.</summary>
+    private async Task TestRing(PlayerController player)
+    {
+        ContextRing ring = Ui!.Ring!;
+        CarrierStamina? stamina = player.Stamina;
+        CarrierTorch? torch = player.GetNodeOrNull<CarrierTorch>("Torch");
+        Camera3D? camera = GetViewport().GetCamera3D();
+        if (stamina == null || camera == null || torch == null)
+        {
+            Check("the stamina ring has a carrier, a camera and a torch to read", false, $"stamina {stamina != null}, camera {camera != null}, torch {torch != null}");
+            return;
+        }
+        stamina.Refill();
+        await Wait(1.6f);
+        bool hiddenFull = !ring.Visible && ring.StaminaAlpha < 0.01f && !ring.StaminaWanted;
+
+        stamina.SetCurrent(stamina.EffectiveMax * 0.5f);
+        await Wait(0.4f);
+        bool shown = ring.Visible && ring.StaminaWanted && ring.StaminaAlpha > 0.9f && ring.Stamina < 0.75f;
+        float shownAt = ring.Stamina;
+
+        // It follows him: wherever the camera sees him, the ring's centre is that point plus its pixel offset.
+        float worst = 0.0f;
+        Vector2 first = ring.CarrierPoint;
+        Vector2 screen = GetViewport().GetVisibleRect().Size;
+        // (The ring keeps inside the screen's edges; skip a comparison where that clamp is at work.)
+        float keep = ring.RingSize * 0.5f + ring.EdgeMargin;
+        bool clamps = screen.X > keep * 2.0f && screen.Y > keep * 2.0f;
+        int compared = 0;
+        for (int step = 0; step < 3; step++)
+        {
+            player.Teleport(player.GlobalPosition + player.GlobalBasis.X * 1.5f, 0.0f);
+            await Wait(0.3f);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            Vector3 world = GameEvents.CarrierPosition + Vector3.Up * ring.AnchorHeight;
+            if (camera.IsPositionBehind(world))
+            {
+                continue;
+            }
+            Vector2 want = camera.UnprojectPosition(world) + ring.ScreenOffset;
+            if (clamps && !new Rect2(Vector2.Zero, screen).Grow(-keep).HasPoint(want))
+            {
+                continue;
+            }
+            worst = Mathf.Max(worst, (ring.Centre - want).Length());
+            compared++;
+        }
+        bool follows = compared > 0 && worst < 3.0f && ring.OnScreen;
+        Check("the ring shows when stamina drops and follows the carrier on screen", hiddenFull && shown && follows,
+            $"hidden while full {hiddenFull}; at {shownAt * 100.0f:0}% visible {shown} (alpha {ring.StaminaAlpha:0.00}); "
+            + $"anchor {first} → {ring.CarrierPoint}, centre off by {worst:0.0} px over {compared} moves");
+
+        stamina.Refill();
+        await Wait(1.6f);
+        bool hiddenAgain = !ring.Visible && ring.StaminaAlpha < 0.01f;
+
+        GameEvents.RequestTorch(ring.TorchFullSeconds * 0.5f);
+        await Wait(0.4f);
+        bool torchShown = ring.Visible && ring.TorchAlpha > 0.9f && Mathf.Abs(ring.Torch - 0.5f) < 0.02f && ring.StaminaAlpha < 0.01f;
+        float torchAt = ring.Torch;
+        torch.Left = 0.02f;
+        await Wait(1.0f);
+        bool torchGone = !ring.Visible && ring.TorchAlpha < 0.01f;
+        Check("the ring hides when stamina is full, and shows a lit torch's time until it goes out", hiddenAgain && torchShown && torchGone,
+            $"hidden when refilled {hiddenAgain}; torch arc at {torchAt * 100.0f:0}% shown {torchShown}; gone when out {torchGone}");
     }
 
     private void TestDescent()
     {
         string text = Ui!.Descent!.Text;
-        Check("the descent note shows elevation, circle and weather", text.Contains("Elevation") && text.Contains("Limbo") && text.Contains("Weather"),
+        Check("the descent note shows elevation, circle and weather", text.Contains("below the summit") && text.Contains("Limbo") && text.Contains("Weather"),
             text.Replace("\n", " | "));
     }
 
@@ -153,7 +252,7 @@ public partial class UiTests : Node3D
         needs.SetNeeds(90.0f, 90.0f);
         await Wait(0.5f);
         bool cleared = !Ui.Alerts.Shown.Contains("Hungry");
-        Check("low stats are listed under the dials, and leave when they recover", hungry && cleared,
+        Check("low stats are listed under the need icons, and leave when they recover", hungry && cleared,
             $"listed [{string.Join(", ", Ui.Alerts.Shown)}] after eating; hungry {hungry}, cleared {cleared}");
     }
 
@@ -261,7 +360,7 @@ public partial class UiTests : Node3D
         {
             Ui!.LayoutFor(size);
             Rect2 screen = new(Vector2.Zero, size);
-            Control?[] parts = { Ui.HealthDial, Ui.StaminaDial, Ui.Descent, Ui.Compass, Ui.Objectives, Ui.Equipment, Ui.Hotbar, Ui.Inventory, Ui.MapPage, Ui.Journal };
+            Control?[] parts = { Ui.Hearts, Ui.HungerIcon, Ui.ThirstIcon, Ui.WarmthIcon, Ui.Alerts, Ui.Descent, Ui.Compass, Ui.Objectives, Ui.Equipment, Ui.Hotbar, Ui.Notes, Ui.Inventory, Ui.MapPage, Ui.Journal };
             foreach (Control? control in parts)
             {
                 if (control != null && !screen.Encloses(new Rect2(control.Position, control.Size)))
@@ -270,14 +369,14 @@ public partial class UiTests : Node3D
                 }
             }
             // The play HUD's pieces must not cover each other.
-            Control?[] hud = { Ui.StaminaDial, Ui.Descent, Ui.Objectives, Ui.Equipment, Ui.Hotbar };
+            Control?[] hud = { Ui.Hearts, Ui.HungerIcon, Ui.ThirstIcon, Ui.WarmthIcon, Ui.Alerts, Ui.Compass, Ui.Descent, Ui.Objectives, Ui.Equipment, Ui.Hotbar, Ui.Notes };
             for (int i = 0; i < hud.Length; i++)
             {
                 for (int j = i + 1; j < hud.Length; j++)
                 {
                     if (hud[i] != null && hud[j] != null && new Rect2(hud[i]!.Position, hud[i]!.Size).Intersects(new Rect2(hud[j]!.Position, hud[j]!.Size)))
                     {
-                        overlaps.Add($"{hud[i]!.GetType().Name}/{hud[j]!.GetType().Name} at {size}");
+                        overlaps.Add($"{hud[i]!.Name}/{hud[j]!.Name} at {size}");
                     }
                 }
             }
@@ -530,7 +629,14 @@ public partial class UiTests : Node3D
 
         await Press("ui_down");
         MenuItem? second = GetViewport().GuiGetFocusOwner() as MenuItem;
-        bool moved = first?.Text == "New Run" && second != null && second != first;
+        // With a saved run on this PC the menu opens on Continue, otherwise on New Run.
+        bool moved = (first?.Text == "New Run" || first?.Text == "Continue") && second != null && second != first;
+        // New Run and Saved runs sit between the first entry and Character.
+        for (int i = 0; i < 3 && (second?.Text == "New Run" || second?.Text == "Saved runs"); i++)
+        {
+            await Press("ui_down");
+            second = GetViewport().GuiGetFocusOwner() as MenuItem;
+        }
 
         // Character page (if there is more than one character), then back.
         bool character = true;

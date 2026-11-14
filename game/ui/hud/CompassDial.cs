@@ -83,7 +83,7 @@ public partial class CompassDial : Control
         string[] marks = { "N", "E", "S", "W" };
         for (int i = 0; i < 4; i++)
         {
-            float a = -_shown + i * Mathf.Pi * 0.5f - Mathf.Pi * 0.5f;
+            float a = _shown + i * Mathf.Pi * 0.5f - Mathf.Pi * 0.5f;
             Vector2 d = new(Mathf.Cos(a), Mathf.Sin(a));
             int size = 18;
             Color ink = UiStyle.Ink;

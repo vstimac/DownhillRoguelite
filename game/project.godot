@@ -15,6 +15,8 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Downhill Roguelite"
+config/icon="res://art/brand/app_icon.png"
+config/windows_native_icon="res://art/brand/app_icon.ico"
 run/main_scene="res://debug/TestTerrain.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 

@@ -4,8 +4,10 @@ using Godot;
 namespace DownhillRoguelite.Player;
 
 /// <summary>
-/// A rigid pack follows the final visible skeleton through Godot's native attachment. Alignment is
-/// computed once in rest/body space; the imported model keeps its own transform under a fit pivot.
+/// A pack on the carrier. The fit (computed once in rest/body space, plus any hand fit) says where it
+/// sits on the back; the imported model keeps its own transform under a fit pivot. While its harness
+/// simulates it (BackpackHarness), the pivot is set free of the bone and hangs where the straps hold
+/// it; the fit is then only where it starts and what the straps' lengths are measured from.
 /// </summary>
 public partial class BackpackAttachment : BoneAttachment3D
 {
@@ -30,6 +32,76 @@ public partial class BackpackAttachment : BoneAttachment3D
     private Transform3D _placement = Transform3D.Identity;
     private Transform3D _anchorInBone = Transform3D.Identity;
     private Transform3D _adjustment = Transform3D.Identity;
+    private Transform3D _fitted = Transform3D.Identity;
+
+    /// <summary>Counts every change of the fit (the harness starts over from a new fit).</summary>
+    public int FitVersion { get; private set; }
+    /// <summary>The fit itself: where the pivot sits under the bone when nothing swings it (tests, tools).</summary>
+    public Transform3D FitTransform => _fitted;
+    /// <summary>The harness moves the pivot (it hangs from the straps, not from the bone).</summary>
+    public bool Simulated { get; private set; }
+    /// <summary>Where the fit puts the pivot now, in world space (follows the bone).</summary>
+    /// <summary>
+    /// Where the fit puts the pivot for the skeleton's current pose, read from the bone itself (this node
+    /// may still hold the last pose while the skeleton's update is being handled).
+    /// </summary>
+    public Transform3D FittedPivot
+    {
+        get
+        {
+            if (GetParent() is Skeleton3D rig && BoneIdx >= 0 && BoneIdx < rig.GetBoneCount())
+            {
+                return rig.GlobalTransform * rig.GetBoneGlobalPose(BoneIdx) * _fitted;
+            }
+            return GlobalTransform * _fitted;
+        }
+    }
+
+    /// <summary>Sets the pivot where the straps hold the pack (world space), free of the bone.</summary>
+    public void Simulate(Transform3D pivot)
+    {
+        if (!pivot.IsFinite()) { return; }
+        if (!Simulated)
+        {
+            Simulated = true;
+            Pivot.TopLevel = true;
+        }
+        Pivot.GlobalTransform = pivot;
+    }
+
+    /// <summary>Back on the bone, exactly at the fit.</summary>
+    public void StopSimulating()
+    {
+        if (!Simulated) { return; }
+        Simulated = false;
+        Pivot.TopLevel = false;
+        Pivot.Transform = _fitted;
+    }
+
+    /// <summary>The pack's extent in the pivot's frame (metres, as the model is placed).</summary>
+    public Aabb PackBounds()
+    {
+        // A model can name its main body (metadata harness_bounds, in its own space), so the harness
+        // and the swing leave out pouches and other parts hung on its sides.
+        if (Model.HasMeta("harness_bounds") && Model.GetMeta("harness_bounds").VariantType == Variant.Type.Aabb)
+        {
+            return Model.Transform * Model.GetMeta("harness_bounds").AsAabb();
+        }
+        Aabb bounds = ModelFit.Bounds(Model);
+        if (Model is MeshInstance3D own && own.Mesh != null)
+        {
+            if (bounds.Size.LengthSquared() < 0.000001f) { bounds = own.Mesh.GetAabb(); }
+            else { bounds = bounds.Merge(own.Mesh.GetAabb()); }
+        }
+        return Model.Transform * bounds;
+    }
+
+    /// <summary>The fitted pivot in the skeleton's rest pose, in the skeleton's space.</summary>
+    public Transform3D RestPivot(Skeleton3D rig)
+    {
+        Transform3D placed = _anchorInBone * _adjustment * _anchorInBone.AffineInverse() * _placement;
+        return rig.GetBoneGlobalRest(BoneIdx) * placed;
+    }
 
     /// <summary>Replaces the authored hand fit; automatic refitting preserves it without stacking.</summary>
     public bool ApplyAdjustment(Transform3D local)
@@ -42,7 +114,12 @@ public partial class BackpackAttachment : BoneAttachment3D
 
     private void ApplyPlacement()
     {
-        Pivot.Transform = _anchorInBone * _adjustment * _anchorInBone.AffineInverse() * _placement;
+        _fitted = _anchorInBone * _adjustment * _anchorInBone.AffineInverse() * _placement;
+        FitVersion++;
+        // A new fit is a fresh start: the pack goes there at once (the harness hangs it from its
+        // straps again on the next skeleton update).
+        StopSimulating();
+        Pivot.Transform = _fitted;
     }
 
     public static BackpackAttachment? Create(Skeleton3D rig, Node3D model, string bone,
@@ -70,6 +147,8 @@ public partial class BackpackAttachment : BoneAttachment3D
             attachment.Free();
             return null;
         }
+        // The harness (straps, sternum strap, hip belt) comes with every pack; it hangs the pack on them.
+        attachment.AddChild(new BackpackHarness { Name = "BackpackHarness" });
         rig.AddChild(attachment);
         return attachment;
     }

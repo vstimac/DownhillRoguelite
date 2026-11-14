@@ -204,8 +204,6 @@ public partial class CharacterAnimator : Node
         if (Visual != null)
         {
             Visual.Position = _visualHome + Body.GlobalBasis.Inverse() * _stepOffset;
-            // The packing camera stands where the carrier is; hide the model so it doesn't block the view.
-            Visual.Visible = !GameEvents.IsPacking;
         }
         Vector3 velocity = Body.Velocity;
         float targetSpeed = new Vector2(velocity.X, velocity.Z).Length();

@@ -5,7 +5,7 @@
 
 [sub_resource type="Resource" id="Stats"]
 script = ExtResource("2_stats")
-AbilityName = "Second Wind"
+AbilityName = "Restore 40% stamina"
 AbilityDescription = "Recover 40% of maximum stamina immediately."
 Cooldown = 75.0
 RestoreStaminaFraction = 0.4

@@ -17,6 +17,7 @@ public partial class ObjectivePanel : ParchmentPanel
     [Export] public float MaxHeight { get; set; } = 236.0f;
     [Export] public int MaxSideLines { get; set; } = 4;
     [Export] public float Padding { get; set; } = 16.0f;
+    [Export] public float ScoreLine { get; set; } = 12.0f;
 
     /// <summary>Everything the note says, line by line (tests read it).</summary>
     public string Text { get; private set; } = "";
@@ -111,7 +112,8 @@ public partial class ObjectivePanel : ParchmentPanel
         }
         float width = PanelWidth - Padding * 2.0f;
         List<string> lines = new();
-        float y = Padding - 2.0f;
+        // The score has the top line to itself; the goal starts under it.
+        float y = Padding - 2.0f + ScoreLine;
         _score.Position = new Vector2(PanelWidth - Padding - 120.0f, 6.0f);
         _score.Size = new Vector2(120.0f, 20.0f);
 

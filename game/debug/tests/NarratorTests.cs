@@ -53,6 +53,14 @@ public partial class NarratorTests : Node
         Check("an event plays a line, one at a time", first && !second && _started == 1 && GameEvents.IsNarrating,
             $"first {first}, second {second}, started {_started}, playing {Narrator.CurrentLine}");
 
+        GameEvents.PublishDialogue(true);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        bool stopped = !GameEvents.IsNarrating && Narrator.CurrentLine == null;
+        bool spoke = Narrator.Say("player_fell");
+        GameEvents.PublishDialogue(false);
+        Check("a dialogue with an NPC stops the narrator and keeps it quiet", stopped && !spoke, $"stopped {stopped}, spoke over it {spoke}");
+
         GameEvents.NarrationStarted -= OnStarted;
         Narrator.Silence();
         Check("silence stops the line", !GameEvents.IsNarrating && Narrator.CurrentLine == null, "stopped");

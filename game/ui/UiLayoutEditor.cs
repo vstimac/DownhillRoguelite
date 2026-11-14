@@ -43,7 +43,8 @@ public partial class UiLayoutEditor : Control
     {
         MouseFilter = MouseFilterEnum.Ignore;
         SetAnchorsPreset(LayoutPreset.FullRect);
-        _persist = DisplayServer.GetName() != "headless";
+        // `-- --default-layout` leaves the saved layout alone and unread (rendered checks of the default HUD).
+        _persist = DisplayServer.GetName() != "headless" && System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--default-layout") < 0;
         Load();
     }
 

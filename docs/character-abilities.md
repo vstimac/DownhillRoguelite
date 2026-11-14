@@ -12,7 +12,7 @@ These are fictional gameplay tradeoffs and starting values for playtesting.
 
 | Origin | Health | Stamina | Speed | Recovery | Hunger/thirst drain | Ability |
 | --- | ---: | ---: | ---: | ---: | ---: | --- |
-| The Carrier | 100% | 100% | 100% | 100% | 100% | **Second Wind:** instantly restore 40% of effective maximum stamina; 75s cooldown. |
+| The Carrier | 100% | 100% | 100% | 100% | 100% | **Restore 40% stamina:** instantly restore 40% of effective maximum stamina; 75s cooldown. |
 | Vučić | 110% | 90% | 105% | 90% | 110% | **Iron Resolve:** for 8s, stamina costs ×0.65 and physical impact damage ×0.80; 60s cooldown. |
 | Plenki | 90% | 120% | 95% | 110% | 90% | **Measured Pace:** for 10s, stamina costs ×0.50, +35% cold resistance and speed ×0.90; 70s cooldown. |
 
@@ -36,7 +36,7 @@ Vučić uses the existing GLB. Selecting a missing model falls back through the 
   dehydration or other non-impact health damage.
 - Cooldown starts on activation. Timers use gameplay seconds, freeze when paused or dead,
   and reset on a new run. Packing, conversations, downed state and death block activation.
-  Rejected activation consumes nothing. Second Wind cannot exceed the effective stamina cap.
+  Rejected activation consumes nothing. Restore 40% stamina cannot exceed the effective stamina cap.
 - The selected origin persists through the existing options file. Active effects and cooldowns
   are run state, not a new save format; clothing snapshots still save carried items/equipment only.
 - Five-frame playtest capture now records live origin, saved selection, active duration and cooldown

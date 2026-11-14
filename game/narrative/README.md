@@ -1,6 +1,6 @@
 # narrative
 
-Story data for the narrator companion. See docs/narrative.md for the setting.
+Story data for the narrator companion. See docs/STORY_BIBLE.md (the shared narrative baseline: read it before writing lines) and docs/narrative.md for the earlier setting.
 
 `data/metadata.csv`: 500 narrator lines with trigger, circle, phase and pacing metadata. Imported with the "keep" importer so Godot treats it as a plain file, not a translation table. Read it with `FileAccess.GetCsvLine`.
 
@@ -22,3 +22,7 @@ Story data for the narrator companion. See docs/narrative.md for the setting.
 ## The restsite president (parody NPC)
 
 `president/`: "Predsednik odmorišta (parodija)" at the Odmorište Konačnih Rezultata beside every second station. He speaks only manifest lines (`president/data/npc_restsite_president.csv`), voiced from the recorded pack (`president/data/npc_restsite_president_voice.json`, forest/outdoor takes in `audio/voice/npc_restsite_president/`) or shown as subtitles. He has three quests, a favour-paid shop, a podium speech and a secret scene, and his state is saved in `user://restsite_president.cfg`. See docs/restsite-president.md. Preview lines in `debug/TestPresident.tscn`; tests in `debug/tests/PresidentTests`.
+
+## The šalteruša (counter clerk)
+
+`salterusa/`: a Croatian counter clerk behind glass in a little booth (`CounterBooth`) beside the fire of station 2, and again every 4th station after the carrier has passed her. Voiced only by the team's own recordings (`audio/voice/npc_salterusa/hr-HR/`, 97 clips). `salterusa/data/npc_salterusa.csv` gives each clip an id, an event (bark, idle, breath, explain, quest, documents, gear, refuse, door, angry, return, rare, dear), an emotion and its subtitle; move a clip to another event there after listening to it. The subtitles in [brackets] are placeholders until the lines are written down (the pack was cut at pauses, not transcribed). She barks when you come up to the counter, talks or sighs if you loiter, and E opens the counter: permits, what it takes to go further (in order), your gear, refusals and the door, or "Can we just talk?" for the M11 conversation (persona `npcs/salterusa.tres`). After a death or an earlier run her first line is a return line; struck, "Bože dragi", then threats. Lab: `debug/SalterusaLab.tscn`; tests: `debug/tests/SalterusaTests`.

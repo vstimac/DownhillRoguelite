@@ -2,7 +2,7 @@
 
 The backpack: a 3D grid of 5 cm cells, items as Resources (`items/`), the auto-packer, the load calculation that balance reads, and the carrier's `CarrierInventory`.
 
-`interaction/` holds packing mode: setting the pack down, picking items up, the ghost preview and the in-world readout.
+`interaction/` holds `PackingMode`: a short press of Tab asks for the quick look, holding it sets the pack down (which takes time), and only while the pack stands open do the placement requests go through. The pack is drawn by the pages in `ui/pack/` (`PackGridView`: the grid in 2.5D with item models; `PackQuickView`; `PackingScreen`), which read `GameEvents.CurrentPackLayout` (`core/PackLayout`) and ask through `GameEvents.RequestPackPlace` / `RequestPackTakeOut` / `RequestPackArrange`. `PackGeometry` is the shared pointing maths. Debug scene: `debug/TestPacking.tscn` (`-- --open-pack` or `-- --pack-look` for rendered checks); tests: `debug/tests/PackViewTests.tscn`.
 
 `LoadSnapshot` describes the packed backpack for balance and its readout. `GearSnapshot` carries worn and pocket mass separately; `core/CarriedLoad.Mass` sums them for physical effort, jumping, needs and route estimates. Moving gear onto the body does not make its weight disappear.
 

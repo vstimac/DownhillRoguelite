@@ -29,8 +29,8 @@
 [ext_resource type="Script" uid="uid://duai4dl8rn757" path="res://narrative/NarratorDirector.cs" id="29_narrator"]
 [ext_resource type="Script" uid="uid://mdeqwxp2sioj" path="res://world_ui/PauseMenu.cs" id="30_pause"]
 [ext_resource type="Script" uid="uid://wn0y45nieiel" path="res://audio/WeatherAudio.cs" id="31_weather_audio"]
-[ext_resource type="AudioStream" uid="uid://ts8prkcyp1kc" path="res://audio/ambience/wind.wav" id="32_wind"]
-[ext_resource type="AudioStream" uid="uid://dstuk46m2vut7" path="res://audio/ambience/rain.wav" id="33_rain"]
+[ext_resource type="AudioStream" path="res://audio/sonniss/weather/wind_loop.ogg" id="32_wind"]
+[ext_resource type="AudioStream" path="res://audio/sonniss/weather/rain_loop.ogg" id="33_rain"]
 [ext_resource type="Script" uid="uid://buexhnwir7iia" path="res://audio/Footsteps.cs" id="34_footsteps"]
 [ext_resource type="Script" uid="uid://cw67rea8yios8" path="res://world_ui/CircleTitle.cs" id="35_circle_title"]
 [ext_resource type="Script" uid="uid://sqr3cwa1wxob" path="res://wildlife/WildlifeSpawner.cs" id="36_wildlife"]
@@ -61,6 +61,7 @@
 [ext_resource type="Script" path="res://debug/LeakMonitor.cs" id="95_leak"]
 [ext_resource type="Script" path="res://wildlife/EnemyDirector.cs" id="96_enemies"]
 [ext_resource type="Script" path="res://narrative/NewspaperSeller.cs" id="100_newspaper_seller"]
+[ext_resource type="Script" path="res://narrative/salterusa/Salterusa.cs" id="101_salterusa"]
 [ext_resource type="Resource" path="res://wildlife/enemies/ogre.tres" id="97_ogre"]
 [ext_resource type="Resource" path="res://wildlife/enemies/packbeast.tres" id="98_packbeast"]
 [ext_resource type="Resource" path="res://wildlife/enemies/jade_glutton.tres" id="99_jade_glutton"]
@@ -97,6 +98,7 @@
 [ext_resource type="Resource" path="res://wildlife/default_beasts.tres" id="62_beast_roster"]
 [ext_resource type="Script" path="res://narrative/president/PresidentDirector.cs" id="63_president"]
 [ext_resource type="Script" path="res://progression/RunKeeper.cs" id="102_run_keeper"]
+[ext_resource type="Script" path="res://audio/CircleAmbience.cs" id="103_circle_ambience"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
@@ -364,6 +366,9 @@ Personas = [ExtResource("48_pilgrim"), ExtResource("48_cartographer"), ExtResour
 [node name="NewspaperSeller" type="Node3D" parent="." unique_id=1907733563]
 script = ExtResource("100_newspaper_seller")
 
+[node name="Salterusa" type="Node3D" parent="." unique_id=1907733564]
+script = ExtResource("101_salterusa")
+
 [node name="PauseMenu" type="CanvasLayer" parent="." unique_id=379047615]
 script = ExtResource("30_pause")
 
@@ -412,6 +417,9 @@ script = ExtResource("43_map")
 
 [node name="SoundEffects" type="Node" parent="." unique_id=1519605839]
 script = ExtResource("44_sfx")
+
+[node name="CircleAmbience" type="Node" parent="."]
+script = ExtResource("103_circle_ambience")
 
 [node name="Hud" type="CanvasLayer" parent="." unique_id=2004278248]
 script = ExtResource("45_hud")

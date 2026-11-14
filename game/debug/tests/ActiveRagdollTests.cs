@@ -131,10 +131,10 @@ public partial class ActiveRagdollTests : Node3D
             Check("combat immediately owns both arms", pose.LeftArmWeight == 0 && pose.RightArmWeight == 0);
             GameEvents.PublishSwordDrawn(false);
             CarrierTorch torch = body.GetNode<CarrierTorch>("Torch");
-            torch.SetRemote(true, false);
+            GameEvents.RequestTorch(60);
             await Frames(2);
             Check("a lit torch retains its arm while the other balances", pose.LeftArmWeight == 0 && pose.RightArmWeight > 0.3f);
-            torch.SetRemote(false, false);
+            torch.Stow();
 
             pose.Enabled = false;
             await Frames(45);

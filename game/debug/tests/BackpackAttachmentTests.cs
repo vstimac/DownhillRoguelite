@@ -35,7 +35,8 @@ public partial class BackpackAttachmentTests : Node3D
                 player.Health?.Refill();
                 player.Stamina?.Refill();
                 await Frames(15);
-                Check(id + " mesh front has the configured torso clearance", Mathf.Abs(FrontGap(rig, mount) - mount.Clearance) < 0.0001f);
+                float gap = FrontGap(rig, mount);
+                Check(id + " mesh front has the configured torso clearance", Mathf.Abs(gap - mount.Clearance) < 0.0001f, "gap=" + gap.ToString("0.0000") + " clearance=" + mount.Clearance.ToString("0.0000"));
                 int observations = 0;
                 float worst = 0;
                 void Observe()
@@ -46,6 +47,47 @@ public partial class BackpackAttachmentTests : Node3D
                     observations++;
                 }
                 rig.SkeletonUpdated += Observe;
+                // The harness: simulated on every final pose, unbroken, finite; the pack hangs from it near its fit.
+                BackpackHarness? harness = mount.GetNodeOrNull<BackpackHarness>("BackpackHarness");
+                int rebuildsBefore = harness?.Rebuilds ?? 0;
+                int resetsBefore = harness?.Resets ?? 0;
+                float widestStep = 0;
+                float mostDrift = 0;
+                float mostTurn = 0;
+                string phase = "walk";
+                string deepestAt = "";
+                float deepest = 0;
+                long slowest = 0;
+                long totalMicroseconds = 0;
+                int stepped = 0;
+                bool finite = true;
+                bool hanging = true;
+                int straps = 0;
+                void Harness()
+                {
+                    if (harness == null) { return; }
+                    straps = 0;
+                    for (int strap = 0; strap < 4; strap++)
+                    {
+                        System.Collections.Generic.IReadOnlyList<Vector3> path = harness.Drawn(strap);
+                        if (path.Count > 1) { straps++; }
+                        for (int i = 1; i < path.Count; i++)
+                        {
+                            finite &= path[i].IsFinite();
+                            widestStep = Mathf.Max(widestStep, path[i].DistanceTo(path[i - 1]));
+                        }
+                    }
+                    hanging &= mount.Simulated;
+                    finite &= mount.Pivot.GlobalTransform.IsFinite();
+                    mostDrift = Mathf.Max(mostDrift, harness.SwingDistance);
+                    mostTurn = Mathf.Max(mostTurn, harness.SwingAngle);
+                    float inside = harness.Physics?.InsideAfter ?? 0;
+                    if (inside > deepest) { deepest = inside; deepestAt = phase; }
+                    slowest = Math.Max(slowest, harness.StepMicroseconds);
+                    totalMicroseconds += harness.StepMicroseconds;
+                    stepped++;
+                }
+                rig.SkeletonUpdated += Harness;
                 Input.ActionPress("player_move_forward");
                 for (int i = 0; i < 30; i++) { await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); }
                 Input.ActionPress("player_brake");
@@ -53,6 +95,7 @@ public partial class BackpackAttachmentTests : Node3D
                 Input.ActionRelease("player_brake"); Input.ActionRelease("player_move_forward");
                 player.Teleport(new Vector3(-10, 0.1f, 12), 0);
                 await Frames(15);
+                phase = "sprint";
                 Input.ActionPress("player_move_forward"); Input.ActionPress("player_sprint");
                 bool sprinted = false;
                 for (int i = 0; i < 30; i++) { await Frames(1); sprinted |= player.Sprinting; }
@@ -60,26 +103,49 @@ public partial class BackpackAttachmentTests : Node3D
                 Check(id + " samples an actual sprint", sprinted);
                 player.Teleport(new Vector3(-10, 0.1f, 12), 0);
                 await Frames(15);
+                phase = "jump";
                 player.RagdollJump = false;
                 Input.ActionPress("player_jump");
                 await Frames(2);
                 Input.ActionRelease("player_jump");
                 bool jumped = player.Velocity.Y > 0;
-                await Frames(90);
-                Check(id + " samples a physics jump and landing", jumped && player.IsOnFloor());
+                // Headless frames can run faster than physics ticks, so wait for the landing itself.
+                await Frames(10);
+                for (int i = 0; i < 600 && !player.IsOnFloor(); i++) { await Frames(1); }
+                await Frames(10);
+                Check(id + " samples a physics jump and landing", jumped && player.IsOnFloor(),
+                    "jumped=" + jumped + " floor=" + player.IsOnFloor() + " packing=" + GameEvents.IsPacking + " screen=" + GameEvents.IsScreenOpen);
                 Dive dive = player.GetNode<Dive>("Dive");
                 dive.RagdollDive = false;
+                phase = "dive";
                 bool dived = dive.TryDive();
-                for (int i = 0; i < 240 && dive.Diving; i++) { await Frames(1); }
+                for (int i = 0; i < 1200 && dive.Diving; i++) { await Frames(1); }
                 await Frames(30);
-                Check(id + " samples a complete dive transition", dived && !dive.Diving && !GameEvents.IsDowned);
+                Check(id + " samples a complete dive transition", dived && !dive.Diving && !GameEvents.IsDowned,
+                    "dived=" + dived + " diving=" + dive.Diving + " downed=" + GameEvents.IsDowned);
+                rig.SkeletonUpdated -= Harness;
+                Check(id + " fits a harness: both shoulder straps, the sternum strap and the hip belt", harness?.Fitted == true && straps == 4,
+                    harness?.Problem + " straps=" + straps);
+                Check(id + " rebuilds the straps from the final pose through walk, sprint, jump and dive, unbroken and finite",
+                    harness != null && harness.Rebuilds - rebuildsBefore > 100 && widestStep < 0.09f && finite,
+                    "rebuilds=" + (harness?.Rebuilds - rebuildsBefore) + " widest step=" + widestStep.ToString("0.000") + " m");
+                float settled = harness?.SwingDistance ?? 1;
+                float settledTurn = harness?.SwingAngle ?? 1;
+                float average = totalMicroseconds / Mathf.Max(stepped, 1.0f);
+                int resets = (harness?.Resets ?? 0) - resetsBefore;
+                Check(id + " hangs the pack from its straps (no bone holds it): it swings, stays on the back and settles back",
+                    harness != null && hanging && mostDrift > 0.003f && mostDrift < (harness.ResetDistance * 0.5f) && settled < 0.06f && settledTurn < 0.25f,
+                    "most swing=" + mostDrift.ToString("0.000") + " m / " + Mathf.RadToDeg(mostTurn).ToString("0.0") + " deg, settled " + settled.ToString("0.000") + " m / " + Mathf.RadToDeg(settledTurn).ToString("0.0") + " deg");
+                Check(id + " keeps the straps and back panel out of the body", deepest < 0.01f, "deepest inside after a frame=" + deepest.ToString("0.0000") + " m (" + deepestAt + ")");
+                Check(id + " starts over only when teleported", resets <= 4, "resets=" + resets);
+                Check(id + " simulates cheaply", average < 600 && slowest < 4000, "average " + average.ToString("0") + " us, slowest " + slowest + " us over " + stepped + " updates");
                 player.Teleport(new Vector3(-10, 0.1f, 12), 0);
                 await Frames(15);
                 PlayerRagdoll ragdoll = player.GetNode<PlayerRagdoll>("Ragdoll");
                 ragdoll.GoDown(Vector3.Forward * 2, Vector3.Zero);
                 await Frames(20);
                 bool fell = ragdoll.Downed;
-                for (int i = 0; i < 510 && ragdoll.Downed; i++) { await Frames(1); }
+                for (int i = 0; i < 2400 && ragdoll.Downed; i++) { await Frames(1); }
                 await Frames(45);
                 Check(id + " samples native ragdoll and recovery", fell && !ragdoll.Downed);
                 rig.SkeletonUpdated -= Observe;
@@ -167,7 +233,8 @@ public partial class BackpackAttachmentTests : Node3D
         {
             if (node is not MeshInstance3D mesh || mesh.Mesh == null) { continue; }
             Transform3D toModel = mount.Model.GlobalTransform.AffineInverse() * mesh.GlobalTransform;
-            Transform3D placement = rest * mount.Pivot.Transform * mount.Model.Transform * toModel;
+            // The fit itself, without where the straps hang the pack.
+            Transform3D placement = mount.RestPivot(rig) * mount.Model.Transform * toModel;
             for (int i = 0; i < 8; i++)
             {
                 Vector3 point = frame.Transposed() * (placement * mesh.Mesh.GetAabb().GetEndpoint(i) - rest.Origin) * metres;

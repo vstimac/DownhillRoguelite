@@ -20,6 +20,8 @@ public partial class ClothingVisualController : Node
     [Export] public float BasePackClearance { get; set; } = 0.015f;
     [Export] public Vector3 BasePackRotationDegrees { get; set; }
     [Export] public Vector3 BasePackScale { get; set; } = Vector3.One;
+    /// <summary>One over the pack texture's average linear brightness (about 0.07), so the pack comes out in the chosen colour.</summary>
+    [Export] public float PackShadeGain { get; set; } = 14.0f;
     /// <summary>Colours of the trousers and boots cut from a base character's body (see BodyGarment).</summary>
     [Export] public Color BodyTrousersColour { get; set; } = new(0.27f, 0.25f, 0.21f);
     [Export] public Color BodyBootsColour { get; set; } = new(0.22f, 0.14f, 0.08f);
@@ -47,6 +49,8 @@ public partial class ClothingVisualController : Node
     private Node3D? _basePack;
     private BaseMaterial3D? _nativeShirtMaterial;
     private ShaderMaterial? _packMaterial;
+    /// <summary>The pack model's surfaces (its texture's shade in the chosen pack colour).</summary>
+    private readonly List<ShaderMaterial> _packModelMaterials = new();
     private Shader? _shader;
     private bool _setUp;
 
@@ -204,6 +208,7 @@ public partial class ClothingVisualController : Node
         if (_baseShirt?.MaterialOverride is ShaderMaterial shirt) { shirt.SetShaderParameter("cloth_colour", ShirtColour); }
         if (_nativeShirtMaterial != null) { _nativeShirtMaterial.AlbedoColor = ShirtColour; }
         _packMaterial?.SetShaderParameter("cloth_colour", PackColour);
+        foreach (ShaderMaterial material in _packModelMaterials) { material.SetShaderParameter("cloth_colour", PackColour); }
     }
 
     private void OnGear(GearSnapshot gear)
@@ -327,9 +332,21 @@ public partial class ClothingVisualController : Node
             FitBasePackToBody, BasePackClearance);
         if (_basePack == null) { return; }
         _basePack.Name = "BaseBackpackPrototype";
+        _packModelMaterials.Clear();
         foreach (Node node in _basePack.FindChildren("*", "MeshInstance3D", true, false))
         {
-            if (node is MeshInstance3D mesh && mesh.Mesh is BoxMesh box && box.Size.X > 0.2f) { mesh.MaterialOverride = _packMaterial; }
+            if (node is not MeshInstance3D mesh || mesh.Mesh == null) { continue; }
+            if (mesh.Mesh is BoxMesh box)
+            {
+                if (box.Size.X > 0.2f) { mesh.MaterialOverride = _packMaterial; }
+                continue;
+            }
+            for (int surface = 0; surface < mesh.Mesh.GetSurfaceCount(); surface++)
+            {
+                ShaderMaterial material = SurfaceMaterial(mesh.Mesh.SurfaceGetMaterial(surface), GameOptions.BasePackColour, true);
+                mesh.SetSurfaceOverrideMaterial(surface, material);
+                _packModelMaterials.Add(material);
+            }
         }
         ClothingFitter.Fit(Skeleton, CharacterId, "base_pack", _basePack);
     }
@@ -422,25 +439,40 @@ public partial class ClothingVisualController : Node
             {
                 Material? modelled = mesh.Mesh.SurfaceGetMaterial(surface);
                 if (modelled != null && Array.IndexOf(look.KeepMaterials, modelled.ResourceName) >= 0) { continue; }
-                ShaderMaterial material = Material(look.Colour);
-                if (modelled is BaseMaterial3D standard)
-                {
-                    if (standard.AlbedoTexture != null)
-                    {
-                        material.SetShaderParameter("textured", true);
-                        material.SetShaderParameter("albedo_texture", standard.AlbedoTexture);
-                    }
-                    if (standard.NormalEnabled && standard.NormalTexture != null)
-                    {
-                        material.SetShaderParameter("has_normal", true);
-                        material.SetShaderParameter("normal_texture", standard.NormalTexture);
-                    }
-                }
+                ShaderMaterial material = SurfaceMaterial(modelled, look.Colour, look.Kind == ClothingVisual.VisualKind.PrototypeBackpack);
                 mesh.SetSurfaceOverrideMaterial(surface, material);
                 materials.Add(material);
             }
         }
         return materials;
+    }
+
+    /// <summary>
+    /// The condition material for one modelled surface, carrying its textures; with
+    /// <paramref name="recolour"/> the texture gives only shade and <paramref name="colour"/> the colour.
+    /// </summary>
+    private ShaderMaterial SurfaceMaterial(Material? modelled, Color colour, bool recolour)
+    {
+        ShaderMaterial material = Material(colour);
+        if (modelled is BaseMaterial3D standard)
+        {
+            if (standard.AlbedoTexture != null)
+            {
+                material.SetShaderParameter("textured", true);
+                material.SetShaderParameter("albedo_texture", standard.AlbedoTexture);
+                if (recolour)
+                {
+                    material.SetShaderParameter("recolour", 1.0f);
+                    material.SetShaderParameter("recolour_gain", PackShadeGain);
+                }
+            }
+            if (standard.NormalEnabled && standard.NormalTexture != null)
+            {
+                material.SetShaderParameter("has_normal", true);
+                material.SetShaderParameter("normal_texture", standard.NormalTexture);
+            }
+        }
+        return material;
     }
 
     private static void ApplyMaterial(Node3D root, ShaderMaterial material)
