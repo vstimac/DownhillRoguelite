@@ -55,8 +55,8 @@ public partial class PatchLoader : Node
     /// <summary>
     /// A full release from before co-op has no NetSession autoload in its project settings, and a patch
     /// can't add one: autoloads start before patches mount. The code is new (an update replaces the DLL),
-    /// so the session starts here instead, right after this first autoload. A full release that has the
-    /// autoload is left alone.
+    /// so the session starts here instead, as /root/NetSession (the path co-op messages are sent to), once
+    /// the root has finished taking its autoloads. A full release that has the autoload is left alone.
     /// </summary>
     private void StartCoopIfTheBaseCannot()
     {
@@ -64,7 +64,7 @@ public partial class PatchLoader : Node
         {
             return;
         }
-        GetTree().Root.AddChild(new Network.NetSession { Name = "NetSession" });
+        GetTree().Root.CallDeferred(Node.MethodName.AddChild, new Network.NetSession { Name = "NetSession" });
         GD.Print("PatchLoader: started co-op (this folder's full release is older than co-op)");
     }
 }
