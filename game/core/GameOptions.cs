@@ -149,6 +149,10 @@ public static class GameOptions
             return;
         }
         _loaded = true;
+        if (PlayersFileOffLimits())
+        {
+            return;
+        }
         ConfigFile file = new();
         if (file.Load(_path) != Error.Ok)
         {
@@ -257,8 +261,23 @@ public static class GameOptions
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// Headless runs (the tests, CI) neither read nor write the player's own options: they keep the
+    /// defaults unless a test names a file of its own (UseFile). Otherwise a test's result depends on
+    /// what the player last chose (an automatic roll, another character), and a test that changes an
+    /// option overwrites the player's file.
+    /// </summary>
+    private static bool PlayersFileOffLimits()
+    {
+        return _path == DefaultPath && DisplayServer.GetName() == "headless";
+    }
+
     private static void Save()
     {
+        if (PlayersFileOffLimits())
+        {
+            return;
+        }
         ConfigFile file = new();
         file.SetValue(Section, "pause_while_open", PauseWhileOpen);
         file.SetValue(Section, "low_stat_alerts", LowStatAlerts);
