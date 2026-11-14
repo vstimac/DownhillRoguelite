@@ -33,7 +33,7 @@ public partial class StartScreen : CanvasLayer
 
     [Export] public string Title { get; set; } = "Downhill Roguelite";
     [Export] public string Subtitle { get; set; } = "Every run begins at the summit.";
-    [Export] public string VersionText { get; set; } = "Beta 2.9.2";
+    [Export] public string VersionText { get; set; } = "Beta 3.0";
     /// <summary>Largest title size in pixels; it shrinks with the window's height.</summary>
     [Export] public int TitleSize { get; set; } = 92;
     /// <summary>The dark wash behind the menu column (left edge; it fades out towards the middle).</summary>

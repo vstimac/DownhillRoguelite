@@ -109,9 +109,10 @@ CI's only when a release has nothing else for that folder.
 
 ## Startup changes require a full build
 
-Autoloads are registered before `PatchLoader` mounts resource patches. A patch that adds
-`NetSession` to `project.binary` cannot add that autoload to an already-started older build.
-Beta 2.9.2 therefore publishes full Windows and Linux builds without small update assets for
-the older bases. The updater selects the full build and replaces the old patch directory;
-the resulting folder becomes the new update base. Keep this boundary whenever startup
-settings or autoload registration change, and test hosting from an actual upgraded folder.
+Autoloads are registered before `PatchLoader` mounts resource patches, so a patch can't add an
+autoload to an older full release: its `project.binary` still lists the old ones. Co-op's
+`NetSession` is handled in code instead: `PatchLoader` (the first autoload, and from the new DLL)
+adds it to `/root` when the folder's project settings have no `autoload/NetSession`. Beta 3.0
+therefore ships as small updates for the 2.9 and 2.5 bases. Any other new autoload or startup
+setting needs the same treatment or a full build; test hosting from an actually upgraded folder
+(old exe + update, `-- --host`).

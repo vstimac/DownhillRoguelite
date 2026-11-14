@@ -49,5 +49,22 @@ public partial class PatchLoader : Node
                 GD.PushWarning("PatchLoader: could not load " + path);
             }
         }
+        StartCoopIfTheBaseCannot();
+    }
+
+    /// <summary>
+    /// A full release from before co-op has no NetSession autoload in its project settings, and a patch
+    /// can't add one: autoloads start before patches mount. The code is new (an update replaces the DLL),
+    /// so the session starts here instead, right after this first autoload. A full release that has the
+    /// autoload is left alone.
+    /// </summary>
+    private void StartCoopIfTheBaseCannot()
+    {
+        if (ProjectSettings.HasSetting("autoload/NetSession") || Network.NetSession.Instance != null)
+        {
+            return;
+        }
+        GetTree().Root.AddChild(new Network.NetSession { Name = "NetSession" });
+        GD.Print("PatchLoader: started co-op (this folder's full release is older than co-op)");
     }
 }
