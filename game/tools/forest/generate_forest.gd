@@ -8,6 +8,8 @@ extends SceneTree
 const OUTPUT = "res://art/environment/forest/"
 const TREE_SHADER = "res://terrain/foliage_tree.gdshader"
 const PINE_HEIGHT = 12.0
+## The trunk ends at this share of PINE_HEIGHT, inside the top tuft.
+const TRUNK_TOP = 0.93
 var vertices := PackedVector3Array()
 var normals := PackedVector3Array()
 var colours := PackedColorArray()
@@ -108,7 +110,8 @@ func branch(a: Vector3, b: Vector3, radius: float, tip_radius: float, colour: Co
 		tri(p, r, s, shade, shade, shade, flex_a, flex_b, flex_b, level)
 
 ## A needle spray: a leaf-shaped fan of four triangles, darker at its base, flexing more toward its tip.
-func spray(origin: Vector3, direction: Vector3, length: float, width: float, colour: Color, level: int, flex: float) -> void:
+## full = false keeps it out of the closest LOD (a broad stand-in for the fine sprays that LOD drops).
+func spray(origin: Vector3, direction: Vector3, length: float, width: float, colour: Color, level: int, flex: float, full: bool = true) -> void:
 	var along := direction.normalized()
 	var across := along.cross(Vector3.UP).normalized()
 	if across.length_squared() < 0.1:
@@ -124,10 +127,10 @@ func spray(origin: Vector3, direction: Vector3, length: float, width: float, col
 	var f0 := flex
 	var f1 := minf(flex + 0.15, 1.0)
 	var f2 := minf(flex + 0.3, 1.0)
-	tri(origin, left, middle, base, edge, colour, f0, f1, f1, level)
-	tri(origin, middle, right, base, colour, edge, f0, f1, f1, level)
-	tri(left, tip, middle, edge, end, colour, f1, f2, f1, level)
-	tri(middle, tip, right, colour, end, edge, f1, f2, f1, level)
+	tri(origin, left, middle, base, edge, colour, f0, f1, f1, level, full)
+	tri(origin, middle, right, base, colour, edge, f0, f1, f1, level, full)
+	tri(left, tip, middle, edge, end, colour, f1, f2, f1, level, full)
+	tri(middle, tip, right, colour, end, edge, f1, f2, f1, level, full)
 
 func pine(variant: int) -> void:
 	var height := PINE_HEIGHT
@@ -139,7 +142,8 @@ func pine(variant: int) -> void:
 	var rings := 12
 	for ring in range(rings + 1):
 		var t := float(ring) / rings
-		centres.append(Vector3(sin(t * 3.2 + variant) * t * 0.18, t * height, cos(t * 2.3 + variant) * t * 0.12))
+		# The trunk stops just inside the top tuft, so no bare stick shows above the crown.
+		centres.append(Vector3(sin(t * 3.2 + variant) * t * 0.18, t * height * TRUNK_TOP, cos(t * 2.3 + variant) * t * 0.12))
 		if ring > 0:
 			var t0 := float(ring - 1) / rings
 			var r0 := lerpf(0.15, 0.025, t0)
@@ -157,7 +161,8 @@ func pine(variant: int) -> void:
 	var layers := 13
 	for layer in range(layers):
 		var t := float(layer) / layers
-		var y := height * lerpf(0.22, 0.95, t)
+		# Whorls climb right up under the top tuft (the last at about 0.93 of the height).
+		var y := height * lerpf(0.22, 0.99, t)
 		var length := height * 0.2 * pow(1.0 - t, 0.72) + 0.25
 		var turn := layer * 2.399 + variant * 0.7
 		var arms := 7
@@ -171,7 +176,7 @@ func pine(variant: int) -> void:
 			phase = random.randf()
 			var angle := turn + arm * TAU / arms + random.randf_range(-0.2, 0.2)
 			var outward := Vector3(cos(angle), 0, sin(angle))
-			var root := centres[0].lerp(centres[rings], y / height) + Vector3(0, random.randf_range(-0.15, 0.15), 0)
+			var root := centres[0].lerp(centres[rings], minf(y / (height * TRUNK_TOP), 1.0)) + Vector3(0, random.randf_range(-0.15, 0.15), 0)
 			root.y = y + random.randf_range(-0.15, 0.15)
 			var reach := length * random.randf_range(0.85, 1.12)
 			# A drooping limb: out and down to the elbow, then out with the tip turning up a little.
@@ -206,13 +211,26 @@ func pine(variant: int) -> void:
 						needle_length * 0.24, green.lightened(0.06), 0, minf(flex + 0.15, 1.0))
 			var crown := layer_green.lightened(0.12)
 			spray(tip - outward * 0.2, outward + Vector3.UP * 0.35, 0.45, 0.1, crown, 2, 0.9)
-	# The leader: a fresh spike at the very top.
+			# Far away the fine sprays drop out and the limbs read as thin plates on a bare pole.
+			# Two broad drooping fans per limb (mid and far LODs only) fill the tier below it.
+			for sign_value in [-1.0, 1.0]:
+				var side_far: Vector3 = outward.cross(Vector3.UP) * sign_value * 0.35
+				spray(root.lerp(elbow, 0.35), (outward + side_far + Vector3.DOWN * 0.5).normalized(), reach * 0.95,
+					reach * 0.42, layer_green.darkened(0.04), 2, 0.55, false)
+	# The top: a full cone of fresh sprays round the trunk's end, then a short leader out of it.
+	# (It used to be four thin sprays on a bare trunk tip, which read as a stick with an arrow.)
 	phase = random.randf()
 	var top := centres[rings]
-	for k in range(4):
-		var angle := k * TAU / 4.0 + variant
+	var fresh := needles.lightened(0.14)
+	for k in range(7):
+		var angle := k * TAU / 7.0 + variant + random.randf_range(-0.15, 0.15)
 		var outward := Vector3(cos(angle), 0, sin(angle))
-		spray(top + Vector3.DOWN * 0.6, outward * 0.35 + Vector3.UP, 0.9, 0.12, needles.lightened(0.18), 2, 0.6)
+		spray(top + Vector3.DOWN * 1.15, outward * 0.75 + Vector3.UP, 1.25, 0.24, fresh.darkened(0.06), 2, 0.55)
+		spray(top + Vector3.DOWN * 0.55, outward * 0.45 + Vector3.UP, 0.95, 0.18, fresh, 2, 0.65)
+	for k in range(3):
+		var angle := k * TAU / 3.0 + variant * 0.5
+		var outward := Vector3(cos(angle), 0, sin(angle))
+		spray(top + Vector3.DOWN * 0.1, outward * 0.12 + Vector3.UP, 0.75, 0.13, needles.lightened(0.2), 2, 0.75)
 
 func grass(variant: int) -> void:
 	var blades := 10 + variant * 3
