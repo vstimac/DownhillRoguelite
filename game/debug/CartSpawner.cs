@@ -52,7 +52,7 @@ public partial class CartSpawner : Node3D
         {
             return;
         }
-        if (GetTree().Paused || GameEvents.IsScreenOpen || GameEvents.IsConversing)
+        if (GetTree().Paused || (GameEvents.IsScreenOpen && !Ui.UiLayoutEditor.OnlyAltEditing) || GameEvents.IsConversing)
         {
             return;
         }

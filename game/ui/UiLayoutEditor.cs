@@ -39,6 +39,12 @@ public partial class UiLayoutEditor : Control
     private bool _persist;
     private bool _ownsScreen;
 
+    /// <summary>
+    /// True while the only "screen" open is Alt layout editing. Alt+key debug spawns (Tuntun, cart,
+    /// enemies) are pressed with Alt held, so they must not count this as a screen.
+    /// </summary>
+    public static bool OnlyAltEditing { get; private set; }
+
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
@@ -155,11 +161,13 @@ public partial class UiLayoutEditor : Control
             {
                 GameEvents.PublishScreenOpen(true);
             }
+            OnlyAltEditing = _ownsScreen;
             Input.MouseMode = Input.MouseModeEnum.Visible;
         }
         else
         {
             EndDrag();
+            OnlyAltEditing = false;
             if (_ownsScreen)
             {
                 _ownsScreen = false;

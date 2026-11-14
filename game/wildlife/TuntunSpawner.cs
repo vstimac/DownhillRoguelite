@@ -49,7 +49,7 @@ public partial class TuntunSpawner : Node3D
         {
             return;
         }
-        if (GetTree().Paused || GameEvents.IsScreenOpen || GameEvents.IsConversing)
+        if (GetTree().Paused || (GameEvents.IsScreenOpen && !Ui.UiLayoutEditor.OnlyAltEditing) || GameEvents.IsConversing)
         {
             return;
         }
