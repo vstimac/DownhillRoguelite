@@ -17,7 +17,8 @@ namespace DownhillRoguelite.Progression;
 /// Phase 2: hard landings and falls knock the carried cargo (less when it's packed deep inside the
 /// pack), so it may arrive damaged (paid in proportion), too damaged for its job (failed) or break
 /// on the way (failed at once). A job may have a deadline on the world clock, and any board takes
-/// back the open job if the carrier gives it up there (E, then E again).
+/// back the open job if the carrier gives it up there (E, then E again). Rain, snow and heat wear a
+/// Preservation job's cargo while it is exposed (Beta 3.2).
 /// A new run clears every offer, board and post. The only owner of contract state: everything else
 /// reads ContractOffered / ContractAccepted / ContractResolved and changes nothing.
 /// </summary>
@@ -45,8 +46,16 @@ public partial class ContractDirector : Node3D
     [Export] public float ExposedFactor { get; set; } = 1.4f;
     /// <summary>At or above this condition a delivery pays in full; below it, in proportion.</summary>
     [Export] public float IntactCondition { get; set; } = 90.0f;
-    /// <summary>How often the deadline is checked, in s.</summary>
+    /// <summary>How often the deadline (and the weather on the cargo) is checked, in s.</summary>
     [Export] public float DeadlineCheckInterval { get; set; } = 1.0f;
+    /// <summary>
+    /// Condition a Preservation job's cargo loses per minute in full rain, snow or heat when it is
+    /// against the pack's outside or in a pocket, before fragility. Cargo packed deep inside, or
+    /// carried under a shelter, loses none; in between it loses in proportion.
+    /// </summary>
+    [Export] public float WeatherWearPerMinute { get; set; } = 1.5f;
+    /// <summary>Weather weaker than this (0 to 1) leaves the cargo alone.</summary>
+    [Export] public float WeatherWearThreshold { get; set; } = 0.15f;
 
     /// <summary>Salt for the contract stream, so contracts never shift terrain, boons or supplies.</summary>
     private const ulong ContractSalt = 0xC0A7AC75ul;
@@ -68,6 +77,7 @@ public partial class ContractDirector : Node3D
     private RunState? _run;
     private WorldClock? _clock;
     private float _deadlineTimer;
+    private bool _weatherWarned;
 
     // Answers from the inventory to a request made a moment ago (C# events are synchronous).
     private string _awaitedCargo = "";
@@ -266,6 +276,11 @@ public partial class ContractDirector : Node3D
         {
             care = " It's fragile: pack it deep inside the pack (I), away from the sides.";
         }
+        if (contract.Definition.Kind == ContractKind.Preservation)
+        {
+            care += " Rain, snow and heat wear it unless it's packed deep.";
+        }
+        _weatherWarned = false;
         GameEvents.PublishHint("Took the job: carry the " + note.CargoName.ToLowerInvariant() + " to Station " + note.ToStation + "." + care);
         PlaceDeliveryPost(contract);
         if (_boards.TryGetValue(contract.FromStation, out ContractBoard? board))
@@ -456,7 +471,71 @@ public partial class ContractDirector : Node3D
             return;
         }
         _deadlineTimer = DeadlineCheckInterval;
-        CheckDeadline();
+        if (!CheckDeadline())
+        {
+            Weather(GameEvents.CurrentWeather, DeadlineCheckInterval);
+        }
+    }
+
+    /// <summary>
+    /// <paramref name="seconds"/> of <paramref name="weather"/> on a Preservation job's carried cargo:
+    /// rain, snow or heat wear it by WeatherWearPerMinute at full strength when it's exposed, nothing
+    /// when it's packed deep or the carrier is under a shelter. Returns the condition lost.
+    /// </summary>
+    public float Weather(WeatherSnapshot weather, float seconds)
+    {
+        if (_active == null || _active.Status != ContractStatus.Accepted || _active.Definition.Kind != ContractKind.Preservation)
+        {
+            return 0.0f;
+        }
+        if (GameEvents.InShelter || !Carried(_active.InstanceId))
+        {
+            _weatherWarned = false;
+            return 0.0f;
+        }
+        float strength = Mathf.Max(weather.Rain, Mathf.Max(weather.Snow, weather.Heat));
+        if (strength < WeatherWearThreshold)
+        {
+            _weatherWarned = false;
+            return 0.0f;
+        }
+        float exposure = 1.0f;
+        if (GameEvents.CargoExposure.TryGetValue(_active.InstanceId, out float packed))
+        {
+            exposure = Mathf.Clamp(packed, 0.0f, 1.0f);
+        }
+        float lost = ContractResolver.Damage(_active, WeatherWearPerMinute * strength * exposure * seconds / 60.0f);
+        if (lost <= 0.0f)
+        {
+            return 0.0f;
+        }
+        ContractInstance contract = _active;
+        if (contract.Condition <= 0.0f)
+        {
+            Fail("was ruined by the weather");
+            GameEvents.PublishHint("The weather ruined the " + contract.CargoName.ToLowerInvariant() + ". The job has failed.");
+            return lost;
+        }
+        GameEvents.PublishContractUpdated(contract.Note());
+        if (!_weatherWarned)
+        {
+            _weatherWarned = true;
+            GameEvents.PublishHint("The " + WeatherWord(weather) + " is getting at the " + contract.CargoName.ToLowerInvariant() + ": pack it deep inside (I), or wait under a shelter.");
+        }
+        return lost;
+    }
+
+    private static string WeatherWord(WeatherSnapshot weather)
+    {
+        if (weather.Snow >= weather.Rain && weather.Snow >= weather.Heat)
+        {
+            return "snow";
+        }
+        if (weather.Rain >= weather.Heat)
+        {
+            return "rain";
+        }
+        return "heat";
     }
 
     /// <summary>Fails the open job if its deadline has passed; true if it did.</summary>

@@ -79,6 +79,7 @@ public partial class ContractVariantTests : Node3D
         TestDeadline(Director);
         TestJobWords();
         TestNewJobsAndCargoUse(Director, inventory);
+        TestWeather(Director, inventory);
 
         GameEvents.ContractResolved -= OnResolved;
         if (_failures.Count == 0)
@@ -169,6 +170,57 @@ public partial class ContractVariantTests : Node3D
         director.Reload();
         Check("the fuel, rope and medicine jobs are valid, and a job's med kit can't be used up",
             problems.Count == 0 && medicine != null && kept, string.Join("; ", problems) + " " + stage);
+    }
+
+    /// <summary>Rain, snow and heat wear a Preservation job's cargo only while it's exposed; other jobs and light weather are left alone.</summary>
+    private void TestWeather(ContractDirector director, CarrierInventory inventory)
+    {
+        const string name = "rain wears exposed glass, not glass packed deep, light weather or a sealed parcel; a long storm ruins it";
+        WeatherSnapshot rain = WeatherSnapshot.Calm with { Kind = WeatherKind.Rain, Rain = 1.0f };
+        WeatherSnapshot drizzle = WeatherSnapshot.Calm with { Kind = WeatherKind.Rain, Rain = 0.1f };
+        inventory.Clear();
+        ContractInstance? glass = OfferOnly(director, Shipped("CT_003")!, 11);
+        if (glass == null || director.Accept(glass) != ContractResult.Ok || CargoIn(inventory, glass.InstanceId) is not PackedItem packed)
+        {
+            Check(name, false, "couldn't take and pack the glass job");
+            return;
+        }
+        ItemDefinition item = packed.Definition;
+        int orientation = packed.Orientation;
+        Vector3I size = packed.Size;
+        Vector3I grid = inventory.Grid!.Size;
+        inventory.Unpack(packed);
+        Vector3I centre = new((grid.X - size.X) / 2, (grid.Y - size.Y) / 2, (grid.Z - size.Z) / 2);
+        PackedItem? deep = inventory.Pack(item, centre, orientation);
+        bool sheltered = GameEvents.InShelter;
+        GameEvents.PublishShelter(false, -1);
+        float deepLoss = director.Weather(rain, 60.0f);
+        if (deep != null)
+        {
+            inventory.Unpack(deep);
+        }
+        PackedItem? edge = inventory.Pack(item, Vector3I.Zero, orientation);
+        float drizzleLoss = director.Weather(drizzle, 60.0f);
+        float edgeLoss = director.Weather(rain, 60.0f);
+        float expected = director.WeatherWearPerMinute * glass.Definition.Fragility;
+        director.Weather(rain, 3600.0f);
+        bool ruined = glass.Status == ContractStatus.Failed && director.Active == null;
+        inventory.Clear();
+        ContractInstance? parcel = OfferOnly(director, Shipped("CT_courier_parcel")!, 12);
+        float parcelLoss = -1.0f;
+        if (parcel != null && director.Accept(parcel) == ContractResult.Ok)
+        {
+            parcelLoss = director.Weather(rain, 600.0f);
+            director.Abandon();
+        }
+        inventory.Clear();
+        if (sheltered)
+        {
+            GameEvents.PublishShelter(true, -1);
+        }
+        Check(name, deep != null && edge != null && deepLoss == 0.0f && drizzleLoss == 0.0f && Mathf.Abs(edgeLoss - expected) < 0.01f && ruined && parcelLoss == 0.0f,
+            "a minute of rain took " + deepLoss.ToString("0.00") + " deep, " + edgeLoss.ToString("0.00") + " at the edge (expected " + expected.ToString("0.00")
+            + "); drizzle " + drizzleLoss.ToString("0.00") + "; ruined after a long storm " + ruined + " (" + glass.Reason + "); parcel " + parcelLoss.ToString("0.00") + "; sheltered at the start " + sheltered);
     }
 
     /// <summary>Makes the director offer only <paramref name="definition"/>, and pins it at <paramref name="station"/>.</summary>
