@@ -29,10 +29,25 @@ public partial class CharacterAbility : Node
     {
         if (@event.IsActionPressed(Action) && _body?.InputEnabled == true && _body.Health?.Dead != true)
         {
-            if (_run?.TryUseCharacterAbility() != true) { GameEvents.PublishHint("Ability is unavailable or still recovering."); }
+            if (_run != null && !_run.TryUseCharacterAbility()) { GameEvents.PublishHint(RefusalText(_run.Character)); }
             GetViewport().SetInputAsHandled();
         }
     }
+    /// <summary>Why the ability didn't fire, and when it will: "Second Wind is ready in 42 s."</summary>
+    public static string RefusalText(CharacterRun character)
+    {
+        string name = character.Stats.AbilityName;
+        if (name.Length == 0)
+        {
+            return "This carrier has no ability.";
+        }
+        if (character.CooldownLeft > 0)
+        {
+            return name + " is ready in " + Mathf.CeilToInt(character.CooldownLeft) + " s.";
+        }
+        return name + " can't be used right now.";
+    }
+
     private void Apply(CharacterStats stats)
     {
         if (_stamina == null || stats.RestoreStaminaFraction <= 0) { return; }

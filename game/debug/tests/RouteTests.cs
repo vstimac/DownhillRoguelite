@@ -496,7 +496,7 @@ public partial class RouteTests : Node3D
                 // Every arm points downhill (-Z); a branch's arm leans to the side its path swings to.
                 float swing = route.PathPoint(stage, path, Mathf.Lerp(zone.X, zone.Y, 0.3f)).X - route.RoutePoint(Mathf.Lerp(zone.X, zone.Y, 0.3f)).X;
                 bool side = path == 0 || Mathf.Abs(swing) < 5.0f || Mathf.Sign(aim.X) == Mathf.Sign(swing);
-                bool word = post.Words[path] == JunctionSignpost.Word(kind);
+                bool word = post.Words[path] == RouteSign.KindName(kind) && post.FittedFontSize(post.Words[path], post.ArmLength - post.ArmWidth * 0.5f) >= 32;
                 if (!(aim.Y < 0.0f && side && word))
                 {
                     ok = false;
@@ -504,7 +504,7 @@ public partial class RouteTests : Node3D
                 detail += $"{post.Words[path]} ({RouteSign.KindName(kind)}) aims ({aim.X:0.00}, {aim.Y:0.00}), path swings {swing:0} m; ";
             }
         }
-        Check("a signpost at the split points each path's arm (Safe, Fast, Loot) at its path", ok, $"stage {stage}, {paths} paths: {detail}");
+        Check("a signpost at the split points each path's arm at its path, named as the route signs name it and fitting its board", ok, $"stage {stage}, {paths} paths: {detail}");
     }
 
     private async Task Place(PlayerController player, Vector3 position, float settle)

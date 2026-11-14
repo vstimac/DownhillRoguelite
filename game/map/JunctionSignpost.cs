@@ -47,18 +47,23 @@ public partial class JunctionSignpost : Node3D
         });
     }
 
-    /// <summary>The word on a path's arm.</summary>
+    /// <summary>The word on a path's arm: the same name the route signs and path markers give it.</summary>
     public static string Word(RouteKind kind)
     {
-        if (kind == RouteKind.Hazardous)
+        return RouteSign.KindName(kind);
+    }
+
+    /// <summary>The largest font size up to <see cref="FontSize"/> at which <paramref name="word"/> fits on a board <paramref name="board"/> metres long.</summary>
+    public int FittedFontSize(string word, float board)
+    {
+        Font font = ThemeDB.FallbackFont;
+        float metres = font.GetStringSize(word, HorizontalAlignment.Left, -1, FontSize).X * PixelSize;
+        float room = board * 0.88f;
+        if (metres <= room)
         {
-            return "Fast";
+            return FontSize;
         }
-        if (kind == RouteKind.SupplyRich)
-        {
-            return "Loot";
-        }
-        return "Safe";
+        return Mathf.Max(16, Mathf.FloorToInt(FontSize * room / metres));
     }
 
     /// <summary>
@@ -116,7 +121,7 @@ public partial class JunctionSignpost : Node3D
             Label3D label = new()
             {
                 Text = word,
-                FontSize = FontSize,
+                FontSize = FittedFontSize(word, board),
                 PixelSize = PixelSize,
                 OutlineSize = 10,
                 Modulate = colour,

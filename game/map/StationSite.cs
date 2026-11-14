@@ -18,6 +18,8 @@ public partial class StationSite : Node3D
     [Export] public float LabelPixelSize { get; set; } = 0.006f;
     /// <summary>Beyond this the station's name fades; the beacon still shows the way.</summary>
     [Export] public float LabelRange { get; set; } = 60.0f;
+    /// <summary>The line under the name: what a station is for.</summary>
+    public const string PurposeText = "Rest by the fire · your run is saved here";
 
     [Export] public Color FireColor { get; set; } = new(1.0f, 0.55f, 0.2f);
     [Export] public float FireEnergy { get; set; } = 3.0f;
@@ -146,6 +148,17 @@ public partial class StationSite : Node3D
             OutlineSize = 10,
             Position = new Vector3(0.0f, LabelHeight, GateZ),
         }, LabelRange));
+        // Under the name, what a station is for (the run saves on arrival, see RunKeeper).
+        AddChild(WorldLabel.Readable(new Label3D
+        {
+            Name = "StationPurpose",
+            Text = PurposeText,
+            FontSize = LabelFontSize / 2,
+            PixelSize = LabelPixelSize,
+            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+            OutlineSize = 8,
+            Position = new Vector3(0.0f, LabelHeight - LabelFontSize * LabelPixelSize * 0.85f, GateZ),
+        }, LabelRange * 0.5f));
 
         // Beacon: a faint column of light seen from afar, gone once you are in the camp.
         AddMesh(new CylinderMesh { TopRadius = 0.15f, BottomRadius = 0.4f, Height = BeaconHeight, RadialSegments = 8 },

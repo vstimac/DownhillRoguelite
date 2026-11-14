@@ -517,7 +517,7 @@ public partial class RelicDirector : Node3D
         _run.RelicsStudied.Read(relic.Id, out bool _, out bool firstEver);
         string reading = InterpretationFor(relic);
         GameEvents.PublishRelicDelivered(new RelicNote(relic.Id, relic.DisplayName, reading, firstEver, station, condition, score));
-        GameEvents.PublishHint("Left " + relic.DisplayName.ToLowerInvariant() + " at the altar (+" + score + "). It's in your journal.");
+        GameEvents.PublishHint("Left " + relic.DisplayName.ToLowerInvariant() + " at the altar: +" + score + " score. It's in your journal.");
         return true;
     }
 

@@ -1381,7 +1381,7 @@ public partial class NetSession : Node
             at = (Vector3)hit["position"];
         }
         player.Teleport(at + Vector3.Up * 0.2f, player.GlobalRotation.Y);
-        GameEvents.PublishHint($"You're back at station {_lastStation}'s fire.");
+        GameEvents.PublishHint($"You're back at the fire of Station {_lastStation}.");
         Log($"back at station {_lastStation} ({at})");
     }
 

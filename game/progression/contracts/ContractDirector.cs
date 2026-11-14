@@ -330,7 +330,7 @@ public partial class ContractDirector : Node3D
             {
                 state = " in " + ContractResolver.ConditionText(contract.Condition) + " condition";
             }
-            GameEvents.PublishHint("Delivered the " + contract.CargoName.ToLowerInvariant() + state + ". The job is done (+" + contract.ScoreAwarded + ").");
+            GameEvents.PublishHint("Delivered the " + contract.CargoName.ToLowerInvariant() + state + ". The job is done: +" + contract.ScoreAwarded + " score.");
         }
         else
         {

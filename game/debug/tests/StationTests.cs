@@ -278,6 +278,21 @@ public partial class StationTests : Node3D
         Check("cairns stand along the route and the one ahead shows the estimate",
             stations.Cairns.Count > 0 && cairn != null && cairn.ShowingEstimate && text.Contains("Station 1") && text.Contains("on foot"),
             $"{stations.Cairns.Count} cairns loaded; label: {text.Replace("\n", " | ")}");
+        // A station of its own, so the check doesn't depend on which ones are streamed in right now.
+        StationSite site = new();
+        site.Build(1);
+        Label3D? purpose = site.GetNodeOrNull<Label3D>("StationPurpose");
+        string labels = "";
+        foreach (Node child in site.GetChildren())
+        {
+            if (child is Label3D label)
+            {
+                labels += child.Name + ": " + label.Text.Replace("\n", " | ") + "; ";
+            }
+        }
+        Check("a station's gate says what a station is for under its name",
+            purpose != null && purpose.Text == StationSite.PurposeText, labels);
+        site.Free();
     }
 
     private void SetHour(float hour)
