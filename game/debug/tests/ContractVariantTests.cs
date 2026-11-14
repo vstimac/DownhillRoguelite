@@ -110,7 +110,6 @@ public partial class ContractVariantTests : Node3D
         return null;
     }
 
-    /// <summary>Makes the director offer only <paramref name="definition"/>, and pins it at <paramref name="station"/>.</summary>
     /// <summary>Beta 3.1's jobs are valid, and a job's cargo (a med kit here) can't be used up by the carrier.</summary>
     private void TestNewJobsAndCargoUse(ContractDirector director, CarrierInventory inventory)
     {
@@ -142,24 +141,37 @@ public partial class ContractVariantTests : Node3D
         }
         inventory.Clear();
         bool kept = false;
+        string stage = "no medicine job";
         if (medicine != null)
         {
-            ContractInstance? job = OfferOnly(director, medicine, 2);
-            if (job != null && director.Accept(job) == ContractResult.Ok)
+            ContractInstance? job = OfferOnly(director, medicine, 10);
+            if (job == null)
             {
-                GameEvents.RequestItemUse("med_kit");
-                GameEvents.RequestUseItem("med_kit");
-                kept = CargoIn(inventory, job.InstanceId) != null;
-                director.Abandon();
+                stage = "not offered at Station 10";
+            }
+            else
+            {
+                ContractResult accepted = director.Accept(job);
+                stage = "accept " + accepted;
+                if (accepted == ContractResult.Ok)
+                {
+                    bool packed = inventory.OwnsCargo(job.InstanceId);
+                    GameEvents.RequestItemUse("med_kit");
+                    GameEvents.RequestUseItem("med_kit");
+                    kept = inventory.OwnsCargo(job.InstanceId);
+                    stage += ", packed " + packed + ", kept " + kept;
+                    director.Abandon();
+                }
             }
         }
         inventory.Clear();
         director.Contracts = _shipped;
         director.Reload();
         Check("the fuel, rope and medicine jobs are valid, and a job's med kit can't be used up",
-            problems.Count == 0 && medicine != null && kept, string.Join("; ", problems) + " cargo still packed after use: " + kept);
+            problems.Count == 0 && medicine != null && kept, string.Join("; ", problems) + " " + stage);
     }
 
+    /// <summary>Makes the director offer only <paramref name="definition"/>, and pins it at <paramref name="station"/>.</summary>
     private ContractInstance? OfferOnly(ContractDirector director, ContractDefinition definition, int station)
     {
         director.Contracts = new[] { definition };
