@@ -26,6 +26,14 @@ itself: core/update/UpdateInstaller.cs).
 
 Updates are cumulative since the base: each one replaces the last, so a player who skipped one
 needs only the newest. When updates grow large, make a new full release (and a new base).
+
+A small update can't change the game's startup settings: autoloads, input actions, shader globals and
+physics settings come from the base's project.binary, which a patch never replaces. So it refuses when
+project.godot differs from the base's tag (base.txt) in any line but the few that PatchLoader makes
+up for itself (ALLOWED_SETTINGS). Such a change needs a full release; --allow-settings overrides.
+
+Versions: a major version (3.0, 4.0, ...) is a full release and the new base; the minor versions
+after it (3.1, 3.2, ...) are small updates on that base.
 """
 import hashlib
 import os
@@ -134,6 +142,37 @@ def write_pck(source, target, header, entries):
         out.write(b"GDPC" + struct.pack("<IIIIIQQ", version, major, minor, patch, flags, file_base, dir_offset))
 
 
+# project.godot lines a small update may add or change, because core/PatchLoader.cs makes up for them
+# at startup on an older base.
+ALLOWED_SETTINGS = {
+    'NetSession="*res://network/NetSession.cs"',
+}
+
+
+def settings_guard(base_id):
+    """Fails when project.godot changed since the base in a way a small update can't carry."""
+    old = subprocess.run(["git", "-C", ROOT, "show", f"{base_id}:./project.godot"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if old.returncode != 0:
+        known = subprocess.run(["git", "-C", ROOT, "rev-parse", "--verify", "--quiet", f"{base_id}^{{commit}}"], capture_output=True, text=True)
+        if known.returncode == 0:
+            fail(f"can't read project.godot as it was in {base_id}, so a small update can't be checked; make a full release, or pass --allow-settings")
+        print(f"      (not checking settings: git doesn't know {base_id})")
+        return
+    with open(os.path.join(ROOT, "project.godot"), encoding="utf-8") as f:
+        new_lines = [line.rstrip() for line in f]
+    old_lines = [line.rstrip() for line in old.stdout.splitlines()]
+    removed = [line for line in old_lines if line and line not in new_lines]
+    added = [line for line in new_lines if line and line not in old_lines and line not in ALLOWED_SETTINGS]
+    if not removed and not added:
+        return
+    for line in removed[:12]:
+        print(f"      - {line}")
+    for line in added[:12]:
+        print(f"      + {line}")
+    fail(f"project.godot changed since {base_id} in startup settings a small update can't carry; "
+         "make a full release (a new base), or pass --allow-settings if you are sure")
+
+
 def git_lines(*args):
     result = subprocess.run(["git", "-C", ROOT] + list(args), capture_output=True, text=True, encoding="utf-8", errors="replace")
     if result.returncode != 0:
@@ -225,6 +264,9 @@ def main():
     keep_reimports = "--keep-reimports" in argv
     if keep_reimports:
         argv.remove("--keep-reimports")
+    allow_settings = "--allow-settings" in argv
+    if allow_settings:
+        argv.remove("--allow-settings")
     if len(argv) < 2:
         print(__doc__)
         sys.exit(2)
@@ -240,6 +282,9 @@ def main():
     base_txt = os.path.join(base_dir, "base.txt")
     if os.path.isfile(base_txt):
         base_id = open(base_txt, encoding="utf-8").read().strip()
+
+    if not allow_settings:
+        settings_guard(base_id)
 
     scratch = tempfile.mkdtemp(prefix="dr-update-")
     try:

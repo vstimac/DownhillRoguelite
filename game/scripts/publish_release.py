@@ -12,12 +12,13 @@ Options:
     --base DIR      the full release folder updates are made against (default: Beta 2.9's export,
                     see BASE below); its base.txt names the release players have
     --update ZIP    an update zip already made by make_update.py (default: make one now)
-    --also-base DIR another, older Windows base that players may still have (default: Beta 2.5, see
-                    OLD_BASES): an update is made and attached for it too, so nobody is left behind
+    --also-base DIR another, older Windows base that players may still have (default: none, see
+                    OLD_BASES): an update is made and attached for it too. Folders on a base with no
+                    update attached take the whole build instead, so --full covers them
     --also-update ZIP   such an update already made by make_update.py (repeatable)
     --no-old-bases  attach only the update for --base
-    --full ZIP      also attach a whole Windows build (package_windows.py); new players and folders
-                    without base.txt take it
+    --full ZIP      also attach a whole Windows build (package_windows.py); new players, folders
+                    without base.txt and folders on older bases take it. Required for a major version
     --linux-base DIR    a Linux full release folder (build_linux.sh's stage/ with base.txt): also make
                         and attach the small Linux update against it (default: Beta 2.9's, LINUX_BASE)
     --linux-update TAR  a Linux update already made by make_update.py --platform linux
@@ -27,6 +28,11 @@ Options:
     --prerelease    publish as a pre-release: the game only offers it with -- --update-prerelease,
                     so the whole path can be tried before players see it
     --draft         upload but leave it a draft (nobody is offered a draft)
+
+Versions: a major version (3.0, 4.0, ...) is a full release: it must attach --full and --linux-full,
+which become the new bases (point BASE and LINUX_BASE at their folders afterwards), plus small
+updates for the previous base so its players still download only a few MB. Minor versions (3.1,
+3.2, ...) are small updates on the newest base.
 
 What it does, in an order that never offers players a half-uploaded release:
 1. Makes the update zip (make_update.py, GODOT must point at the console exe) unless --update is given.
@@ -50,7 +56,8 @@ REPO_ROOT = os.path.dirname(ROOT)
 BASE = r"D:\Game dev\Builds\DownhillRoguelite-beta-2.9\DownhillRoguelite-playtest1"
 LINUX_BASE = r"D:\Game dev\Builds\DownhillRoguelite-linux-2.9\stage"
 # Players who downloaded Beta 2.5 to 2.8 still have 2.5 as their base: they get an update too.
-OLD_BASES = [r"D:\Game dev\Builds\DownhillRoguelite-beta-2.5\DownhillRoguelite-playtest1"]
+# Older bases that still get small updates. Empty since Beta 3.0: folders on 2.5 take the whole build.
+OLD_BASES = []
 OUT = os.path.join(REPO_ROOT, "..", "Builds")
 
 
@@ -96,6 +103,9 @@ def main():
     parser.add_argument("--prerelease", action="store_true")
     parser.add_argument("--draft", action="store_true")
     args = parser.parse_args()
+
+    if args.version.endswith(".0") and (not args.full or not args.linux_full):
+        fail(f"{args.version} is a major version: attach the whole builds too (--full and --linux-full); they become the new bases")
 
     head = run("git", "rev-parse", "HEAD", capture=True).strip()
     remote = run("git", "branch", "-r", "--contains", head, capture=True).strip()

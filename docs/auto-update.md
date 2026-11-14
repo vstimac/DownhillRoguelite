@@ -6,17 +6,20 @@ Play-testers stay on the newest release without downloading anything by hand.
 
 1. The game starts. The title screen asks GitHub for the release list in the background (10 s
    timeout; offline, nothing happens and nothing waits).
-2. If there is a newer release for this game folder, **Update** appears at the top of the menu, with
-   the release's name and the download size, and the corner says "new version out".
+2. If there is a newer release for this game folder, a card opens in the top right corner (the only
+   place that tells): the release's name, the day it came out, the download size, and **Update now**
+   (focused) or **Later**. Later (or Esc / B) folds it into a small **Update** tab in the same corner;
+   the tab opens the card again. The footer shows the installed version with its release date
+   ("Beta 3.0 · 14 Nov 2026"), because most players go by the date, not the number.
 3. Picking it updates the game and starts it again. If anything fails, nothing in the game folder
    has changed and the old version stays.
    - **Windows:** the game closes and the updater window opens (`update.ps1`): it downloads, checks
      the file's SHA-256, unpacks to a temporary folder, installs, and starts the game.
    - **Linux:** the game does the same steps itself (`game/core/update/UpdateInstaller.cs`) and the
-     menu shows the progress; no terminal, PowerShell or extra programs are needed. A running
+     card shows the progress; no terminal, PowerShell or extra programs are needed. A running
      program's files can be replaced on Linux, so no separate updater is used.
 
-Options Ã¢â€ â€™ Gameplay Ã¢â€ â€™ **Check for new versions** turns the check off. "Update game.bat" in the game
+Options > Gameplay > **Check for new versions** turns the check off. "Update game.bat" in the game
 folder does the same by hand.
 
 ## How it decides (`game/core/update/UpdatePlanner.cs`)
@@ -65,7 +68,18 @@ never edit it), creates the release as a draft, uploads, compares GitHub's check
 files and only then publishes. Options: `--prerelease` (try the whole path first: start the game with
 `-- --update-prerelease`), `--draft`, `--full <zip>` (also attach a whole build), `--notes <file>`.
 
-Bump `StartScreen.VersionText` before building, so the corner shows the new number.
+Bump `game/core/GameVersion.cs` (`Name` and `Released`) before building, so the footer and the About
+page show the new number and its date. Small updates replace the code, so they carry the new date too.
+
+### Major and minor versions
+
+- A **major version** (3.0, 4.0, ...) is a full release: whole Windows and Linux builds
+  (`--full`, `--linux-full`; `publish_release.py` refuses a `.0` version without them), plus the small
+  updates for the previous base, so its players still download only a few MB. Folders on any older
+  base find no update for themselves and take the whole build. Afterwards the new builds are the
+  bases: point `BASE` and `LINUX_BASE` in `publish_release.py` at their folders, keep those folders
+  untouched, and move the README's download links to that release.
+- A **minor version** (3.1, 3.2, ...) is a small update on the newest base.
 
 ### What a normal release carries
 
@@ -112,7 +126,11 @@ CI's only when a release has nothing else for that folder.
 Autoloads are registered before `PatchLoader` mounts resource patches, so a patch can't add an
 autoload to an older full release: its `project.binary` still lists the old ones. Co-op's
 `NetSession` is handled in code instead: `PatchLoader` (the first autoload, and from the new DLL)
-adds it to `/root` when the folder's project settings have no `autoload/NetSession`. Beta 3.0
-therefore ships as small updates for the 2.9 and 2.5 bases. Any other new autoload or startup
-setting needs the same treatment or a full build; test hosting from an actually upgraded folder
-(old exe + update, `-- --host`).
+adds it to `/root` when the folder's project settings have no `autoload/NetSession`. Beta 3.0 is a
+full release and also ships a small update for the 2.9 base; 2.5 folders (whose settings lack 2.9's
+autoloads, inputs and shader globals) take the whole build. Test hosting from an actually upgraded
+folder (old exe + update, `-- --host`).
+
+`make_update.py` checks this: it refuses a small update when `project.godot` differs from the base's
+tag in any line but those `PatchLoader` makes up for (`ALLOWED_SETTINGS`). Make a full release
+instead, or pass `--allow-settings` when you are sure the change doesn't matter at startup.
