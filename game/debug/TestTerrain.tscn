@@ -99,6 +99,13 @@
 [ext_resource type="Script" path="res://narrative/president/PresidentDirector.cs" id="63_president"]
 [ext_resource type="Script" path="res://progression/RunKeeper.cs" id="102_run_keeper"]
 [ext_resource type="Script" path="res://audio/CircleAmbience.cs" id="103_circle_ambience"]
+[ext_resource type="Resource" path="res://progression/boons/mules_bargain.tres" id="110_bargain_mules_bargain"]
+[ext_resource type="Resource" path="res://progression/boons/quick_feet.tres" id="110_bargain_quick_feet"]
+[ext_resource type="Resource" path="res://progression/boons/second_wind.tres" id="110_bargain_second_wind"]
+[ext_resource type="Resource" path="res://progression/boons/hollow_belly.tres" id="110_bargain_hollow_belly"]
+[ext_resource type="Resource" path="res://progression/boons/winter_hide.tres" id="110_bargain_winter_hide"]
+[ext_resource type="Resource" path="res://progression/boons/light_sleeper.tres" id="110_bargain_light_sleeper"]
+[ext_resource type="Resource" path="res://progression/boons/goats_hooves.tres" id="110_bargain_goats_hooves"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
@@ -382,6 +389,7 @@ script = ExtResource("39_summary")
 [node name="Boons" type="Node3D" parent="." unique_id=1003249237]
 script = ExtResource("40_boons")
 Boons = [SubResource("Boon_steady_legs"), SubResource("Boon_iron_lungs"), SubResource("Boon_deep_reserves"), SubResource("Boon_light_step"), SubResource("Boon_strong_back"), SubResource("Boon_lean_belly"), SubResource("Boon_thick_blood"), SubResource("Boon_sure_footing"), SubResource("Boon_long_stride"), SubResource("Boon_deep_sleep")]
+Bargains = [ExtResource("110_bargain_mules_bargain"), ExtResource("110_bargain_quick_feet"), ExtResource("110_bargain_second_wind"), ExtResource("110_bargain_hollow_belly"), ExtResource("110_bargain_winter_hide"), ExtResource("110_bargain_light_sleeper"), ExtResource("110_bargain_goats_hooves")]
 
 [node name="Contracts" type="Node3D" parent="." unique_id=286667526]
 script = ExtResource("50_contracts")

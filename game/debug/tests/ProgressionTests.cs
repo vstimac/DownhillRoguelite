@@ -41,6 +41,7 @@ public partial class ProgressionTests : Node3D
         await WaitSeconds(1.0f);
 
         TestPicks(Offerings);
+        TestBargains(Offerings);
         await TestOfferingAndChoice(PlayerBody, Offerings, _run.Route);
         TestEffects(PlayerBody.Stamina);
         await TestCold(needs);
@@ -82,6 +83,44 @@ public partial class ProgressionTests : Node3D
         Check("a station offers three different boons, the same for the same mountain",
             first.Count == offerings.OfferCount && distinct.Count == first.Count && same && across.Count > first.Count,
             $"{first.Count} offered ({string.Join(", ", distinct)}), {across.Count} different boons over 8 stations");
+    }
+
+    /// <summary>Bargains: a price shown apart from the gift; from station 2 the middle offering is one, the others unchanged.</summary>
+    private void TestBargains(BoonOfferings offerings)
+    {
+        BoonDefinition mule = GD.Load<BoonDefinition>("res://progression/boons/mules_bargain.tres");
+        BoonDefinition goat = GD.Load<BoonDefinition>("res://progression/boons/goats_hooves.tres");
+        BoonDefinition plain = offerings.Boons[0];
+        bool described = mule.IsBargain && !plain.IsBargain
+            && mule.Gifts() == "The load costs 40% less stamina" && mule.Costs() == "Walk 8% slower"
+            && goat.Gifts() == "Grip +30%" && goat.Costs() == "Stamina recovers 15% slower"
+            && plain.Costs() == "" && plain.Gifts() == plain.Effects();
+
+        List<BoonDefinition> before1 = offerings.Pick(1);
+        List<BoonDefinition> before3 = offerings.Pick(3);
+        BoonDefinition[] saved = offerings.Bargains;
+        offerings.Bargains = new[] { mule, goat };
+        List<BoonDefinition> first = offerings.Pick(1);
+        List<BoonDefinition> third = offerings.Pick(3);
+        List<BoonDefinition> thirdAgain = offerings.Pick(3);
+        offerings.Bargains = saved;
+        bool firstPlain = first.Count == before1.Count;
+        for (int i = 0; i < first.Count; i++)
+        {
+            firstPlain = firstPlain && first[i] == before1[i];
+        }
+        int middle = third.Count / 2;
+        bool thirdBargain = third.Count == before3.Count && third[middle].IsBargain && third[middle] == thirdAgain[middle];
+        for (int i = 0; i < third.Count; i++)
+        {
+            if (i != middle)
+            {
+                thirdBargain = thirdBargain && third[i] == before3[i];
+            }
+        }
+        Check("a bargain shows its gift and its price apart; from station 2 the middle offering is a bargain, the rest unchanged",
+            described && firstPlain && thirdBargain,
+            $"mule: '{mule.Gifts()}' / '{mule.Costs()}', goat: '{goat.Gifts()}' / '{goat.Costs()}'; station 1 unchanged {firstPlain}, station 3: {string.Join(", ", third.ConvertAll(b => b.Id))}");
     }
 
     private async Task TestOfferingAndChoice(PlayerController player, BoonOfferings offerings, IRouteQuery route)
