@@ -24,12 +24,19 @@ fi
 
 mkdir -p "$work/x"
 case "$which_libs" in
-    linux)   pattern="*/$NOBODYWHO_LINUX_SO" ;;
-    windows) pattern="*/$NOBODYWHO_WINDOWS_DLL" ;;
-    all)     pattern="*/libnobodywho-*" ;;
+    linux)   pattern="$NOBODYWHO_LINUX_SO" ;;
+    windows) pattern="$NOBODYWHO_WINDOWS_DLL" ;;
+    all)     pattern="libnobodywho-*" ;;
     *) echo "Unknown choice '$which_libs' (linux, windows or all)"; exit 2 ;;
 esac
-unzip -q -o "$zip" "$pattern" -d "$work/x"
+# Match basenames explicitly: unzip wildcard handling differs across platforms.
+# Extract each library flat so both root and nested release archives work.
+while IFS= read -r member; do
+    name="${member##*/}"
+    case "$name" in
+        $pattern) unzip -p "$zip" "$member" > "$work/x/$name" ;;
+    esac
+done < <(unzip -Z1 "$zip")
 
 mkdir -p "$dest"
 count=0
