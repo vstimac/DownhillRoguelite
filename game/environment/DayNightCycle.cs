@@ -51,6 +51,17 @@ public partial class DayNightCycle : Node
     /// </summary>
     [Export] public Vector2 SkyFogAffect { get; set; } = new(0.6f, 1.0f);
     [Export] public float ThickFogDensity { get; set; } = 0.035f;
+    /// <summary>
+    /// With the descent sky: how much fog lies over the whole sky, overhead too, in clear weather and
+    /// once the fog of the weather is as thick as ThickFogDensity. (The fog of the night is darkness
+    /// near the ground: it leaves the stars alone.)
+    /// </summary>
+    [Export] public Vector2 SkyFogCover { get; set; } = new(0.27f, 0.95f);
+    /// <summary>
+    /// With the descent sky: the furthest trees and ground stand about this far away, in m. The sky
+    /// at the horizon and below it is fogged as much as they are, so they fade into it.
+    /// </summary>
+    [Export] public float FarFogDistance { get; set; } = 220.0f;
     /// <summary>How much a full overcast dims the sun.</summary>
     [Export] public float OvercastDimming { get; set; } = 0.6f;
     /// <summary>How much a full overcast dims ambient light.</summary>
@@ -91,6 +102,7 @@ public partial class DayNightCycle : Node
     private Color _daySkyHorizon = Colors.LightGray;
     private ProceduralSkyMaterial? _sky;
     private ShaderMaterial? _skyShader;
+    private Color _hazeTint = Colors.White;
     private Vector2 _cloudOffset;
     private float _twinkle;
     private float _sinceUpdate;
@@ -121,6 +133,8 @@ public partial class DayNightCycle : Node
             {
                 _daySkyTop = (Color)_skyShader.GetShaderParameter("top_color");
                 _daySkyHorizon = (Color)_skyShader.GetShaderParameter("horizon_color");
+                Variant tint = _skyShader.GetShaderParameter("haze_tint");
+                if (tint.VariantType == Variant.Type.Color) { _hazeTint = tint.AsColor(); }
             }
         }
         Apply();
@@ -179,6 +193,11 @@ public partial class DayNightCycle : Node
             Sun.LightEnergy = Mathf.Lerp(dayEnergy, moon * (1.0f - OvercastDimming * Overcast * 0.5f), Darkness);
         }
 
+        Color top = _daySkyTop.Lerp(OvercastColor.Darkened(0.2f), Overcast * 0.7f).Lerp(HeatHazeColor, heat * 0.3f);
+        Color horizon = _daySkyHorizon.Lerp(OvercastColor, Overcast * 0.7f).Lerp(HeatHazeColor, heat * 0.4f);
+        Color skyFogColor = Colors.Gray;
+        float skyFogLow = 0.0f;
+        float skyFogHigh = 0.0f;
         Godot.Environment? environment = World?.Environment;
         if (environment != null)
         {
@@ -187,12 +206,27 @@ public partial class DayNightCycle : Node
             float dayFog = _dayFogDensity + weatherFog;
             float nightFog = Mathf.Lerp(NightFogDensity.X, NightFogDensity.Y, mild) + weatherFog * 0.5f;
             environment.FogDensity = Mathf.Lerp(dayFog, nightFog, Darkness) * MenuFogScale;
-            environment.FogSkyAffect = Mathf.Lerp(SkyFogAffect.X, SkyFogAffect.Y, Mathf.Clamp(environment.FogDensity / Mathf.Max(ThickFogDensity, 0.0001f), 0.0f, 1.0f));
-            Color dayFogColor = _dayFogColor.Lerp(OvercastColor, Overcast * 0.6f).Lerp(HeatHazeColor, heat * 0.5f);
-            environment.FogLightColor = dayFogColor.Lerp(NightFogColor, Darkness);
+            if (_skyShader != null)
+            {
+                // One colour for the fog and for the haze of the sky, and the sky shader lays the fog
+                // over itself: a far tree, all fog by then, is the colour of the sky behind it. (The
+                // engine's sky fog and aerial perspective can't do that: they tint the whole sky
+                // alike, and fog the trees with a blurred sky that is paler than the ranges behind.)
+                skyFogColor = horizon.Lerp(NightSkyHorizon, Darkness) * _hazeTint;
+                skyFogLow = 1.0f - Mathf.Exp(-environment.FogDensity * FarFogDistance);
+                float thick = Mathf.Clamp(weatherFog * MenuFogScale / Mathf.Max(ThickFogDensity, 0.0001f), 0.0f, 1.0f);
+                skyFogHigh = Mathf.Lerp(SkyFogCover.X, SkyFogCover.Y, thick);
+                environment.FogLightColor = skyFogColor;
+                environment.FogAerialPerspective = 0.0f;
+                environment.FogSkyAffect = 0.0f;
+            }
+            else
+            {
+                environment.FogSkyAffect = Mathf.Lerp(SkyFogAffect.X, SkyFogAffect.Y, Mathf.Clamp(environment.FogDensity / Mathf.Max(ThickFogDensity, 0.0001f), 0.0f, 1.0f));
+                Color dayFogColor = _dayFogColor.Lerp(OvercastColor, Overcast * 0.6f).Lerp(HeatHazeColor, heat * 0.5f);
+                environment.FogLightColor = dayFogColor.Lerp(NightFogColor, Darkness);
+            }
         }
-        Color top = _daySkyTop.Lerp(OvercastColor.Darkened(0.2f), Overcast * 0.7f).Lerp(HeatHazeColor, heat * 0.3f);
-        Color horizon = _daySkyHorizon.Lerp(OvercastColor, Overcast * 0.7f).Lerp(HeatHazeColor, heat * 0.4f);
         if (_sky != null)
         {
             _sky.SkyTopColor = top.Lerp(NightSkyTop, Darkness);
@@ -207,6 +241,9 @@ public partial class DayNightCycle : Node
             _skyShader.SetShaderParameter("overcast", Overcast);
             _skyShader.SetShaderParameter("cloud_offset", _cloudOffset);
             _skyShader.SetShaderParameter("twinkle_time", _twinkle);
+            _skyShader.SetShaderParameter("fog_color", skyFogColor);
+            _skyShader.SetShaderParameter("fog_low", skyFogLow);
+            _skyShader.SetShaderParameter("fog_high", skyFogHigh);
         }
     }
 }
