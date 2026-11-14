@@ -39,6 +39,10 @@ public sealed class TerrainGenerator
     private const ulong BiomeSalt = 12;
     private const ulong PlantSalt = 13;
     private const ulong DetailSalt = 14;
+    // Ground cover (shrubs, loose rocks, debris, things by the path, meadows, fallen logs) has its
+    // own streams, so adding it moved nothing that was placed before it.
+    private const ulong GroundCoverSalt = 15;
+    private const ulong ThicketSalt = 16;
     // 1D noise is read along a line off the lattice (noise is 0 on lattice points).
     private const float LineOffset = 0.5f;
     // Step for slope by finite differences, in m.
@@ -56,6 +60,7 @@ public sealed class TerrainGenerator
     private readonly GradientNoise _hazardBumps;
     private readonly GradientNoise _biomeDither;
     private readonly GradientNoise _forestPatches;
+    private readonly GradientNoise _thickets;
     private readonly float _gradeTangent;
     private readonly float _clearingSlopeTangent;
     private readonly float _summitCliffTangent;
@@ -93,6 +98,7 @@ public sealed class TerrainGenerator
         _hazardBumps = new GradientNoise(SplitMix64.Mix(seed, HazardBumpSalt));
         _biomeDither = new GradientNoise(SplitMix64.Mix(seed, BiomeSalt));
         _forestPatches = new GradientNoise(SplitMix64.Mix(seed, DetailSalt));
+        _thickets = new GradientNoise(SplitMix64.Mix(seed, ThicketSalt));
         _gradeTangent = Mathf.Tan(Mathf.DegToRad(settings.Grade));
         _clearingSlopeTangent = Mathf.Tan(Mathf.DegToRad(settings.ClearingSlope));
         _summitCliffTangent = Mathf.Tan(Mathf.DegToRad(settings.SummitCliffSlope));
@@ -626,6 +632,7 @@ public sealed class TerrainGenerator
             data.Vertices = new Vector3[points * points];
             smoothNormals = new Vector3[points * points];
             smoothColors = new Color[points * points];
+            data.CarpetMask = new byte[points * points * 4];
             for (int j = 0; j < points; j++)
             {
                 for (int i = 0; i < points; i++)
@@ -639,8 +646,11 @@ public sealed class TerrainGenerator
                     float front = GridOrWorld(data, i, j + 1, corner);
                     Vector3 normal = new Vector3(left - right, 2 * cell, back - front).Normalized();
                     smoothNormals[i + j * points] = normal;
-                    smoothColors[i + j * points] = GroundColor(new Vector3(x, data.Heights[i + j * points], z),
-                        Mathf.RadToDeg(normal.AngleTo(Vector3.Up)), surfaceColors);
+                    float slope = Mathf.RadToDeg(normal.AngleTo(Vector3.Up));
+                    Color ground = GroundColor(new Vector3(x, data.Heights[i + j * points], z), slope, surfaceColors,
+                        out TerrainSurface surface, out float pathWeight);
+                    smoothColors[i + j * points] = ground;
+                    WriteCarpet(data.CarpetMask, (i + j * points) * 4, x, z, ground, slope, surface, pathWeight);
                 }
             }
             data.Indices = SmoothIndices(cells);
@@ -677,6 +687,7 @@ public sealed class TerrainGenerator
         PlaceObstacles(data, coord, corner);
         PlacePlants(data, coord, corner);
         PlacePebbles(data, coord, corner);
+        PlaceGroundCover(data, coord, corner);
         data.BuildMilliseconds = timer.Elapsed.TotalMilliseconds;
         return data;
     }
@@ -747,8 +758,13 @@ public sealed class TerrainGenerator
 
     private Color GroundColor(Vector3 centre, float slope, Color[] surfaceColors)
     {
-        float pathWeight = PathWeight(centre.X, centre.Z, out RouteKind kind);
-        TerrainSurface surface = Classify(centre.X, centre.Z, slope, pathWeight, kind);
+        return GroundColor(centre, slope, surfaceColors, out _, out _);
+    }
+
+    private Color GroundColor(Vector3 centre, float slope, Color[] surfaceColors, out TerrainSurface surface, out float pathWeight)
+    {
+        pathWeight = PathWeight(centre.X, centre.Z, out RouteKind kind);
+        surface = Classify(centre.X, centre.Z, slope, pathWeight, kind);
         Color color = surfaceColors[(int)surface];
         // The biome tints the ground: grass and mud fully, snow and rock half as much.
         Color tint = BiomeTint(DepthAt(centre.Y));
@@ -758,6 +774,38 @@ public sealed class TerrainGenerator
         }
         color = new Color(color.R * tint.R, color.G * tint.G, color.B * tint.B);
         return color;
+    }
+
+    /// <summary>
+    /// The grass carpet at one grid point (RGBA8): the ground's colour there, and how thick the carpet
+    /// grows (alpha). Full on grassy ground, thinning on mud and scree, none on rock, snow, the summit
+    /// pad or a station's terrace, and stopping at a path's trodden band with a crisp edge.
+    /// </summary>
+    private void WriteCarpet(byte[] mask, int at, float x, float z, Color ground, float slope, TerrainSurface surface, float pathWeight)
+    {
+        float density = 0.0f;
+        if (surface == TerrainSurface.Grass)
+        {
+            density = 1.0f;
+        }
+        else if (surface == TerrainSurface.Mud)
+        {
+            density = 0.3f;
+        }
+        else if (surface == TerrainSurface.Scree)
+        {
+            density = 0.15f;
+        }
+        density *= 1.0f - Mathf.SmoothStep(0.985f, 0.999f, pathWeight);
+        density *= 1.0f - Mathf.SmoothStep(34.0f, 42.0f, slope);
+        if (density > 0.0f && (OnSummitPad(x, z, 0.5f) || NearStation(x, z, _settings.ClearingRadius * 0.85f)))
+        {
+            density = 0.0f;
+        }
+        mask[at] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.R * 255.0f), 0, 255);
+        mask[at + 1] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.G * 255.0f), 0, 255);
+        mask[at + 2] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.B * 255.0f), 0, 255);
+        mask[at + 3] = (byte)Mathf.Clamp(Mathf.RoundToInt(density * 255.0f), 0, 255);
     }
 
     /// <summary>
@@ -1034,6 +1082,431 @@ public sealed class TerrainGenerator
             data.Plants.Add(new PlantData(PlantKind.Pebble, model, new Vector3(x, height, z), random.Range(-Mathf.Pi, Mathf.Pi),
                 random.Range(_settings.PebbleHeight.X, _settings.PebbleHeight.Y), Vector2.Zero, true));
         }
+    }
+
+    /// <summary>
+    /// Ground cover, from its own seeded stream: thickets of shrubs, loose rocks (thick on scree and
+    /// rocky slopes, broken pieces round each boulder), debris at trees' feet (stumps, mushrooms,
+    /// branches), things lying at the paths' edges, meadows of flowers and a few solid fallen logs.
+    /// Everything but the logs is only seen. Heights come from the chunk's grid, so it all sits on the
+    /// rendered ground; none of it grows on a path's band, a station's terrace or the summit pad.
+    /// </summary>
+    private void PlaceGroundCover(TerrainChunkData data, Vector2I coord, Vector3 corner)
+    {
+        if (_settings.Biomes.Length == 0)
+        {
+            return;
+        }
+        SplitMix64 random = new(SplitMix64.Mix(SplitMix64.Mix(Seed, GroundCoverSalt), ChunkSalt(coord)));
+        float size = _settings.ChunkSize;
+        float area = size * size / 1000.0f;
+        float maxShrubs = 0.0f;
+        float maxDebris = 0.0f;
+        float maxRocks = 0.0f;
+        float maxMeadow = 0.0f;
+        float maxLogs = 0.0f;
+        foreach (Biome biome in _settings.Biomes)
+        {
+            maxShrubs = Mathf.Max(maxShrubs, biome.ShrubDensity);
+            maxDebris = Mathf.Max(maxDebris, biome.DebrisDensity);
+            maxRocks = Mathf.Max(maxRocks, biome.RockDensity);
+            maxMeadow = Mathf.Max(maxMeadow, biome.MeadowFlowerDensity);
+            maxLogs = Mathf.Max(maxLogs, biome.FallenLogDensity);
+        }
+        float wave = Mathf.Max(_settings.ThicketWavelength, 1.0f);
+        int treeCount = 0;
+        for (int i = 0; i < data.Plants.Count; i++)
+        {
+            if (data.Plants[i].Kind == PlantKind.Tree)
+            {
+                treeCount++;
+            }
+        }
+
+        // Shrubs in thickets: a few bushes or dwarf pines together where the thicket noise is high.
+        int shrubTries = Mathf.RoundToInt(maxShrubs * area);
+        for (int n = 0; n < shrubTries; n++)
+        {
+            float lx = random.Range(0.0f, size);
+            float lz = random.Range(0.0f, size);
+            float keep = random.NextFloat() * maxShrubs;
+            float x = corner.X + lx;
+            float z = corner.Z + lz;
+            float thicket = Mathf.Clamp(0.3f + _thickets.Sample(x / wave, z / wave) * 1.8f, 0.0f, 1.5f);
+            float ground = GridHeight(data, lx, lz);
+            Biome? biome = BiomeAt(x, z, DepthAt(ground));
+            if (biome == null || biome.ShrubModels.Length == 0 || keep >= biome.ShrubDensity * thicket)
+            {
+                continue;
+            }
+            int group = 1 + random.NextInt(3);
+            for (int k = 0; k < group; k++)
+            {
+                float gx = lx;
+                float gz = lz;
+                if (k > 0)
+                {
+                    float angle = random.Range(-Mathf.Pi, Mathf.Pi);
+                    float reach = random.Range(0.6f, 1.6f);
+                    gx += Mathf.Cos(angle) * reach;
+                    gz += Mathf.Sin(angle) * reach;
+                }
+                float tall = random.NextFloat();
+                float yaw = random.Range(-Mathf.Pi, Mathf.Pi);
+                string model = Pick(biome.ShrubModels, random.NextFloat());
+                if (!CoverFits(data, gx, gz, 0.6f, 32.0f, out TerrainSurface surface, out _) || (surface != TerrainSurface.Grass && surface != TerrainSurface.Mud))
+                {
+                    continue;
+                }
+                float height = Mathf.Lerp(biome.ShrubHeight.X, biome.ShrubHeight.Y, tall * tall);
+                if (k > 0)
+                {
+                    height *= 0.75f;
+                }
+                AddCover(data, PlantKind.Shrub, model, corner, gx, gz, yaw, height);
+            }
+        }
+
+        // Loose rocks: a scatter everywhere, several times thicker on scree and rocky ground, and
+        // poking out of the snow here and there.
+        float rockyFactor = Mathf.Max(_settings.RockySurfaceRockFactor, 1.0f);
+        int rockTries = Mathf.RoundToInt(maxRocks * rockyFactor * area);
+        if (_settings.RockModels.Length > 0)
+        {
+            for (int n = 0; n < rockTries; n++)
+            {
+                float lx = random.Range(0.0f, size);
+                float lz = random.Range(0.0f, size);
+                float keep = random.NextFloat() * maxRocks * rockyFactor;
+                float big = random.NextFloat();
+                float yaw = random.Range(-Mathf.Pi, Mathf.Pi);
+                string model = Pick(_settings.RockModels, random.NextFloat());
+                float x = corner.X + lx;
+                float z = corner.Z + lz;
+                Biome? biome = BiomeAt(x, z, DepthAt(GridHeight(data, lx, lz)));
+                if (biome == null || keep >= biome.RockDensity * rockyFactor)
+                {
+                    continue;
+                }
+                if (!CoverFits(data, lx, lz, 0.4f, 55.0f, out TerrainSurface surface, out float pathWeight) || pathWeight > 0.3f)
+                {
+                    continue;
+                }
+                float share = 1.0f / rockyFactor;
+                if (surface == TerrainSurface.Rock || surface == TerrainSurface.Scree)
+                {
+                    share = 1.0f;
+                }
+                else if (surface == TerrainSurface.Snow)
+                {
+                    share = 0.5f / rockyFactor;
+                }
+                if (keep >= biome.RockDensity * rockyFactor * share)
+                {
+                    continue;
+                }
+                float height = Mathf.Lerp(_settings.RockHeight.X, _settings.RockHeight.Y, big * big * big);
+                AddCover(data, PlantKind.Rock, model, corner, lx, lz, yaw, height);
+            }
+            // Broken pieces round each boulder's foot, so boulders sit in the ground instead of on it.
+            for (int b = 0; b < data.Obstacles.Count; b++)
+            {
+                ObstacleData boulder = data.Obstacles[b];
+                if (boulder.Kind != ObstacleKind.Boulder)
+                {
+                    continue;
+                }
+                int pieces = _settings.BoulderFragments.X + random.NextInt(Mathf.Max(_settings.BoulderFragments.Y - _settings.BoulderFragments.X + 1, 1));
+                float radius = Mathf.Max(boulder.Size.X, boulder.Size.Z) * 0.55f;
+                for (int k = 0; k < pieces; k++)
+                {
+                    float angle = random.Range(-Mathf.Pi, Mathf.Pi);
+                    float reach = radius + random.Range(0.1f, 0.9f);
+                    float lx = boulder.Position.X + Mathf.Cos(angle) * reach - corner.X;
+                    float lz = boulder.Position.Z + Mathf.Sin(angle) * reach - corner.Z;
+                    float height = random.Range(0.1f, 0.35f) * Mathf.Clamp(boulder.Size.Y, 0.6f, 2.0f);
+                    float yaw = random.Range(-Mathf.Pi, Mathf.Pi);
+                    string model = Pick(_settings.RockModels, random.NextFloat());
+                    if (!CoverFits(data, lx, lz, 0.3f, 55.0f, out _, out _))
+                    {
+                        continue;
+                    }
+                    AddCover(data, PlantKind.Rock, model, corner, lx, lz, yaw, height);
+                }
+            }
+        }
+
+        // Debris: most of it at trees' feet (stumps, mushrooms, fallen branches), some in the open.
+        int debrisTries = Mathf.RoundToInt(maxDebris * area);
+        for (int n = 0; n < debrisTries; n++)
+        {
+            float lx = random.Range(0.0f, size);
+            float lz = random.Range(0.0f, size);
+            float keep = random.NextFloat() * maxDebris;
+            float underTree = random.NextFloat();
+            float pickTree = random.NextFloat();
+            float angle = random.Range(-Mathf.Pi, Mathf.Pi);
+            float reach = random.Range(0.5f, 2.2f);
+            float tall = random.NextFloat();
+            float yaw = random.Range(-Mathf.Pi, Mathf.Pi);
+            float pick = random.NextFloat();
+            if (treeCount > 0 && underTree < 0.65f)
+            {
+                int target = Mathf.Min((int)(pickTree * treeCount), treeCount - 1);
+                for (int i = 0; i < data.Plants.Count; i++)
+                {
+                    if (data.Plants[i].Kind != PlantKind.Tree)
+                    {
+                        continue;
+                    }
+                    if (target == 0)
+                    {
+                        Vector3 foot = data.Plants[i].Position;
+                        lx = foot.X - corner.X + Mathf.Cos(angle) * reach;
+                        lz = foot.Z - corner.Z + Mathf.Sin(angle) * reach;
+                        break;
+                    }
+                    target--;
+                }
+            }
+            float x = corner.X + lx;
+            float z = corner.Z + lz;
+            if (lx < 0.0f || lz < 0.0f || lx >= size || lz >= size)
+            {
+                continue;
+            }
+            Biome? biome = BiomeAt(x, z, DepthAt(GridHeight(data, lx, lz)));
+            if (biome == null || biome.DebrisModels.Length == 0 || keep >= biome.DebrisDensity)
+            {
+                continue;
+            }
+            if (!CoverFits(data, lx, lz, 0.4f, 34.0f, out TerrainSurface surface, out _) || surface == TerrainSurface.Snow)
+            {
+                continue;
+            }
+            string model = Pick(biome.DebrisModels, pick);
+            AddCover(data, PlantKind.Debris, model, corner, lx, lz, yaw, DetailHeight(model, tall));
+        }
+
+        PlaceWayside(data, corner, random);
+
+        // Meadows: flowers gathered in patches on open grass (the thin scatter everywhere stays as it was).
+        if (maxMeadow > 0.0f)
+        {
+            int flowerTries = Mathf.RoundToInt(maxMeadow * size * size * 0.45f);
+            for (int n = 0; n < flowerTries; n++)
+            {
+                float lx = random.Range(0.0f, size);
+                float lz = random.Range(0.0f, size);
+                float keep = random.NextFloat() * maxMeadow;
+                float tall = random.NextFloat();
+                float yaw = random.Range(-Mathf.Pi, Mathf.Pi);
+                float pick = random.NextFloat();
+                float x = corner.X + lx;
+                float z = corner.Z + lz;
+                float meadow = Mathf.Clamp((_thickets.Sample(x / wave * 1.7f + 31.4f, z / wave * 1.7f - 12.9f) - 0.15f) * 2.2f, 0.0f, 1.0f);
+                if (meadow <= 0.0f)
+                {
+                    continue;
+                }
+                Biome? biome = BiomeAt(x, z, DepthAt(GridHeight(data, lx, lz)));
+                if (biome == null || biome.FlowerModels.Length == 0 || keep >= biome.MeadowFlowerDensity * meadow)
+                {
+                    continue;
+                }
+                if (!CoverFits(data, lx, lz, -1.5f, 28.0f, out TerrainSurface surface, out float pathWeight) || surface != TerrainSurface.Grass || pathWeight > 0.85f)
+                {
+                    continue;
+                }
+                AddCover(data, PlantKind.Flower, Pick(biome.FlowerModels, pick), corner, lx, lz, yaw, Mathf.Lerp(0.14f, 0.34f, tall));
+            }
+        }
+
+        // A few solid fallen logs where trees grow, lying across the slope and following the ground.
+        int logTries = Mathf.CeilToInt(maxLogs * area);
+        for (int n = 0; n < logTries; n++)
+        {
+            float x = corner.X + random.Range(0.0f, size);
+            float z = corner.Z + random.Range(0.0f, size);
+            float keep = random.NextFloat() * Mathf.Max(maxLogs, 0.01f);
+            float length = random.Range(_settings.FallenLogLength.X, _settings.FallenLogLength.Y);
+            float radius = random.Range(0.17f, 0.3f);
+            float swing = random.Range(-0.45f, 0.45f);
+            float ground = Height(x, z);
+            Biome? biome = BiomeAt(x, z, DepthAt(ground));
+            if (biome == null || biome.TreeModels.Length == 0 || keep >= biome.FallenLogDensity)
+            {
+                continue;
+            }
+            if (TooCloseToPath(x, z, length * 0.5f) || NearStation(x, z, _settings.ClearingRadius + length) || OnSummitPad(x, z, length) || SlopeDegrees(x, z) > 26.0f)
+            {
+                continue;
+            }
+            // Across the fall line (the way a trunk comes to rest), give or take a little.
+            float dx = Height(x + SlopeStep, z) - Height(x - SlopeStep, z);
+            float dz = Height(x, z + SlopeStep) - Height(x, z - SlopeStep);
+            float yaw = Mathf.Atan2(dx, dz) + swing;
+            Vector3 along = new Basis(Vector3.Up, yaw) * Vector3.Left;
+            Vector3 high = new(x + along.X * length * 0.5f, 0.0f, z + along.Z * length * 0.5f);
+            Vector3 low = new(x - along.X * length * 0.5f, 0.0f, z - along.Z * length * 0.5f);
+            float highY = Height(high.X, high.Z);
+            float lowY = Height(low.X, low.Z);
+            float pitch = Mathf.Atan2(highY - lowY, length);
+            Basis rotation = new Basis(Vector3.Up, yaw) * new Basis(Vector3.Back, Mathf.Pi * 0.5f - pitch);
+            Vector3 centre = new(x, (highY + lowY) * 0.5f + radius * 0.6f, z);
+            data.Obstacles.Add(new ObstacleData(ObstacleKind.Trunk, centre, new Vector3(radius * 2.0f, length, radius * 2.0f), rotation));
+        }
+    }
+
+    /// <summary>
+    /// Things lying at the paths' edges, just off the walking band: stumps, cut wood, a lost
+    /// carrier's box or bedroll, a wooden cross. A path's own line decides where; nothing lands on it.
+    /// </summary>
+    private void PlaceWayside(TerrainChunkData data, Vector3 corner, SplitMix64 random)
+    {
+        float size = _settings.ChunkSize;
+        float midZ = corner.Z + size * 0.5f;
+        float density = 0.0f;
+        foreach (Biome biome in _settings.Biomes)
+        {
+            density = Mathf.Max(density, biome.WaysideDensity);
+        }
+        // Tries per path and side over the chunk's length (WaysideDensity is per 100 m).
+        int tries = Mathf.CeilToInt(density * size / 100.0f * 2.0f);
+        RouteBranch[] branches = BranchesAt(midZ);
+        for (int path = 0; path <= branches.Length; path++)
+        {
+            for (int n = 0; n < tries; n++)
+            {
+                float z = corner.Z + random.Range(0.0f, size);
+                float keep = random.NextFloat() * density * 2.0f;
+                float side = 1.0f;
+                if (random.NextFloat() < 0.5f)
+                {
+                    side = -1.0f;
+                }
+                float outward = random.Range(0.3f, 2.8f);
+                float tall = random.NextFloat();
+                float yaw = random.Range(-Mathf.Pi, Mathf.Pi);
+                float pick = random.NextFloat();
+                float centreX;
+                float half;
+                if (path == 0)
+                {
+                    centreX = SpineX(z);
+                    half = _settings.SpineHalfWidth;
+                }
+                else
+                {
+                    RouteBranch branch = branches[path - 1];
+                    if (z > branch.SplitZ || z < branch.JoinZ)
+                    {
+                        continue;
+                    }
+                    centreX = BranchX(branch, z);
+                    half = HalfWidth(branch.Kind);
+                }
+                float x = centreX + side * (half + _settings.SpineClearance + outward);
+                float lx = x - corner.X;
+                float lz = z - corner.Z;
+                if (lx < 0.0f || lx >= size)
+                {
+                    continue;
+                }
+                Biome? biome = BiomeAt(x, z, DepthAt(GridHeight(data, lx, lz)));
+                if (biome == null || biome.WaysideModels.Length == 0 || keep >= biome.WaysideDensity)
+                {
+                    continue;
+                }
+                if (TooCloseToPath(x, z, 0.2f) || !CoverFits(data, lx, lz, 0.0f, 34.0f, out _, out _))
+                {
+                    continue;
+                }
+                string model = Pick(biome.WaysideModels, pick);
+                AddCover(data, PlantKind.Debris, model, corner, lx, lz, yaw, DetailHeight(model, tall));
+            }
+        }
+    }
+
+    /// <summary>
+    /// True when cover may stand at this spot of the chunk (local m): inside the chunk, on ground no
+    /// steeper than <paramref name="maxSlope"/>, <paramref name="pathGap"/> m off every path's band
+    /// (negative: it may reach into the band's soft edge), off station terraces and the summit pad.
+    /// </summary>
+    private bool CoverFits(TerrainChunkData data, float lx, float lz, float pathGap, float maxSlope, out TerrainSurface surface, out float pathWeight)
+    {
+        surface = TerrainSurface.Grass;
+        pathWeight = 0.0f;
+        float size = _settings.ChunkSize;
+        if (lx < 0.0f || lz < 0.0f || lx >= size || lz >= size)
+        {
+            return false;
+        }
+        Vector3 corner = ChunkCorner(data.Coord);
+        float x = corner.X + lx;
+        float z = corner.Z + lz;
+        float slope = GridSlope(data, lx, lz);
+        if (slope > maxSlope)
+        {
+            return false;
+        }
+        if (pathGap >= 0.0f && TooCloseToPath(x, z, pathGap))
+        {
+            return false;
+        }
+        if (OnSummitPad(x, z, 1.0f) || NearStation(x, z, _settings.ClearingRadius + 1.0f))
+        {
+            return false;
+        }
+        pathWeight = PathWeight(x, z, out RouteKind kind);
+        surface = Classify(x, z, slope, pathWeight, kind);
+        return true;
+    }
+
+    private void AddCover(TerrainChunkData data, PlantKind kind, string model, Vector3 corner, float lx, float lz, float yaw, float height)
+    {
+        float ground = GridHeight(data, lx, lz);
+        data.Plants.Add(new PlantData(kind, model, new Vector3(corner.X + lx, ground, corner.Z + lz), yaw, height, Vector2.Zero, true));
+    }
+
+    private static string Pick(string[] models, float roll)
+    {
+        return models[Mathf.Min((int)(roll * models.Length), models.Length - 1)];
+    }
+
+    /// <summary>How tall a piece of debris is, in m, by what it is (a mushroom is small, a stump knee-high).</summary>
+    private static float DetailHeight(string model, float roll)
+    {
+        Vector2 range = new(0.25f, 0.5f);
+        if (model.Contains("mushroom"))
+        {
+            range = new Vector2(0.12f, 0.32f);
+        }
+        else if (model.Contains("stump"))
+        {
+            range = new Vector2(0.3f, 0.65f);
+        }
+        else if (model.Contains("/log"))
+        {
+            range = new Vector2(0.2f, 0.32f);
+        }
+        else if (model.Contains("plant_flat"))
+        {
+            range = new Vector2(0.3f, 0.6f);
+        }
+        else if (model.Contains("cross"))
+        {
+            range = new Vector2(0.7f, 1.0f);
+        }
+        else if (model.Contains("bucket") || model.Contains("bedroll"))
+        {
+            range = new Vector2(0.25f, 0.35f);
+        }
+        else if (model.Contains("shovel"))
+        {
+            range = new Vector2(0.9f, 1.1f);
+        }
+        return Mathf.Lerp(range.X, range.Y, roll);
     }
 
     /// <summary>Height on the rendered grid triangles (local x, z in m).</summary>

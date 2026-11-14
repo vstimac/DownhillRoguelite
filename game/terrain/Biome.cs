@@ -43,6 +43,27 @@ public partial class Biome : Resource
     /// <summary>How many fireflies come out on dry nights (0 none, 1 a meadow full; environment/Fireflies).</summary>
     [Export(PropertyHint.Range, "0,1")] public float Fireflies { get; set; }
 
+    [ExportGroup("Ground cover")]
+    /// <summary>Bushes and dwarf trees (no collision), per 1000 m², grown in thickets.</summary>
+    [Export] public string[] ShrubModels { get; set; } = System.Array.Empty<string>();
+    [Export] public float ShrubDensity { get; set; }
+    /// <summary>Shrub height range, in m.</summary>
+    [Export] public Vector2 ShrubHeight { get; set; } = new(0.5f, 1.3f);
+    /// <summary>Shrubs' foliage colour, so the art pack's bushes match the circle's trees and grass.</summary>
+    [Export] public Color ShrubColour { get; set; } = new(0.3f, 0.42f, 0.24f);
+    /// <summary>Forest-floor debris (stumps, mushrooms, branches), per 1000 m², most of it at trees' feet.</summary>
+    [Export] public string[] DebrisModels { get; set; } = System.Array.Empty<string>();
+    [Export] public float DebrisDensity { get; set; }
+    /// <summary>Things lying by the path's edge (stumps, cut wood, lost gear), per 100 m of path and side.</summary>
+    [Export] public string[] WaysideModels { get; set; } = System.Array.Empty<string>();
+    [Export] public float WaysideDensity { get; set; }
+    /// <summary>Loose rocks on open ground, per 1000 m² (scree and rocky slopes get several times more).</summary>
+    [Export] public float RockDensity { get; set; } = 6.0f;
+    /// <summary>Flowers per m² inside meadow patches (on top of FlowerDensity, which is spread thin everywhere).</summary>
+    [Export] public float MeadowFlowerDensity { get; set; }
+    /// <summary>Fallen, solid logs per 1000 m² where trees grow.</summary>
+    [Export] public float FallenLogDensity { get; set; }
+
     public static Biome Make(string name, float from, Color tint, string[] trees, float treeDensity, Vector2 treeHeight, float lean,
         string[] grass, float grassDensity, string[] flowers, float flowerDensity)
     {

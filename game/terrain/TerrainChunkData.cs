@@ -29,6 +29,11 @@ public sealed class TerrainChunkData
     /// <summary>Read-only shared grid topology; callers must not modify it. Flat meshes are unindexed.</summary>
     public int[] Indices { get; set; } = System.Array.Empty<int>();
     public Color[] Colors { get; set; } = System.Array.Empty<Color>();
+    /// <summary>
+    /// The grass carpet per grid point (RGBA8, same order as Heights): ground colour and how thick
+    /// the carpet grows there. Empty when the chunk has no carpet (flat shading).
+    /// </summary>
+    public byte[] CarpetMask { get; set; } = System.Array.Empty<byte>();
     public List<ObstacleData> Obstacles { get; } = new();
     /// <summary>Trees, grass and flowers, by biome.</summary>
     public PlantBuffer Plants { get; } = new();
