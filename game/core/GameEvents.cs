@@ -508,6 +508,7 @@ public static partial class GameEvents
         PagesFrozen = false;
         IsVaulting = false;
         RollPrimed = false;
+        RollSave.Reset();
         IsNarrating = false;
         IsSpeaking = false;
         IsConversing = false;

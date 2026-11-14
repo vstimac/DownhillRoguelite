@@ -122,6 +122,8 @@ public partial class PlayerController : CharacterBody3D
 
     private Vector3? _launch;
     private string _launchCause = "";
+    /// <summary>Let go in mid-air by the ragdoll (a primed roll): the next step flies on with this.</summary>
+    private Vector3? _airRelease;
     private float _snareLeft;
     private string _lastLaunch = "";
     private bool _warnedSpeed;
@@ -278,6 +280,15 @@ public partial class PlayerController : CharacterBody3D
             grounded = false;
             GameEvents.PublishLaunched(_launchCause);
         }
+        if (_airRelease is Vector3 release)
+        {
+            // Out of the ragdoll in mid-air: the floor he lay on before is stale, so he is falling,
+            // and the landing that follows counts (it takes the primed roll).
+            _airRelease = null;
+            Velocity = release;
+            grounded = false;
+            State = LocomotionState.Airborne;
+        }
 
         // Walking under your own power costs stamina; standing still lets it recover.
         if (grounded && Stamina != null && input.Length() > SprintInputThreshold && IntendedVelocity().Length() >= Settings.IdleSpeed)
@@ -335,6 +346,13 @@ public partial class PlayerController : CharacterBody3D
         UpdateState(braking);
         UpdateFacing(input, dt);
         Publish(input, dt);
+    }
+
+    /// <summary>The ragdoll let go of him in mid-air: he falls on with <paramref name="velocity"/> as from a jump.</summary>
+    public void ReleaseInAir(Vector3 velocity)
+    {
+        Velocity = velocity;
+        _airRelease = velocity;
     }
 
     private Vector3 ReadInputDirection()

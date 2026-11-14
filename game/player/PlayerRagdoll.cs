@@ -383,6 +383,11 @@ public partial class PlayerRagdoll : Node
 
         Downed = true;
         _launched = false;
+        _noSave = false;
+        _rollPrimed = false;
+        _rollSpent = false;
+        _rollingOut = false;
+        _rollCueShown = false;
         _gettingUp = false;
         _downTime = 0.0f;
         _settledTime = 0.0f;
@@ -434,7 +439,7 @@ public partial class PlayerRagdoll : Node
             ApplyImpacts(dt);
         }
         FollowHips();
-        if (_launched && !_gettingUp)
+        if (!_gettingUp)
         {
             RollCue();
         }
@@ -644,15 +649,19 @@ public partial class PlayerRagdoll : Node
         _hipsHeight = hips.Y - ground;
     }
 
-    [ExportGroup("Roll out of a thrown jump or dive")]
-    /// <summary>Thrown on purpose (jump, dive), Space or Ctrl just before the ground rolls him back onto his feet.</summary>
+    [ExportGroup("Roll out of a fall (the saving throw)")]
+    /// <summary>
+    /// Whenever he goes down as a ragdoll (thrown on purpose, a lost balance, a blow), Space or Ctrl
+    /// just before his hips meet the ground rolls him back onto his feet (RollSave's window).
+    /// A hard landing doesn't offer one: its chance was the cue before the ground.
+    /// </summary>
     [Export] public bool RollFromThrow { get; set; } = true;
-    /// <summary>The hips' height above the ground in which the press counts: nearest and furthest, in m.</summary>
-    [Export] public Vector2 ThrowRollWindow { get; set; } = new(0.25f, 1.3f);
-    /// <summary>The height the cue marks as the best moment, in m.</summary>
-    [Export] public float ThrowRollSweet { get; set; } = 0.6f;
-    /// <summary>No cue this soon after the throw, so the press that threw him doesn't count (s).</summary>
+    /// <summary>The hips' height above the ground where they count as down, in m (the cue's "impact").</summary>
+    [Export] public float HipsDownHeight { get; set; } = 0.22f;
+    /// <summary>No cue this soon after a throw, so the press that threw him doesn't count (s).</summary>
     [Export] public float ThrowRollDelay { get; set; } = 0.2f;
+    /// <summary>No cue this soon after a fall or a blow: a moment to see it coming (s).</summary>
+    [Export] public float FallRollDelay { get; set; } = 0.05f;
     /// <summary>How fast the flight pose takes over from the ragdoll once the roll is primed (s); a plain get-up uses GetUpBlendTime.</summary>
     [Export] public float RollOutBlendTime { get; set; } = 0.15f;
     /// <summary>The hips' height above the feet when he is upright: where the body is put under a recovering ragdoll (m).</summary>
@@ -674,31 +683,56 @@ public partial class PlayerRagdoll : Node
     private bool _rollPrimed;
     private bool _rollSpent;
     private bool _rollingOut;
+    private bool _rollCueShown;
+    /// <summary>This fall offers no roll (a hard landing, death, being downed in co-op).</summary>
+    private bool _noSave;
 
     /// <summary>
-    /// The quick-time moment of a thrown jump or dive: while he falls, a cue closes in on the ground
-    /// (the same one a hard fall shows); Space or Ctrl inside the window primes a roll, a press
-    /// outside it spends the chance. Primed, he rolls onto his feet at the ground instead of lying there.
+    /// The saving throw while he is a ragdoll: as his hips fall toward the ground a cue closes in on
+    /// the moment they meet it (the same cue a fall on his feet shows); Space or Ctrl inside the
+    /// window primes a roll, a press outside it spends the chance, and hips that reach the ground
+    /// unanswered spend it too. Primed, he rolls onto his feet instead of lying there.
     /// </summary>
     private void RollCue()
     {
-        if (!RollFromThrow || _rollingOut)
+        if (!RollFromThrow || _rollingOut || _rollPrimed)
         {
             return;
         }
-        if (_rollPrimed)
+        float delay = FallRollDelay;
+        if (_launched)
         {
-            return;
+            delay = ThrowRollDelay;
         }
-        bool falling = _bones[0].Body.LinearVelocity.Y < 0.0f;
-        if (_rollSpent || _downTime < ThrowRollDelay || !falling || _hipsHeight < ThrowRollWindow.X * 0.5f)
+        Vector3 hipsVelocity = _bones[0].Body.LinearVelocity;
+        float above = _hipsHeight - HipsDownHeight;
+        bool falling = hipsVelocity.Y < 0.0f && above > 0.0f;
+        if (!falling && _rollCueShown && !_rollSpent)
+        {
+            // The ground came first: this fall's chance is gone.
+            _rollSpent = true;
+            RollSave.Lapse();
+        }
+        bool open = !_noSave && !_rollSpent && _downTime >= delay && falling && (_rollCueShown || RollSave.Ready);
+        if (!open || (Health != null && Health.Dead))
         {
             GameEvents.PublishVaultCue(VaultCue.None);
             return;
         }
-        VaultCue cue = new(true, _hipsHeight, ThrowRollWindow.X, ThrowRollWindow.Y, ThrowRollSweet);
+        float stamina = 1.0f;
+        if (Body?.Stamina != null)
+        {
+            stamina = Body.Stamina.Current / Mathf.Max(Body.Stamina.Max * Body.Stamina.MaxMultiplier, 1.0f);
+        }
+        float gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity", 9.8f);
+        VaultCue cue = RollSave.Cue(RollSave.TimeToImpact(above, -hipsVelocity.Y, gravity), RollSave.ScaleFor(stamina));
+        _rollCueShown = true;
         GameEvents.PublishVaultCue(cue);
-        if (Input.IsActionJustPressed(ActionRollJump) || Input.IsActionJustPressed(ActionRollDive))
+        if (GameOptions.Roll == RollMode.Automatic && cue.Distance <= cue.Sweet)
+        {
+            Answer(RollGrade.Good);
+        }
+        else if (Input.IsActionJustPressed(ActionRollJump) || Input.IsActionJustPressed(ActionRollDive))
         {
             TryThrowRoll(cue);
         }
@@ -707,16 +741,25 @@ public partial class PlayerRagdoll : Node
     /// <summary>The press itself (tests call it): in the window it primes the roll, outside it the chance is gone.</summary>
     public void TryThrowRoll(VaultCue cue)
     {
+        Answer(RollSave.Grade(cue));
+    }
+
+    private void Answer(RollGrade grade)
+    {
         GameEvents.PublishVaultCue(VaultCue.None);
-        if (cue.InWindow)
+        System.Func<float, bool>? spend = null;
+        if (Body?.Stamina != null)
         {
-            _rollPrimed = true;
-            RecoverInAir();
+            spend = Body.Stamina.TrySpend;
+        }
+        if (RollSave.Use(grade, spend) == RollGrade.Miss)
+        {
+            _rollSpent = true;
         }
         else
         {
-            _rollSpent = true;
-            GameEvents.PublishHint(TooEarlyHint);
+            _rollPrimed = true;
+            RecoverInAir();
         }
     }
 
@@ -757,6 +800,8 @@ public partial class PlayerRagdoll : Node
         }
         else
         {
+            // Still in the air: he falls on as after a jump, and the landing takes the roll.
+            Body.ReleaseInAir(hipsVelocity);
             GameEvents.PublishRollPrimed(true);
         }
     }
@@ -788,6 +833,7 @@ public partial class PlayerRagdoll : Node
         _rollPrimed = false;
         _rollSpent = false;
         _rollingOut = false;
+        _rollCueShown = false;
     }
 
     private void StandUp()
@@ -808,10 +854,7 @@ public partial class PlayerRagdoll : Node
         _bodyShape?.SetDeferred(CollisionShape3D.PropertyName.Disabled, false);
         _gettingUp = false;
         Downed = false;
-        if (_launched)
-        {
-            GameEvents.PublishVaultCue(VaultCue.None);
-        }
+        GameEvents.PublishVaultCue(VaultCue.None);
         if (_rise == RisePhase.Gather)
         {
             _rise = RisePhase.Hold;
@@ -849,6 +892,11 @@ public partial class PlayerRagdoll : Node
         }
         Vector3 body = velocity * KnockdownBodyShare;
         GoDown(Body.Velocity + body, velocity - body);
+        // Downed for a partner to revive (co-op): no rolling out of that.
+        if (GameEvents.CarrierBleeding)
+        {
+            _noSave = true;
+        }
     }
 
     /// <summary>A throw on purpose (the dive): the body flies with the given velocity.</summary>
@@ -871,6 +919,8 @@ public partial class PlayerRagdoll : Node
         if (downwardSpeed >= HardLandingSpeed && Body != null)
         {
             GoDown(new Vector3(Body.Velocity.X, -downwardSpeed, Body.Velocity.Z), Vector3.Zero);
+            // The chance for this fall was the cue before the ground (Dive), not a second one now.
+            _noSave = true;
         }
     }
 
@@ -882,6 +932,7 @@ public partial class PlayerRagdoll : Node
         if (Health != null && Health.Dead && !Downed && Body != null)
         {
             GoDown(Body.Velocity, Vector3.Zero);
+            _noSave = true;
         }
     }
 

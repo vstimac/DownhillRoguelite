@@ -328,6 +328,14 @@ public partial class OptionsPanel : ParchmentPanel
             Selected = (int)GameOptions.Stats,
             Changed = i => GameOptions.SetStats((StatStyle)i),
         });
+        Add(gameplay, new ChoiceRow
+        {
+            Label = "Roll on a hard fall",
+            Hint = "Timed: press Space just before you hit the ground to roll out; right on the mark you keep your speed. Automatic: you always roll, never a perfect one. Off: you take every fall.",
+            Options = new[] { "Timed", "Automatic", "Off" },
+            Selected = (int)GameOptions.Roll,
+            Changed = i => GameOptions.SetRoll((RollMode)i),
+        });
         Add(gameplay, ChoiceRow.Toggle("Mouse wheel picks on the hotbar", GameOptions.WheelSelectsHotbar, GameOptions.SetWheelSelectsHotbar,
             "Off: only the number keys 1-9 choose from the hotbar."));
         Add(gameplay, ChoiceRow.Toggle("Route and debug lines (F3)", GameOptions.PathLines, GameOptions.SetPathLines,

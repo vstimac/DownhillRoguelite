@@ -1,3 +1,4 @@
+using System;
 using DownhillRoguelite.Core;
 using Godot;
 
@@ -69,11 +70,8 @@ public partial class Dive : Node3D
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
 
     [ExportGroup("Landing roll")]
-    /// <summary>Falling faster than this shows the roll cue, in m/s.</summary>
+    /// <summary>Falling faster than this shows the roll cue, in m/s (the window itself is RollSave's).</summary>
     [Export] public float RollCueSpeed { get; set; } = 5.0f;
-    /// <summary>Heights above the ground where Space primes the roll, and the sweet spot, in m.</summary>
-    [Export] public Vector2 RollWindow { get; set; } = new(0.15f, 1.8f);
-    [Export] public float RollSweet { get; set; } = 0.7f;
 
     [ExportGroup("Ragdoll dive")]
     /// <summary>Ctrl throws the carrier as a ragdoll instead of the animated dive.</summary>
@@ -102,7 +100,11 @@ public partial class Dive : Node3D
     private float _time;
     private bool _stopped;
     private bool _spentChance;
+    private bool _cueShown;
     private float _gravity = 9.8f;
+    /// <summary>The roll's speed at its start and end: the plain roll's, or a perfect roll's carried speed.</summary>
+    private float _rollFrom = -1.0f;
+    private float _rollTo = -1.0f;
 
     public override void _Ready()
     {
@@ -264,7 +266,7 @@ public partial class Dive : Node3D
         }
         else if (Stage == Phase.Roll)
         {
-            speed = Mathf.Lerp(RollSpeed, RollEndSpeed, Mathf.Clamp(_time / Mathf.Max(RollSeconds, 0.05f), 0.0f, 1.0f));
+            speed = Mathf.Lerp(RollStartSpeed, RollFinishSpeed, Mathf.Clamp(_time / Mathf.Max(RollSeconds, 0.05f), 0.0f, 1.0f));
         }
         Vector3 from = Body.GlobalPosition;
         Vector3 step = _direction * speed * delta;
@@ -321,7 +323,33 @@ public partial class Dive : Node3D
         Body.GlobalPosition = new Vector3(next.X, ground.Y, next.Z);
         if (_time >= RollSeconds)
         {
-            Finish(_direction * RollEndSpeed);
+            Finish(_direction * RollFinishSpeed);
+            _rollFrom = -1.0f;
+            _rollTo = -1.0f;
+        }
+    }
+
+    private float RollStartSpeed
+    {
+        get
+        {
+            if (_rollFrom >= 0.0f)
+            {
+                return _rollFrom;
+            }
+            return RollSpeed;
+        }
+    }
+
+    private float RollFinishSpeed
+    {
+        get
+        {
+            if (_rollTo >= 0.0f)
+            {
+                return _rollTo;
+            }
+            return RollEndSpeed;
         }
     }
 
@@ -374,39 +402,68 @@ public partial class Dive : Node3D
         }
     }
 
-    /// <summary>Falling fast enough to hurt: the cue for a roll, and Space to prime it.</summary>
+    /// <summary>
+    /// Falling fast enough to hurt: the saving throw (RollSave). The cue closes in on the moment of
+    /// impact; Space in the window primes a roll. A cue that meets the ground unanswered is a missed
+    /// chance, and the cooldown keeps the tumble after it from offering another.
+    /// </summary>
     private void UpdateRollCue(bool busy)
     {
-        if (Body == null || busy || Body.IsOnFloor() || Body.Velocity.Y > -RollCueSpeed || GameEvents.RollPrimed || _spentChance)
+        bool falling = Body != null && !busy && !Body.IsOnFloor() && Body.Velocity.Y <= -RollCueSpeed;
+        if (Body == null || !falling || GameEvents.RollPrimed || _spentChance || (!_cueShown && !RollSave.Ready))
         {
             if (Body != null && Body.IsOnFloor())
             {
+                if (_cueShown && !GameEvents.RollPrimed && !_spentChance)
+                {
+                    RollSave.Lapse();
+                }
                 _spentChance = false;
+                _cueShown = false;
             }
             GameEvents.PublishVaultCue(VaultCue.None);
             return;
         }
         float height = Body.GlobalPosition.Y - GroundBelow(Body.GlobalPosition).Y;
-        VaultCue cue = new(true, height, RollWindow.X, RollWindow.Y, RollSweet);
+        float stamina = 1.0f;
+        if (Body.Stamina != null)
+        {
+            stamina = Body.Stamina.Current / Mathf.Max(Body.Stamina.Max * Body.Stamina.MaxMultiplier, 1.0f);
+        }
+        VaultCue cue = RollSave.Cue(RollSave.TimeToImpact(height, -Body.Velocity.Y, _gravity), RollSave.ScaleFor(stamina));
+        _cueShown = true;
         GameEvents.PublishVaultCue(cue);
-        if (Input.IsActionJustPressed(ActionJump))
+        if (GameOptions.Roll == RollMode.Automatic && cue.Distance <= cue.Sweet)
+        {
+            Answer(RollGrade.Good);
+        }
+        else if (Input.IsActionJustPressed(ActionJump))
         {
             TryRoll(cue);
         }
     }
 
-    /// <summary>Space while falling: in the window it primes a roll; outside it the chance is gone.</summary>
+    /// <summary>Space while falling (tests call it): in the window it primes a roll; outside it the chance is gone.</summary>
     public void TryRoll(VaultCue cue)
     {
+        Answer(RollSave.Grade(cue));
+    }
+
+    private void Answer(RollGrade grade)
+    {
         GameEvents.PublishVaultCue(VaultCue.None);
-        if (cue.InWindow)
+        Func<float, bool>? spend = null;
+        if (Body?.Stamina != null)
         {
-            GameEvents.PublishRollPrimed(true);
+            spend = Body.Stamina.TrySpend;
+        }
+        if (RollSave.Use(grade, spend) == RollGrade.Miss)
+        {
+            _spentChance = true;
         }
         else
         {
-            _spentChance = true;
-            GameEvents.PublishHint("Too early: brace for a hard landing");
+            GameEvents.PublishRollPrimed(true);
         }
     }
 
@@ -424,6 +481,14 @@ public partial class Dive : Node3D
         if (along.Length() > 0.5f)
         {
             _direction = along.Normalized();
+        }
+        // A perfect roll turns the fall into ground covered: it carries his own speed, a little more.
+        _rollFrom = -1.0f;
+        _rollTo = -1.0f;
+        if (RollSave.LastGrade == RollGrade.Perfect)
+        {
+            _rollFrom = Mathf.Max(RollSpeed, along.Length() * RollSave.PerfectCarry);
+            _rollTo = Mathf.Max(RollEndSpeed, along.Length() * 0.8f);
         }
         Begin(Phase.Roll);
     }

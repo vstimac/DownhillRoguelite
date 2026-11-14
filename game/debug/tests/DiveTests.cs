@@ -58,6 +58,9 @@ public partial class DiveTests : Node3D
         await TestRagdollDive(PlayerBody, dive);
         await Place(PlayerBody, Streamer.SpawnPoint);
         await TestRagdollJump(PlayerBody);
+        TestSaveRules();
+        await Place(PlayerBody, Streamer.SpawnPoint);
+        await TestBlowRoll(PlayerBody);
 
         if (_failures.Count == 0)
         {
@@ -259,7 +262,15 @@ public partial class DiveTests : Node3D
         else
         {
             Check(GameEvents.IsDowned, "the same fall without Space knocks him down", $"no roll: downed {GameEvents.IsDowned}");
-            await WaitSeconds(5.0f);
+            // The chance was the cue before the ground: the tumble after it offers no second one.
+            bool cuedAgain = false;
+            for (int i = 0; i < 300; i++)
+            {
+                await Frame();
+                cuedAgain |= GameEvents.IsDowned && GameEvents.CurrentVault.Active;
+            }
+            Check(!cuedAgain, "a missed roll is the fall's only chance: no second cue while he tumbles",
+                $"cue again while down: {cuedAgain}");
         }
     }
 
@@ -369,8 +380,82 @@ public partial class DiveTests : Node3D
         player.RagdollJump = false;
     }
 
+    /// <summary>The saving throw's numbers: timing to impact, grades, the character's window, the cooldown.</summary>
+    private void TestSaveRules()
+    {
+        float second = RollSave.TimeToImpact(4.9f, 0.0f, 9.8f);
+        float faster = RollSave.TimeToImpact(4.9f, 10.0f, 9.8f);
+        VaultCue cue = RollSave.Cue(RollSave.Sweet, 1.0f);
+        RollGrade perfect = RollSave.Grade(cue);
+        RollGrade good = RollSave.Grade(cue with { Distance = RollSave.Window - 0.01f });
+        RollGrade early = RollSave.Grade(cue with { Distance = RollSave.Window + 0.1f });
+        Check(Mathf.IsEqualApprox(second, 1.0f) && faster < second && perfect == RollGrade.Perfect && good == RollGrade.Good && early == RollGrade.Miss,
+            "the roll is timed in seconds to impact: on the mark is perfect, inside the window good, before it a miss",
+            $"4.9 m from rest {second:0.00} s, falling at 10 m/s {faster:0.00} s; grades {perfect}, {good}, {early}");
+
+        float plain = RollSave.Scale(0.0f, 1.0f, 1.0f, 1.0f);
+        float heavyTired = RollSave.Scale(40.0f, 0.05f, 1.0f, 1.0f);
+        float nimble = RollSave.Scale(0.0f, 1.0f, 1.1f, 0.7f);
+        Check(Mathf.IsEqualApprox(plain, 1.0f) && heavyTired < 0.6f && nimble > 1.1f,
+            "a heavy load and an empty stamina bar narrow the window; Balance boons and impact resistance widen it",
+            $"plain {plain:0.00}, 40 kg and winded {heavyTired:0.00}, Balance +10% and 30% impact resistance {nimble:0.00}");
+
+        RollSave.Reset();
+        bool readyBefore = RollSave.Ready;
+        float stamina = 5.0f;
+        RollGrade tired = RollSave.Use(RollGrade.Good, cost =>
+        {
+            if (stamina < cost)
+            {
+                return false;
+            }
+            stamina -= cost;
+            return true;
+        });
+        bool readyAfter = RollSave.Ready;
+        RollSave.Reset();
+        Check(readyBefore && tired == RollGrade.Miss && !readyAfter,
+            "a roll costs stamina (too little is a miss), and after a chance there is none for a moment",
+            $"ready before {readyBefore}, with 5 stamina {tired}, ready right after {readyAfter}");
+    }
+
+    /// <summary>Knocked flying by a blow: the same cue shows on the way down, and a timed press rolls him out of it.</summary>
+    private async Task TestBlowRoll(PlayerController player)
+    {
+        PlayerRagdoll ragdoll = player.GetNode<PlayerRagdoll>("Ragdoll");
+        int rolls = 0;
+        void OnRolled() { rolls++; }
+        GameEvents.Rolled += OnRolled;
+        RollSave.Reset();
+        Vector3 away = player.GlobalBasis.Z;
+        GameEvents.RequestKnockdown(away * 4.0f + Vector3.Up * 6.0f, "test blow");
+        bool cued = false;
+        for (int i = 0; i < 180 && !cued; i++)
+        {
+            await Frame();
+            VaultCue cue = GameEvents.CurrentVault;
+            if (ragdoll.Downed && cue.InWindow && cue.Timed)
+            {
+                cued = true;
+                ragdoll.TryThrowRoll(cue);
+            }
+        }
+        float seconds = 0.0f;
+        while ((ragdoll.Downed || rolls == 0) && seconds < 4.0f)
+        {
+            await Frame();
+            seconds += 1.0f / Engine.PhysicsTicksPerSecond;
+        }
+        GameEvents.Rolled -= OnRolled;
+        await WaitSeconds(1.5f);
+        Check(cued && rolls == 1 && !ragdoll.Downed && !GameEvents.IsDowned,
+            "knocked flying by a blow, a timed press rolls him out of it like any other fall",
+            $"cue {cued}, rolls {rolls}, downed {ragdoll.Downed}");
+    }
+
     private async Task Place(PlayerController player, Vector3 position)
     {
+        RollSave.Reset();
         player.Teleport(position + Vector3.Up * 0.1f, 0.0f);
         player.Health?.Refill();
         player.Stamina?.Refill();

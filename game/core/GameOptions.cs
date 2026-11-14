@@ -32,6 +32,8 @@ public static class GameOptions
     /// <summary>The flashing list of low stats in the top-left corner.</summary>
     public static bool LowStatAlerts { get; private set; } = true;
     public static StatStyle Stats { get; private set; } = StatStyle.Dials;
+    /// <summary>The roll on a hard fall: timed by the player, always taken, or never (RollSave).</summary>
+    public static RollMode Roll { get; private set; } = RollMode.Timed;
     /// <summary>The mouse wheel steps through the hotbar (otherwise only the number keys do).</summary>
     public static bool WheelSelectsHotbar { get; private set; } = true;
     /// <summary>Camera field of view, in degrees (60–120).</summary>
@@ -107,6 +109,7 @@ public static class GameOptions
         PauseWhileOpen = true;
         LowStatAlerts = true;
         Stats = StatStyle.Dials;
+        Roll = RollMode.Timed;
         WheelSelectsHotbar = true;
         FieldOfView = 75.0f;
         PathLines = OS.IsDebugBuild();
@@ -159,6 +162,7 @@ public static class GameOptions
         PauseWhileOpen = (bool)file.GetValue(Section, "pause_while_open", PauseWhileOpen);
         LowStatAlerts = (bool)file.GetValue(Section, "low_stat_alerts", LowStatAlerts);
         Stats = (StatStyle)(int)file.GetValue(Section, "stats", (int)Stats);
+        Roll = (RollMode)Mathf.Clamp((int)file.GetValue(Section, "roll", (int)Roll), 0, 2);
         WheelSelectsHotbar = (bool)file.GetValue(Section, "wheel_hotbar", WheelSelectsHotbar);
         FieldOfView = Mathf.Clamp((float)file.GetValue(Section, "fov", FieldOfView), 60.0f, 120.0f);
         PathLines = (bool)file.GetValue(Section, "path_lines", PathLines);
@@ -195,6 +199,7 @@ public static class GameOptions
     public static void SetPauseWhileOpen(bool on) => Set(() => PauseWhileOpen = on);
     public static void SetLowStatAlerts(bool on) => Set(() => LowStatAlerts = on);
     public static void SetStats(StatStyle style) => Set(() => Stats = style);
+    public static void SetRoll(RollMode mode) => Set(() => Roll = mode);
     public static void SetWheelSelectsHotbar(bool on) => Set(() => WheelSelectsHotbar = on);
     public static void SetFieldOfView(float degrees) => Set(() => FieldOfView = Mathf.Clamp(degrees, 60.0f, 120.0f));
     public static void SetPathLines(bool on) => Set(() => PathLines = on);
@@ -258,6 +263,7 @@ public static class GameOptions
         file.SetValue(Section, "pause_while_open", PauseWhileOpen);
         file.SetValue(Section, "low_stat_alerts", LowStatAlerts);
         file.SetValue(Section, "stats", (int)Stats);
+        file.SetValue(Section, "roll", (int)Roll);
         file.SetValue(Section, "wheel_hotbar", WheelSelectsHotbar);
         file.SetValue(Section, "fov", FieldOfView);
         file.SetValue(Section, "path_lines", PathLines);
