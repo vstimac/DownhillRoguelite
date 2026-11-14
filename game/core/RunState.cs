@@ -280,7 +280,8 @@ public partial class RunState : Node
         }
         bool record = Records.Add(Depth, Stage);
         LastSummary = new RunSummary(RunNumber, Seed, Depth, Stage, day, Circles.NameOf(Circles.CircleAt(Depth)), cause, Records.BestDepth, record,
-            Telemetry.ContractsDelivered, Telemetry.ContractsFailed, Telemetry.CargoScore, ScoreOf(Depth, Stage, Telemetry.CargoScore), Telemetry.RelicsDelivered);
+            Telemetry.ContractsDelivered, Telemetry.ContractsFailed, Telemetry.CargoScore, ScoreOf(Depth, Stage, Telemetry.CargoScore), Telemetry.RelicsDelivered,
+            string.Join(", ", Boons));
         GameEvents.PublishRunEnded(LastSummary);
     }
 

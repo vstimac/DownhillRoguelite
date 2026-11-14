@@ -18,6 +18,7 @@ namespace DownhillRoguelite.Core;
 /// <param name="CargoScore">Score earned by delivering cargo.</param>
 /// <param name="Score">Depth, stations and cargo together (RunState.ScoreOf); depth stays the headline.</param>
 /// <param name="RelicsDelivered">Relics left at an altar and studied.</param>
+/// <param name="Boons">The boons and bargains taken in this run, by name ("" when none).</param>
 public readonly record struct RunSummary(
     int RunNumber,
     ulong Seed,
@@ -32,4 +33,5 @@ public readonly record struct RunSummary(
     int ContractsFailed = 0,
     int CargoScore = 0,
     int Score = 0,
-    int RelicsDelivered = 0);
+    int RelicsDelivered = 0,
+    string Boons = "");
