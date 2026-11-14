@@ -52,11 +52,11 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_ROOT = os.path.dirname(ROOT)
-# Beta 2.9 (2026-11-14) is the newest full release for both systems: the README's download buttons give it.
-BASE = r"D:\Game dev\Builds\DownhillRoguelite-beta-2.9\DownhillRoguelite-playtest1"
-LINUX_BASE = r"D:\Game dev\Builds\DownhillRoguelite-linux-2.9\stage"
-# Players who downloaded Beta 2.5 to 2.8 still have 2.5 as their base: they get an update too.
-# Older bases that still get small updates. Empty since Beta 3.0: folders on 2.5 take the whole build.
+# Beta 3.0 (2026-11-14) is the newest full release for both systems: the README's download buttons give it.
+# Keep these folders untouched: every small update (3.1, 3.2, ...) is made against them.
+BASE = r"D:\Game dev\Builds\release-3.0\windows\DownhillRoguelite-playtest1"
+LINUX_BASE = r"D:\Game dev\Builds\release-3.0\linux\stage"
+# Older bases that still get small updates. Empty since Beta 3.0: folders on 2.5 and 2.9 take the whole build.
 OLD_BASES = []
 OUT = os.path.join(REPO_ROOT, "..", "Builds")
 

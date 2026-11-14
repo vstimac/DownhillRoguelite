@@ -60,11 +60,11 @@ From the release worktree, with the commit pushed:
 
 ```bash
 GODOT="D:/Game dev/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe" \
-  python -I game/scripts/publish_release.py v0.2.9-beta 2.9 "Beta 2.9: what's new"
+  python -I game/scripts/publish_release.py v0.3.1-beta 3.1 "Beta 3.1: what's new"
 ```
 
-It builds the update against Beta 2.5's folder (`D:\Game dev\Builds\DownhillRoguelite-beta-2.5\...`,
-never edit it), creates the release as a draft, uploads, compares GitHub's checksums with the local
+It builds the updates against the Beta 3.0 base folders (`D:\Game dev\Builds\release-3.0\windows\DownhillRoguelite-playtest1`
+and `...\release-3.0\linux\stage`; never edit them), creates the release as a draft, uploads, compares GitHub's checksums with the local
 files and only then publishes. Options: `--prerelease` (try the whole path first: start the game with
 `-- --update-prerelease`), `--draft`, `--full <zip>` (also attach a whole build), `--notes <file>`.
 
@@ -84,8 +84,8 @@ page show the new number and its date. Small updates replace the code, so they c
 ### What a normal release carries
 
 Two small files: the Windows update and the Linux update, both made against the current base
-(Beta 2.9 for both systems). The README's download buttons point at the base release's whole builds
-(`releases/download/v0.2.9-beta/...`), not at the newest release: a new player downloads the base
+(Beta 3.0 for both systems). The README's download buttons point at the base release's whole builds
+(`releases/download/v0.3.0-beta/...`), not at the newest release: a new player downloads the base
 once and the game updates itself on first start. Whole builds are uploaded again only when a new
 base is made (updates have grown large); then move the README's two links to that release.
 
