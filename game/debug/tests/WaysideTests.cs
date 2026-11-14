@@ -83,7 +83,7 @@ public partial class WaysideTests : Node3D
         AddChild(probe);
         int kept = probe.ValidDefinitions.Count;
         probe.QueueFree();
-        Check("the five points of interest are valid and broken or duplicate ones are skipped", shipped == 5 && items && kept == 1,
+        Check("the eight points of interest are valid and broken or duplicate ones are skipped", shipped == 8 && items && kept == 1,
             shipped + " valid, items exist " + items + ", probe kept " + kept + " of 4");
     }
 

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WaysideDefinition" format=3]
+
+[ext_resource type="Script" path="res://environment/wayside/WaysideDefinition.cs" id="1_wayside"]
+
+[resource]
+script = ExtResource("1_wayside")
+Id = "WS_MUSHROOMS"
+Title = "Mushrooms by a stone"
+Description = "A ring of pale mushrooms round a mossy stone, the kind carriers know are safe. Enough for a meal."
+Prompt = "Pick the mushrooms"
+TakenText = "Mushrooms by a stone off the path: picked them, and some berries growing close."
+ItemPaths = PackedStringArray("res://inventory/items/mushrooms.tres", "res://inventory/items/wild_berries.tres")
+MinCircle = 0
+Weight = 1.0
+PennantColor = Color(0.8, 0.75, 0.55, 1)
+Look = 1

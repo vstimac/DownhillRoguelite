@@ -11,6 +11,9 @@
 [ext_resource type="Resource" path="res://environment/wayside/resources/carriers_grave.tres" id="7_grave"]
 [ext_resource type="Resource" path="res://environment/wayside/resources/foragers_cache.tres" id="7_cache"]
 [ext_resource type="Resource" path="res://environment/wayside/resources/menders_bundle.tres" id="7_mender"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/hunters_leanto.tres" id="7_leanto"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/mushroom_ring.tres" id="7_mushrooms"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/empty_bivouac.tres" id="7_bivouac"]
 [ext_resource type="Script" path="res://progression/objectives/ObjectiveDirector.cs" id="8_objectives"]
 [ext_resource type="Script" path="res://inventory/CarrierInventory.cs" id="9_inventory"]
 [ext_resource type="Resource" path="res://inventory/default_backpack.tres" id="10_backpack"]
@@ -35,7 +38,7 @@ script = ExtResource("12_set_pieces")
 
 [node name="Wayside" type="Node3D" parent="."]
 script = ExtResource("6_wayside")
-Definitions = [ExtResource("7_spring"), ExtResource("7_pack"), ExtResource("7_grave"), ExtResource("7_cache"), ExtResource("7_mender")]
+Definitions = [ExtResource("7_spring"), ExtResource("7_pack"), ExtResource("7_grave"), ExtResource("7_cache"), ExtResource("7_mender"), ExtResource("7_leanto"), ExtResource("7_mushrooms"), ExtResource("7_bivouac")]
 
 [node name="Objectives" type="Node" parent="."]
 script = ExtResource("8_objectives")

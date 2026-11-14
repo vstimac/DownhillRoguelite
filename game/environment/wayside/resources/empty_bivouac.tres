@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WaysideDefinition" format=3]
+
+[ext_resource type="Script" path="res://environment/wayside/WaysideDefinition.cs" id="1_wayside"]
+
+[resource]
+script = ExtResource("1_wayside")
+Id = "WS_BIVOUAC"
+Title = "An empty bivouac"
+Description = "A hollow scraped under a rock, with a fuel canister and a wool hat left behind. Nobody has slept here for a while."
+Prompt = "Take what was left"
+TakenText = "An empty bivouac under a rock: a fuel canister and a wool hat."
+ItemPaths = PackedStringArray("res://inventory/items/fuel_canister.tres", "res://inventory/items/wool_hat.tres")
+MinCircle = 2
+Weight = 0.8
+PennantColor = Color(0.3, 0.45, 0.7, 1)
+Look = 1

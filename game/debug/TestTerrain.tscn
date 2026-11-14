@@ -93,6 +93,9 @@
 [ext_resource type="Resource" path="res://environment/wayside/resources/menders_bundle.tres" id="59_ws_mender"]
 [ext_resource type="Resource" path="res://environment/wayside/resources/abandoned_pack.tres" id="59_ws_pack"]
 [ext_resource type="Resource" path="res://environment/wayside/resources/cold_spring.tres" id="59_ws_spring"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/hunters_leanto.tres" id="59_ws_leanto"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/mushroom_ring.tres" id="59_ws_mushrooms"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/empty_bivouac.tres" id="59_ws_bivouac"]
 [ext_resource type="Script" uid="uid://cgp8blsuttgg0" path="res://debug/ObjectiveDebugOverlay.cs" id="60_objective_overlay"]
 [ext_resource type="Script" path="res://wildlife/BeastDirector.cs" id="61_beasts"]
 [ext_resource type="Resource" path="res://wildlife/default_beasts.tres" id="62_beast_roster"]
@@ -410,7 +413,7 @@ Relics = [ExtResource("56_rl_001"), ExtResource("56_rl_004")]
 
 [node name="Wayside" type="Node3D" parent="." unique_id=1266550322]
 script = ExtResource("58_wayside")
-Definitions = [ExtResource("59_ws_spring"), ExtResource("59_ws_pack"), ExtResource("59_ws_grave"), ExtResource("59_ws_cache"), ExtResource("59_ws_mender")]
+Definitions = [ExtResource("59_ws_spring"), ExtResource("59_ws_pack"), ExtResource("59_ws_grave"), ExtResource("59_ws_cache"), ExtResource("59_ws_mender"), ExtResource("59_ws_leanto"), ExtResource("59_ws_mushrooms"), ExtResource("59_ws_bivouac")]
 
 [node name="Objectives" type="Node" parent="." unique_id=960615987]
 script = ExtResource("57_objectives")
