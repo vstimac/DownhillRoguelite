@@ -121,7 +121,8 @@ public static class GameOptions
         VSync = true;
         GroundFog = true;
         Quality = GraphicsQuality.High;
-        MaxFps = 0;
+        // A sensible cap for new players: no point drawing 300 frames a second (VSync off) on a 144 Hz screen.
+        MaxFps = 144;
         LookSensitivity = 1.0f;
         MouseSensitivity = 1.0f;
         MouseSmoothing = false;

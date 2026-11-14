@@ -93,12 +93,30 @@
 [ext_resource type="Resource" path="res://environment/wayside/resources/menders_bundle.tres" id="59_ws_mender"]
 [ext_resource type="Resource" path="res://environment/wayside/resources/abandoned_pack.tres" id="59_ws_pack"]
 [ext_resource type="Resource" path="res://environment/wayside/resources/cold_spring.tres" id="59_ws_spring"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/hunters_leanto.tres" id="59_ws_leanto"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/mushroom_ring.tres" id="59_ws_mushrooms"]
+[ext_resource type="Resource" path="res://environment/wayside/resources/empty_bivouac.tres" id="59_ws_bivouac"]
 [ext_resource type="Script" uid="uid://cgp8blsuttgg0" path="res://debug/ObjectiveDebugOverlay.cs" id="60_objective_overlay"]
 [ext_resource type="Script" path="res://wildlife/BeastDirector.cs" id="61_beasts"]
 [ext_resource type="Resource" path="res://wildlife/default_beasts.tres" id="62_beast_roster"]
 [ext_resource type="Script" path="res://narrative/president/PresidentDirector.cs" id="63_president"]
 [ext_resource type="Script" path="res://progression/RunKeeper.cs" id="102_run_keeper"]
 [ext_resource type="Script" path="res://audio/CircleAmbience.cs" id="103_circle_ambience"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_006_fuel_for_the_fire.tres" id="111_ct_006_fuel_for_the_fire"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_007_rope_two_fires_down.tres" id="111_ct_007_rope_two_fires_down"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_008_medicine_whole.tres" id="111_ct_008_medicine_whole"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_009_ore_for_the_smith.tres" id="112_ct_009_ore_for_the_smith"]
+[ext_resource type="Resource" path="res://progression/contracts/resources/ct_010_a_stove_for_the_camp.tres" id="112_ct_010_a_stove_for_the_camp"]
+[ext_resource type="Resource" path="res://progression/boons/owls_pace.tres" id="113_boon_owls_pace"]
+[ext_resource type="Resource" path="res://progression/boons/carriers_pride.tres" id="113_boon_carriers_pride"]
+[ext_resource type="Resource" path="res://progression/boons/storm_born.tres" id="113_boon_storm_born"]
+[ext_resource type="Resource" path="res://progression/boons/mules_bargain.tres" id="110_bargain_mules_bargain"]
+[ext_resource type="Resource" path="res://progression/boons/quick_feet.tres" id="110_bargain_quick_feet"]
+[ext_resource type="Resource" path="res://progression/boons/second_wind.tres" id="110_bargain_second_wind"]
+[ext_resource type="Resource" path="res://progression/boons/hollow_belly.tres" id="110_bargain_hollow_belly"]
+[ext_resource type="Resource" path="res://progression/boons/winter_hide.tres" id="110_bargain_winter_hide"]
+[ext_resource type="Resource" path="res://progression/boons/light_sleeper.tres" id="110_bargain_light_sleeper"]
+[ext_resource type="Resource" path="res://progression/boons/goats_hooves.tres" id="110_bargain_goats_hooves"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("25_sky_shader")
@@ -381,11 +399,12 @@ script = ExtResource("39_summary")
 
 [node name="Boons" type="Node3D" parent="." unique_id=1003249237]
 script = ExtResource("40_boons")
-Boons = [SubResource("Boon_steady_legs"), SubResource("Boon_iron_lungs"), SubResource("Boon_deep_reserves"), SubResource("Boon_light_step"), SubResource("Boon_strong_back"), SubResource("Boon_lean_belly"), SubResource("Boon_thick_blood"), SubResource("Boon_sure_footing"), SubResource("Boon_long_stride"), SubResource("Boon_deep_sleep")]
+Boons = [SubResource("Boon_steady_legs"), SubResource("Boon_iron_lungs"), SubResource("Boon_deep_reserves"), SubResource("Boon_light_step"), SubResource("Boon_strong_back"), SubResource("Boon_lean_belly"), SubResource("Boon_thick_blood"), SubResource("Boon_sure_footing"), SubResource("Boon_long_stride"), SubResource("Boon_deep_sleep"), ExtResource("113_boon_owls_pace"), ExtResource("113_boon_carriers_pride"), ExtResource("113_boon_storm_born")]
+Bargains = [ExtResource("110_bargain_mules_bargain"), ExtResource("110_bargain_quick_feet"), ExtResource("110_bargain_second_wind"), ExtResource("110_bargain_hollow_belly"), ExtResource("110_bargain_winter_hide"), ExtResource("110_bargain_light_sleeper"), ExtResource("110_bargain_goats_hooves")]
 
 [node name="Contracts" type="Node3D" parent="." unique_id=286667526]
 script = ExtResource("50_contracts")
-Contracts = [ExtResource("51_courier_parcel"), ExtResource("54_ct_001_letter_downhill"), ExtResource("54_ct_002_stone_for_the_scale"), ExtResource("54_ct_003_glass_truth"), ExtResource("54_ct_004_empty_hands"), ExtResource("54_ct_005_someones_last_map")]
+Contracts = [ExtResource("51_courier_parcel"), ExtResource("54_ct_001_letter_downhill"), ExtResource("54_ct_002_stone_for_the_scale"), ExtResource("54_ct_003_glass_truth"), ExtResource("54_ct_004_empty_hands"), ExtResource("54_ct_005_someones_last_map"), ExtResource("111_ct_006_fuel_for_the_fire"), ExtResource("111_ct_007_rope_two_fires_down"), ExtResource("111_ct_008_medicine_whole"), ExtResource("112_ct_009_ore_for_the_smith"), ExtResource("112_ct_010_a_stove_for_the_camp")]
 
 [node name="Lore" type="Node3D" parent="." unique_id=1586556100]
 script = ExtResource("52_lore")
@@ -399,7 +418,7 @@ Relics = [ExtResource("56_rl_001"), ExtResource("56_rl_004")]
 
 [node name="Wayside" type="Node3D" parent="." unique_id=1266550322]
 script = ExtResource("58_wayside")
-Definitions = [ExtResource("59_ws_spring"), ExtResource("59_ws_pack"), ExtResource("59_ws_grave"), ExtResource("59_ws_cache"), ExtResource("59_ws_mender")]
+Definitions = [ExtResource("59_ws_spring"), ExtResource("59_ws_pack"), ExtResource("59_ws_grave"), ExtResource("59_ws_cache"), ExtResource("59_ws_mender"), ExtResource("59_ws_leanto"), ExtResource("59_ws_mushrooms"), ExtResource("59_ws_bivouac")]
 
 [node name="Objectives" type="Node" parent="." unique_id=960615987]
 script = ExtResource("57_objectives")

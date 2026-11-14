@@ -106,6 +106,7 @@ public partial class RunSummaryView : Node3D
         _details.Text = $"Run {summary.RunNumber} · {summary.Depth} m down · {stations} · day {summary.Day}\n" +
             $"{summary.CircleName} · taken by {summary.Cause} · {record}\n" +
             cargo + "score " + summary.Score + "\n" +
+            BoonLine(summary.Boons) +
             $"mountain {summary.Seed}\n\n" +
             "A new mountain rises...";
         _details.Modulate = new Color(TextColor, 0.0f);
@@ -116,6 +117,16 @@ public partial class RunSummaryView : Node3D
         _title.Visible = true;
         _details.Visible = true;
         _time = 0.0f;
+    }
+
+    /// <summary>"taken at the fires: Steady Legs, Mule's Bargain" and a line break, or nothing.</summary>
+    private static string BoonLine(string boons)
+    {
+        if (boons.Length == 0)
+        {
+            return "";
+        }
+        return "taken at the fires: " + boons + "\n";
     }
 
     private void HideSummary()

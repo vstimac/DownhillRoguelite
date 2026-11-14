@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="BoonDefinition" format=3]
+
+[ext_resource type="Script" uid="uid://wiwl5ne4vej" path="res://progression/BoonDefinition.cs" id="1_boon"]
+
+[resource]
+script = ExtResource("1_boon")
+Id = "owls_pace"
+DisplayName = "Owl's Pace"
+Description = "The dark stops slowing you down."
+Glow = Color(0.55, 0.6, 1, 1)
+Condition = 1
+WalkSpeed = 1.12
+Balance = 1.1

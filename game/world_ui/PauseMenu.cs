@@ -172,6 +172,7 @@ public partial class PauseMenu : CanvasLayer
         StartScreen.ReturnedFromRun = true;
         GD.Print("PauseMenu: back to the main menu (run saved: " + RunSave.Exists + ")");
         GetTree().Paused = false;
+        GameEvents.ForgetSceneState();
         GetTree().ReloadCurrentScene();
     }
 

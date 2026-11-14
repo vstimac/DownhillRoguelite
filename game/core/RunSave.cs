@@ -29,6 +29,8 @@ public sealed class RunSave
     public string Character { get; set; } = "";
     public List<string> Boons { get; set; } = new();
     public Dictionary<string, float> Modifiers { get; set; } = new();
+    /// <summary>Resource paths of the conditional boons taken (Beta 3.3); older saves have none.</summary>
+    public List<string> ConditionalBoons { get; set; } = new();
     public int Day { get; set; } = 1;
     public float Hour { get; set; }
     public float[] Position { get; set; } = new float[3];

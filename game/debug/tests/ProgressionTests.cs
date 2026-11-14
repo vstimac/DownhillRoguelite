@@ -41,6 +41,8 @@ public partial class ProgressionTests : Node3D
         await WaitSeconds(1.0f);
 
         TestPicks(Offerings);
+        TestBargains(Offerings);
+        TestConditionalBoons(_run);
         await TestOfferingAndChoice(PlayerBody, Offerings, _run.Route);
         TestEffects(PlayerBody.Stamina);
         await TestCold(needs);
@@ -82,6 +84,94 @@ public partial class ProgressionTests : Node3D
         Check("a station offers three different boons, the same for the same mountain",
             first.Count == offerings.OfferCount && distinct.Count == first.Count && same && across.Count > first.Count,
             $"{first.Count} offered ({string.Join(", ", distinct)}), {across.Count} different boons over 8 stations");
+    }
+
+    /// <summary>Bargains: a price shown apart from the gift; from station 2 the middle offering is one, the others unchanged.</summary>
+    private void TestBargains(BoonOfferings offerings)
+    {
+        BoonDefinition mule = GD.Load<BoonDefinition>("res://progression/boons/mules_bargain.tres");
+        BoonDefinition goat = GD.Load<BoonDefinition>("res://progression/boons/goats_hooves.tres");
+        BoonDefinition plain = offerings.Boons[0];
+        bool described = mule.IsBargain && !plain.IsBargain
+            && mule.Gifts() == "The load costs 40% less stamina" && mule.Costs() == "Walk 8% slower"
+            && goat.Gifts() == "Grip +30%" && goat.Costs() == "Stamina recovers 15% slower"
+            && plain.Costs() == "" && plain.Gifts() == plain.Effects();
+
+        List<BoonDefinition> before1 = offerings.Pick(1);
+        List<BoonDefinition> before3 = offerings.Pick(3);
+        BoonDefinition[] saved = offerings.Bargains;
+        offerings.Bargains = new[] { mule, goat };
+        List<BoonDefinition> first = offerings.Pick(1);
+        List<BoonDefinition> third = offerings.Pick(3);
+        List<BoonDefinition> thirdAgain = offerings.Pick(3);
+        offerings.Bargains = saved;
+        bool firstPlain = first.Count == before1.Count;
+        for (int i = 0; i < first.Count; i++)
+        {
+            firstPlain = firstPlain && first[i] == before1[i];
+        }
+        int middle = third.Count / 2;
+        bool thirdBargain = third.Count == before3.Count && third[middle].IsBargain && third[middle] == thirdAgain[middle];
+        for (int i = 0; i < third.Count; i++)
+        {
+            if (i != middle)
+            {
+                thirdBargain = thirdBargain && third[i] == before3[i];
+            }
+        }
+        Check("a bargain shows its gift and its price apart; from station 2 the middle offering is a bargain, the rest unchanged",
+            described && firstPlain && thirdBargain,
+            $"mule: '{mule.Gifts()}' / '{mule.Costs()}', goat: '{goat.Gifts()}' / '{goat.Costs()}'; station 1 unchanged {firstPlain}, station 3: {string.Join(", ", third.ConvertAll(b => b.Id))}");
+    }
+
+    /// <summary>Beta 3.3: a conditional boon works only in its situation, and a save never holds its effect twice.</summary>
+    private void TestConditionalBoons(RunState run)
+    {
+        BoonDefinition owl = GD.Load<BoonDefinition>("res://progression/boons/owls_pace.tres");
+        BoonDefinition pride = GD.Load<BoonDefinition>("res://progression/boons/carriers_pride.tres");
+        BoonDefinition storm = GD.Load<BoonDefinition>("res://progression/boons/storm_born.tres");
+        WeatherSnapshot clear = WeatherSnapshot.Calm;
+        WeatherSnapshot snow = WeatherSnapshot.Calm with { Kind = WeatherKind.Snow, Snow = 0.8f };
+        float walk = run.Modifiers.WalkSpeed;
+        float load = run.Modifiers.LoadDrain;
+        float grip = run.Modifiers.Grip;
+        bool described = owl.IsConditional && owl.Gifts() == "At night: Balance +10% · Walk 12% faster" && !owl.IsBargain
+            && pride.Gifts().StartsWith("While you carry a job: ") && storm.Gifts().StartsWith("In rain or snow: ");
+
+        run.AddConditionalBoon(owl);
+        run.AddConditionalBoon(pride);
+        run.AddConditionalBoon(storm);
+        run.AddConditionalBoon(owl);
+        int listed = run.ConditionalBoons.Count;
+        run.UpdateConditionalBoons(false, false, clear);
+        bool dayOff = Mathf.IsEqualApprox(run.Modifiers.WalkSpeed, walk) && Mathf.IsEqualApprox(run.Modifiers.LoadDrain, load);
+        run.UpdateConditionalBoons(true, false, clear);
+        run.UpdateConditionalBoons(true, false, clear);
+        bool nightOn = Mathf.IsEqualApprox(run.Modifiers.WalkSpeed, walk * 1.12f) && Mathf.IsEqualApprox(run.Modifiers.LoadDrain, load);
+        run.UpdateConditionalBoons(true, true, snow);
+        bool allOn = run.ActiveBoons.Count == 3 && Mathf.IsEqualApprox(run.Modifiers.LoadDrain, load * 0.75f) && Mathf.IsEqualApprox(run.Modifiers.Grip, grip * 1.25f);
+
+        RunSave save = new();
+        run.CaptureInto(save);
+        bool savedBase = Mathf.IsEqualApprox(save.Modifiers["WalkSpeed"], walk) && Mathf.IsEqualApprox(save.Modifiers["Grip"], grip)
+            && save.ConditionalBoons.Count == 3 && save.ConditionalBoons.Contains("res://progression/boons/owls_pace.tres");
+
+        run.UpdateConditionalBoons(false, false, clear);
+        bool allOff = run.ActiveBoons.Count == 0 && Mathf.IsEqualApprox(run.Modifiers.WalkSpeed, walk)
+            && Mathf.IsEqualApprox(run.Modifiers.LoadDrain, load) && Mathf.IsEqualApprox(run.Modifiers.Grip, grip);
+
+        // Continue from the save taken at night in a snowstorm with a job: nothing is on until the situation is checked, then once.
+        run.UpdateConditionalBoons(true, true, snow);
+        run.RestoreFrom(save);
+        bool restored = run.ConditionalBoons.Count == 3 && run.ActiveBoons.Count == 0 && Mathf.IsEqualApprox(run.Modifiers.WalkSpeed, walk);
+        run.UpdateConditionalBoons(true, true, snow);
+        bool once = Mathf.IsEqualApprox(run.Modifiers.WalkSpeed, walk * 1.12f) && Mathf.IsEqualApprox(run.Modifiers.Grip, grip * 1.25f);
+
+        run.UpdateConditionalBoons(false, false, clear);
+        run.ConditionalBoons.Clear();
+        Check("a conditional boon works only in its situation, and a save taken while it works holds it once, not twice",
+            described && listed == 3 && dayOff && nightOn && allOn && savedBase && allOff && restored && once,
+            $"owl '{owl.Gifts()}'; listed {listed}; day off {dayOff}, night on {nightOn}, all on {allOn}; saved without it {savedBase}; all off {allOff}; restored {restored}, applied once {once}");
     }
 
     private async Task TestOfferingAndChoice(PlayerController player, BoonOfferings offerings, IRouteQuery route)

@@ -171,7 +171,7 @@ public partial class RelicAltar : Node3D, IInteractable, IDescribed
         }
         else
         {
-            _status.Text = "For relics found on the way";
+            _status.Text = "Leave a relic you found on the way here";
         }
     }
 

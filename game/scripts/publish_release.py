@@ -9,13 +9,17 @@ Publishes a play-test release that every installed game picks up by itself (titl
     title     the release's name, e.g. "Beta 2.9: the counter clerk"
 
 Options:
-    --base DIR      the full release folder updates are made against (default: Beta 2.5's export,
+    --base DIR      the full release folder updates are made against (default: Beta 2.9's export,
                     see BASE below); its base.txt names the release players have
     --update ZIP    an update zip already made by make_update.py (default: make one now)
+    --also-base DIR another, older Windows base that players may still have (default: Beta 2.5, see
+                    OLD_BASES): an update is made and attached for it too, so nobody is left behind
+    --also-update ZIP   such an update already made by make_update.py (repeatable)
+    --no-old-bases  attach only the update for --base
     --full ZIP      also attach a whole Windows build (package_windows.py); new players and folders
                     without base.txt take it
     --linux-base DIR    a Linux full release folder (build_linux.sh's stage/ with base.txt): also make
-                        and attach the small Linux update against it
+                        and attach the small Linux update against it (default: Beta 2.9's, LINUX_BASE)
     --linux-update TAR  a Linux update already made by make_update.py --platform linux
     --linux-full TAR    also attach a whole Linux build (*-linux*.tar.gz from build_linux.sh): Linux
                         players without a matching base take it, and it becomes their new base
@@ -42,7 +46,11 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_ROOT = os.path.dirname(ROOT)
-BASE = r"D:\Game dev\Builds\DownhillRoguelite-beta-2.5\DownhillRoguelite-playtest1"
+# Beta 2.9 (2026-11-14) is the newest full release for both systems: the README's download buttons give it.
+BASE = r"D:\Game dev\Builds\DownhillRoguelite-beta-2.9\DownhillRoguelite-playtest1"
+LINUX_BASE = r"D:\Game dev\Builds\DownhillRoguelite-linux-2.9\stage"
+# Players who downloaded Beta 2.5 to 2.8 still have 2.5 as their base: they get an update too.
+OLD_BASES = [r"D:\Game dev\Builds\DownhillRoguelite-beta-2.5\DownhillRoguelite-playtest1"]
 OUT = os.path.join(REPO_ROOT, "..", "Builds")
 
 
@@ -78,7 +86,10 @@ def main():
     parser.add_argument("--base", default=BASE)
     parser.add_argument("--update")
     parser.add_argument("--full")
-    parser.add_argument("--linux-base")
+    parser.add_argument("--also-base", action="append", default=None)
+    parser.add_argument("--also-update", action="append", default=[])
+    parser.add_argument("--no-old-bases", action="store_true")
+    parser.add_argument("--linux-base", default=LINUX_BASE)
     parser.add_argument("--linux-update")
     parser.add_argument("--linux-full")
     parser.add_argument("--notes")
@@ -111,6 +122,33 @@ def main():
     if not os.path.isfile(update):
         fail(f"no update zip at {update}")
     files.append(update)
+
+    # The same version for older Windows bases.
+    also_updates = list(args.also_update)
+    also_bases = args.also_base
+    if also_bases is None:
+        also_bases = OLD_BASES
+    if args.no_old_bases:
+        also_bases = []
+    for old_base in also_bases:
+        old_txt = os.path.join(old_base, "base.txt")
+        if not os.path.isfile(old_txt):
+            fail(f"no base.txt in {old_base}")
+        old_id = open(old_txt, encoding="utf-8").read().strip()
+        old_name = f"DownhillRoguelite-update-{args.version}-for-{old_id}.zip"
+        if any(os.path.basename(path) == old_name for path in also_updates):
+            continue
+        os.makedirs(OUT, exist_ok=True)
+        run(sys.executable, "-I", os.path.join(ROOT, "scripts", "make_update.py"), old_base, args.version, OUT)
+        also_updates.append(os.path.join(OUT, old_name))
+    for path in also_updates:
+        name = os.path.basename(path)
+        if not (name.startswith(f"DownhillRoguelite-update-{args.version}-for-") and name.endswith(".zip")):
+            fail(f"{name}: an update for an older base must be named DownhillRoguelite-update-{args.version}-for-<base>.zip")
+        if not os.path.isfile(path):
+            fail(f"no update zip at {path}")
+        if path not in files:
+            files.append(path)
     if args.full:
         if not os.path.basename(args.full).endswith("-windows.zip"):
             fail("a whole Windows build must be named *-windows.zip")

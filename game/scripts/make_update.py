@@ -11,7 +11,10 @@ out_dir   where to write the update zip (default: Builds next to the repository)
 What it does:
 1. Exports the current project with the "Windows Desktop" preset to a scratch folder (full build).
 2. Exports patches/update.pck with Godot's --export-patch against the base's DownhillRoguelite.pck:
-   only resources that changed since the full release (scenes, art, sounds, settings).
+   only resources that changed since the full release (scenes, art, sounds, settings). Then it leaves
+   out imported models, textures and sounds whose source and .import haven't changed in git since the
+   base's tag (base.txt): a fresh checkout re-imports them byte-differently, which made Godot ship
+   every model again (49 MB instead of a few). --keep-reimports skips this.
 3. Adds every other file of the new build that differs from the base (the game's code is a DLL in
    the data folder, so code changes ship as that one file).
 4. Zips it as DownhillRoguelite-update-<version>-for-<base>.zip with version.txt; players extract
@@ -27,6 +30,8 @@ needs only the newest. When updates grow large, make a new full release (and a n
 import hashlib
 import os
 import shutil
+import re
+import struct
 import subprocess
 import io
 import sys
@@ -75,6 +80,113 @@ def files_under(folder):
     return found
 
 
+IMPORTED = ".godot/imported/"
+IMPORTED_REF = re.compile(r'res://(\.godot/imported/[^"\s,\]]+)')
+
+
+def read_pck(path):
+    """A Godot 4 .pck's header and directory: (header fields, [(name bytes, offset, size, md5, flags)])."""
+    with open(path, "rb") as f:
+        head = f.read(104)
+        if head[:4] != b"GDPC":
+            fail(f"{path} is not a Godot pack")
+        version, major, minor, patch, flags, file_base, dir_offset = struct.unpack_from("<IIIIIQQ", head, 4)
+        if version < 3 or flags & 1:
+            fail(f"{path}: pack format {version} (flags {flags}) is not one this script can trim")
+        f.seek(dir_offset)
+        count, = struct.unpack("<I", f.read(4))
+        entries = []
+        for _ in range(count):
+            length, = struct.unpack("<I", f.read(4))
+            name = f.read(length)
+            offset, size = struct.unpack("<QQ", f.read(16))
+            md5 = f.read(16)
+            entry_flags, = struct.unpack("<I", f.read(4))
+            entries.append((name, offset, size, md5, entry_flags))
+    return (version, major, minor, patch, flags, file_base), entries
+
+
+def entry_path(name):
+    return name.rstrip(b"\0").decode("utf-8", errors="replace").removeprefix("res://")
+
+
+def write_pck(source, target, header, entries):
+    """Writes the entries (offsets relative to the file base, as Godot 4 writes them) into a new pack."""
+    version, major, minor, patch, flags, file_base = header
+    with open(source, "rb") as src, open(target, "wb") as out:
+        out.write(b"\0" * file_base)
+        placed = []
+        for name, offset, size, md5, entry_flags in entries:
+            at = out.tell() - file_base
+            src.seek(file_base + offset)
+            remaining = size
+            while remaining > 0:
+                chunk = src.read(min(remaining, 1 << 20))
+                out.write(chunk)
+                remaining -= len(chunk)
+            out.write(b"\0" * ((16 - out.tell() % 16) % 16))
+            placed.append((name, at, size, md5, entry_flags))
+        dir_offset = out.tell()
+        out.write(struct.pack("<I", len(placed)))
+        for name, at, size, md5, entry_flags in placed:
+            out.write(struct.pack("<I", len(name)) + name + struct.pack("<QQ", at, size) + md5 + struct.pack("<I", entry_flags))
+        out.seek(0)
+        out.write(b"GDPC" + struct.pack("<IIIIIQQ", version, major, minor, patch, flags, file_base, dir_offset))
+
+
+def git_lines(*args):
+    result = subprocess.run(["git", "-C", ROOT] + list(args), capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if result.returncode != 0:
+        return None
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def trim_patch(patch_path, base_pck, base_id):
+    """
+    Drops imported resources (models, textures, sounds) whose source and import settings haven't changed
+    since the base release. Godot's --export-patch compares the imported bytes, and a fresh checkout
+    re-imports everything, so without this the patch carries every model again (tens of MB) although
+    the base the player already has holds the same thing under the same path.
+    """
+    changed = git_lines("diff", "--name-only", "--relative", base_id)
+    untracked = git_lines("ls-files", "--others", "--exclude-standard")
+    if changed is None or untracked is None:
+        print(f"      (not trimming: git doesn't know {base_id})")
+        return
+    changed = set(changed) | set(untracked)
+    source_of = {}
+    for current, dirs, files in os.walk(ROOT):
+        dirs[:] = [d for d in dirs if d not in (".godot", "bin", "obj", ".git")]
+        for name in files:
+            if not name.endswith(".import"):
+                continue
+            path = os.path.join(current, name)
+            source = os.path.relpath(path, ROOT).replace("\\", "/")[:-len(".import")]
+            with open(path, encoding="utf-8", errors="replace") as f:
+                for imported in IMPORTED_REF.findall(f.read()):
+                    source_of[imported] = source
+    _, base_entries = read_pck(base_pck)
+    in_base = {entry_path(name) for name, _, _, _, _ in base_entries}
+    header, entries = read_pck(patch_path)
+    kept, dropped, dropped_bytes = [], 0, 0
+    for entry in entries:
+        path = entry_path(entry[0])
+        source = source_of.get(path)
+        unchanged = (path.startswith(IMPORTED) and entry[4] == 0 and path in in_base and source is not None
+                     and source not in changed and source + ".import" not in changed)
+        if unchanged:
+            dropped += 1
+            dropped_bytes += entry[2]
+        else:
+            kept.append(entry)
+    if dropped == 0:
+        return
+    trimmed = patch_path + ".trimmed"
+    write_pck(patch_path, trimmed, header, kept)
+    os.replace(trimmed, patch_path)
+    print(f"      left out {dropped} re-imported but unchanged resources ({dropped_bytes / 1048576:.1f} MB)")
+
+
 def godot(*args):
     command = [os.environ.get("GODOT", "godot"), "--headless", "--path", ROOT] + list(args)
     result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -110,6 +222,9 @@ def main():
             fail("--platform takes windows or linux")
         platform = argv[at + 1]
         del argv[at:at + 2]
+    keep_reimports = "--keep-reimports" in argv
+    if keep_reimports:
+        argv.remove("--keep-reimports")
     if len(argv) < 2:
         print(__doc__)
         sys.exit(2)
@@ -134,6 +249,8 @@ def main():
         godot("--export-release", preset, os.path.join(build, exe))
         print("...   exporting the patch (changed resources only)")
         godot("--export-patch", preset, os.path.join(build, PATCH), "--patches", base_pck)
+        if not keep_reimports:
+            trim_patch(os.path.join(build, PATCH), base_pck, base_id)
 
         base_files = files_under(base_dir)
         changed = []

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ContractDefinition" format=3]
+
+[ext_resource type="Script" path="res://progression/contracts/ContractDefinition.cs" id="1_contract"]
+
+[resource]
+script = ExtResource("1_contract")
+Id = "CT_006"
+DisplayName = "Fuel for the Next Fire"
+Kind = 0
+Giver = "the keeper of this fire"
+OfferText = "The next fire is burning low. Carry this down before they start burning their boots."
+CargoItemPath = "res://inventory/items/fuel_canister.tres"
+StationsAhead = 1
+MinStation = 1
+Score = 25
+Weight = 1.0
+Fragility = 0.3
+MinCondition = 0.0
+DeadlineDays = 0.0
+MinCircle = 0
+MaxCircle = -1
