@@ -67,9 +67,12 @@ public partial class BalanceSettings : Resource
 
     /// <summary>
     /// The pack's swing on its straps pulls the balance: torque = pack mass · g · swing (m) × this. Above 1
-    /// because the swing's jerk on the straps pulls harder than its weight alone. 0 turns it off.
+    /// because the swing's jerk on the straps pulls harder than its weight alone (3 was the tuned value).
+    /// 0 turns it off, and it is off for now: the pull changes how he goes into a fall, and the
+    /// ragdoll's joints then overshoot their swing in RagdollJointTests. Turn it back on once the
+    /// joints hold in every fall.
     /// </summary>
-    [Export] public float PackSwayFactor { get; set; } = 3.0f;
+    [Export] public float PackSwayFactor { get; set; } = 0.0f;
 
     [ExportGroup("Wind")]
     /// <summary>Wind force per m² of exposed area per (m/s)² of wind speed: half air density times drag coefficient.</summary>
