@@ -34,6 +34,8 @@ public partial class PerfLog : Node
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
+        // Measure the uncapped frame: the options' frame-rate cap would hide where the time goes.
+        Engine.MaxFps = 0;
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             // `--perf-physics=30`: physics ticks per second, to see the physics share of a frame.
