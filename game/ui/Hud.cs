@@ -182,6 +182,8 @@ public partial class Hud : CanvasLayer
         LayoutEditor.AddPiece("need_thirst", ThirstIcon);
         LayoutEditor.AddPiece("need_warmth", WarmthIcon);
         LayoutEditor.AddPiece("descent", Descent);
+        // The note grows with its lines; what sits under it moves down with it.
+        Descent.Resized += Layout;
         LayoutEditor.AddPiece("compass_strip", Compass);
         LayoutEditor.AddPiece("objectives", Objectives);
         LayoutEditor.AddPiece("equipment", Equipment);

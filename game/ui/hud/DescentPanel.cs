@@ -12,6 +12,8 @@ namespace DownhillRoguelite.Ui;
 public partial class DescentPanel : ParchmentPanel
 {
     public string Text => _body?.Text ?? "";
+    /// <summary>The note never gets shorter than this, in px (its height in the HUD layout).</summary>
+    [Export] public float MinHeight { get; set; } = 172.0f;
 
     private Label? _body;
     private RunState? _run;
@@ -94,6 +96,12 @@ public partial class DescentPanel : ParchmentPanel
             job = "\n" + JobLine(active.Value, now, hoursPerSecond);
         }
         _body.Text = $"{depth} m below the summit\nCircle {circle}\nWeather: {sky}\n{time}{next}" + job;
+        // The note grows with its lines (the way to the next fire and a job add two), so none falls off the paper.
+        float needed = _body.Position.Y + _body.GetMinimumSize().Y + 16.0f;
+        if (!Mathf.IsEqualApprox(Size.Y, Mathf.Max(needed, MinHeight)))
+        {
+            Size = new Vector2(Size.X, Mathf.Max(needed, MinHeight));
+        }
         if (circle != _lastPlace)
         {
             _lastPlace = circle;
