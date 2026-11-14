@@ -10,7 +10,7 @@ namespace DownhillRoguelite.Core;
 /// </summary>
 public static class GameVersion
 {
-    public const string Name = "Beta 3.0";
+    public const string Name = "Beta 3.1";
     public static readonly DateTime Released = new(2026, 11, 14);
 
     /// <summary>"Beta 3.0 · 14 Nov 2026".</summary>
