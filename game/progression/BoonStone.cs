@@ -103,6 +103,10 @@ public partial class BoonStone : Node3D, IInteractable, IDescribed
         {
             return text + "\nA bargain: the gift and the price both last the rest of this run. One boon per station: E to take it.";
         }
+        if (Boon != null && Boon.IsConditional)
+        {
+            return text + "\n" + Boon.ConditionText() + " only, for the rest of this run. One boon per station: E to take it.";
+        }
         return text + "\nLasts the rest of this run. One boon per station: E to take it.";
     }
 

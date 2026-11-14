@@ -112,7 +112,15 @@ public partial class BoonOfferings : Node3D
         {
             return false;
         }
-        chosen.Boon.ApplyTo(_run.Modifiers);
+        if (chosen.Boon.IsConditional)
+        {
+            // Works only in its situation: RunState switches it on and off (and saves it without its effect).
+            _run.AddConditionalBoon(chosen.Boon);
+        }
+        else
+        {
+            chosen.Boon.ApplyTo(_run.Modifiers);
+        }
         _run.Boons.Add(chosen.Boon.DisplayName);
         for (int i = _stones.Count - 1; i >= 0; i--)
         {

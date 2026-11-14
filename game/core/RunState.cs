@@ -41,6 +41,14 @@ public partial class RunState : Node
     public System.Collections.Generic.List<string> Boons { get; } = new();
     /// <summary>This run's contracts and cargo score (reset with every run).</summary>
     public RunTelemetry Telemetry { get; } = new();
+    /// <summary>Boons taken this run that only work in one situation (Beta 3.3); they need a saved resource path.</summary>
+    public System.Collections.Generic.List<Progression.BoonDefinition> ConditionalBoons { get; } = new();
+    /// <summary>The conditional boons whose situation holds right now: their effects are in Modifiers.</summary>
+    public System.Collections.Generic.HashSet<Progression.BoonDefinition> ActiveBoons { get; } = new();
+    /// <summary>Rain or snow at least this strong (0 to 1) counts as bad weather for a boon.</summary>
+    [Export] public float BadWeatherStrength { get; set; } = 0.3f;
+    /// <summary>How often conditional boons check their situation, in s.</summary>
+    [Export] public float BoonCheckInterval { get; set; } = 0.5f;
 
     /// <summary>Score per metre descended (INITIAL TUNING: a tenth of a point).</summary>
     [Export] public float ScorePerMetre { get; set; } = 0.1f;
@@ -150,6 +158,7 @@ public partial class RunState : Node
     private LoreBook? _relicsSeen;
     private LoreBook? _relicsStudied;
     private float _overTimer;
+    private float _boonTimer;
 
     public override void _Ready()
     {
@@ -203,14 +212,84 @@ public partial class RunState : Node
         save.Stage = Stage;
         save.Character = Character.Id;
         save.Boons = new System.Collections.Generic.List<string>(Boons);
+        save.ConditionalBoons.Clear();
+        foreach (Progression.BoonDefinition boon in ConditionalBoons)
+        {
+            save.ConditionalBoons.Add(boon.ResourcePath);
+        }
+        // Saved without the conditional boons that are on right now: they switch on again by themselves.
+        RunModifiers lasting = BaseModifiers();
         save.Modifiers.Clear();
         foreach (System.Reflection.PropertyInfo property in typeof(RunModifiers).GetProperties())
         {
             if (property.PropertyType == typeof(float) && property.CanRead && property.CanWrite)
             {
-                save.Modifiers[property.Name] = (float)property.GetValue(Modifiers)!;
+                save.Modifiers[property.Name] = (float)property.GetValue(lasting)!;
             }
         }
+    }
+
+    /// <summary>Modifiers without the conditional boons that are on right now.</summary>
+    public RunModifiers BaseModifiers()
+    {
+        RunModifiers copy = new();
+        foreach (System.Reflection.PropertyInfo property in typeof(RunModifiers).GetProperties())
+        {
+            if (property.PropertyType == typeof(float) && property.CanRead && property.CanWrite)
+            {
+                property.SetValue(copy, property.GetValue(Modifiers));
+            }
+        }
+        foreach (Progression.BoonDefinition boon in ActiveBoons)
+        {
+            boon.RemoveFrom(copy);
+        }
+        return copy;
+    }
+
+    /// <summary>Takes a conditional boon for the rest of the run; it works whenever its situation holds.</summary>
+    public void AddConditionalBoon(Progression.BoonDefinition boon)
+    {
+        if (!boon.IsConditional || ConditionalBoons.Contains(boon))
+        {
+            return;
+        }
+        ConditionalBoons.Add(boon);
+        _boonTimer = 0.0f;
+    }
+
+    /// <summary>
+    /// Switches each conditional boon on or off for the situation given (night, a job carried,
+    /// weather). Returns how many changed. Called every BoonCheckInterval with the live situation.
+    /// </summary>
+    public int UpdateConditionalBoons(bool night, bool carryingJob, WeatherSnapshot weather)
+    {
+        int changed = 0;
+        foreach (Progression.BoonDefinition boon in ConditionalBoons)
+        {
+            bool holds = boon.Condition switch
+            {
+                Progression.BoonCondition.AtNight => night,
+                Progression.BoonCondition.CarryingJob => carryingJob,
+                Progression.BoonCondition.InBadWeather => Mathf.Max(weather.Rain, weather.Snow) >= BadWeatherStrength,
+                _ => false,
+            };
+            bool on = ActiveBoons.Contains(boon);
+            if (holds && !on)
+            {
+                boon.ApplyTo(Modifiers);
+                ActiveBoons.Add(boon);
+                GameEvents.PublishHint(boon.DisplayName + " wakes: " + boon.Gifts() + ".");
+                changed++;
+            }
+            else if (!holds && on)
+            {
+                boon.RemoveFrom(Modifiers);
+                ActiveBoons.Remove(boon);
+                changed++;
+            }
+        }
+        return changed;
     }
 
     /// <summary>Continue: puts back a saved run's numbers, character and boons (after StartNewRun(save.Seed) rebuilt its mountain).</summary>
@@ -227,6 +306,16 @@ public partial class RunState : Node
         }
         Boons.Clear();
         Boons.AddRange(save.Boons);
+        ConditionalBoons.Clear();
+        ActiveBoons.Clear();
+        foreach (string path in save.ConditionalBoons)
+        {
+            if (path.Length > 0 && ResourceLoader.Exists(path) && ResourceLoader.Load(path) is Progression.BoonDefinition boon && boon.IsConditional && !ConditionalBoons.Contains(boon))
+            {
+                ConditionalBoons.Add(boon);
+            }
+        }
+        _boonTimer = 0.0f;
         foreach (System.Reflection.PropertyInfo property in typeof(RunModifiers).GetProperties())
         {
             if (property.PropertyType == typeof(float) && property.CanWrite && save.Modifiers.TryGetValue(property.Name, out float value) && float.IsFinite(value))
@@ -234,6 +323,23 @@ public partial class RunState : Node
                 property.SetValue(Modifiers, value);
             }
         }
+    }
+
+    private void TickConditionalBoons(float delta)
+    {
+        if (ConditionalBoons.Count == 0)
+        {
+            return;
+        }
+        _boonTimer -= delta;
+        if (_boonTimer > 0.0f)
+        {
+            return;
+        }
+        _boonTimer = BoonCheckInterval;
+        bool night = GetNodeOrNull<WorldClock>("/root/WorldClock")?.IsNight ?? false;
+        bool carrying = GameEvents.ActiveContract != null && GameEvents.ActiveContract.Value.Status == ContractStatus.Accepted;
+        UpdateConditionalBoons(night, carrying, GameEvents.CurrentWeather);
     }
 
     public bool TryUseCharacterAbility()
@@ -290,6 +396,7 @@ public partial class RunState : Node
         if (!RunOver)
         {
             Character.Tick((float)delta);
+            TickConditionalBoons((float)delta);
             return;
         }
         _overTimer += (float)delta;
@@ -352,6 +459,8 @@ public partial class RunState : Node
         Modifiers.Reset();
         ConfigureCharacter(null, true);
         Boons.Clear();
+        ConditionalBoons.Clear();
+        ActiveBoons.Clear();
         Telemetry.Reset();
         Lore.BeginRun();
         RelicsSeen.BeginRun();
