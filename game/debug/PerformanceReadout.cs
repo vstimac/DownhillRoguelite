@@ -165,7 +165,9 @@ public partial class PerformanceReadout : Node
         {
             return "frame cap (VSync or Max FPS): CPU and GPU both wait" + hitch;
         }
-        if (gpu >= frame * BoundShare && gpu >= cpu)
+        // Godot's process time also holds the wait for the graphics card, so a busy GPU makes the
+        // scripts look slow: a GPU busy for most of the frame decides first, whatever the CPU says.
+        if (gpu >= frame * BoundShare)
         {
             string what = "pixels: resolution, shadows, fog, post effects";
             if (triangles > ManyTrianglesThousands)

@@ -63,7 +63,8 @@ public partial class DebugSceneControls : Node
         {
             AddChild(new PerfLog { Name = "PerfLog", Breakdown = System.Array.IndexOf(args, "--perf-breakdown") >= 0 || System.Array.IndexOf(args, "--perf-cpu") >= 0,
                 CpuBreakdown = System.Array.IndexOf(args, "--perf-cpu") >= 0,
-                Counting = System.Array.IndexOf(args, "--perf-nodes") >= 0 });
+                Counting = System.Array.IndexOf(args, "--perf-nodes") >= 0,
+                HitchHunt = System.Array.IndexOf(args, "--perf-hitch") >= 0 });
         }
         // `--promo` hides every overlay and the bars, for clean screenshots.
         if (System.Array.IndexOf(args, "--promo") >= 0)
