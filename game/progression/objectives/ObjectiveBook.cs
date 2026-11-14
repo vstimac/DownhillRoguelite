@@ -466,7 +466,15 @@ public sealed class ObjectiveBook
         return line;
     }
 
-    private static string RewardLine(int score) => "Reward: +" + score + " and supplies";
+    /// <summary>"Reward: +40 score and supplies", or just "Reward: supplies" for a job worth no score.</summary>
+    public static string RewardLine(int score)
+    {
+        if (score <= 0)
+        {
+            return "Reward: supplies";
+        }
+        return "Reward: +" + score + " score and supplies";
+    }
 
     private static string ErrandId(string instanceId) => "job:" + instanceId;
 

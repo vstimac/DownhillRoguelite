@@ -5,9 +5,10 @@ namespace DownhillRoguelite.Ui;
 
 /// <summary>
 /// The parchment note top right: elevation and depth, the circle you are in, the weather, the day
-/// and hour, and the way to the next station (distance, time and whether you arrive before dark,
-/// from the route estimate). Reads RunState, WorldClock and GameEvents; refreshes a few times a
-/// second. A line that changes gives a brief ink smudge so the eye catches it.
+/// and hour. Where you are, not where you're going: the way to the next fire and the open job are
+/// the objectives note's (ObjectivePanel), so they aren't said twice. Reads RunState, WorldClock and
+/// GameEvents; refreshes a few times a second. A line that changes gives a brief ink smudge so the
+/// eye catches it.
 /// </summary>
 public partial class DescentPanel : ParchmentPanel
 {
@@ -71,32 +72,8 @@ public partial class DescentPanel : ParchmentPanel
             }
             time = $"Day {_clock.Day} · {TimeText.PartOfDay(_clock.TimeOfDay)} · {until}";
         }
-        RouteEstimate estimate = GameEvents.LatestEstimate;
-        string next = "";
-        if (estimate.Valid && _clock != null)
-        {
-            string dark = "you get there before dark";
-            if (!estimate.BeforeNightfall)
-            {
-                dark = "it will be dark before you get there";
-            }
-            next = $"\nNext fire: Station {estimate.Station} · {estimate.DistanceMeters / 1000.0f:0.0} km · ~{TimeText.Real(estimate.TotalSeconds)}\n{dark}";
-        }
-        string job = "";
-        ContractNote? active = GameEvents.ActiveContract;
-        if (active != null)
-        {
-            double now = 0.0;
-            float hoursPerSecond = 0.0f;
-            if (_clock != null)
-            {
-                now = _clock.TotalHours;
-                hoursPerSecond = _clock.HoursPerSecond;
-            }
-            job = "\n" + JobLine(active.Value, now, hoursPerSecond);
-        }
-        _body.Text = $"{depth} m below the summit\nCircle {circle}\nWeather: {sky}\n{time}{next}" + job;
-        // The note grows with its lines (the way to the next fire and a job add two), so none falls off the paper.
+        _body.Text = $"{depth} m below the summit\nCircle {circle}\nWeather: {sky}\n{time}";
+        // The note grows with its lines (a long weather or time line wraps), so none falls off the paper.
         float needed = _body.Position.Y + _body.GetMinimumSize().Y + 16.0f;
         if (!Mathf.IsEqualApprox(Size.Y, Mathf.Max(needed, MinHeight)))
         {

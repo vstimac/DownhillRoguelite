@@ -9,6 +9,9 @@ namespace DownhillRoguelite.Map;
 /// per path the stage offers, its kind, which way it goes, how far and how long (rests included),
 /// the stamina it costs and when it arrives, coloured by kind; a path that arrives after dark is
 /// marked. Filled from GameEvents.RouteOptionsUpdated by the station manager.
+/// The words are painted on the board itself, short and large, and only read from close by (like
+/// a real signpost): they used to float in a tall stack above the board, small enough to be
+/// unreadable and high enough to clutter the top of the screen from far off.
 /// </summary>
 public partial class RouteSign : Node3D
 {
@@ -17,10 +20,13 @@ public partial class RouteSign : Node3D
     [Export] public Color HazardousColor { get; set; } = new(1.0f, 0.55f, 0.4f);
     [Export] public Color SupplyColor { get; set; } = new(1.0f, 0.85f, 0.45f);
     [Export] public Color LateColor { get; set; } = new(0.75f, 0.75f, 0.8f);
-    [Export] public int FontSize { get; set; } = 32;
-    [Export] public float PixelSize { get; set; } = 0.004f;
-    [Export] public float LineSpacing { get; set; } = 0.32f;
-    [Export] public float BoardHeight { get; set; } = 2.2f;
+    [Export] public int FontSize { get; set; } = 36;
+    [Export] public float PixelSize { get; set; } = 0.0045f;
+    [Export] public float LineSpacing { get; set; } = 0.22f;
+    [Export] public float BoardHeight { get; set; } = 1.9f;
+    /// <summary>The board's face, in m (wide enough for the longest line), and how near it reads.</summary>
+    [Export] public Vector2 BoardSize { get; set; } = new(2.8f, 1.5f);
+    [Export] public float ReadRange { get; set; } = 16.0f;
 
     public int Stage { get; set; }
     public int LineCount { get; private set; }
@@ -32,7 +38,7 @@ public partial class RouteSign : Node3D
     public override void _Ready()
     {
         StandardMaterial3D wood = new() { AlbedoColor = WoodColor, Roughness = 1.0f };
-        foreach (float x in new[] { -0.9f, 0.9f })
+        foreach (float x in new[] { -BoardSize.X * 0.42f, BoardSize.X * 0.42f })
         {
             AddChild(new MeshInstance3D
             {
@@ -43,22 +49,31 @@ public partial class RouteSign : Node3D
         }
         AddChild(new MeshInstance3D
         {
-            Mesh = new BoxMesh { Size = new Vector3(2.2f, 1.2f, 0.06f) },
+            Mesh = new BoxMesh { Size = new Vector3(BoardSize.X, BoardSize.Y, 0.06f) },
             Position = new Vector3(0.0f, BoardHeight, 0.0f),
             MaterialOverride = wood,
         });
+        // The heading across the top of the board, the paths under it, all on its face.
+        float top = BoardHeight + BoardSize.Y * 0.5f - 0.2f;
         for (int i = 0; i < _lines.Length; i++)
         {
+            int size = FontSize;
+            float y = top - 0.08f - i * LineSpacing;
+            if (i == 0)
+            {
+                size = FontSize + 8;
+                y = top;
+            }
             _lines[i] = new Label3D
             {
-                FontSize = FontSize,
+                FontSize = size,
                 PixelSize = PixelSize,
-                Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
-                OutlineSize = 8,
-                Position = new Vector3(0.0f, BoardHeight + 0.8f + (_lines.Length - 1 - i) * LineSpacing, 0.0f),
+                Billboard = BaseMaterial3D.BillboardModeEnum.FixedY,
+                OutlineSize = 10,
+                Position = new Vector3(0.0f, y, 0.08f),
                 Visible = false,
             };
-            AddChild(WorldLabel.Readable(_lines[i]));
+            AddChild(WorldLabel.Readable(_lines[i], ReadRange));
         }
         _lines[0].Text = "Paths ahead";
         _lines[0].Visible = true;
@@ -113,13 +128,18 @@ public partial class RouteSign : Node3D
         {
             hoursPerSecond = clock.HoursPerSecond;
         }
-        string dark = " · before dark";
+        // Short enough to read at a glance; a path that ends after dark is greyed and says so.
+        string dark = "";
         if (!estimate.BeforeNightfall)
         {
-            dark = " · after dark";
+            dark = " · dark";
         }
-        return $"{KindName(estimate.Kind)} ({direction}) · {WaypointCairn.Distance(estimate.DistanceMeters)} · " +
-            $"~{TimeText.Real(estimate.TotalSeconds)}{dark}";
+        string kind = KindName(estimate.Kind);
+        if (direction.Length > 0)
+        {
+            kind += ", " + direction;
+        }
+        return $"{kind} · {WaypointCairn.Distance(estimate.DistanceMeters)} · ~{TimeText.Real(estimate.TotalSeconds)}{dark}";
     }
 
     private Color ColorFor(RouteEstimate estimate)
