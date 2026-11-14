@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ContractDefinition" format=3]
+
+[ext_resource type="Script" path="res://progression/contracts/ContractDefinition.cs" id="1_contract"]
+
+[resource]
+script = ExtResource("1_contract")
+Id = "CT_010"
+DisplayName = "A Stove for the Camp"
+Kind = 0
+Giver = "a cook packing up"
+OfferText = "The camp two fires down has a fire and nothing to cook on. Two days, before they start eating things raw."
+CargoItemPath = "res://inventory/items/stove.tres"
+StationsAhead = 2
+MinStation = 3
+Score = 50
+Weight = 0.8
+Fragility = 0.5
+MinCondition = 0.0
+DeadlineDays = 2.0
+MinCircle = 0
+MaxCircle = -1

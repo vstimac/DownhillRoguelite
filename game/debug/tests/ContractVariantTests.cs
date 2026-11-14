@@ -111,7 +111,7 @@ public partial class ContractVariantTests : Node3D
         return null;
     }
 
-    /// <summary>Beta 3.1's jobs are valid, and a job's cargo (a med kit here) can't be used up by the carrier.</summary>
+    /// <summary>Beta 3.1's and 3.2's jobs are valid, and a job's cargo (a med kit here) can't be used up by the carrier.</summary>
     private void TestNewJobsAndCargoUse(ContractDirector director, CarrierInventory inventory)
     {
         string[] paths =
@@ -119,6 +119,8 @@ public partial class ContractVariantTests : Node3D
             "res://progression/contracts/resources/ct_006_fuel_for_the_fire.tres",
             "res://progression/contracts/resources/ct_007_rope_two_fires_down.tres",
             "res://progression/contracts/resources/ct_008_medicine_whole.tres",
+            "res://progression/contracts/resources/ct_009_ore_for_the_smith.tres",
+            "res://progression/contracts/resources/ct_010_a_stove_for_the_camp.tres",
         };
         List<string> problems = new();
         ContractDefinition? medicine = null;
@@ -168,7 +170,7 @@ public partial class ContractVariantTests : Node3D
         inventory.Clear();
         director.Contracts = _shipped;
         director.Reload();
-        Check("the fuel, rope and medicine jobs are valid, and a job's med kit can't be used up",
+        Check("the fuel, rope, medicine, ore and stove jobs are valid, and a job's med kit can't be used up",
             problems.Count == 0 && medicine != null && kept, string.Join("; ", problems) + " " + stage);
     }
 

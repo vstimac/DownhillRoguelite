@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ContractDefinition" format=3]
+
+[ext_resource type="Script" path="res://progression/contracts/ContractDefinition.cs" id="1_contract"]
+
+[resource]
+script = ExtResource("1_contract")
+Id = "CT_009"
+DisplayName = "Ore for the Smith"
+Kind = 2
+Giver = "a prospector with a cough"
+OfferText = "Six kilos of ore for the smith at the next fire. Heavy, and it does not care how you land. Your knees will."
+CargoItemPath = "res://inventory/items/ore_sample.tres"
+StationsAhead = 1
+MinStation = 3
+Score = 50
+Weight = 0.8
+Fragility = 0.0
+MinCondition = 0.0
+DeadlineDays = 0.0
+MinCircle = 0
+MaxCircle = -1
