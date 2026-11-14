@@ -58,6 +58,15 @@ committed or uploaded anywhere. Without them the carrier falls back to the Quate
 and everything else works. To get them, follow [art/characters/mixamo/README.md](../game/art/characters/mixamo/README.md)
 (download from mixamo.com with your own Adobe account, FBX Binary, With Skin).
 
+The sword-and-shield clips in `art/characters/mixamo_sword/` are Mixamo animations too and are
+ignored by git the same way (since Beta 3.1; older commits still hold them). Without them the sword
+works but has no swing, block or draw animations. The table in
+[art/characters/mixamo_sword/README.md](../game/art/characters/mixamo_sword/README.md) names each clip.
+
+On the team's PC both folders are kept in `D:\Game dev\Builds\mixamo-local\`: copy `mixamo\` and
+`mixamo_sword\` from there into `game/art/characters/` before building a release. `make_update.py`
+refuses a small update that would delete them from players because a checkout lacks them.
+
 ## Text-to-speech on Linux
 
 The companion's live replies use Godot's `DisplayServer` text-to-speech, which on Linux needs

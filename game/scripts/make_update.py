@@ -89,6 +89,11 @@ def files_under(folder):
 
 
 IMPORTED = ".godot/imported/"
+# Licensed art kept out of git (Adobe's Mixamo terms: use in the game, don't share the raw files).
+# Build machines copy it in by hand (docs/BUILDING.md). An update must never delete it from players
+# just because a checkout lacks it, and git listing it as deleted since the base doesn't mean changed.
+LICENSED = ("art/characters/mixamo/", "art/characters/mixamo_sword/")
+
 IMPORTED_REF = re.compile(r'res://(\.godot/imported/[^"\s,\]]+)')
 
 
@@ -180,6 +185,28 @@ def git_lines(*args):
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
+def licensed_unchanged(paths, base_id):
+    """
+    Licensed files git stopped tracking after the base (LICENSED): git lists them as deleted, but this
+    checkout still has them byte for byte as the base did, so for the players nothing changed.
+    """
+    same = set()
+    for path in paths:
+        if not path.startswith(LICENSED):
+            continue
+        local = os.path.join(ROOT, path)
+        if not os.path.isfile(local):
+            continue
+        result = subprocess.run(["git", "-C", ROOT, "show", f"{base_id}:./{path}"], capture_output=True)
+        if result.returncode != 0:
+            continue
+        with open(local, "rb") as f:
+            data = f.read()
+        if data == result.stdout or data.replace(b"\r\n", b"\n") == result.stdout.replace(b"\r\n", b"\n"):
+            same.add(path)
+    return same
+
+
 def removal_guard(patch_path, base_id):
     """
     Fails when the patch would delete a resource from players' games whose source is only missing
@@ -194,7 +221,8 @@ def removal_guard(patch_path, base_id):
         if not entry[4] & 2 or not path.endswith(".import"):
             continue
         source = path[:-len(".import")]
-        if not os.path.exists(os.path.join(ROOT, source)) and source not in deleted:
+        licensed = source.startswith(LICENSED)
+        if not os.path.exists(os.path.join(ROOT, source)) and (licensed or source not in deleted):
             missing.append(source)
     if missing:
         for source in missing[:12]:
@@ -216,6 +244,7 @@ def trim_patch(patch_path, base_pck, base_id):
         print(f"      (not trimming: git doesn't know {base_id})")
         return
     changed = set(changed) | set(untracked)
+    changed -= licensed_unchanged(changed, base_id)
     source_of = {}
     for current, dirs, files in os.walk(ROOT):
         dirs[:] = [d for d in dirs if d not in (".godot", "bin", "obj", ".git")]

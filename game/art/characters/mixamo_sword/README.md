@@ -1,9 +1,11 @@
 # Mixamo sword-and-shield clips
 
 Thirteen clips from Mixamo's "Sword and Shield" pack, made on the modular carrier (65-bone
-`mixamorig` skeleton, T-pose, 30 fps, no skin). The director chose to keep them in git, unlike
-`art/characters/mixamo/`. Adobe's Mixamo terms allow them inside the game; check them before
-sharing the raw files anywhere else.
+`mixamorig` skeleton, T-pose, 30 fps, no skin). Adobe's Mixamo terms allow them inside the game but
+not as raw files, so since Beta 3.1 they are ignored by git like `art/characters/mixamo/` (older
+commits still hold them). Get them from `D:\Game dev\Builds\mixamo-local\mixamo_sword\` on the
+team's PC, or download the clips below from mixamo.com with your own Adobe account (FBX Binary,
+Without Skin, 30 fps) under these names. Without them the sword still works, unanimated.
 
 | File | Mixamo clip | Used for |
 | --- | --- | --- |

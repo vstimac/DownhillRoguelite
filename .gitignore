@@ -32,6 +32,8 @@ game/art/characters/mixamo/*.fbx
 game/art/characters/mixamo/*.fbx.import
 game/art/characters/mixamo/*.png
 game/art/characters/mixamo/*.png.import
+game/art/characters/mixamo_sword/*.fbx
+game/art/characters/mixamo_sword/*.fbx.import
 
 # Linux export output (scripts/build_linux.sh)
 build/
