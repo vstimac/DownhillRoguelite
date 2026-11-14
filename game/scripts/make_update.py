@@ -180,6 +180,29 @@ def git_lines(*args):
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
+def removal_guard(patch_path, base_id):
+    """
+    Fails when the patch would delete a resource from players' games whose source is only missing
+    from this checkout (licensed art kept out of git, like the Mixamo carrier) rather than deleted
+    in git since the base: such an update would take the character away from everyone.
+    """
+    header, entries = read_pck(patch_path)
+    deleted = set(git_lines("diff", "--name-only", "--diff-filter=D", "--relative", base_id) or [])
+    missing = []
+    for entry in entries:
+        path = entry_path(entry[0])
+        if not entry[4] & 2 or not path.endswith(".import"):
+            continue
+        source = path[:-len(".import")]
+        if not os.path.exists(os.path.join(ROOT, source)) and source not in deleted:
+            missing.append(source)
+    if missing:
+        for source in missing[:12]:
+            print(f"      would delete {source}")
+        fail("the update would delete resources that are only missing from this checkout (git didn't delete them); "
+             "copy them in (e.g. art/characters/mixamo from a full checkout) and build again")
+
+
 def trim_patch(patch_path, base_pck, base_id):
     """
     Drops imported resources (models, textures, sounds) whose source and import settings haven't changed
@@ -296,6 +319,7 @@ def main():
         godot("--export-patch", preset, os.path.join(build, PATCH), "--patches", base_pck)
         if not keep_reimports:
             trim_patch(os.path.join(build, PATCH), base_pck, base_id)
+        removal_guard(os.path.join(build, PATCH), base_id)
 
         base_files = files_under(base_dir)
         changed = []
