@@ -100,6 +100,24 @@ public partial class CombatTests : Node3D
 		Check("Z puts it back on the hip", combat.State == MeleeCombat.Stance.Sheathed && !combat.SwordInHand && !GameEvents.SwordDrawn
 			&& (combat.Overlay?.UpperWeight ?? 1.0f) < 0.1f,
 			$"stance {combat.State}, in hand {combat.SwordInHand}, drawn {GameEvents.SwordDrawn}, overlay {combat.Overlay?.UpperWeight:0.00}");
+
+		// A copy of the game without the sword clips (a build made from git alone): Z must say so,
+		// not start a sword that only makes its sound. A sword with no rig to drive stands in for it.
+		MeleeCombat bare = new() { Name = "BareSword" };
+		AddChild(bare);
+		await Wait(0.3f);
+		string hint = "";
+		void Heard(string text)
+		{
+			hint = text;
+		}
+		GameEvents.HintShown += Heard;
+		bare._UnhandledInput(new InputEventAction { Action = MeleeCombat.ActionDraw, Pressed = true });
+		bare.ToggleDraw();
+		GameEvents.HintShown -= Heard;
+		Check("without the sword clips Z says so and the sword stays away", bare.State == MeleeCombat.Stance.Sheathed && !GameEvents.SwordDrawn && hint == MeleeCombat.MissingClipsHint,
+			$"stance {bare.State}, drawn {GameEvents.SwordDrawn}, hint '{hint}'");
+		bare.QueueFree();
 		Finish();
 	}
 

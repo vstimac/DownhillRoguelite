@@ -106,10 +106,17 @@ already made with `make_update.py <base> <version> --platform linux`.
 
 ### The CI's Windows build
 
-`.github/workflows/windows-full-release.yml` attaches `DownhillRoguelite-windows-full.zip` to
-published releases. It is built from git alone, so it lacks the licensed Mixamo character art
-(`docs/BUILDING.md`) and `base.txt`; the updater prefers the team's own `*-windows.zip` and uses the
-CI's only when a release has nothing else for that folder.
+`.github/workflows/windows-full-release.yml` builds `DownhillRoguelite-windows-full.zip` for every
+published release and keeps it as a 14-day workflow artifact. It is **not attached to the release**
+any more (since 2026-11-14). It is built from git alone, so it lacks the licensed Mixamo art
+(`docs/BUILDING.md`: the character and, from Beta 3.1, the sword animations) and `base.txt`.
+
+Why: the updater prefers the team's own `*-windows.zip` but takes the CI's when a release has
+nothing else for a folder. Beta 3.1 was a small update only, so the CI build was the one whole
+Windows game on it: every folder not based on v0.3.0-beta was offered it, and it was the only full
+download on the "Latest" release page. In it the sword makes its sound and nothing else. Never
+attach a `*-windows.zip` or `*-windows-full.zip` to a release unless it was exported on the team's
+PC with the licensed files in place; installed games (3.1 and older) will take whatever is there.
 
 ## Testing without GitHub
 

@@ -533,6 +533,13 @@ public partial class MeleeCombat : Node
         }
         if (@event.IsActionPressed(ActionDraw))
         {
+            if (_animator == null || !_animator.Loaded)
+            {
+                // A copy built without the sword clips: say so, rather than a sword that only makes a sound.
+                GameEvents.PublishHint(MissingClipsHint);
+                GetViewport().SetInputAsHandled();
+                return;
+            }
             ToggleDraw();
             GetViewport().SetInputAsHandled();
             return;
@@ -562,9 +569,16 @@ public partial class MeleeCombat : Node
         return Body == null || Body.InputEnabled;
     }
 
-    /// <summary>Draws the sword (Sheathed) or puts it away (in the guard).</summary>
+    /// <summary>Shown when the sword is asked for in a copy of the game that has no sword animations.</summary>
+    public const string MissingClipsHint = "This copy of the game is missing the sword's animations. Download the full game again to use the sword.";
+
+    /// <summary>Draws the sword (Sheathed) or puts it away (in the guard). Does nothing without the sword clips.</summary>
     public void ToggleDraw()
     {
+        if (_animator == null || !_animator.Loaded)
+        {
+            return;
+        }
         if (State == Stance.Sheathed)
         {
             State = Stance.Drawing;

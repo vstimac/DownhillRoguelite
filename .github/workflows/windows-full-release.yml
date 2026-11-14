@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to upload the complete Windows build to
+        description: Existing release tag to build (kept as a workflow artifact, not attached to the release)
         required: true
         type: string
   release:
     types: [published]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: windows-full-${{ github.event.release.tag_name || inputs.tag }}
@@ -89,15 +89,8 @@ jobs:
           name: DownhillRoguelite-windows-full
           path: DownhillRoguelite-windows-full.zip
           retention-days: 14
-      - name: Attach full build to release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
-        shell: pwsh
-        run: |
-          gh release view "$env:RELEASE_TAG" | Out-Null
-          if ($LASTEXITCODE -ne 0) { throw 'Release does not exist' }
-          gh release upload "$env:RELEASE_TAG" DownhillRoguelite-windows-full.zip --clobber
-          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }
-      # The README's buttons point at releases/latest/download/DownhillRoguelite-windows.zip (the team's own
-      # build, with the licensed character art), so no step rewrites the README here any more.
+      # This build is NOT attached to the release. It is made from git alone, so it has none of the
+      # licensed art kept out of the repository (the Mixamo character and the sword animations): a
+      # sword that only makes a sound. Attached, the updater offered it as the whole game to every
+      # folder without a small update on that release (Beta 3.1). It stays a 14-day workflow artifact
+      # that proves the tag builds; players get the team's own *-windows.zip.
