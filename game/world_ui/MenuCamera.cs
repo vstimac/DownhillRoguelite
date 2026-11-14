@@ -20,21 +20,30 @@ public partial class MenuCamera : Camera3D
     }
 
     /// <summary>Camera position in the carrier's frame: x right, y up, z forward (downhill).</summary>
-    [Export] public Vector3 VistaOffset { get; set; } = new(-3.5f, 3.0f, -7.5f);
+    /// <summary>
+    /// Close behind the carrier's left shoulder: he stands large in the right third, looking down the
+    /// slope the run descends, and the left of the picture stays open for the menu.
+    /// </summary>
+    [Export] public Vector3 VistaOffset { get; set; } = new(-2.0f, 1.8f, -3.8f);
     /// <summary>Where the vista looks, in the carrier's frame.</summary>
-    [Export] public Vector3 VistaLook { get; set; } = new(-4.0f, -4.0f, 30.0f);
+    [Export] public Vector3 VistaLook { get; set; } = new(1.0f, -2.4f, 26.0f);
     [Export] public Vector3 PortraitOffset { get; set; } = new(0.4f, 1.45f, 3.7f);
     [Export] public Vector3 PortraitLook { get; set; } = new(-0.9f, 1.05f, 0.0f);
-    [Export] public float VistaFov { get; set; } = 58.0f;
+    [Export] public float VistaFov { get; set; } = 50.0f;
     [Export] public float PortraitFov { get; set; } = 42.0f;
     /// <summary>How far the vista swings either way, in degrees, and how long one swing takes.</summary>
-    [Export] public float DriftDegrees { get; set; } = 9.0f;
+    [Export] public float DriftDegrees { get; set; } = 6.0f;
     [Export] public float DriftSeconds { get; set; } = 50.0f;
     [Export] public float PortraitDriftDegrees { get; set; } = 4.0f;
     [Export] public float PortraitFillEnergy { get; set; } = 1.8f;
     [Export] public float PortraitFillRange { get; set; } = 7.0f;
+    /// <summary>A warm light from down the slope behind the carrier: it rims his outline against the snow and haze.</summary>
+    [Export] public Vector3 RimOffset { get; set; } = new(1.4f, 2.4f, 2.6f);
+    [Export] public float RimEnergy { get; set; } = 2.2f;
+    [Export] public float RimRange { get; set; } = 6.0f;
     public float PortraitAngle { get; private set; }
     private OmniLight3D? _portraitLight;
+    private OmniLight3D? _rimLight;
     /// <summary>Seconds to move between shots, and to fly into the run's camera.</summary>
     [Export] public float BlendSeconds { get; set; } = 1.3f;
     [Export] public float GameBlendSeconds { get; set; } = 1.8f;
@@ -64,6 +73,9 @@ public partial class MenuCamera : Camera3D
         _portraitLight = new OmniLight3D { Name = "PortraitFill", OmniRange = PortraitFillRange,
             LightEnergy = PortraitFillEnergy, LightColor = new Color(1, 0.92f, 0.82f), Visible = false };
         AddChild(_portraitLight);
+        _rimLight = new OmniLight3D { Name = "VistaRim", OmniRange = RimRange, LightEnergy = RimEnergy,
+            LightColor = new Color(1.0f, 0.82f, 0.62f), ShadowEnabled = false, Visible = false, TopLevel = true };
+        AddChild(_rimLight);
         GameEvents.LocomotionUpdated += OnLocomotion;
         if (GameEvents.CarrierPosition != Vector3.Zero)
         {
@@ -134,6 +146,12 @@ public partial class MenuCamera : Camera3D
     public override void _Process(double delta)
     {
         if (_portraitLight != null) { _portraitLight.Visible = Current && CurrentShot == Shot.Portrait; }
+        if (_rimLight != null)
+        {
+            _rimLight.Visible = Current && CurrentShot == Shot.Vista;
+            Vector3 right = _forward.Cross(Vector3.Up).Normalized();
+            _rimLight.GlobalPosition = _carrier + right * RimOffset.X + Vector3.Up * RimOffset.Y + _forward * RimOffset.Z;
+        }
         float dt = (float)delta;
         _time += dt;
         if (_blend < 1.0f)

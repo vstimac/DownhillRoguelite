@@ -80,6 +80,11 @@ public partial class DayNightCycle : Node
     private float _dayEnergy = 1.0f;
     private Color _dayLightColor = Colors.White;
     private float _dayAmbient = 1.0f;
+    /// <summary>
+    /// Scales the fog while the title screen is up, so the menu's mountain has depth instead of a
+    /// milky wash (StartScreen sets it below 1 and back to 1 when the run starts).
+    /// </summary>
+    public static float MenuFogScale { get; set; } = 1.0f;
     private float _dayFogDensity = 0.01f;
     private Color _dayFogColor = Colors.Gray;
     private Color _daySkyTop = Colors.SkyBlue;
@@ -181,7 +186,7 @@ public partial class DayNightCycle : Node
             environment.AmbientLightEnergy = Mathf.Lerp(ambient, ambient * Mathf.Lerp(NightAmbient.X, NightAmbient.Y, mild), Darkness);
             float dayFog = _dayFogDensity + weatherFog;
             float nightFog = Mathf.Lerp(NightFogDensity.X, NightFogDensity.Y, mild) + weatherFog * 0.5f;
-            environment.FogDensity = Mathf.Lerp(dayFog, nightFog, Darkness);
+            environment.FogDensity = Mathf.Lerp(dayFog, nightFog, Darkness) * MenuFogScale;
             environment.FogSkyAffect = Mathf.Lerp(SkyFogAffect.X, SkyFogAffect.Y, Mathf.Clamp(environment.FogDensity / Mathf.Max(ThickFogDensity, 0.0001f), 0.0f, 1.0f));
             Color dayFogColor = _dayFogColor.Lerp(OvercastColor, Overcast * 0.6f).Lerp(HeatHazeColor, heat * 0.5f);
             environment.FogLightColor = dayFogColor.Lerp(NightFogColor, Darkness);

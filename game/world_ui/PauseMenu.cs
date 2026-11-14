@@ -320,6 +320,16 @@ public partial class PauseMenu : CanvasLayer
         _title.Position = new Vector2(0.0f, y);
         _title.Size = new Vector2(width, titleSize * 1.3f);
         y += titleSize * 1.3f + screen.Y * 0.04f;
+        // Narrow screens (4:3): the letters shrink until the longest entry fits the column.
+        foreach (MenuItem item in _items)
+        {
+            item.FontSize = itemSize;
+            float needed = item.TextWidth();
+            if (needed > width)
+            {
+                itemSize = (int)Mathf.Max(20.0f, itemSize * width / needed);
+            }
+        }
         float itemHeight = itemSize * 1.45f;
         foreach (MenuItem item in _items)
         {

@@ -33,9 +33,10 @@ public partial class StartScreen : CanvasLayer
 
     [Export] public string Title { get; set; } = "Downhill Roguelite";
     [Export] public string Subtitle { get; set; } = "Every run begins at the summit.";
-    [Export] public string VersionText { get; set; } = "Beta 3.0";
+    /// <summary>The version in the footer; the game's own one (core/GameVersion) gets its release date beside it.</summary>
+    [Export] public string VersionText { get; set; } = GameVersion.Name;
     /// <summary>Largest title size in pixels; it shrinks with the window's height.</summary>
-    [Export] public int TitleSize { get; set; } = 92;
+    [Export] public int TitleSize { get; set; } = 76;
     /// <summary>The dark wash behind the menu column (left edge; it fades out towards the middle).</summary>
     [Export] public Color ShadeColor { get; set; } = new(0.04f, 0.03f, 0.02f, 0.82f);
     /// <summary>How long the master volume takes to fade back in after New Run, in seconds.</summary>
@@ -45,6 +46,8 @@ public partial class StartScreen : CanvasLayer
     /// <summary>Seconds the opening fade from black takes.</summary>
     [Export] public float CurtainSeconds { get; set; } = 1.2f;
     [Export] public float PageSeconds { get; set; } = 0.3f;
+    /// <summary>The fog's share while the menu is up (1 = as in the run): less haze gives the mountain depth.</summary>
+    [Export] public float MenuFog { get; set; } = 0.3f;
 
     [Export(PropertyHint.File, "*.tres")] public string RosterPath { get; set; } = CarrierRoster.DefaultPath;
 
@@ -66,8 +69,8 @@ public partial class StartScreen : CanvasLayer
     public Label? FooterKeys => _keys;
     public Label? FooterHint => _hint;
     public Label? VersionLabel => _version;
-    /// <summary>The "Update" entry, once a newer release was found (core/update/UpdateCheck).</summary>
-    public MenuItem? UpdateItem => _updateItem;
+    /// <summary>The new-version card (top right), once a newer release was found (core/update/UpdateCheck).</summary>
+    public UpdatePrompt? UpdateCard => _prompt;
 
     private readonly List<MenuItem> _items = new();
     private Control? _root;
@@ -80,6 +83,7 @@ public partial class StartScreen : CanvasLayer
     private Label? _keys;
     private Label? _version;
     private TextureRect? _shade;
+    private TextureRect? _floor;
     private ColorRect? _curtain;
     private OptionsPanel? _options;
     private CharacterPage? _characters;
@@ -99,7 +103,11 @@ public partial class StartScreen : CanvasLayer
     private MenuCamera? _camera;
     private MenuItem? _characterItem;
     private MenuItem? _lastFocus;
-    private MenuItem? _updateItem;
+    private UpdatePrompt? _prompt;
+    private bool _offered;
+    /// <summary>Each entry's rank: 0 the lead (Continue, or New Run), 1 New Run under Continue, 2 the other main entries, 3 the quiet row.</summary>
+    private readonly Dictionary<MenuItem, int> _tier = new();
+    private HBoxContainer? _secondary;
     private System.Threading.Tasks.Task? _install;
     private float _warmup;
     private bool _padUsed;
@@ -121,6 +129,7 @@ public partial class StartScreen : CanvasLayer
         OptionsApplier.SetHush(0.0f);
         Input.MouseMode = Input.MouseModeEnum.Visible;
         Build();
+        DownhillRoguelite.Environment.DayNightCycle.MenuFogScale = MenuFog;
         Camera3D? game = GetViewport().GetCamera3D();
         if (game != null)
         {
@@ -148,6 +157,7 @@ public partial class StartScreen : CanvasLayer
 
     public override void _ExitTree()
     {
+        DownhillRoguelite.Environment.DayNightCycle.MenuFogScale = 1.0f;
         RestoreWorldUi();
         // A skipped screen never connected.
         if (_root != null && IsInstanceValid(GetViewport()))
@@ -168,7 +178,7 @@ public partial class StartScreen : CanvasLayer
 
     public override void _Process(double delta)
     {
-        if (_updateItem == null && !Started && UpdateCheck.Offer is UpdateOffer offer)
+        if (!_offered && !Started && Current == Page.Main && UpdateCheck.Offer is UpdateOffer offer)
         {
             OfferUpdate(offer);
         }
@@ -244,6 +254,15 @@ public partial class StartScreen : CanvasLayer
         };
         _shade.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         _root.AddChild(_shade);
+        _floor = new TextureRect
+        {
+            Texture = FloorTexture(),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.Scale,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        _floor.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        _root.AddChild(_floor);
 
         _column = new Control { Name = "Column", MouseFilter = Control.MouseFilterEnum.Ignore };
         _root.AddChild(_column);
@@ -257,38 +276,53 @@ public partial class StartScreen : CanvasLayer
         _subtitle = UiStyle.MakeLabel(Subtitle, UiStyle.TextSize + 2, false, UiStyle.Highlight);
         _subtitle.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.6f));
         _column.AddChild(_subtitle);
-        _records = UiStyle.MakeLabel(RecordsText(), UiStyle.SmallSize, false, UiStyle.PaperDark);
+        _records = UiStyle.MakeLabel(RecordsText(), UiStyle.TextSize - 2, false, new Color(UiStyle.Paper, 0.85f));
+        _records.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.7f));
         _column.AddChild(_records);
 
         _menu = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         _menu.AddThemeConstantOverride("separation", 4);
         _column.AddChild(_menu);
+        // Three ranks: what most players want (Continue, else New Run) biggest, then New Run, then the rest.
         int newest = RunSave.NewestSlot();
+        int newRunTier = 0;
         if (newest > 0)
         {
-            string left = RunSave.Peek(newest)?.Describe() ?? "the descent you left";
-            AddItem("Continue", "Carry on: " + left + ".", ContinueRun);
+            RunSave? saved = RunSave.Peek(newest);
+            MenuItem resume = AddItem("Continue", "Carry on with the descent you saved last.", ContinueRun, 0);
+            if (saved != null)
+            {
+                resume.Detail = $"Run {saved.RunNumber}  ·  {saved.Depth:N0} m down  ·  day {saved.Day}";
+            }
+            newRunTier = 1;
         }
-        AddItem("New Run", "Start on the summit of a new mountain.", StartRun);
-        AddItem("Saved runs", "Pick one of your saved descents, or start a mountain from a seed you choose.", () => ShowPage(Page.Saves));
+        AddItem("New Run", "Start on the summit of a new mountain.", StartRun, newRunTier);
+        AddItem("Saved runs", "Pick one of your saved descents, or start a mountain from a seed you choose.", () => ShowPage(Page.Saves), 2);
+        AddItem("Co-op (beta)", "Host a descent, or join a friend's: up to four carriers.", () => ShowPage(Page.Coop), 2);
         if (CharacterPage.Roster(RosterPath).Count > 1)
         {
-            _characterItem = AddItem("Character", "", () => ShowPage(Page.Character));
+            _characterItem = AddItem("Character", "", () => ShowPage(Page.Character), 2);
         }
-        AddItem("Options", "Gameplay, video, audio, accessibility and controls.", () => ShowPage(Page.Options));
-        AddItem("Co-op (beta)", "Host a descent, or join a friend's: up to four carriers.", () => ShowPage(Page.Coop));
-        AddItem("Achievements", "What you've done on the mountain, ticked off.", () => ShowPage(Page.Achievements));
-        AddItem("About", "What this is, and whose work it stands on.", () => ShowPage(Page.About));
-        AddItem("Quit", "Back to the desktop.", () => GetTree().Quit());
-        UpdateCharacterHint();
+        // The rest sit in one quieter row under the main entries.
+        _secondary = new HBoxContainer { Name = "Secondary", MouseFilter = Control.MouseFilterEnum.Ignore };
+        _secondary.AddThemeConstantOverride("separation", 10);
+        _column.AddChild(_secondary);
+        AddItem("Options", "Gameplay, video, audio, accessibility and controls.", () => ShowPage(Page.Options), 3);
+        AddItem("Achievements", "What you've done on the mountain, ticked off.", () => ShowPage(Page.Achievements), 3);
+        AddItem("About", "What this is, and whose work it stands on.", () => ShowPage(Page.About), 3);
+        AddItem("Quit", "Back to the desktop.", () => GetTree().Quit(), 3);
+        LinkRows();
 
-        _hint = UiStyle.MakeLabel("", UiStyle.TextSize - 2, false, UiStyle.Paper);
-        _hint.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.7f));
-        _root.AddChild(_hint);
+        // What the focused entry does sits right under the menu, where the eye already is.
+        _hint = UiStyle.MakeLabel("", UiStyle.TextSize - 2, false, new Color(UiStyle.Paper, 0.9f));
+        _hint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _hint.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.75f));
+        _column.AddChild(_hint);
+        UpdateCharacterHint();
         _keys = UiStyle.MakeLabel("", UiStyle.SmallSize, false, UiStyle.PaperDark);
         _keys.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.7f));
         _root.AddChild(_keys);
-        _version = UiStyle.MakeLabel(VersionText, UiStyle.SmallSize, false, new Color(UiStyle.Paper, 0.7f));
+        _version = UiStyle.MakeLabel(VersionLine(), UiStyle.SmallSize, false, new Color(UiStyle.Paper, 0.8f));
         _version.HorizontalAlignment = HorizontalAlignment.Right;
         _version.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.7f));
         _root.AddChild(_version);
@@ -312,7 +346,7 @@ public partial class StartScreen : CanvasLayer
         _characters.PreviewTurnRequested += degrees => _camera?.TurnPortrait(degrees);
         _root.AddChild(_characters);
         _characters.SetOpenNow(false);
-        _about = new CreditsPage { Name = "About", Version = VersionText };
+        _about = new CreditsPage { Name = "About", Version = VersionLine() };
         _about.BackPressed += () => ClosePage(_about);
         _root.AddChild(_about);
         _about.SetOpenNow(false);
@@ -358,9 +392,25 @@ public partial class StartScreen : CanvasLayer
         _column.Modulate = new Color(1, 1, 1, 0);
     }
 
-    private MenuItem AddItem(string text, string hint, System.Action action)
+    /// <summary>"Beta 3.0  ·  14 Nov 2026" for this game; test scenes keep their own text.</summary>
+    private string VersionLine()
     {
+        if (VersionText == GameVersion.Name)
+        {
+            return GameVersion.Label;
+        }
+        return VersionText;
+    }
+
+    private MenuItem AddItem(string text, string hint, System.Action action, int tier)
+    {
+        bool secondary = tier >= 3;
         MenuItem item = new() { Text = text, Hint = hint };
+        _tier[item] = tier;
+        if (secondary)
+        {
+            item.Slide = 6.0f;
+        }
         item.Pressed += () =>
         {
             if (!Started && Current == Page.Main)
@@ -376,33 +426,94 @@ public partial class StartScreen : CanvasLayer
                 _hint.Text = item.Hint;
             }
         };
-        _menu?.AddChild(item);
+        if (secondary && _secondary != null)
+        {
+            _secondary.AddChild(item);
+        }
+        else
+        {
+            _menu?.AddChild(item);
+        }
         _items.Add(item);
         return item;
     }
 
-    /// <summary>Puts "Update" at the top of the menu for <paramref name="offer"/> (the background check calls it once; tests too).</summary>
-    public void OfferUpdate(UpdateOffer offer)
+    /// <summary>Down from the last main entry reaches the quiet row, and up from the row comes back.</summary>
+    private void LinkRows()
     {
-        if (_updateItem != null || _menu == null)
+        if (_menu == null || _secondary == null || _menu.GetChildCount() == 0 || _secondary.GetChildCount() == 0)
         {
             return;
         }
-        string size = offer.SizeMb >= 1.0 ? $"{offer.SizeMb:0} MB" : "under 1 MB";
-        string what = offer.Kind == UpdateKind.Patch ? "a small update" : "the whole game";
-        _updateItem = AddItem("Update", $"{offer.ReleaseName} is out: {what}, {size}. The game closes, updates and starts again.", () => ApplyUpdate(offer));
-        _menu.MoveChild(_updateItem, 0);
-        _items.Remove(_updateItem);
-        _items.Insert(0, _updateItem);
-        if (_version != null)
+        MenuItem? last = _menu.GetChild(_menu.GetChildCount() - 1) as MenuItem;
+        MenuItem? first = _secondary.GetChild(0) as MenuItem;
+        if (last == null || first == null)
         {
-            _version.Text = VersionText + "  ·  new version out";
+            return;
         }
-        Relayout();
-        if (Current == Page.Main && GetViewport().GuiGetFocusOwner() == null)
+        last.FocusNeighborBottom = last.GetPathTo(first);
+        foreach (Node child in _secondary.GetChildren())
         {
-            _updateItem.GrabFocus();
+            if (child is MenuItem quiet)
+            {
+                quiet.FocusNeighborTop = quiet.GetPathTo(last);
+            }
         }
+    }
+
+    /// <summary>
+    /// Shows the new-version card for <paramref name="offer"/> (the background check calls it once; tests too).
+    /// The card is the only place that tells: no menu entry, no footer note.
+    /// </summary>
+    public void OfferUpdate(UpdateOffer offer)
+    {
+        if (_offered || _root == null || Started)
+        {
+            return;
+        }
+        _offered = true;
+        _prompt = new UpdatePrompt { Name = "UpdatePrompt" };
+        GetViewport().GuiReleaseFocus();
+        _root.AddChild(_prompt);
+        // Pages and the curtain stay above the card.
+        if (_column != null)
+        {
+            _root.MoveChild(_prompt, _column.GetIndex() + 1);
+        }
+        _prompt.Fill(offer);
+        _prompt.UpdateChosen += () => ApplyUpdate(offer);
+        _prompt.Folded += () =>
+        {
+            if (Current == Page.Main)
+            {
+                (_lastFocus ?? FirstItem())?.GrabFocus();
+            }
+        };
+        LinkCard();
+    }
+
+    /// <summary>Up from the first entry reaches the card (or its tab), and down from them comes back.</summary>
+    private void LinkCard()
+    {
+        MenuItem? first = FirstItem();
+        UpdatePrompt? prompt = _prompt;
+        if (prompt == null || first == null || prompt.UpdateButton == null || prompt.LaterButton == null || prompt.Tab == null)
+        {
+            return;
+        }
+        InkButton update = prompt.UpdateButton;
+        InkButton later = prompt.LaterButton;
+        InkButton tab = prompt.Tab;
+        foreach (Control control in new Control[] { update, later, tab })
+        {
+            control.FocusNeighborBottom = control.GetPathTo(first);
+        }
+        tab.FocusNeighborLeft = tab.GetPathTo(first);
+        update.FocusNeighborTop = update.GetPathTo(update);
+        later.FocusNeighborTop = later.GetPathTo(later);
+        first.FocusNeighborTop = first.GetPathTo(update);
+        prompt.Unfolded += () => first.FocusNeighborTop = first.GetPathTo(update);
+        prompt.Folded += () => first.FocusNeighborTop = first.GetPathTo(tab);
     }
 
     private void ApplyUpdate(UpdateOffer offer)
@@ -469,17 +580,15 @@ public partial class StartScreen : CanvasLayer
         UpdateHint("Updated. Close the game and start it again.");
     }
 
+    /// <summary>How the update is going, on the card (opened again if it was folded).</summary>
     private void UpdateHint(string text)
     {
-        if (_updateItem == null)
+        if (_prompt == null)
         {
             return;
         }
-        _updateItem.Hint = text;
-        if (_hint != null)
-        {
-            _hint.Text = text;
-        }
+        _prompt.Unfold();
+        _prompt.SetMessage(text);
     }
 
     /// <summary>The menu entry with this text, or null.</summary>
@@ -495,7 +604,17 @@ public partial class StartScreen : CanvasLayer
         return null;
     }
 
-    /// <summary>A left-to-right wash: dark under the menu, clear over the scene; darker along the bottom for the footer.</summary>
+    /// <summary>A soft dark band along the bottom edge, under the footer, so it reads over bright snow.</summary>
+    private Texture2D FloorTexture()
+    {
+        Gradient gradient = new();
+        gradient.SetColor(0, new Color(ShadeColor, 0.0f));
+        gradient.SetColor(1, new Color(ShadeColor, ShadeColor.A * 0.6f));
+        gradient.AddPoint(0.8f, new Color(ShadeColor, 0.0f));
+        return new GradientTexture2D { Gradient = gradient, Width = 4, Height = 128, Fill = GradientTexture2D.FillEnum.Linear, FillFrom = Vector2.Zero, FillTo = new Vector2(0.0f, 1.0f) };
+    }
+
+    /// <summary>A left-to-right wash: dark under the menu, clear over the scene.</summary>
     private Texture2D ShadeTexture()
     {
         Gradient gradient = new();
@@ -547,6 +666,49 @@ public partial class StartScreen : CanvasLayer
         LayoutFor(GetViewport().GetVisibleRect().Size);
     }
 
+    /// <summary>The letter size of an entry of <paramref name="tier"/> when a main entry is <paramref name="itemSize"/>.</summary>
+    private int SizeFor(int tier, float itemSize)
+    {
+        if (tier == 0)
+        {
+            return (int)(itemSize * 1.25f);
+        }
+        if (tier == 1)
+        {
+            return (int)itemSize;
+        }
+        if (tier == 2)
+        {
+            return (int)Mathf.Max(SmallestItemSize, itemSize * 0.82f);
+        }
+        return (int)Mathf.Max(SmallestItemSize, itemSize * 0.62f);
+    }
+
+    private int TierOf(MenuItem item)
+    {
+        if (_tier.TryGetValue(item, out int tier))
+        {
+            return tier;
+        }
+        return 2;
+    }
+
+    /// <summary>The main entries' height for <paramref name="itemSize"/> (the quiet row not counted).</summary>
+    private float MainHeight(float itemSize, float spacing)
+    {
+        float total = 0.0f;
+        foreach (MenuItem item in _items)
+        {
+            int tier = TierOf(item);
+            if (tier < 3)
+            {
+                item.FontSize = SizeFor(tier, itemSize);
+                total += item.NeededHeight(SizeFor(tier, itemSize) * spacing) + 4.0f;
+            }
+        }
+        return total;
+    }
+
     /// <summary>Places everything for a screen of <paramref name="screen"/> (tests call it with set sizes).</summary>
     public void LayoutFor(Vector2 screen)
     {
@@ -556,59 +718,83 @@ public partial class StartScreen : CanvasLayer
         }
         _screen = screen;
         float margin = Mathf.Max(28.0f, screen.X * 0.06f);
-        float width = Mathf.Clamp(screen.X * 0.36f, 300.0f, 540.0f);
-        int titleSize = (int)Mathf.Clamp(screen.Y * 0.1f, 44.0f, TitleSize);
-        int itemSize = (int)Mathf.Clamp(screen.Y * 0.046f, 26.0f, 40.0f);
+        float width = Mathf.Clamp(screen.X * 0.34f, 300.0f, 520.0f);
+        int titleSize = (int)Mathf.Clamp(screen.Y * 0.085f, 40.0f, TitleSize);
+        float itemSize = Mathf.Clamp(screen.Y * 0.044f, 24.0f, 38.0f);
 
         _column.Position = new Vector2(margin, 0.0f);
         _column.Size = new Vector2(width, screen.Y);
-        float y = screen.Y * 0.1f;
+        float y = screen.Y * 0.09f;
         _title.AddThemeFontSizeOverride("font_size", titleSize);
         Vector2 titleSize2 = UiStyle.Wrapped(Title, titleSize, width, true);
         _title.Position = new Vector2(0.0f, y);
         _title.Size = new Vector2(width, titleSize2.Y);
-        y += titleSize2.Y + 6.0f;
+        y += titleSize2.Y + 4.0f;
         _subtitle.Position = new Vector2(4.0f, y);
         _subtitle.Size = new Vector2(width, UiStyle.TextSize * 1.5f);
         y += UiStyle.TextSize * 1.5f;
         _records.Position = new Vector2(4.0f, y);
-        _records.Size = new Vector2(width, UiStyle.SmallSize * 1.5f);
+        _records.Size = new Vector2(width, UiStyle.TextSize * 1.4f);
         if (_records.Text.Length > 0)
         {
-            y += UiStyle.SmallSize * 1.5f;
+            y += UiStyle.TextSize * 1.4f;
         }
-        y += screen.Y * 0.045f;
+        y += screen.Y * 0.05f;
 
-        float itemHeight = itemSize * 1.45f;
-        // Short screens (720p with every entry): the entries close up a little to clear the footer.
-        float footerTop = screen.Y - Mathf.Max(20.0f, screen.Y * 0.04f) - UiStyle.SmallSize * 1.4f - UiStyle.TextSize * 1.6f;
-        float room = footerTop - y - 6.0f;
-        if (_items.Count > 0 && (itemHeight + 4.0f) * _items.Count > room)
+        // Footer: the keys on the left, the version and its date on the right, one line.
+        float footerHeight = UiStyle.SmallSize * 1.5f;
+        float footer = screen.Y - Mathf.Max(18.0f, screen.Y * 0.035f) - footerHeight;
+        float hintHeight = UiStyle.TextSize * 1.35f * 2.0f;
+        float quietGap = screen.Y * 0.025f;
+        int quietSize = SizeFor(3, itemSize);
+        float quietHeight = quietSize * 1.45f;
+        // Short screens: the entries close up, then shrink, to clear the quiet row, the hint and the footer.
+        float room = footer - y - quietGap - quietHeight - 8.0f - hintHeight - 8.0f;
+        float spacing = 1.45f;
+        if (MainHeight(itemSize, spacing) > room)
         {
-            itemHeight = Mathf.Max(room / _items.Count - 4.0f, itemSize * 1.2f);
-            // Still too tall (every entry at once on 720p): the letters shrink a little too.
-            if ((itemHeight + 4.0f) * _items.Count > room)
+            spacing = 1.2f;
+            float fit = room / Mathf.Max(MainHeight(itemSize, spacing), 1.0f);
+            if (fit < 1.0f)
             {
-                itemSize = (int)Mathf.Max(SmallestItemSize, (room / _items.Count - 4.0f) / 1.2f);
-                itemHeight = itemSize * 1.2f;
+                itemSize = Mathf.Max(SmallestItemSize, itemSize * fit);
+                quietSize = SizeFor(3, itemSize);
+                quietHeight = quietSize * 1.25f;
             }
         }
+        float mainHeight = MainHeight(itemSize, spacing);
         foreach (MenuItem item in _items)
         {
-            item.FontSize = itemSize;
-            item.CustomMinimumSize = new Vector2(width, itemHeight);
-            item.QueueRedraw();
+            int tier = TierOf(item);
+            if (tier >= 3)
+            {
+                item.FontSize = quietSize;
+                item.CustomMinimumSize = new Vector2(item.TextWidth(), quietHeight);
+            }
+            else
+            {
+                item.FontSize = SizeFor(tier, itemSize);
+                item.CustomMinimumSize = new Vector2(width, item.NeededHeight(item.FontSize * spacing));
+            }
+            item.Refresh();
         }
         _menu.Position = new Vector2(0.0f, y);
-        _menu.Size = new Vector2(width, (itemHeight + 4.0f) * _items.Count);
+        _menu.Size = new Vector2(width, mainHeight);
+        y += mainHeight + quietGap;
+        if (_secondary != null)
+        {
+            _secondary.Position = new Vector2(0.0f, y);
+            _secondary.Size = new Vector2(Mathf.Max(width, screen.X - margin * 2.0f), quietHeight);
+            y += quietHeight + 8.0f;
+        }
+        _hint.Position = new Vector2(4.0f, y);
+        _hint.Size = new Vector2(width, hintHeight);
 
-        float footer = screen.Y - Mathf.Max(20.0f, screen.Y * 0.04f);
-        _keys.Position = new Vector2(margin, footer - UiStyle.SmallSize * 1.4f);
-        _keys.Size = new Vector2(screen.X * 0.6f, UiStyle.SmallSize * 1.4f);
-        _hint.Position = new Vector2(margin, _keys.Position.Y - UiStyle.TextSize * 1.6f);
-        _hint.Size = new Vector2(Mathf.Max(width, screen.X * 0.5f), UiStyle.TextSize * 1.5f);
-        _version.Size = new Vector2(240.0f, UiStyle.SmallSize * 1.4f);
-        _version.Position = new Vector2(screen.X - margin - 240.0f, _keys.Position.Y);
+        _keys.Position = new Vector2(margin, footer);
+        _keys.Size = new Vector2(screen.X * 0.55f, footerHeight);
+        float versionWidth = Mathf.Min(320.0f, screen.X * 0.35f);
+        _version.Size = new Vector2(versionWidth, footerHeight);
+        _version.Position = new Vector2(screen.X - margin - versionWidth, footer);
 
         Rect2 full = new(new Vector2(24.0f, 24.0f), screen - new Vector2(48.0f, 48.0f));
         _options?.FitInto(full);
@@ -619,12 +805,20 @@ public partial class StartScreen : CanvasLayer
         _characters?.FitInto(new Rect2(screen.X * 0.5f, margin * 0.6f, screen.X * 0.5f - margin * 0.6f, screen.Y - margin * 1.2f));
     }
 
-    /// <summary>Where the menu column's bottom edge is (the last entry's), to check it clears the footer.</summary>
+    /// <summary>Where the menu column's bottom edge is (the hint under the entries), to check it clears the footer.</summary>
     public float MenuBottom()
     {
         if (_menu == null || _column == null)
         {
             return 0.0f;
+        }
+        if (_hint != null)
+        {
+            return _column.Position.Y + _hint.Position.Y + _hint.Size.Y;
+        }
+        if (_secondary != null && _secondary.GetChildCount() > 0)
+        {
+            return _column.Position.Y + _secondary.Position.Y + _secondary.Size.Y;
         }
         return _column.Position.Y + _menu.Position.Y + _menu.Size.Y;
     }
@@ -654,7 +848,12 @@ public partial class StartScreen : CanvasLayer
             _intro.Add(slide);
             slide.TweenProperty(item, "modulate:a", 1.0f, 0.35).SetDelay(CurtainSeconds * 0.6 + 0.07 * i);
         }
-        if (_items.Count > 0)
+        // A card that came up during the fade keeps its focus.
+        if (_prompt != null && _prompt.Open && _prompt.UpdateButton != null)
+        {
+            _prompt.UpdateButton.GrabFocus();
+        }
+        else if (_items.Count > 0)
         {
             _items[0].GrabFocus();
         }
@@ -734,6 +933,11 @@ public partial class StartScreen : CanvasLayer
         foreach (MenuItem item in _items)
         {
             item.FocusMode = focus;
+        }
+        // The card belongs to the menu: it steps aside with it while a page is open.
+        if (_prompt != null)
+        {
+            _prompt.Visible = main;
         }
         MenuCamera.Shot shot = MenuCamera.Shot.Vista;
         if (page == Page.Character)
@@ -835,6 +1039,10 @@ public partial class StartScreen : CanvasLayer
             return;
         }
         Started = true;
+        // The fog comes back as the camera flies down into the run.
+        Tween fog = GetTree().CreateTween();
+        fog.SetPauseMode(Tween.TweenPauseMode.Process);
+        fog.TweenMethod(Callable.From<float>(scale => DownhillRoguelite.Environment.DayNightCycle.MenuFogScale = scale), MenuFog, 1.0f, 1.5);
         GetNodeOrNull<RunState>("/root/RunState")?.BeginCharacterRun();
         GameEvents.PublishRunBegun(continuing);
         bool sharedRun = Network.NetSession.Instance?.Joined == true;
@@ -861,7 +1069,7 @@ public partial class StartScreen : CanvasLayer
         {
             fade.TweenProperty(_column, "modulate:a", 0.0f, 0.45);
         }
-        foreach (Control? part in new Control?[] { _hint, _keys, _version, _shade })
+        foreach (Control? part in new Control?[] { _hint, _keys, _version, _shade, _floor, _prompt })
         {
             if (part != null)
             {

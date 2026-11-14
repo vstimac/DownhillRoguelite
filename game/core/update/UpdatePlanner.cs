@@ -32,7 +32,9 @@ public sealed record UpdateOffer(
     long Size,
     // Lower-case hex SHA-256 of the download, from GitHub's asset digest; empty when GitHub gave none.
     string Sha256,
-    string PageUrl)
+    string PageUrl,
+    // When the release was published (GitHub's published_at, UTC); MinValue when unknown. Only shown, never planned with.
+    DateTime Released = default)
 {
     public double SizeMb => Size / 1048576.0;
 }
@@ -127,7 +129,7 @@ public static class UpdatePlanner
                 {
                     return null;
                 }
-                return Offer(UpdateKind.Patch, patchVersion, tag, name, page, patch.Value);
+                return Offer(UpdateKind.Patch, patchVersion, tag, name, page, patch.Value, Published(release));
             }
             if (full != null)
             {
@@ -141,7 +143,7 @@ public static class UpdatePlanner
                 {
                     return null;
                 }
-                return Offer(UpdateKind.Full, tag, tag, name, page, full.Value);
+                return Offer(UpdateKind.Full, tag, tag, name, page, full.Value, Published(release));
             }
         }
         return null;
@@ -298,12 +300,12 @@ public static class UpdatePlanner
 
     private static bool IsCiBuild(string assetName) => assetName.EndsWith("-windows-full.zip", StringComparison.OrdinalIgnoreCase);
 
-    private static UpdateOffer Offer(UpdateKind kind, string version, string tag, string name, string page, JsonElement asset)
+    private static UpdateOffer Offer(UpdateKind kind, string version, string tag, string name, string page, JsonElement asset, DateTime released)
     {
         string digest = Text(asset, "digest");
         string sha = digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase) ? digest.Substring(7).ToLowerInvariant() : "";
         long size = asset.TryGetProperty("size", out JsonElement s) && s.ValueKind == JsonValueKind.Number ? s.GetInt64() : 0;
-        return new UpdateOffer(kind, version, tag, name, Text(asset, "name"), Text(asset, "browser_download_url"), size, sha, page);
+        return new UpdateOffer(kind, version, tag, name, Text(asset, "name"), Text(asset, "browser_download_url"), size, sha, page, released);
     }
 
     private static string Text(JsonElement element, string property)

@@ -22,6 +22,8 @@ public partial class InkButton : BaseButton
     public bool Paper { get; set; }
     /// <summary>Takes keyboard and controller focus (menus); focus looks like the mouse hovering it.</summary>
     public bool Focusable { get; set; }
+    /// <summary>The one action a card wants (paper buttons only): drawn inked in, with paper letters.</summary>
+    public bool Primary { get; set; }
 
     private Tween? _tween;
     private bool _hover;
@@ -113,10 +115,41 @@ public partial class InkButton : BaseButton
         }
         Font font = UiStyle.Hand;
         Vector2 size = font.GetStringSize(Text, HorizontalAlignment.Left, -1, FontSize);
-        DrawString(font, new Vector2((Size.X - size.X) * 0.5f, (Size.Y + size.Y * 0.55f) * 0.5f), Text, HorizontalAlignment.Left, -1, FontSize, ink);
+        Color letters = ink;
+        if (Paper && Primary)
+        {
+            // Inked in, so it reads as the button to press before anything is focused.
+            Color fill = new(UiStyle.Ink, 0.9f);
+            if (_hover)
+            {
+                fill = new Color(0.45f, 0.18f, 0.05f, 0.95f);
+            }
+            DrawRect(new Rect2(new Vector2(5.0f, 5.0f), Size - new Vector2(10.0f, 10.0f)), fill);
+            letters = UiStyle.Paper;
+        }
+        else if (Paper && Focusable && !_hover)
+        {
+            // At rest a paper button still shows its edge, so it looks pressable.
+            Vector2 a0 = new(4.0f, 4.0f);
+            Vector2 b0 = Size - new Vector2(4.0f, 4.0f);
+            DrawPolyline(InkDraw.Wobble(new[] { a0, new(b0.X, a0.Y), b0, new(a0.X, b0.Y), a0 }, 0.6f, Text.Length + 5), new Color(ink, 0.45f), 1.5f, true);
+        }
+        DrawString(font, new Vector2((Size.X - size.X) * 0.5f, (Size.Y + size.Y * 0.55f) * 0.5f), Text, HorizontalAlignment.Left, -1, FontSize, letters);
         if (_hover)
         {
-            DrawPolyline(InkDraw.Wobble(new[] { new Vector2((Size.X - size.X) * 0.5f, Size.Y * 0.78f), new Vector2((Size.X + size.X) * 0.5f, Size.Y * 0.78f) }, 1.0f, 7), ink, 2.0f, true);
+            DrawPolyline(InkDraw.Wobble(new[] { new Vector2((Size.X - size.X) * 0.5f, Size.Y * 0.78f), new Vector2((Size.X + size.X) * 0.5f, Size.Y * 0.78f) }, 1.0f, 7), letters, 2.0f, true);
+            if (Paper && Focusable)
+            {
+                // Keyboard and controller focus must read at a glance, not only as a colour change: an inked frame.
+                Vector2 a = new(3.0f, 3.0f);
+                Vector2 b = Size - new Vector2(3.0f, 3.0f);
+                Vector2[] frame = { a, new(b.X, a.Y), b, new(a.X, b.Y), a };
+                DrawPolyline(InkDraw.Wobble(frame, 0.8f, Text.Length + 11), ink, 2.0f, true);
+            }
+        }
+        if (Disabled)
+        {
+            DrawRect(new Rect2(Vector2.Zero, Size), new Color(UiStyle.Paper, 0.55f));
         }
     }
 }

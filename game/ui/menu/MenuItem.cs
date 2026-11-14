@@ -13,6 +13,9 @@ public partial class MenuItem : BaseButton
     /// <summary>One line telling what the entry does, shown by the menu's footer while it is focused.</summary>
     public string Hint { get; set; } = "";
     public int FontSize { get; set; } = 34;
+    /// <summary>An optional second line under the entry in plain hand (Continue's "Station 3, day 2"): always shown, not only on focus.</summary>
+    public string Detail { get; set; } = "";
+    public int DetailSize { get; set; } = UiStyle.SmallSize + 2;
     /// <summary>How far the focused entry slides right, in pixels.</summary>
     public float Slide { get; set; } = 14.0f;
     public float AnimSeconds { get; set; } = 0.16f;
@@ -50,8 +53,8 @@ public partial class MenuItem : BaseButton
         {
             return;
         }
-        Vector2 text = UiStyle.Heading.GetStringSize(Text, HorizontalAlignment.Left, -1, FontSize);
-        Vector2 size = new(Mathf.Min(Size.X, text.X + 44.0f), Size.Y);
+        float text = Mathf.Max(UiStyle.Heading.GetStringSize(Text, HorizontalAlignment.Left, -1, FontSize).X, DetailWidth());
+        Vector2 size = new(Mathf.Min(Size.X, text + 44.0f), Size.Y);
         _strip.Position = new Vector2(-12.0f, 0.0f);
         _strip.Size = size;
         _strip.Material = UiStyle.Parchment(size, Text.Length * 1.7f, 2.0f, 3.0f);
@@ -60,7 +63,33 @@ public partial class MenuItem : BaseButton
     /// <summary>The width the entry's text needs, for layout.</summary>
     public float TextWidth()
     {
-        return UiStyle.Heading.GetStringSize(Text, HorizontalAlignment.Left, -1, FontSize).X + 44.0f + Slide;
+        return Mathf.Max(UiStyle.Heading.GetStringSize(Text, HorizontalAlignment.Left, -1, FontSize).X, DetailWidth()) + 44.0f + Slide;
+    }
+
+    /// <summary>The height the entry needs: its line, plus the detail line when it has one.</summary>
+    public float NeededHeight(float lineHeight)
+    {
+        if (Detail.Length == 0)
+        {
+            return lineHeight;
+        }
+        return lineHeight + DetailSize * 1.5f;
+    }
+
+    private float DetailWidth()
+    {
+        if (Detail.Length == 0)
+        {
+            return 0.0f;
+        }
+        return UiStyle.Hand.GetStringSize(Detail, HorizontalAlignment.Left, -1, DetailSize).X;
+    }
+
+    /// <summary>Re-measures the parchment strip after the text, sizes or detail changed.</summary>
+    public void Refresh()
+    {
+        Layout();
+        QueueRedraw();
     }
 
     private void Light(bool on)
@@ -103,7 +132,12 @@ public partial class MenuItem : BaseButton
         Font font = UiStyle.Heading;
         Vector2 text = font.GetStringSize(Text, HorizontalAlignment.Left, -1, FontSize);
         float x = Slide * Lit + 6.0f;
-        float y = (Size.Y + font.GetAscent(FontSize) - font.GetDescent(FontSize)) * 0.5f;
+        float body = Size.Y;
+        if (Detail.Length > 0)
+        {
+            body = Size.Y - DetailSize * 1.5f;
+        }
+        float y = (body + font.GetAscent(FontSize) - font.GetDescent(FontSize)) * 0.5f;
         Color colour = UiStyle.Paper.Lerp(UiStyle.Ink, Lit);
         if (Disabled)
         {
@@ -115,6 +149,17 @@ public partial class MenuItem : BaseButton
             DrawString(font, new Vector2(x + 2.0f, y + 2.0f), Text, HorizontalAlignment.Left, -1, FontSize, new Color(0, 0, 0, 0.55f * (1.0f - Lit)));
         }
         DrawString(font, new Vector2(x, y), Text, HorizontalAlignment.Left, -1, FontSize, colour);
+        if (Detail.Length > 0)
+        {
+            Font hand = UiStyle.Hand;
+            float dy = body + DetailSize * 0.75f;
+            Color detail = new Color(UiStyle.Paper, 0.8f).Lerp(new Color(UiStyle.Ink, 0.85f), Lit);
+            if (Lit < 0.5f)
+            {
+                DrawString(hand, new Vector2(x + 2.0f + 1.5f, dy + 1.5f), Detail, HorizontalAlignment.Left, -1, DetailSize, new Color(0, 0, 0, 0.6f * (1.0f - Lit)));
+            }
+            DrawString(hand, new Vector2(x + 2.0f, dy), Detail, HorizontalAlignment.Left, -1, DetailSize, detail);
+        }
         if (Lit > 0.01f)
         {
             // An inked tick in front of the focused entry.

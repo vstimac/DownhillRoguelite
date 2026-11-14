@@ -356,14 +356,27 @@ public partial class UpdateTests : Node
         layer.AddChild(start);
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         int before = start.Items.Count;
-        UpdateOffer offer = new(UpdateKind.Patch, "2.8", "v0.2.8-beta", "Beta 2.8: the counter clerk", "x.zip", "https://example.invalid/x.zip", 48L * 1048576, "", "");
+        UpdateOffer offer = new(UpdateKind.Patch, "2.8", "v0.2.8-beta", "Beta 2.8: the counter clerk", "x.zip", "https://example.invalid/x.zip", 48L * 1048576, "", "",
+            new System.DateTime(2026, 11, 20, 18, 0, 0, System.DateTimeKind.Utc));
         start.OfferUpdate(offer);
         start.OfferUpdate(offer);
-        MenuItem? item = start.UpdateItem;
-        Check("a found update puts one \"Update\" entry at the top of the menu", item != null && start.Items.Count == before + 1 && start.Items[0] == item
-            && item.GetIndex() == 0, $"{before} -> {start.Items.Count} entries");
-        Check("its hint says what, how big, and that the game restarts", item != null && item.Hint.Contains("Beta 2.8") && item.Hint.Contains("48 MB") && item.Hint.Contains("starts again"), item?.Hint ?? "");
-        Check("the corner says a new version is out", start.VersionLabel != null && start.VersionLabel.Text.Contains("new version"), start.VersionLabel?.Text ?? "");
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        UpdatePrompt? card = start.UpdateCard;
+        int cards = start.FindChildren("UpdatePrompt*", "", true, false).Count;
+        Check("a found update shows one card and adds nothing to the menu", card != null && cards == 1 && start.Items.Count == before && start.Item("Update") == null,
+            $"{cards} cards, {before} -> {start.Items.Count} entries");
+        Check("the card says which release, when it came out, how big, and that the game restarts",
+            card != null && card.Headline.Contains("Beta 2.8") && card.Message.Contains("20 Nov 2026") && card.Message.Contains("48 MB") && card.Message.Contains("starts again"),
+            (card?.Headline ?? "") + " / " + (card?.Message ?? ""));
+        Check("the card has keyboard and controller focus on \"Update now\"", card?.UpdateButton != null && card.UpdateButton.HasFocus(), GetViewport().GuiGetFocusOwner()?.Name ?? "nothing");
+        Check("the footer shows the version and its date, and doesn't repeat the news",
+            start.VersionLabel != null && start.VersionLabel.Text.Contains(DownhillRoguelite.Core.GameVersion.Date(DownhillRoguelite.Core.GameVersion.Released)) && !start.VersionLabel.Text.Contains("new version"),
+            start.VersionLabel?.Text ?? "");
+        card?.Fold();
+        Check("Later folds the card into the corner tab and gives the menu focus back",
+            card != null && !card.Open && card.Tab != null && card.Tab.Visible && start.Items.Count > 0 && start.Items[0].HasFocus(), GetViewport().GuiGetFocusOwner()?.Name ?? "nothing");
+        card?.Unfold();
+        Check("the tab opens the card again", card != null && card.Open && card.Tab != null && !card.Tab.Visible && card.UpdateButton != null && card.UpdateButton.HasFocus(), "");
         Check("the check never runs from the editor or tests", !UpdateCheck.Applies, UpdateCheck.Status);
         layer.QueueFree();
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);

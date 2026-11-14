@@ -528,7 +528,8 @@ public partial class UiTests : Node3D
         layer.AddChild(pause);
         await Wait(0.05f);
         List<string> problems = new();
-        foreach (Vector2 size in new[] { new Vector2(1280, 720), new Vector2(1920, 1080) })
+        // 16:9 small and large, 16:10, 21:9 and 4:3.
+        foreach (Vector2 size in new[] { new Vector2(1280, 720), new Vector2(1920, 1080), new Vector2(1280, 800), new Vector2(2560, 1080), new Vector2(1024, 768) })
         {
             Rect2 screen = new(Vector2.Zero, size);
             start.LayoutFor(size);
@@ -552,14 +553,21 @@ public partial class UiTests : Node3D
                 {
                     problems.Add($"menu entry {item.Text} clipped at {size}");
                 }
-                if (item.Hint.Length > 0 && UiStyle.Hand.GetStringSize(item.Hint, HorizontalAlignment.Left, -1, UiStyle.TextSize - 2).X > start.FooterHint!.Size.X)
+                // The hint under the menu wraps onto two lines at most.
+                if (item.Hint.Length > 0 && UiStyle.Wrapped(item.Hint, UiStyle.TextSize - 2, start.FooterHint!.Size.X).Y > start.FooterHint.Size.Y + 0.5f)
                 {
                     problems.Add($"hint of {item.Text} too long at {size}");
                 }
             }
-            if (start.MenuBottom() > start.FooterHint!.Position.Y)
+            if (start.MenuBottom() > start.FooterKeys!.Position.Y)
             {
-                problems.Add($"menu runs into the footer at {size} ({start.MenuBottom():0} > {start.FooterHint.Position.Y:0})");
+                problems.Add($"menu runs into the footer at {size} ({start.MenuBottom():0} > {start.FooterKeys.Position.Y:0})");
+            }
+            float keysEnd = start.FooterKeys.Position.X + UiStyle.Wrapped(start.FooterKeys.Text, UiStyle.SmallSize, 100000.0f).X;
+            float versionStart = start.VersionLabel!.Position.X + start.VersionLabel.Size.X - UiStyle.Wrapped(start.VersionLabel.Text, UiStyle.SmallSize, 100000.0f).X;
+            if (keysEnd + 16.0f > versionStart || !Mathf.IsEqualApprox(start.FooterKeys.Position.Y, start.VersionLabel.Position.Y))
+            {
+                problems.Add($"footer keys and version collide or sit on different lines at {size}");
             }
             if (UiStyle.Wrapped(start.FooterKeys!.Text, UiStyle.SmallSize, 100000.0f).X > start.FooterKeys.Size.X)
             {
@@ -631,8 +639,8 @@ public partial class UiTests : Node3D
         MenuItem? second = GetViewport().GuiGetFocusOwner() as MenuItem;
         // With a saved run on this PC the menu opens on Continue, otherwise on New Run.
         bool moved = (first?.Text == "New Run" || first?.Text == "Continue") && second != null && second != first;
-        // New Run and Saved runs sit between the first entry and Character.
-        for (int i = 0; i < 3 && (second?.Text == "New Run" || second?.Text == "Saved runs"); i++)
+        // New Run, Saved runs and Co-op sit between the first entry and Character.
+        for (int i = 0; i < 4 && (second?.Text == "New Run" || second?.Text == "Saved runs" || second?.Text == "Co-op (beta)"); i++)
         {
             await Press("ui_down");
             second = GetViewport().GuiGetFocusOwner() as MenuItem;
