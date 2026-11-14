@@ -62,6 +62,7 @@ public partial class BeastTests : Node3D
 		await TestNoticed(PlayerBody, Director);
 		await TestMegaphone(PlayerBody, Director);
 		await TestFood(PlayerBody, Director);
+		await TestCoopPrey(PlayerBody, Director);
 		await TestDawn(PlayerBody, Director);
 		TestDepth(PlayerBody, Director);
 		TestWebCall(PlayerBody, Director);
@@ -375,6 +376,58 @@ public partial class BeastTests : Node3D
 		Check("with food in the pack the she-wolf tears it out (and only knocks the carrier)",
 			_dropped == "dried_fruit" && _launches == 1,
 			$"dropped '{_dropped}', launches {_launches}, state {beast.State}, food '{beast.FoodInPack}', distance {beast.GlobalPosition.DistanceTo(player.GlobalPosition):0.0} m, stuck {beast.StuckFor:0.00} s");
+		await Recover(player, director);
+	}
+
+	/// <summary>Co-op: another player nearer the beast is the one it charges (the blow is sent to them); a downed one is left alone.</summary>
+	private async Task TestCoopPrey(PlayerController player, BeastDirector director)
+	{
+		if (director.Beasts.Count == 0)
+		{
+			Check("a beast goes for another player who is nearer", false, "no beast");
+			return;
+		}
+		NightBeast beast = director.Beasts[0];
+		BeastSpecies species = beast.Species!;
+		float dt = 1.0f / Engine.PhysicsTicksPerSecond;
+		for (float elapsed = 0.0f; elapsed < 12.0f && beast.State != NightBeast.Mode.Stalk; elapsed += dt)
+		{
+			director.Step(dt, player.GlobalPosition, 0.0f, false, false);
+			await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+		}
+		Vector3 toPlayer = player.GlobalPosition - beast.GlobalPosition;
+		toPlayer.Y = 0.0f;
+		Vector3 feet = beast.GlobalPosition + toPlayer.Normalized() * 4.0f;
+		const long Friend = 77;
+		List<NetStrike> strikes = new();
+		void OnStrike(NetStrike strike) => strikes.Add(strike);
+		GameEvents.NetCarrierStruck += OnStrike;
+		GameEvents.PublishOtherCarriers(new[] { new NetCarrier(Friend, feet, false) });
+		_launches = 0;
+		long aimed = 0;
+		for (float elapsed = 0.0f; elapsed < species.WindUp + 6.0f && strikes.Count == 0; elapsed += dt)
+		{
+			if (beast.State == NightBeast.Mode.Stalk)
+			{
+				beast.AttackTimer = 0.0f;
+			}
+			director.Step(dt, player.GlobalPosition, 0.0f, false, false);
+			if (beast.TargetPeer != 0)
+			{
+				aimed = beast.TargetPeer;
+			}
+			await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+		}
+		bool sent = strikes.Count == 1 && strikes[0].Peer == Friend && strikes[0].Damage == 0.0f && strikes[0].StaggerHeight > 0.0f;
+		// Down, the friend is no prey: it turns back to its owner.
+		GameEvents.PublishOtherCarriers(new[] { new NetCarrier(Friend, feet, true) });
+		await Run(player, director, 4.0f, 0.0f, false);
+		long after = beast.TargetPeer;
+		GameEvents.PublishOtherCarriers(System.Array.Empty<NetCarrier>());
+		GameEvents.NetCarrierStruck -= OnStrike;
+		Check("co-op: a beast charges another player who is nearer (the blow goes to them), and leaves a downed one",
+			aimed == Friend && sent && _launches == 0 && after == 0,
+			$"aimed at {aimed}, strikes {strikes.Count}, local launches {_launches}, then aimed at {after}, state {beast.State}");
 		await Recover(player, director);
 	}
 

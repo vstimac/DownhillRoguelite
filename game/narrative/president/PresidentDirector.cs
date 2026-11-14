@@ -243,9 +243,11 @@ public partial class PresidentDirector : Node3D, IPresidentHost
         set.GlobalPosition = route.Station(station);
         set.SetVictories(Save.Victories);
         set.SetBridgeBuilt(Save.BridgeUnlocked);
-        PresidentNpc npc = new() { Model = NpcModel };
+        PresidentNpc npc = new() { Model = NpcModel, SharedStation = station,
+            SharedNpcProxy = GameEvents.SharedWorldActive && !GameEvents.SharedWorldHost };
         npc.Setup(Manifest, Pack, VoiceVariant, Text, Dialogue);
         set.AddChild(npc);
+        npc.AddToGroup(ISharedNpc.Group);
         npc.Position = set.PresidentOffset;
         if (set.Podium != null)
         {
@@ -482,6 +484,7 @@ public partial class PresidentDirector : Node3D, IPresidentHost
         WorldItem item = new() { Definition = definition, Name = "President_" + definition.ItemId };
         AddChild(item);
         item.GlobalPosition = new Vector3(at.X, y + 0.1f, at.Z);
+        GameEvents.PublishLootDropped(item, definition.ItemId, item.GlobalPosition);
         _placed.Add(item);
         return item;
     }

@@ -188,13 +188,20 @@ public partial class BeastDirector : Node3D
         {
             daylight = 0.0f;
         }
-        Step((float)delta, _carrier, daylight, GameEvents.InShelter || NearFire(_carrier), _downed);
+        Step((float)delta, _carrier, daylight, GameEvents.InShelter || NearFire(_carrier), _downed || GameEvents.CarrierBleeding);
     }
 
     /// <summary>One update: brings beasts in, drives them, removes the ones gone, says what's happening.</summary>
     public void Step(float dt, Vector3 carrier, float daylight, bool safe, bool downed)
     {
-        Hunting = daylight < DarkBelow && !safe;
+        if (!GameEvents.MaySimulateWorld) { if (_beasts.Count > 0) { Clear(); } Hunting = false; return; }
+        bool anyoneExposed = !safe;
+        Vector3 spawnNear = carrier;
+        foreach (NetCarrier other in GameEvents.OtherCarriers)
+        {
+            if (!other.Down && !NearFire(other.Feet)) { anyoneExposed = true; spawnNear = other.Feet; }
+        }
+        Hunting = daylight < DarkBelow && anyoneExposed;
         PhysicsDirectSpaceState3D space = GetWorld3D().DirectSpaceState;
         string food = FoodCarried();
         float hunger = 1.0f;
@@ -209,6 +216,16 @@ public partial class BeastDirector : Node3D
         {
             hunger *= TorchHunger;
         }
+        // Co-op: the other players the beasts may go for (standing, and not by a station's fire).
+        System.Collections.Generic.List<NetCarrier> prey = new();
+        foreach (NetCarrier other in GameEvents.OtherCarriers)
+        {
+            if (!other.Down && !NearFire(other.Feet))
+            {
+                prey.Add(other);
+            }
+        }
+        NetCarrier[] others = prey.ToArray();
         bool someoneAttacking = false;
         foreach (NightBeast beast in _beasts)
         {
@@ -222,12 +239,19 @@ public partial class BeastDirector : Node3D
             NightBeast beast = _beasts[i];
             NightBeast.Mode before = beast.State;
             beast.FoodInPack = food;
-            bool mayAttack = !someoneAttacking && !downed;
-            beast.Tick(dt, carrier, mayAttack, !Hunting, hunger, space);
+            beast.Others = others;
+            bool mayAttack = !someoneAttacking;
+            float targetHunger = hunger;
+            if (beast.TargetPeer != 0)
+            {
+                targetHunger = 1;
+                foreach (NetCarrier other in others) { if (other.Peer == beast.TargetPeer && other.TorchLit) { targetHunger *= TorchHunger; } }
+            }
+            beast.Tick(dt, carrier, mayAttack, !Hunting, targetHunger, space, downed || safe);
             if (beast.State == NightBeast.Mode.WindUp && before != NightBeast.Mode.WindUp)
             {
                 someoneAttacking = true;
-                if (!_toldGrowl)
+                if (!_toldGrowl && beast.TargetPeer == 0)
                 {
                     _toldGrowl = true;
                     GameEvents.PublishHint($"A growl behind you: the {beast.Species?.DisplayName} is about to charge. Get out of its way!");
@@ -237,12 +261,12 @@ public partial class BeastDirector : Node3D
             {
                 Told(beast);
             }
-            if (beast.StuckFor > RelocateAfter && beast.State != NightBeast.Mode.Leave && Spot(carrier, space, out Vector3 elsewhere))
+            if (beast.StuckFor > RelocateAfter && beast.State != NightBeast.Mode.Leave && Spot(WorldInterests.Nearest(beast.GlobalPosition, carrier), space, out Vector3 elsewhere))
             {
                 // Stuck behind something for long: it slips away into the dark and comes again from behind.
                 beast.Relocate(elsewhere + Vector3.Up * 0.05f);
             }
-            Vector3 offset = beast.GlobalPosition - carrier;
+            Vector3 offset = beast.GlobalPosition - WorldInterests.Nearest(beast.GlobalPosition, carrier);
             bool fellOff = offset.Y < -FellBelow;
             bool gone = beast.State == NightBeast.Mode.Leave
                 && (new Vector2(offset.X, offset.Z).Length() > GoneDistance || beast.LeavingFor > VanishAfter);
@@ -262,7 +286,7 @@ public partial class BeastDirector : Node3D
         if (_arrival <= 0.0f && _beasts.Count < MostBeasts())
         {
             _arrival = _random.RandfRange(ArrivalDelay.X, ArrivalDelay.Y);
-            if (Bring(carrier, space) != null && !_toldEyes)
+            if (Bring(spawnNear, space) != null && !_toldEyes)
             {
                 _toldEyes = true;
                 GameEvents.PublishHint("Eyes in the dark. Something is following you. Fire keeps it away.");

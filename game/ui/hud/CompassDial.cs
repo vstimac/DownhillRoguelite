@@ -6,6 +6,7 @@ namespace DownhillRoguelite.Ui;
 /// A round inked compass by the descent panel. The card turns with the view, so the N always points
 /// to real north (-Z) and the carrier's heading is straight up; the nearest waypoint, if any, shows
 /// as a small red mark on the rim. A blue arrow shows where the wind blows, longer the stronger it is.
+/// In co-op the other players show as dots on the rim (hollow while they're down).
 /// </summary>
 public partial class CompassDial : Control
 {
@@ -22,8 +23,12 @@ public partial class CompassDial : Control
     /// <summary>No arrow below this wind speed, in m/s.</summary>
     [Export] public float CalmBelow { get; set; } = 1.5f;
 
+    /// <summary>Co-op teammates' dots.</summary>
+    [Export] public Color TeammateColour { get; set; } = new(0.18f, 0.5f, 0.32f);
+
     private float _shown;
     private float _windShown;
+    private readonly System.Collections.Generic.List<(float Angle, bool Down)> _teammates = new();
 
     public override void _Ready()
     {
@@ -43,6 +48,16 @@ public partial class CompassDial : Control
                 forward = forward.Normalized();
                 Vector3 right = forward.Cross(Vector3.Up);
                 NorthAngle = Mathf.Atan2(Vector3.Forward.Dot(right), Vector3.Forward.Dot(forward));
+                _teammates.Clear();
+                foreach (Core.NetCarrier other in Core.GameEvents.OtherCarriers)
+                {
+                    Vector3 to = other.Feet - camera.GlobalPosition;
+                    to.Y = 0.0f;
+                    if (to.LengthSquared() > 1.0f)
+                    {
+                        _teammates.Add((Mathf.Atan2(to.Dot(right), to.Dot(forward)), other.Down));
+                    }
+                }
                 Vector3 wind = Core.GameEvents.CurrentWeather.Wind;
                 wind.Y = 0.0f;
                 WindSpeed = wind.Length();
@@ -98,6 +113,20 @@ public partial class CompassDial : Control
         }
         // Star in the middle and the heading pointer.
         InkDraw.Shape(this, new[] { c + new Vector2(0, -r * 0.42f), c + new Vector2(r * 0.13f, 0), c + new Vector2(0, r * 0.2f), c + new Vector2(-r * 0.13f, 0) }, new Color(0.85f, 0.82f, 0.74f), 2.0f, 63);
+        foreach ((float angle, bool down) in _teammates)
+        {
+            float a = angle - Mathf.Pi * 0.5f;
+            Vector2 at = c + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * (r - 4.0f);
+            if (down)
+            {
+                DrawArc(at, 5.0f, 0.0f, Mathf.Tau, 12, new Color(UiStyle.Ink, 0.6f), 2.0f, true);
+            }
+            else
+            {
+                DrawCircle(at, 6.0f, UiStyle.Ink);
+                DrawCircle(at, 4.5f, TeammateColour);
+            }
+        }
         if (!float.IsNaN(WaypointAngle))
         {
             float a = WaypointAngle - Mathf.Pi * 0.5f;

@@ -68,6 +68,9 @@ public static class UpdateCheck
     {
         get
         {
+            // Legacy standalone co-op exports use this feature to keep their separate package.
+            // Unified main exports omit it and update solo and co-op from the same public feed.
+            if (OS.HasFeature("coop")) { return false; }
             if (!GameOptions.CheckForUpdates || Array.IndexOf(OS.GetCmdlineUserArgs(), "--no-update-check") >= 0)
             {
                 return false;

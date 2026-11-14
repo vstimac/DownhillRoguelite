@@ -14,8 +14,27 @@ namespace DownhillRoguelite.Wildlife;
 /// through Tick so all animals together can be timed. The carrier's sword finds it (IMeleeTarget,
 /// on its bones): struck, it's knocked aside and bolts.
 /// </summary>
-public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget
+public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
 {
+    public bool Puppet { get; set; }
+    public int NetKind => 2;
+    public string NetSpecies => Species?.ResourcePath ?? "";
+    public bool NetPuppet => Puppet;
+    public float NetHealth => 1;
+    public bool NetDown => false;
+    public Transform3D NetVisual => _model?.Transform ?? Transform3D.Identity;
+    public void NetShowVisual(Transform3D visual) { if (Puppet && _model != null) { _model.Transform = visual; } }
+    public string NetClip => _clip;
+    public float NetClipPosition => (float)(_animation?.CurrentAnimationPosition ?? 0);
+    public float NetClipSpeed => _animation?.GetPlayingSpeed() ?? 1;
+    public void NetShow(string clip, float position, float speed, float health, bool down)
+    {
+        if (!Puppet) { return; }
+        CollisionLayer = 0; CollisionMask = 0;
+        Play(clip, speed, -1);
+        if (_animation != null && _animation.HasAnimation(clip)
+            && Mathf.Abs((float)_animation.CurrentAnimationPosition - position) > 0.25f) { _animation.Seek(position, true); }
+    }
     public enum Mode
     {
         Idle,
@@ -31,6 +50,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget
     public int Shoves { get; private set; }
     /// <summary>Blows it has taken from the carrier's sword or boot.</summary>
     public int Struck { get; private set; }
+    public long TargetPeer { get; set; }
     /// <summary>A knock dies away at this rate (m/s per s).</summary>
     [Export] public float KnockDecay { get; set; } = 8.0f;
     /// <summary>The capsule's radius, in m.</summary>
@@ -79,6 +99,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget
 
     public void TakeHit(float damage, Vector3 push, string source)
     {
+        if (Puppet) { GameEvents.PublishNetMobHit(this, damage, push, source); return; }
         Struck++;
         _knock = new Vector3(push.X, 0.0f, push.Z);
         FleeFrom(GlobalPosition - _knock);
@@ -138,6 +159,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget
     /// <summary>Advances the animal by dt given where the carrier is, where it's steering (input) and whether it sprints.</summary>
     public void Tick(float dt, Vector3 carrier, Vector3 carrierInput, bool sprinting, PhysicsDirectSpaceState3D space)
     {
+        if (Puppet) { return; }
         if (Species == null || _table == null)
         {
             return;
@@ -267,7 +289,8 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget
         float reach = Radius + _table!.CarrierRadius + _table.PushContactMargin + 0.6f;
         if (distance < reach && distance > 0.001f)
         {
-            GameEvents.RequestLaunch(toCarrier / distance * _table.ShoveSpeed, _table.ShoveHeight, Species!.DisplayName);
+            if (TargetPeer == 0) { GameEvents.RequestLaunch(toCarrier / distance * _table.ShoveSpeed, _table.ShoveHeight, Species!.DisplayName); }
+            else { GameEvents.PublishNetStrike(new NetStrike(TargetPeer, 0, toCarrier / distance, _table.ShoveSpeed, false, 0, _table.ShoveHeight, Species!.DisplayName)); }
             Shoves++;
         }
         PushTime = 0.0f;

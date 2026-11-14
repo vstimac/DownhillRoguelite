@@ -7,6 +7,8 @@ Nothing else to install: .NET is built into the game.
 Needs Windows 10 or 11 (64-bit) and up-to-date graphics drivers (Vulkan) from NVIDIA, AMD or Intel.
 
 Start: DownhillRoguelite.exe
+Co-op: choose Co-op on the title screen. Both players need the same build. One chooses Host;
+       others choose it from the LAN list or enter the host's address and UDP port 7777.
 Race:  "Race - same mountain.bat" (everyone gets the same mountain; your first life counts, deepest wins)
 Update: the game checks for a new version when it starts; pick "Update" on the title screen and it
         updates and starts again by itself (only what changed is downloaded). "Update game.bat" does

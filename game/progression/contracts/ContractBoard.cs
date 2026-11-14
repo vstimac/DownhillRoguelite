@@ -13,8 +13,12 @@ namespace DownhillRoguelite.Progression;
 /// a few seconds gives it up (ContractDirector.Abandon) and its cargo stays at the board.
 /// Built from primitives until a model exists.
 /// </summary>
-public partial class ContractBoard : Node3D, IInteractable, IDescribed
+public partial class ContractBoard : Node3D, ISharedWorldPickup, IDescribed
 {
+    public string SharedPickupKey => "contract:" + (Contract?.FromStation ?? 0);
+    public ContractStatus SharedStatus { get; set; } = ContractStatus.Accepted;
+    public bool RemoveWhenTaken => false;
+    public void SharedTaken() { Refresh(); }
     [Export] public Color WoodColor { get; set; } = new(0.38f, 0.27f, 0.17f);
     [Export] public Color PaperColor { get; set; } = new(0.92f, 0.86f, 0.7f);
     [Export] public Color TakenColor { get; set; } = new(0.55f, 0.5f, 0.42f);
@@ -207,6 +211,16 @@ public partial class ContractBoard : Node3D, IInteractable, IDescribed
             return;
         }
         _note.Text = Description;
+        if (Contract.Status == ContractStatus.Offered && GameEvents.WasSharedPickupTaken(SharedPickupKey))
+        {
+            _title.Text = "Job taken";
+            _terms.Text = "A teammate accepted this job";
+            if (SharedStatus == ContractStatus.Delivered) { _title.Text = "Job done"; _terms.Text = "Delivered by your teammate"; }
+            if (SharedStatus == ContractStatus.Failed || SharedStatus == ContractStatus.Abandoned) { _title.Text = "Job ended"; _terms.Text = "Your teammate's delivery has ended"; }
+            _title.Modulate = TakenColor;
+            if (_paper != null) { _paper.AlbedoColor = TakenColor; }
+            return;
+        }
         if (ArmedToAbandon && _director?.Active != null)
         {
             _title.Text = "Give up \"" + _director.Active.Definition.DisplayName + "\"?";
@@ -316,9 +330,11 @@ public partial class ContractBoard : Node3D, IInteractable, IDescribed
         {
             return false;
         }
+        if (!GameEvents.MayPickUp(SharedPickupKey, this)) { return false; }
         ContractResult result = _director.Accept(Contract);
         if (result == ContractResult.Ok)
         {
+            GameEvents.PublishSupplyPickedUp(SharedPickupKey);
             RefreshTooltip();
             return true;
         }

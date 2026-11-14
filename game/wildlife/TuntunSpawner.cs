@@ -60,6 +60,7 @@ public partial class TuntunSpawner : Node3D
     /// <summary>Brings him (replacing the one already here); null if the carrier isn't known yet.</summary>
     public TuntunSahur? Spawn()
     {
+        if (!GameEvents.MaySimulateWorld) { return null; }
         if (!_carrierKnown)
         {
             return null;

@@ -8,7 +8,7 @@ namespace DownhillRoguelite.WorldUi;
 
 /// <summary>
 /// The front end: the real mountain behind the menu (MenuCamera drifts past the carrier), the title,
-/// and a menu of New Run, Character, Options, Achievements, About and Quit. Pages (character, options, about) are
+/// and a menu of New Run, Character, Co-op, Options, Achievements, About and Quit. Pages (character, options, about) are
 /// parchment sheets that unfold over the scene. The world runs a moment so the carrier and camera
 /// settle, then waits paused and silent; New Run fades the menu away, flies the camera into the run's
 /// own camera and fades the sound in. Mouse, keyboard and controller all work; the footer shows the
@@ -24,6 +24,7 @@ public partial class StartScreen : CanvasLayer
         Options,
         About,
         Achievements,
+        Coop,
         Saves,
         Starting,
     }
@@ -32,7 +33,7 @@ public partial class StartScreen : CanvasLayer
 
     [Export] public string Title { get; set; } = "Downhill Roguelite";
     [Export] public string Subtitle { get; set; } = "Every run begins at the summit.";
-    [Export] public string VersionText { get; set; } = "Beta 2.9.1";
+    [Export] public string VersionText { get; set; } = "Beta 2.9.2";
     /// <summary>Largest title size in pixels; it shrinks with the window's height.</summary>
     [Export] public int TitleSize { get; set; } = 92;
     /// <summary>The dark wash behind the menu column (left edge; it fades out towards the middle).</summary>
@@ -59,6 +60,7 @@ public partial class StartScreen : CanvasLayer
     public CharacterPage? Characters => _characters;
     public CreditsPage? About => _about;
     public AchievementsPage? Achievements => _achievements;
+    public CoopPage? Coop => _coop;
     public MenuCamera? Camera => _camera;
     public Label? TitleLabel => _title;
     public Label? FooterKeys => _keys;
@@ -83,6 +85,8 @@ public partial class StartScreen : CanvasLayer
     private CharacterPage? _characters;
     private CreditsPage? _about;
     private AchievementsPage? _achievements;
+    private CoopPage? _coop;
+    private bool _characterForCoop;
     private SavesPage? _saves;
     /// <summary>The menu's letters never get smaller than this on short screens.</summary>
     [Export] public int SmallestItemSize { get; set; } = 20;
@@ -272,6 +276,7 @@ public partial class StartScreen : CanvasLayer
             _characterItem = AddItem("Character", "", () => ShowPage(Page.Character));
         }
         AddItem("Options", "Gameplay, video, audio, accessibility and controls.", () => ShowPage(Page.Options));
+        AddItem("Co-op (beta)", "Host a descent, or join a friend's: up to four carriers.", () => ShowPage(Page.Coop));
         AddItem("Achievements", "What you've done on the mountain, ticked off.", () => ShowPage(Page.Achievements));
         AddItem("About", "What this is, and whose work it stands on.", () => ShowPage(Page.About));
         AddItem("Quit", "Back to the desktop.", () => GetTree().Quit());
@@ -294,7 +299,16 @@ public partial class StartScreen : CanvasLayer
         _root.AddChild(_options);
         _options.SetOpenNow(false);
         _characters = new CharacterPage { Name = "Characters", RosterPath = RosterPath };
-        _characters.BackPressed += () => ClosePage(_characters);
+        _characters.BackPressed += () =>
+        {
+            ClosePage(_characters);
+            // Opened from the Co-op page: back there, with the new look.
+            if (_characterForCoop)
+            {
+                _characterForCoop = false;
+                ShowPage(Page.Coop);
+            }
+        };
         _characters.PreviewTurnRequested += degrees => _camera?.TurnPortrait(degrees);
         _root.AddChild(_characters);
         _characters.SetOpenNow(false);
@@ -306,6 +320,31 @@ public partial class StartScreen : CanvasLayer
         _achievements.BackPressed += () => ClosePage(_achievements);
         _root.AddChild(_achievements);
         _achievements.SetOpenNow(false);
+        _coop = new CoopPage { Name = "Coop" };
+        _coop.BackPressed += () =>
+        {
+            // Backing out while still connecting gives up the attempt.
+            Network.NetSession? session = Network.NetSession.Instance;
+            if (session != null && session.Active && !session.Joined)
+            {
+                session.Leave();
+            }
+            ClosePage(_coop);
+        };
+        _coop.CharacterRequested += () =>
+        {
+            _coop.Close();
+            _characterForCoop = true;
+            Current = Page.Main;
+            ShowPage(Page.Character);
+        };
+        _coop.RunReady += () =>
+        {
+            ClosePage(_coop);
+            StartRun();
+        };
+        _root.AddChild(_coop);
+        _coop.SetOpenNow(false);
         _saves = new SavesPage { Name = "Saves" };
         _saves.BackPressed += () => ClosePage(_saves);
         _saves.SlotChosen += PlaySlot;
@@ -575,6 +614,7 @@ public partial class StartScreen : CanvasLayer
         _options?.FitInto(full);
         _about?.FitInto(full);
         _achievements?.FitInto(full);
+        _coop?.FitInto(full);
         _saves?.FitInto(full);
         _characters?.FitInto(new Rect2(screen.X * 0.5f, margin * 0.6f, screen.X * 0.5f - margin * 0.6f, screen.Y - margin * 1.2f));
     }
@@ -640,6 +680,10 @@ public partial class StartScreen : CanvasLayer
             else if (arg == "--menu-page=achievements")
             {
                 ShowPage(Page.Achievements);
+            }
+            else if (arg == "--menu-page=coop")
+            {
+                ShowPage(Page.Coop);
             }
         }
     }
@@ -712,6 +756,10 @@ public partial class StartScreen : CanvasLayer
         else if (page == Page.Achievements)
         {
             _achievements?.OpenSheet();
+        }
+        else if (page == Page.Coop)
+        {
+            _coop?.OpenSheet();
         }
         else if (page == Page.Saves)
         {
@@ -789,11 +837,12 @@ public partial class StartScreen : CanvasLayer
         Started = true;
         GetNodeOrNull<RunState>("/root/RunState")?.BeginCharacterRun();
         GameEvents.PublishRunBegun(continuing);
-        if (!continuing && _chosenSeed != null)
+        bool sharedRun = Network.NetSession.Instance?.Joined == true;
+        if (!sharedRun && !continuing && _chosenSeed != null)
         {
             GetNodeOrNull<RunState>("/root/RunState")?.StartNewRun(_chosenSeed.Value);
         }
-        else if (!continuing && ReturnedFromRun)
+        else if (!sharedRun && !continuing && ReturnedFromRun)
         {
             GetNodeOrNull<RunState>("/root/RunState")?.StartNewRun();
         }

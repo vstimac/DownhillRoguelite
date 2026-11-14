@@ -12,8 +12,33 @@ namespace DownhillRoguelite.Wildlife;
 /// shoves him (RequestLaunch). He has no skeleton: the run and the swing lean the whole log.
 /// While the carrier is down he hops in place; then he chases again, until his time is up.
 /// </summary>
-public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
+public partial class TuntunSahur : CharacterBody3D, IMeleeTarget, INetMob
 {
+    public bool Puppet { get; set; }
+    public int NetKind => 3;
+    public string NetSpecies => "tuntun";
+    public bool NetPuppet => Puppet;
+    public float NetHealth => Health;
+    public bool NetDown => _phase == Phase.Down;
+    public string NetClip => _phase.ToString();
+    public float NetClipPosition => _phaseTime;
+    public float NetClipSpeed => _strikeSeconds;
+    public Transform3D NetVisual => _pivot?.Transform ?? Transform3D.Identity;
+    public void NetShowVisual(Transform3D visual) { if (Puppet && _pivot != null) { _pivot.Transform = visual; } }
+    private long _targetPeer;
+    private bool _targetDown;
+
+    public void NetShow(string clip, float time, float speed, float health, bool down)
+    {
+        if (!Puppet || !System.Enum.TryParse(clip, out Phase phase)) { return; }
+        _phase = phase; _phaseTime = time; _strikeSeconds = speed; Health = health;
+        float lean = 0;
+        if (phase == Phase.WindUp) { lean = WindUpLean * Ease(time / Mathf.Max(WindUpSeconds, 0.01f)); }
+        if (phase == Phase.Strike) { float t = Mathf.Clamp(time / Mathf.Max(speed, 0.01f), 0, 1); lean = Mathf.Lerp(WindUpLean, -StrikeLean, t * t); }
+        if (phase == Phase.Recover) { lean = Mathf.Lerp(-StrikeLean, 0, Ease(time / Mathf.Max(RecoverSeconds, 0.01f))); }
+        if (phase == Phase.Down) { lean = -ToppleDegrees * Ease(time / Mathf.Max(ToppleSeconds, 0.01f)); }
+        Pose(lean, 0);
+    }
     private enum Phase { Chase, WindUp, Strike, Recover, Gloat, Down }
 
     [Export(PropertyHint.File, "*.glb")] public string ModelPath { get; set; } = "res://art/creatures/tuntun/tuntun.glb";
@@ -121,7 +146,8 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
         _gravity = ProjectSettings.GetSetting("physics/3d/default_gravity").AsSingle();
         CollisionLayer = 0;
         CollisionMask = GroundMask;
-        CharacterSpacing.Register(this, BodyRadius, Mass);
+        if (!Puppet) { CharacterSpacing.Register(this, BodyRadius, Mass); }
+        if (Puppet) { CollisionMask = 0; }
         FloorSnapLength = 0.5f;
         AddChild(new CollisionShape3D
         {
@@ -141,7 +167,7 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
         }
         _previousTip = TipWorld();
         AddToGroup(IMeleeTarget.Group);
-        GameEvents.LocomotionUpdated += OnLocomotion;
+        if (!Puppet) { GameEvents.LocomotionUpdated += OnLocomotion; }
         Say(CallSounds);
     }
 
@@ -165,6 +191,20 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
 
     public override void _PhysicsProcess(double delta)
     {
+        if (Puppet) { return; }
+        if (!GameEvents.MaySimulateWorld) { QueueFree(); return; }
+        _targetPeer = 0;
+        _targetDown = GameEvents.IsDowned || GameEvents.CarrierBleeding;
+        Vector3 local = _carrier;
+        if (GameEvents.SharedWorldHost) { local = GameEvents.CarrierPosition; }
+        float nearest = float.MaxValue;
+        if (!_targetDown) { nearest = GlobalPosition.DistanceSquaredTo(local); }
+        _carrier = local;
+        foreach (NetCarrier other in GameEvents.OtherCarriers)
+        {
+            float distanceToOther = GlobalPosition.DistanceSquaredTo(other.Feet);
+            if (!other.Down && distanceToOther < nearest) { nearest = distanceToOther; _carrier = other.Feet; _targetPeer = other.Peer; _targetDown = false; }
+        }
         float dt = (float)delta;
         _age += dt;
         _phaseTime += dt;
@@ -196,7 +236,7 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
         switch (_phase)
         {
             case Phase.Chase:
-                if (GameEvents.IsDowned)
+                if (_targetDown)
                 {
                     Enter(Phase.Gloat);
                 }
@@ -242,7 +282,7 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
                 }
                 break;
             case Phase.Gloat:
-                if (!GameEvents.IsDowned)
+                if (!_targetDown)
                 {
                     if (_phaseTime >= GloatSeconds)
                     {
@@ -308,7 +348,7 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
         {
             return;
         }
-        float phase = _stepDistance / Mathf.Max(StepLength, 0.01f) * Mathf.Pi;
+        float phase = _phaseTime * RunSpeed / Mathf.Max(StepLength, 0.01f) * Mathf.Pi;
         float bob = 0.0f;
         float waddle = 0.0f;
         if (_phase == Phase.Chase)
@@ -318,7 +358,7 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
         }
         else if (_phase == Phase.Gloat)
         {
-            bob = Mathf.Abs(Mathf.Sin(_age * Mathf.Pi * 2.0f * HopRate)) * HopHeight;
+            bob = Mathf.Abs(Mathf.Sin(_phaseTime * Mathf.Pi * 2.0f * HopRate)) * HopHeight;
         }
         _pivot.Position = Vector3.Up * bob;
         _pivot.Rotation = new Vector3(Mathf.DegToRad(leanDegrees), 0.0f, Mathf.DegToRad(waddle));
@@ -359,6 +399,7 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
     /// <summary>An open wound (environment/Bleeding): health drains quietly; at nothing he goes down.</summary>
     public bool Bleed(float damage)
     {
+        if (Puppet) { GameEvents.PublishNetMobHit(this, damage, Vector3.Zero, "bleeding"); return CanBeHit; }
         if (!CanBeHit)
         {
             return false;
@@ -374,6 +415,7 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
 
     public void TakeHit(float damage, Vector3 push, string source)
     {
+        if (Puppet) { GameEvents.PublishNetMobHit(this, damage, push, source); return; }
         if (!CanBeHit)
         {
             return;
@@ -404,7 +446,7 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
             away = -GlobalBasis.Z;
         }
         away = away.Normalized();
-        if (GameEvents.TryBlock(away, Cause))
+        if (_targetPeer == 0 && GameEvents.TryBlock(away, Cause))
         {
             Blocked++;
             Say(BonkSounds);
@@ -417,6 +459,11 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget
         LastHitSpeed = speed;
         LastHitKnockedDown = speed >= RagdollSpeed;
         Say(BonkSounds);
+        if (_targetPeer != 0)
+        {
+            GameEvents.PublishNetStrike(new NetStrike(_targetPeer, 0, away, speed, LastHitKnockedDown, LiftShare, StaggerHeight, Cause));
+            return;
+        }
         if (LastHitKnockedDown)
         {
             GameEvents.RequestKnockdown(away * speed + Vector3.Up * speed * LiftShare, Cause);

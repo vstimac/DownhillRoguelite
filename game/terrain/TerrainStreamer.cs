@@ -310,7 +310,7 @@ public partial class TerrainStreamer : Node3D
             {
                 GD.PushError($"TerrainStreamer: chunk build failed: {done.Exception?.GetBaseException().Message}");
             }
-            else if (done.Result.Generation == _generation && InWindow(done.Result.Coord, centre, 0) && !_chunks.ContainsKey(done.Result.Coord))
+            else if (done.Result.Generation == _generation && InAnyWindow(done.Result.Coord, centre, 0) && !_chunks.ContainsKey(done.Result.Coord))
             {
                 Apply(done.Result);
             }
@@ -380,7 +380,7 @@ public partial class TerrainStreamer : Node3D
         List<Vector2I> far = new();
         foreach (Vector2I coord in _chunks.Keys)
         {
-            if (!InWindow(coord, centre, UnloadMargin))
+            if (!InAnyWindow(coord, centre, UnloadMargin))
             {
                 far.Add(coord);
             }
@@ -394,8 +394,34 @@ public partial class TerrainStreamer : Node3D
 
     private bool NearestMissing(Vector2I centre, out Vector2I nearest)
     {
+        bool found = MissingNear(centre, out nearest, out int best);
+        if (GameEvents.SharedWorldHost && Generator != null)
+        {
+            foreach (NetCarrier peer in GameEvents.OtherCarriers)
+            {
+                Vector2I focus = Generator.ChunkAt(peer.Feet.X, peer.Feet.Z);
+                if (MissingNear(focus, out Vector2I next, out int distance) && distance < best)
+                { nearest = next; best = distance; found = true; }
+            }
+        }
+        return found;
+    }
+
+    private bool InAnyWindow(Vector2I coord, Vector2I local, int margin)
+    {
+        if (InWindow(coord, local, margin)) { return true; }
+        if (GameEvents.SharedWorldHost && Generator != null)
+        {
+            foreach (NetCarrier peer in GameEvents.OtherCarriers)
+            { if (InWindow(coord, Generator.ChunkAt(peer.Feet.X, peer.Feet.Z), margin)) { return true; } }
+        }
+        return false;
+    }
+
+    private bool MissingNear(Vector2I centre, out Vector2I nearest, out int best)
+    {
         nearest = centre;
-        int best = int.MaxValue;
+        best = int.MaxValue;
         foreach (Vector2I coord in Window(centre))
         {
             if (_chunks.ContainsKey(coord))

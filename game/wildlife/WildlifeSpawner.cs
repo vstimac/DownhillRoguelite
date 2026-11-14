@@ -55,6 +55,7 @@ public partial class WildlifeSpawner : Node3D
         GameEvents.VitalsUpdated += OnVitalsUpdated;
         GameEvents.DownedChanged += OnDownedChanged;
         GameEvents.RespawnRequested += Clear;
+        GameEvents.SharedCarrierFell += OnSharedFall;
     }
 
     public override void _ExitTree()
@@ -63,12 +64,15 @@ public partial class WildlifeSpawner : Node3D
         GameEvents.VitalsUpdated -= OnVitalsUpdated;
         GameEvents.DownedChanged -= OnDownedChanged;
         GameEvents.RespawnRequested -= Clear;
+        GameEvents.SharedCarrierFell -= OnSharedFall;
     }
 
     private int _tick;
+    private void OnSharedFall(Vector3 at) { if (GameEvents.SharedWorldHost) { ScatterAt(at); } }
 
     public override void _PhysicsProcess(double delta)
     {
+        if (!GameEvents.MaySimulateWorld) { if (_animals.Count > 0) { Clear(); } return; }
         if (!_hasCarrier || Table == null)
         {
             return;
@@ -88,7 +92,8 @@ public partial class WildlifeSpawner : Node3D
         for (int i = _animals.Count - 1; i >= 0; i--)
         {
             WildlifeAnimal animal = _animals[i];
-            Vector3 offset = animal.GlobalPosition - _carrier;
+            Vector3 nearestCarrier = WorldInterests.Nearest(animal.GlobalPosition, _carrier);
+            Vector3 offset = animal.GlobalPosition - nearestCarrier;
             float horizontal = new Vector2(offset.X, offset.Z).Length();
             // The route runs toward -Z: +Z is uphill, behind the carrier.
             if (horizontal > Table.DespawnDistance || offset.Z > Table.BehindDistance)
@@ -106,10 +111,10 @@ public partial class WildlifeSpawner : Node3D
                 {
                     continue;
                 }
-                animal.Tick(dt * every, _carrier, _carrierInput, _sprinting, space);
+                TickAnimal(animal, dt * every, space);
                 continue;
             }
-            animal.Tick(dt, _carrier, _carrierInput, _sprinting, space);
+            TickAnimal(animal, dt, space);
         }
         _tick++;
 
@@ -117,7 +122,10 @@ public partial class WildlifeSpawner : Node3D
         if (Spawning && _spawnTimer <= 0.0f && _animals.Count < Table.MaxAnimals)
         {
             _spawnTimer = Table.SpawnInterval;
+            Vector3 original = _carrier;
+            _carrier = WorldInterests.At(_tick, original);
             TrySpawnGroup(space);
+            _carrier = original;
         }
 
         _watch.Stop();
@@ -126,6 +134,24 @@ public partial class WildlifeSpawner : Node3D
     }
 
     /// <summary>Every animal within the scatter radius of a point (measured flat, as slopes are steep) bolts away from it.</summary>
+    private void TickAnimal(WildlifeAnimal animal, float dt, PhysicsDirectSpaceState3D space)
+    {
+        Vector3 target = _carrier; Vector3 input = _carrierInput; bool sprinting = _sprinting;
+        animal.TargetPeer = 0;
+        float nearest = animal.GlobalPosition.DistanceSquaredTo(_carrier);
+        if (GameEvents.SharedWorldHost)
+        {
+            if (GameEvents.IsDowned || GameEvents.CarrierBleeding) { nearest = float.MaxValue; input = Vector3.Zero; sprinting = false; }
+            foreach (NetCarrier other in GameEvents.OtherCarriers)
+            {
+                float distance = animal.GlobalPosition.DistanceSquaredTo(other.Feet);
+                if (!other.Down && distance < nearest)
+                { nearest = distance; target = other.Feet; input = other.InputDirection; sprinting = other.Sprinting; animal.TargetPeer = other.Peer; }
+            }
+        }
+        animal.Tick(dt, target, input, sprinting, space);
+    }
+
     public int ScatterAt(Vector3 point)
     {
         if (Table == null)

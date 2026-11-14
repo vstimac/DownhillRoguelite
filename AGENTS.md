@@ -29,6 +29,8 @@ team's own recordings come first (`game/audio/original_recordings.csv`).
 
 ## Code
 
+- Solo and co-op now share `main`. Continue development from `main`; the old multiplayer branch is
+  retained as history rather than a separate development line. Do not discard other worktrees' changes.
 - The Godot 4.7 .NET project is in `game/`. Build with `dotnet build` there; tests are the scenes in
   `game/debug/tests/` (each prints PASS/FAIL lines and exits non-zero on failure).
 - Commit messages are read by players (they are posted to Discord): plain, player-facing English,

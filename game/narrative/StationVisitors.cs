@@ -109,6 +109,17 @@ public partial class StationVisitors : Node3D
         {
             circle = _run.Circle;
         }
+        // Reconstruct the selection in station order: visiting stations in another order, or
+        // joining late, must not change the traveller seated at a given fire.
+        _used.Clear();
+        for (int prior = 1; prior < station; prior++)
+        {
+            int priorCircle = circle;
+            if (_run != null) { priorCircle = _run.Circles.CircleAt(Mathf.Max(0, route.SummitPad.Y - route.Station(prior).Y)); }
+            NpcPersona? earlier = Pick(prior, priorCircle);
+            if (earlier != null) { _used.Add(earlier.Id); }
+        }
+        if (_run != null) { circle = _run.Circles.CircleAt(Mathf.Max(0, route.SummitPad.Y - route.Station(station).Y)); }
         NpcPersona? persona = Pick(station, circle);
         if (persona == null)
         {

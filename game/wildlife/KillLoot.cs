@@ -93,6 +93,7 @@ public partial class KillLoot : Resource
             }), 0.0f, 1.0f, TossSeconds);
             dropped.Add(loot);
             names.Add(item.DisplayName);
+            GameEvents.PublishLootDropped(loot, item.ItemId, landing);
         }
         if (names.Count > 0)
         {

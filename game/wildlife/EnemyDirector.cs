@@ -67,6 +67,7 @@ public partial class EnemyDirector : Node3D
     private bool _hasCarrier;
     private float _next;
     private int _debugKind;
+    private int _spawnInterest;
     private PhysicsRayQueryParameters3D? _ray;
 
     public override void _Ready()
@@ -105,6 +106,7 @@ public partial class EnemyDirector : Node3D
 
     private void OnWake(string speciesId, string cause)
     {
+        if (!GameEvents.MaySimulateWorld) { return; }
         EnemySpecies? species = null;
         foreach (EnemySpecies kind in Wakeable)
         {
@@ -129,6 +131,7 @@ public partial class EnemyDirector : Node3D
     public List<HumanoidEnemy> Ambush(Vector3 at, int count)
     {
         List<HumanoidEnemy> brought = new();
+        if (!GameEvents.MaySimulateWorld) { return brought; }
         List<EnemySpecies> kinds = new();
         foreach (EnemySpecies kind in Species)
         {
@@ -218,6 +221,7 @@ public partial class EnemyDirector : Node3D
 
     public override void _PhysicsProcess(double delta)
     {
+        if (!GameEvents.MaySimulateWorld) { if (_enemies.Count > 0) { Clear(); } return; }
         _enemies.RemoveAll(enemy => !IsInstanceValid(enemy) || enemy.IsQueuedForDeletion());
         if (!_hasCarrier)
         {
@@ -225,7 +229,7 @@ public partial class EnemyDirector : Node3D
         }
         foreach (HumanoidEnemy enemy in _enemies)
         {
-            Vector3 apart = enemy.GlobalPosition - _carrier.Position;
+            Vector3 apart = enemy.GlobalPosition - WorldInterests.Nearest(enemy.GlobalPosition, _carrier.Position);
             if (new Vector2(apart.X, apart.Z).Length() > GoneDistance)
             {
                 enemy.QueueFree();
@@ -246,7 +250,7 @@ public partial class EnemyDirector : Node3D
             return;
         }
         _next = _random.RandfRange(Interval.X, Interval.Y);
-        if (GameEvents.IsDowned || GameEvents.InShelter || NearFire(_carrier.Position) || Species.Length == 0)
+        if (Species.Length == 0)
         {
             return;
         }
@@ -277,6 +281,7 @@ public partial class EnemyDirector : Node3D
     public HumanoidEnemy Bring(EnemySpecies species, Vector3 at)
     {
         HumanoidEnemy enemy = HumanoidEnemy.Create(species);
+        if (GameEvents.SharedWorldActive) { enemy.RagdollDeath = false; }
         enemy.Toughness = 1.0f + ToughnessPerCircle * Circle();
         AddChild(enemy);
         enemy.GlobalPosition = at + Vector3.Up * 0.2f;
@@ -292,6 +297,7 @@ public partial class EnemyDirector : Node3D
 
     public override void _Input(InputEvent @event)
     {
+        if (!GameEvents.MaySimulateWorld) { return; }
         if (@event is not InputEventKey key || !key.Pressed || key.Echo || key.Keycode != SpawnKey || !key.AltPressed)
         {
             return;
@@ -411,7 +417,8 @@ public partial class EnemyDirector : Node3D
     {
         _ray ??= new PhysicsRayQueryParameters3D { CollisionMask = GroundMask };
         PhysicsDirectSpaceState3D space = GetWorld3D().DirectSpaceState;
-        Vector3 carrier = _carrier.Position;
+        Vector3 carrier = WorldInterests.At(_spawnInterest++, _carrier.Position);
+        if (NearFire(carrier) || (carrier.IsEqualApprox(_carrier.Position) && (GameEvents.IsDowned || GameEvents.InShelter))) { ground = carrier; return false; }
         for (int attempt = 0; attempt < SpawnAttempts; attempt++)
         {
             float angle = Mathf.DegToRad(_random.RandfRange(-SpawnSpread, SpawnSpread));

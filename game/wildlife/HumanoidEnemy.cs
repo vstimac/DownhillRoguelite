@@ -17,7 +17,7 @@ namespace DownhillRoguelite.Wildlife;
 /// at it (GameEvents.MeleeSwung) it may guard, taking almost nothing from the front, or roll aside, and
 /// then hits back. The carrier's sword finds it as an IMeleeTarget.
 /// </summary>
-public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
+public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
 {
     public enum Phase { Wander, Chase, Attack, Guard, Dodge, Stagger, Gloat, Dead }
 
@@ -61,6 +61,8 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     [Export] public float MaxPushSpeedChange { get; set; } = 0.5f;
     /// <summary>The carrier's radius when its blows reach for them, in m.</summary>
     [Export] public float CarrierRadius { get; set; } = 0.3f;
+    /// <summary>Co-op: the current target counts as this much nearer, so it doesn't flit between players.</summary>
+    [Export] public float TargetLoyalty { get; set; } = 0.75f;
     /// <summary>It stops this share of its reach short of the carrier to swing.</summary>
     [Export] public float StandOffShare { get; set; } = 0.75f;
     /// <summary>How far from the carrier a swing makes it react (beyond its own reach), in m.</summary>
@@ -105,6 +107,9 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     public int Dodges { get; private set; }
     public int Wounds { get; private set; }
     public bool Aware => _aware;
+    /// <summary>Whose carrier it's after: 0 this machine's, else that player's (co-op; tests).</summary>
+    public long TargetPeer => _targetPeer;
+    public Vector3 TargetFeet => _carrier;
     public string Cause => Species?.DisplayName ?? "an enemy";
 
     private readonly RandomNumberGenerator _random = new();
@@ -114,6 +119,11 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     private AudioStreamPlayer3D? _cry;
     private Vector3 _carrier;
     private bool _carrierKnown;
+    /// <summary>This machine's carrier; in co-op the target may be another player's (_targetPeer, 0 here).</summary>
+    private Vector3 _localCarrier;
+    private bool _localKnown;
+    private long _targetPeer;
+    private bool _targetDown;
     private bool _aware;
     private float _phaseTime;
     private float _cooldown;
@@ -132,6 +142,53 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     private float _stuckTime;
     /// <summary>Time left in the opening after a parry: it neither swings nor guards nor dodges.</summary>
     private float _opening;
+
+    /// <summary>Another machine's enemy (co-op): moved and animated by NetMobs, its blows sent to its owner.</summary>
+    public bool Puppet { get; set; }
+
+    public int NetKind => 0;
+    public string NetSpecies => Species?.ResourcePath ?? "";
+    public bool NetPuppet => Puppet;
+    public float NetHealth => Health / Mathf.Max(MaxHealth, 0.01f);
+    public bool NetDown => State == Phase.Dead;
+    public string NetClip => Clip;
+    public float NetClipPosition
+    {
+        get
+        {
+            if (Animations != null && Animations.IsPlaying())
+            {
+                return (float)Animations.CurrentAnimationPosition;
+            }
+            return 0.0f;
+        }
+    }
+    public float NetClipSpeed => Animations?.SpeedScale ?? 1.0f;
+
+    /// <summary>A puppet plays what its owner plays, shows its health, and falls when it dies there.</summary>
+    public void NetShow(string clip, float clipPosition, float clipSpeed, float health, bool down)
+    {
+        if (!Puppet || Species == null || State == Phase.Dead)
+        {
+            return;
+        }
+        Health = Mathf.Clamp(health, 0.0f, 1.0f) * MaxHealth;
+        ShowHealth();
+        if (down)
+        {
+            Die();
+            return;
+        }
+        if (clip.Length > 0 && Animations != null && Animations.HasAnimation(clip))
+        {
+            Play(clip, ClipBlend, Mathf.Clamp(clipSpeed, 0.0f, 4.0f));
+            double length = Animations.CurrentAnimationLength;
+            if (length > 0.0 && clipPosition <= length && Mathf.Abs(Animations.CurrentAnimationPosition - clipPosition) > 0.3)
+            {
+                Animations.Seek(clipPosition, true);
+            }
+        }
+    }
 
     /// <summary>A new enemy of this kind (add it to the tree, then place it).</summary>
     public static HumanoidEnemy Create(EnemySpecies species)
@@ -153,7 +210,14 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         _gravity = ProjectSettings.GetSetting("physics/3d/default_gravity").AsSingle();
         CollisionLayer = 0;
         CollisionMask = GroundMask | PropMask;
-        CharacterSpacing.Register(this, Species.BodyRadius, Species.Mass);
+        if (Puppet)
+        {
+            CollisionMask = 0;
+        }
+        else
+        {
+            CharacterSpacing.Register(this, Species.BodyRadius, Species.Mass);
+        }
         FloorSnapLength = 0.5f;
         FloorMaxAngle = Mathf.DegToRad(60.0f);
         AddChild(new CollisionShape3D
@@ -180,9 +244,13 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         _wanderTarget = _home;
         _wanderWait = _random.RandfRange(WanderPause.X, WanderPause.Y);
         AddToGroup(IMeleeTarget.Group);
+        Play(IdleClip, 0.0f, 1.0f);
+        if (Puppet)
+        {
+            return;
+        }
         GameEvents.LocomotionUpdated += OnLocomotion;
         GameEvents.MeleeSwung += OnMeleeSwung;
-        Play(IdleClip, 0.0f, 1.0f);
     }
 
     public override void _ExitTree()
@@ -257,8 +325,88 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     /// <summary>Tells it where the carrier is (their feet), as the locomotion events do.</summary>
     public void Track(Vector3 carrierFeet)
     {
-        _carrier = carrierFeet;
-        _carrierKnown = true;
+        _localCarrier = carrierFeet;
+        _localKnown = true;
+        if (_targetPeer == 0)
+        {
+            _carrier = carrierFeet;
+            _carrierKnown = true;
+        }
+    }
+
+    /// <summary>The player who is now the target: the nearest one standing (co-op: any player's carrier), keeping the current one unless another is clearly nearer.</summary>
+    private void PickTarget(bool keep)
+    {
+        NetCarrier[] others = GameEvents.OtherCarriers;
+        if (keep && _targetPeer != 0)
+        {
+            // Mid-blow: no switching, but follow where that player is now.
+            foreach (NetCarrier other in others)
+            {
+                if (other.Peer == _targetPeer)
+                {
+                    _carrier = other.Feet;
+                    _targetDown = other.Down;
+                    return;
+                }
+            }
+            _targetDown = true;
+            return;
+        }
+        if (keep)
+        {
+            return;
+        }
+        if (others.Length == 0)
+        {
+            _targetPeer = 0;
+            _targetDown = GameEvents.IsDowned || GameEvents.CarrierBleeding;
+            if (_localKnown)
+            {
+                _carrier = _localCarrier;
+            }
+            return;
+        }
+        float best = float.MaxValue;
+        long peer = _targetPeer;
+        Vector3 feet = _carrier;
+        bool down = true;
+        if (_localKnown && !GameEvents.IsDowned && !GameEvents.CarrierBleeding)
+        {
+            best = Score(_localCarrier, 0);
+            peer = 0;
+            feet = _localCarrier;
+            down = false;
+        }
+        foreach (NetCarrier other in others)
+        {
+            if (other.Down)
+            {
+                continue;
+            }
+            float score = Score(other.Feet, other.Peer);
+            if (score < best)
+            {
+                best = score;
+                peer = other.Peer;
+                feet = other.Feet;
+                down = false;
+            }
+        }
+        _targetPeer = peer;
+        _carrier = feet;
+        _targetDown = down;
+        _carrierKnown = _localKnown || best < float.MaxValue;
+    }
+
+    private float Score(Vector3 feet, long peer)
+    {
+        float distance = new Vector2(feet.X - GlobalPosition.X, feet.Z - GlobalPosition.Z).Length();
+        if (peer == _targetPeer)
+        {
+            distance *= TargetLoyalty;
+        }
+        return distance;
     }
 
     private void OnLocomotion(LocomotionSnapshot snapshot)
@@ -310,9 +458,15 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
             return;
         }
         float dt = (float)delta;
+        if (Puppet)
+        {
+            // The host owns corpse sinking and removal too, including late joiners.
+            return;
+        }
         _phaseTime += dt;
         _cooldown = Mathf.Max(0.0f, _cooldown - dt);
         _opening = Mathf.Max(0.0f, _opening - dt);
+        PickTarget(State == Phase.Attack);
         Vector3 toCarrier = _carrier - GlobalPosition;
         toCarrier.Y = 0.0f;
         float distance = toCarrier.Length();
@@ -376,7 +530,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
                 }
                 break;
             case Phase.Gloat:
-                if (!GameEvents.IsDowned)
+                if (!_targetDown)
                 {
                     Enter(Phase.Chase);
                 }
@@ -415,7 +569,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
 
     private Vector3 Chase(Vector3 direction, float distance, float dt)
     {
-        if (GameEvents.IsDowned)
+        if (_targetDown)
         {
             Enter(Phase.Gloat);
             return Vector3.Zero;
@@ -555,7 +709,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         {
             bool inReach = distance <= Species.Reach + CarrierRadius;
             bool inFront = (-GlobalBasis.Z).Dot(direction) >= Mathf.Cos(Mathf.DegToRad(Species.ReachAngle));
-            if (_carrierKnown && inReach && inFront && !GameEvents.IsDowned)
+            if (_carrierKnown && inReach && inFront && !_targetDown)
             {
                 _struck = true;
                 Land(direction);
@@ -574,6 +728,16 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         if (away.LengthSquared() < 0.0001f)
         {
             away = -GlobalBasis.Z;
+        }
+        if (_targetPeer != 0)
+        {
+            // Another player's carrier: their machine takes the blow (their shield may stop it).
+            HitsLanded++;
+            Say(Species!.HitSounds);
+            float theirPush = Species.Push(_attack);
+            GameEvents.PublishNetStrike(new NetStrike(_targetPeer, Species.Damage(_attack), away.Normalized(), theirPush,
+                theirPush >= Species.KnockdownPush, Species.LiftShare, Species.StaggerHeight, Cause));
+            return;
         }
         if (GameEvents.TryBlock(away, Cause))
         {
@@ -648,6 +812,11 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         {
             return false;
         }
+        if (Puppet)
+        {
+            GameEvents.PublishNetMobHit(this, damage, Vector3.Zero, "bleeding");
+            return true;
+        }
         Health = Mathf.Max(0.0f, Health - damage);
         ShowHealth();
         if (Health <= 0.0f)
@@ -662,6 +831,13 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
     {
         if (!CanBeHit || Species == null)
         {
+            return;
+        }
+        if (Puppet)
+        {
+            // Its owner decides what the blow does; here it only cries out.
+            Say(Species.HurtSounds);
+            GameEvents.PublishNetMobHit(this, damage, push, source);
             return;
         }
         _aware = true;
@@ -739,6 +915,11 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget
         }
         Velocity = Vector3.Zero;
         RemoveFromGroup(IMeleeTarget.Group);
+        if (Puppet)
+        {
+            // Its owner counts the kill and drops the loot (shared with everyone).
+            return;
+        }
         Loot ??= new KillLoot();
         string name = Species!.DisplayName;
         if (name.Length == 0)

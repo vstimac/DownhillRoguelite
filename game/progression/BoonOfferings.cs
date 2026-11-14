@@ -36,6 +36,7 @@ public partial class BoonOfferings : Node3D
         GameEvents.RespawnRequested += Clear;
         GameEvents.ContractResolved += OnContractResolved;
         GameEvents.RelicDelivered += OnRelicDelivered;
+        GameEvents.SharedPickupTaken += OnSharedTaken;
     }
 
     public override void _ExitTree()
@@ -44,6 +45,7 @@ public partial class BoonOfferings : Node3D
         GameEvents.RespawnRequested -= Clear;
         GameEvents.ContractResolved -= OnContractResolved;
         GameEvents.RelicDelivered -= OnRelicDelivered;
+        GameEvents.SharedPickupTaken -= OnSharedTaken;
     }
 
     /// <summary>The boons a station offers in this run: the same for the same mountain.</summary>
@@ -69,6 +71,7 @@ public partial class BoonOfferings : Node3D
     /// <summary>Lays out a station's offerings (once per station per run).</summary>
     public void Offer(int station)
     {
+        if (GameEvents.WasSharedPickupTaken("boon:" + station)) { return; }
         if (station < 1 || (RequireCompletedWork && !_earned.Contains(station))) { return; }
         IRouteQuery? route = _run?.Route;
         if (route == null || !_offered.Add(station))
@@ -93,6 +96,16 @@ public partial class BoonOfferings : Node3D
             AddChild(stone);
             stone.GlobalPosition = at;
             _stones.Add(stone);
+        }
+    }
+
+    private void OnSharedTaken(string key)
+    {
+        if (!key.StartsWith("boon:", System.StringComparison.Ordinal) || !int.TryParse(key.Substring(5), out int station)) { return; }
+        for (int i = _stones.Count - 1; i >= 0; i--)
+        {
+            if (_stones[i].Station == station)
+            { if (IsInstanceValid(_stones[i])) { _stones[i].QueueFree(); } _stones.RemoveAt(i); }
         }
     }
 

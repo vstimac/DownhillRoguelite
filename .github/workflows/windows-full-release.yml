@@ -70,6 +70,8 @@ jobs:
           dotnet build -c Release
           if ($LASTEXITCODE -ne 0) { throw 'C# build failed' }
       - name: Export complete Windows build
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
         shell: pwsh
         working-directory: game
         run: |
@@ -80,7 +82,8 @@ jobs:
           if (-not (Test-Path build/windows/DownhillRoguelite.pck)) { throw 'Missing game PCK' }
           $files = Get-ChildItem build/windows -Recurse -File
           if ($files.Count -lt 2) { throw 'Incomplete export' }
-          Compress-Archive -Path build/windows/* -DestinationPath ../DownhillRoguelite-windows-full.zip -Force
+          python scripts/package_windows.py build/windows ../DownhillRoguelite-windows-full.zip "$env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0) { throw 'Windows packaging failed' }
       - uses: actions/upload-artifact@v4
         with:
           name: DownhillRoguelite-windows-full

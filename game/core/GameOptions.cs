@@ -85,6 +85,8 @@ public static class GameOptions
     public static string Character { get; private set; } = "modular";
     public static Color BaseShirtColour { get; private set; } = new(0.28f, 0.35f, 0.43f);
     public static Color BasePackColour { get; private set; } = new(0.25f, 0.34f, 0.22f);
+    /// <summary>The name other players see in co-op (empty: not chosen yet).</summary>
+    public static string NetName { get; private set; } = "";
 
     private static bool _loaded;
     private static string _path = DefaultPath;
@@ -162,6 +164,7 @@ public static class GameOptions
         Filter = (ColourFilter)(int)file.GetValue(Section, "colour_filter", (int)Filter);
         UiScale = Mathf.Clamp((float)file.GetValue(Section, "ui_scale", UiScale), 0.75f, 1.5f);
         Character = (string)file.GetValue(Section, "character", Character);
+        NetName = (string)file.GetValue(Section, "net_name", NetName);
         BaseShirtColour = (Color)file.GetValue(Section, "base_shirt_colour", BaseShirtColour);
         BasePackColour = (Color)file.GetValue(Section, "base_pack_colour", BasePackColour);
         MasterVolume = Volume(file, "volume_master", MasterVolume);
@@ -197,6 +200,7 @@ public static class GameOptions
     public static void SetFilter(ColourFilter filter) => Set(() => Filter = filter);
     public static void SetUiScale(float scale) => Set(() => UiScale = Mathf.Clamp(scale, 0.75f, 1.5f));
     public static void SetCharacter(string id) => Set(() => Character = id);
+    public static void SetNetName(string name) => Set(() => NetName = name.Trim());
     public static void SetBaseOutfitColours(Color shirt, Color pack) => Set(() => { BaseShirtColour = shirt; BasePackColour = pack; });
     public static void SetMasterVolume(float volume) => Set(() => MasterVolume = Mathf.Clamp(volume, 0.0f, 1.0f));
     public static void SetMusicVolume(float volume) => Set(() => MusicVolume = Mathf.Clamp(volume, 0.0f, 1.0f));
@@ -223,11 +227,13 @@ public static class GameOptions
     public static void RestoreDefaults()
     {
         string character = Character;
+        string netName = NetName;
         Color shirt = BaseShirtColour, pack = BasePackColour;
         Set(() =>
         {
             ResetToDefaults();
             Character = character;
+            NetName = netName;
             BaseShirtColour = shirt; BasePackColour = pack;
         });
     }
@@ -257,6 +263,7 @@ public static class GameOptions
         file.SetValue(Section, "colour_filter", (int)Filter);
         file.SetValue(Section, "ui_scale", UiScale);
         file.SetValue(Section, "character", Character);
+        file.SetValue(Section, "net_name", NetName);
         file.SetValue(Section, "base_shirt_colour", BaseShirtColour);
         file.SetValue(Section, "base_pack_colour", BasePackColour);
         file.SetValue(Section, "volume_master", MasterVolume);

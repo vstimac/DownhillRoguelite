@@ -25,6 +25,7 @@ config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 PatchLoader="*res://core/PatchLoader.cs"
 RunState="*res://core/RunState.cs"
 AchievementTracker="*res://progression/AchievementTracker.cs"
+NetSession="*res://network/NetSession.cs"
 WorldClock="*res://core/WorldClock.cs"
 DebugDraw3D="*res://debug/DebugDraw3D.cs"
 PlaytestCapture="*res://debug/PlaytestCapture.tscn"

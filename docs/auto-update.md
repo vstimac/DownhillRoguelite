@@ -16,7 +16,7 @@ Play-testers stay on the newest release without downloading anything by hand.
      menu shows the progress; no terminal, PowerShell or extra programs are needed. A running
      program's files can be replaced on Linux, so no separate updater is used.
 
-Options → Gameplay → **Check for new versions** turns the check off. "Update game.bat" in the game
+Options Ã¢â€ â€™ Gameplay Ã¢â€ â€™ **Check for new versions** turns the check off. "Update game.bat" in the game
 folder does the same by hand.
 
 ## How it decides (`game/core/update/UpdatePlanner.cs`)
@@ -106,3 +106,12 @@ CI's only when a release has nothing else for that folder.
   on any system; `debug/tests/UpdateTests.tscn` installs local `.tar.gz` files with it).
 - `update.ps1 -GameDir <folder> -Feed <file.json> [-CheckOnly]` runs the updater on its own
   (exit 10 = update available).
+
+## Startup changes require a full build
+
+Autoloads are registered before `PatchLoader` mounts resource patches. A patch that adds
+`NetSession` to `project.binary` cannot add that autoload to an already-started older build.
+Beta 2.9.2 therefore publishes full Windows and Linux builds without small update assets for
+the older bases. The updater selects the full build and replaces the old patch directory;
+the resulting folder becomes the new update base. Keep this boundary whenever startup
+settings or autoload registration change, and test hosting from an actual upgraded folder.

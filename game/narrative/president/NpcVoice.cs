@@ -36,6 +36,22 @@ public partial class NpcVoice : Node3D
     public string Variant { get; set; } = VoicePackLine.Outdoor;
     public bool Speaking => _current.Length > 0;
     public string CurrentLine => _current;
+    public int LineSequence { get; private set; }
+    public float LineElapsed { get; private set; }
+    private string _sharedLine = "";
+    public void ApplySharedLine(long author, int sequence, string line, float elapsed)
+    {
+        string stamp = author + ":" + sequence + ":" + line;
+        if (_sharedLine == stamp) { return; }
+        _sharedLine = stamp;
+        if (line.Length == 0) { Skip(); return; }
+        if (Say(line))
+        {
+            _left = Mathf.Max(0.01f, _left - elapsed);
+            LineElapsed = elapsed;
+            if (_player?.Playing == true) { _player.Seek(elapsed); }
+        }
+    }
     /// <summary>The last line that ended, and whether it was skipped (tests).</summary>
     public string LastFinished { get; private set; } = "";
 
@@ -90,6 +106,7 @@ public partial class NpcVoice : Node3D
             seconds = ReadingTime(line.Text) + Tail;
         }
         _current = line.Id;
+        LineSequence++; LineElapsed = 0;
         _left = seconds;
         // The voice stays as recorded; the subtitle follows Options → Dialogue text.
         GameEvents.PublishSpeech(new SpeechLine(SpeakerName, line.Shown, GlobalPosition + Vector3.Up * 1.6f, seconds));
@@ -128,6 +145,7 @@ public partial class NpcVoice : Node3D
             return;
         }
         _left -= (float)delta;
+        LineElapsed += (float)delta;
         if (_left <= 0.0f)
         {
             Finish(false);

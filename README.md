@@ -118,6 +118,21 @@ The setting takes inspiration from Dante's nine circles, with the philosophical 
 
 Features may vary by released build and development branch.
 
+## Co-op (beta)
+
+Solo and co-op are developed together on `main` and ship in the same build.
+
+Up to four carriers descend the same mountain together. Open **Co-op** on the title screen, pick a nickname and your character, then **Host** or **Join** with the host's address (on a home network, or over the internet through a forwarded port; enter the address and port on the page).
+
+- Everyone shares the mountain, the clock and the weather; sleeping by a fire passes the night for the whole party.
+- A supply only one player can pick up; items you drop and loot from kills appear for everyone.
+- Enemies and night beasts hunt every carrier, not just the host.
+- A spider web torn by one player comes down for everyone.
+- **Down, not dead:** a killing blow while a friend still stands knocks you down for 30 s. A friend holding **E** beside you for 3 s helps you up. If nobody helps, you fall and come back at the last station; meanwhile you watch a teammate.
+- **B** marks the spot you look at for everyone; **Y** opens the party chat.
+
+This is a beta: movement trusts each player's machine, and wildlife, travellers, contracts and relics are not shared yet.
+
 ## Controls (keyboard and mouse)
 
 | Key | Action |

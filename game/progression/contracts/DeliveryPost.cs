@@ -19,6 +19,9 @@ public partial class DeliveryPost : Node3D, IInteractable, IDescribed
     [Export] public float LabelRange { get; set; } = 40.0f;
 
     public ContractInstance? Contract { get; private set; }
+    public bool SharedProxy { get; set; }
+    public void ShowSharedCondition(float condition)
+    { if (SharedProxy && Contract != null) { Contract.Condition = condition; Refresh(); } }
     /// <summary>Whether the first E was pressed and the next one hands the cargo over.</summary>
     public bool Armed => _armTimer > 0.0f;
 
@@ -189,6 +192,7 @@ public partial class DeliveryPost : Node3D, IInteractable, IDescribed
 
     public bool Interact(Node3D interactor)
     {
+        if (SharedProxy) { GameEvents.PublishHint("Your teammate carries this delivery."); return false; }
         if (Contract == null || _director == null)
         {
             return false;
