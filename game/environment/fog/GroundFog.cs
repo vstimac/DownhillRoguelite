@@ -10,8 +10,10 @@ namespace DownhillRoguelite.Environment.Fog;
 /// under it with physics (PhysicsFogGround, a budget of cells per physics frame, nearest first,
 /// cells whose chunk hasn't streamed in tried again later), keeps the patch centred on the carrier
 /// by whole-cell shifts, steps it at a fixed rate and has GroundFogRenderer draw it, blended between
-/// steps. The carrier's movement (GameEvents.LocomotionUpdated) ploughs through it and each
-/// footfall (GameEvents.FootPlacementUpdated) stirs it. Colour follows the time of day.
+/// steps. It lies only among dense trees and low rocks (whatever is in the FogCover.Group says where
+/// those are). The bodies in FogCover.BodyGroup (the carriers' skeletons) part it bone by bone, so it
+/// moves away from the character's model and from nothing else, and each footfall
+/// (GameEvents.FootPlacementUpdated) stirs it. Colour follows the time of day.
 ///
 /// Without a carrier it follows <see cref="Target"/> (the lab's walker). The console's /fog turns it
 /// on and off, picks a debug view, changes any setting live and prints timings. Nothing else reads
@@ -41,11 +43,17 @@ public partial class GroundFog : Node3D
     public double LastSampleMs { get; private set; }
     public double LastFrameMs { get; private set; }
     public int Footfalls { get; private set; }
+    /// <summary>Parts of bodies in the fog at the last step, and how many were looked at.</summary>
+    public int PartsInFog { get; private set; }
+    public int PartsSeen => _points.Count;
+    /// <summary>Share of the patch where fog may lie (0-1).</summary>
+    public float CoverShare { get; private set; }
     public Vector3 Feet => _feet;
 
     private readonly Queue<Vector2I> _queue = new();
     private readonly List<Vector2I> _fresh = new();
     private double _accumulator;
+    private double _sinceBodies;
     private bool _haveFeet;
     private bool _fromCarrier;
     private Vector3 _feet;
@@ -57,6 +65,24 @@ public partial class GroundFog : Node3D
     private WorldClock? _clock;
     private GroundFogDebugView? _debug;
     private readonly System.Diagnostics.Stopwatch _watch = new();
+    private readonly List<Vector2> _coverTrees = new();
+    private readonly List<Vector3> _coverRocks = new();
+    private int _coverVersion = -1;
+    private double _coverAt;
+    private readonly List<Vector3> _points = new();
+    private readonly List<Vector3> _pointVelocities = new();
+    private readonly Dictionary<ulong, BodyTrack> _bodies = new();
+    private ulong _bodyPass;
+
+    /// <summary>One body's bones that part the fog, and where each was a frame ago.</summary>
+    private sealed class BodyTrack
+    {
+        public int[] Bones = Array.Empty<int>();
+        public int[] Children = Array.Empty<int>();
+        public Vector3[] Last = Array.Empty<Vector3>();
+        public bool Moved;
+        public ulong Pass;
+    }
 
     public override void _Ready()
     {
@@ -100,6 +126,7 @@ public partial class GroundFog : Node3D
         if (_haveFeet)
         {
             Simulation.CentreOn(_feet.X, _feet.Z);
+            LayCover();
             QueueUnknown();
         }
         Renderer?.QueueFree();
@@ -124,6 +151,7 @@ public partial class GroundFog : Node3D
             return;
         }
         Simulation.Reset(Simulation.OriginX, Simulation.OriginZ);
+        LayCover();
         _queue.Clear();
         QueueUnknown();
     }
@@ -185,6 +213,7 @@ public partial class GroundFog : Node3D
         {
             _haveFeet = true;
             Simulation.CentreOn(feet.X, feet.Z);
+            LayCover();
             _queue.Clear();
             QueueUnknown();
             return;
@@ -206,7 +235,176 @@ public partial class GroundFog : Node3D
             dz = 0;
         }
         Simulation.Shift(dx, dz);
+        LayCover();
         QueueUnknown();
+    }
+
+    /// <summary>
+    /// Lays out where the fog may lie from everything in FogCover.Group (the terrain's chunks): among
+    /// dense trees and low rocks. Done whenever the patch moves and when chunks come or go.
+    /// </summary>
+    public void LayCover()
+    {
+        if (Simulation == null || !IsInsideTree())
+        {
+            return;
+        }
+        GroundFogSimulation sim = Simulation;
+        _coverVersion = FogCover.Version;
+        _coverAt = Time.GetTicksMsec() / 1000.0;
+        _coverTrees.Clear();
+        _coverRocks.Clear();
+        foreach (Node node in GetTree().GetNodesInGroup(FogCover.Group))
+        {
+            if (node is IFogCover cover)
+            {
+                cover.GatherFogCover(_coverTrees, _coverRocks);
+            }
+        }
+        sim.BeginCover();
+        foreach (Vector2 tree in _coverTrees)
+        {
+            sim.AddTree(tree.X, tree.Y);
+        }
+        foreach (Vector3 rock in _coverRocks)
+        {
+            sim.AddRock(rock.X, rock.Y, rock.Z);
+        }
+        sim.FinishCover();
+        int covered = 0;
+        foreach (float cover in sim.Cover)
+        {
+            if (cover > 0.5f)
+            {
+                covered++;
+            }
+        }
+        CoverShare = covered / (float)sim.Cover.Length;
+    }
+
+    /// <summary>
+    /// Where the parts of every body in FogCover.BodyGroup are now and how fast each moves: the bones
+    /// named in the settings and the middle of each toward its child, so limbs count along their
+    /// length. With no body in the scene (a lab's walker) the fog is parted at the followed point.
+    /// </summary>
+    private void GatherBodies(double elapsed)
+    {
+        _points.Clear();
+        _pointVelocities.Clear();
+        _bodyPass++;
+        foreach (Node node in GetTree().GetNodesInGroup(FogCover.BodyGroup))
+        {
+            if (node is not Skeleton3D skeleton || !skeleton.IsInsideTree())
+            {
+                continue;
+            }
+            ulong id = skeleton.GetInstanceId();
+            if (!_bodies.TryGetValue(id, out BodyTrack? track))
+            {
+                track = Track(skeleton);
+                _bodies[id] = track;
+            }
+            track.Pass = _bodyPass;
+            Transform3D world = skeleton.GlobalTransform;
+            int slot = 0;
+            for (int k = 0; k < track.Bones.Length; k++)
+            {
+                Vector3 bone = world * skeleton.GetBoneGlobalPose(track.Bones[k]).Origin;
+                AddPart(track, slot++, bone, elapsed);
+                if (track.Children[k] >= 0)
+                {
+                    Vector3 child = world * skeleton.GetBoneGlobalPose(track.Children[k]).Origin;
+                    AddPart(track, slot++, (bone + child) * 0.5f, elapsed);
+                }
+            }
+            track.Moved = true;
+        }
+        if (_bodies.Count > 0 && _bodyPass % 120 == 0)
+        {
+            List<ulong> gone = new();
+            foreach (KeyValuePair<ulong, BodyTrack> body in _bodies)
+            {
+                if (body.Value.Pass != _bodyPass)
+                {
+                    gone.Add(body.Key);
+                }
+            }
+            foreach (ulong id in gone)
+            {
+                _bodies.Remove(id);
+            }
+        }
+    }
+
+    private void AddPart(BodyTrack track, int slot, Vector3 at, double elapsed)
+    {
+        Vector3 velocity = Vector3.Zero;
+        if (track.Moved && elapsed > 0.0)
+        {
+            velocity = (at - track.Last[slot]) / (float)elapsed;
+            // A jump of the whole body (a respawn) is not movement through the fog.
+            if (velocity.LengthSquared() > 20.0f * 20.0f)
+            {
+                velocity = Vector3.Zero;
+            }
+        }
+        track.Last[slot] = at;
+        _points.Add(at);
+        _pointVelocities.Add(velocity);
+    }
+
+    private BodyTrack Track(Skeleton3D skeleton)
+    {
+        List<int> bones = new();
+        string[] wanted = Settings!.BodyBones ?? Array.Empty<string>();
+        bool deform = false;
+        for (int b = 0; b < skeleton.GetBoneCount(); b++)
+        {
+            if (skeleton.GetBoneName(b).StartsWith("DEF-", StringComparison.Ordinal))
+            {
+                deform = true;
+                break;
+            }
+        }
+        for (int b = 0; b < skeleton.GetBoneCount(); b++)
+        {
+            string name = skeleton.GetBoneName(b);
+            // A rig with deform bones has helper bones of the same names; only the deform ones follow the mesh.
+            if (deform && !name.StartsWith("DEF-", StringComparison.Ordinal))
+            {
+                continue;
+            }
+            foreach (string part in wanted)
+            {
+                if (name.Contains(part, StringComparison.OrdinalIgnoreCase))
+                {
+                    bones.Add(b);
+                    break;
+                }
+            }
+        }
+        if (bones.Count == 0)
+        {
+            for (int b = 0; b < skeleton.GetBoneCount(); b++)
+            {
+                bones.Add(b);
+            }
+        }
+        BodyTrack track = new() { Bones = bones.ToArray(), Children = new int[bones.Count] };
+        int parts = 0;
+        for (int k = 0; k < track.Bones.Length; k++)
+        {
+            int[] children = skeleton.GetBoneChildren(track.Bones[k]);
+            track.Children[k] = -1;
+            if (children.Length > 0)
+            {
+                track.Children[k] = children[0];
+                parts++;
+            }
+            parts++;
+        }
+        track.Last = new Vector3[parts];
+        return track;
     }
 
     /// <summary>Queues every cell whose ground is unknown, nearest the carrier first.</summary>
@@ -273,6 +471,11 @@ public partial class GroundFog : Node3D
         }
         LastSampleMs = _watch.Elapsed.TotalMilliseconds;
         double now = Time.GetTicksMsec() / 1000.0;
+        // Chunks arrive in bursts: lay the cover out again a moment after the last change.
+        if (_coverVersion != FogCover.Version && now - _coverAt >= 0.25)
+        {
+            LayCover();
+        }
         if (_queue.Count == 0 && now >= _retryAt)
         {
             _retryAt = now + Settings.RetrySeconds;
@@ -304,10 +507,23 @@ public partial class GroundFog : Node3D
         _watch.Restart();
         double step = 1.0 / Math.Max(1.0f, Settings.StepsPerSecond);
         _accumulator += delta;
+        _sinceBodies += delta;
         int steps = 0;
+        if (_accumulator >= step)
+        {
+            GatherBodies(_sinceBodies);
+            _sinceBodies = 0.0;
+        }
         while (_accumulator >= step && steps < Settings.MaxStepsPerFrame)
         {
-            Simulation.Push(_feet, _velocity, (float)step);
+            if (_points.Count > 0)
+            {
+                PartsInFog = Simulation.PushBody(_points, _pointVelocities, (float)step);
+            }
+            else
+            {
+                PartsInFog = Simulation.Push(_feet, _velocity, (float)step);
+            }
             Simulation.Step((float)step);
             _accumulator -= step;
             steps++;
@@ -466,6 +682,7 @@ public partial class GroundFog : Node3D
         return $"Fog {state}, {sim.Size}x{sim.Size} cells of {sim.Cell:0.00} m, steps {sim.Steps}\n"
             + $"step {sim.LastStepMs:0.00} ms, upload {upload:0.00} ms, frame {LastFrameMs:0.00} ms, sampling {LastSampleMs:0.00} ms\n"
             + $"ground known {sim.KnownCells}/{sim.Size * sim.Size}, queued {_queue.Count}, sampled {Sampled}, missed {Missed}\n"
-            + $"density under the carrier {sim.DensityAt(_feet.X, _feet.Z):0.00}, fastest flow {sim.FastestFlow():0.00} m/s, footfalls {Footfalls}";
+            + $"density under the carrier {sim.DensityAt(_feet.X, _feet.Z):0.00}, fastest flow {sim.FastestFlow():0.00} m/s, footfalls {Footfalls}\n"
+            + $"fog may lie on {CoverShare * 100.0f:0} % of the patch ({_coverTrees.Count} trees, {_coverRocks.Count} low rocks), body parts in the fog {PartsInFog}/{PartsSeen}";
     }
 }

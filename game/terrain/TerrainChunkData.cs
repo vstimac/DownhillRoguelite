@@ -35,6 +35,9 @@ public sealed class TerrainChunkData
     /// </summary>
     public byte[] CarpetMask { get; set; } = System.Array.Empty<byte>();
     public List<ObstacleData> Obstacles { get; } = new();
+    /// <summary>Where the ground fog may lie: the standing trees (world X, Z) and the low rocks (world X, Z, weight).</summary>
+    public List<Vector2> FogTrees { get; } = new();
+    public List<Vector3> FogRocks { get; } = new();
     /// <summary>Trees, grass and flowers, by biome.</summary>
     public PlantBuffer Plants { get; } = new();
     /// <summary>Time spent generating on the background thread, in ms.</summary>

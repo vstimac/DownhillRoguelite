@@ -1,20 +1,31 @@
 using System.Collections.Generic;
+using DownhillRoguelite.Core;
 using DownhillRoguelite.Environment.Fog;
 using Godot;
 
 namespace DownhillRoguelite.Debug;
 
 /// <summary>
-/// Ground fog lab: a slope with a hollow, a gully, trunks and rocks, and a walker (a capsule) that
-/// goes round a loop through them, stepping left and right, so the fog can be watched pouring
-/// downhill, pooling, parting around the trunks and closing behind. The camera follows the walker.
+/// Ground fog lab: a slope with a hollow, a gully, groves of trunks, stray trunks and rocks, and a
+/// walker (a capsule) that goes round a loop through them, stepping left and right, so the fog can be
+/// watched lying in the groves and among the low rocks (and nowhere else), pouring downhill, pooling,
+/// parting around the trunks and closing behind. The camera follows the walker.
 /// Keys: F fog on/off, 1-4 debug view (off, density, flow, ground), Space sprint, P pause the walker,
 /// right-drag orbit, wheel zoom.
 /// Benchmark: godot --path . res://debug/GroundFogLab.tscn -- --fog-bench (prints frame times with
 /// the fog on and off, then quits).
 /// </summary>
-public partial class GroundFogLab : Node3D
+public partial class GroundFogLab : Node3D, IFogCover
 {
+    private readonly List<Vector2> _trees = new();
+    private readonly List<Vector3> _rocks = new();
+
+    public void GatherFogCover(List<Vector2> trees, List<Vector3> rocks)
+    {
+        trees.AddRange(_trees);
+        rocks.AddRange(_rocks);
+    }
+
     [Export] public GroundFog? Fog { get; set; }
     [Export] public Camera3D? Camera { get; set; }
     [Export] public int GroundPoints { get; set; } = 161;
@@ -56,6 +67,8 @@ public partial class GroundFogLab : Node3D
     {
         BuildGround();
         BuildObstacles();
+        AddToGroup(FogCover.Group);
+        FogCover.Changed();
         _walker = new Node3D { Name = "Walker" };
         AddChild(_walker);
         _walker.AddChild(new MeshInstance3D
@@ -154,14 +167,24 @@ public partial class GroundFogLab : Node3D
         RandomNumberGenerator random = new() { Seed = 1907 };
         StandardMaterial3D bark = new() { AlbedoColor = new Color(0.3f, 0.22f, 0.16f) };
         StandardMaterial3D stone = new() { AlbedoColor = new Color(0.5f, 0.5f, 0.52f), Roughness = 0.9f };
-        for (int i = 0; i < 26; i++)
+        // Four groves on the walker's loop (dense: fog lies in them) and a dozen stray trunks (none round those).
+        for (int i = 0; i < 60; i++)
         {
             float x = random.RandfRange(-30.0f, 30.0f);
             float z = random.RandfRange(-30.0f, 30.0f);
-            if (Mathf.Abs(new Vector2(x, z).Length() - LoopRadius) < 1.6f)
+            if (i < 48)
+            {
+                float grove = (i % 4) * Mathf.Pi * 0.5f + 0.4f;
+                float out_ = random.RandfRange(0.0f, 5.5f);
+                float turn = random.RandfRange(-Mathf.Pi, Mathf.Pi);
+                x = Mathf.Cos(grove) * LoopRadius + Mathf.Cos(turn) * out_;
+                z = Mathf.Sin(grove) * LoopRadius + Mathf.Sin(turn) * out_;
+            }
+            if (Mathf.Abs(new Vector2(x, z).Length() - LoopRadius) < 1.2f)
             {
                 continue;
             }
+            _trees.Add(new Vector2(x, z));
             float radius = random.RandfRange(0.2f, 0.4f);
             Add("Trunk", new Vector3(x, Height(x, z) + 4.0f, z), new CylinderShape3D { Radius = radius, Height = 8.0f },
                 new CylinderMesh { TopRadius = radius * 0.8f, BottomRadius = radius, Height = 8.0f }, bark);
@@ -175,6 +198,10 @@ public partial class GroundFogLab : Node3D
                 continue;
             }
             float size = random.RandfRange(0.8f, 2.2f);
+            if (size * 0.8f <= 1.4f)
+            {
+                _rocks.Add(new Vector3(x, z, 2.0f));
+            }
             Add("Rock", new Vector3(x, Height(x, z) + size * 0.3f, z), new SphereShape3D { Radius = size * 0.5f },
                 new SphereMesh { Radius = size * 0.5f, Height = size * 0.8f }, stone);
         }

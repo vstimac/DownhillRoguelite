@@ -53,6 +53,8 @@ public partial class CarrierModel : Node3D
 
     public override void _Ready()
     {
+        // The ground fog parts round this body's bones.
+        Driver?.AddToGroup(FogCover.BodyGroup);
         if (Remote)
         {
             Show(CarrierRoster.Load(RosterPath)?.Pick(RemoteCharacter));

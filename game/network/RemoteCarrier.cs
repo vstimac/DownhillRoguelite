@@ -88,6 +88,7 @@ public partial class RemoteCarrier : CharacterBody3D
             foreach (Node node in _driverModel.FindChildren("*", "Skeleton3D", true, false))
             {
                 _driver = node as Skeleton3D;
+                _driver?.AddToGroup(FogCover.BodyGroup);
                 break;
             }
             foreach (Node node in _driverModel.FindChildren("*", "AnimationPlayer", true, false))

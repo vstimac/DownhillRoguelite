@@ -690,6 +690,7 @@ public sealed class TerrainGenerator
         PlacePlants(data, coord, corner);
         PlacePebbles(data, coord, corner);
         PlaceGroundCover(data, coord, corner);
+        NoteFogCover(data);
         data.BuildMilliseconds = timer.Elapsed.TotalMilliseconds;
         return data;
     }
@@ -1504,6 +1505,36 @@ public sealed class TerrainGenerator
         pathWeight = PathWeight(x, z, out RouteKind kind);
         surface = Classify(x, z, slope, pathWeight, kind);
         return true;
+    }
+
+    /// <summary>A rock taller than this stands out of the ground fog instead of holding it, in m.</summary>
+    public const float FogLowRock = 1.4f;
+
+    /// <summary>
+    /// Notes what holds ground fog in this chunk: every standing tree, and the low rocks (loose
+    /// stones weighted by their height, a knee-high one counting 1; low boulders counting 2).
+    /// </summary>
+    private void NoteFogCover(TerrainChunkData data)
+    {
+        for (int i = 0; i < data.Plants.Count; i++)
+        {
+            PlantData plant = data.Plants[i];
+            if (plant.Kind == PlantKind.Tree)
+            {
+                data.FogTrees.Add(new Vector2(plant.Position.X, plant.Position.Z));
+            }
+            else if (plant.Kind == PlantKind.Rock && plant.Scale <= FogLowRock)
+            {
+                data.FogRocks.Add(new Vector3(plant.Position.X, plant.Position.Z, Mathf.Clamp(plant.Scale / 0.45f, 0.25f, 1.5f)));
+            }
+        }
+        foreach (ObstacleData obstacle in data.Obstacles)
+        {
+            if (obstacle.Kind == ObstacleKind.Boulder && obstacle.Size.Y * (1.0f - _settings.BoulderSink) <= FogLowRock)
+            {
+                data.FogRocks.Add(new Vector3(obstacle.Position.X, obstacle.Position.Z, 2.0f));
+            }
+        }
     }
 
     private void AddCover(TerrainChunkData data, PlantKind kind, string model, Vector3 corner, float lx, float lz, float yaw, float height)

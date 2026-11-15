@@ -85,6 +85,10 @@ public partial class EnvironmentShots : Node3D
             Vector3 sideEye = new(at.X - 6.0f, at.Y + 2.4f, z + 4.0f);
             await Shoot(camera, sideEye, side, Path.Combine(directory, $"{index:D2}_depth{depth:0}_side.png"));
             GD.Print($"SHOT depth {depth:0} at {at}, loaded {streamer.LoadedCount}, waited {waited:0.0}s, biome {generator.BiomeAt(at.X, at.Z, depth)?.Name}");
+            foreach (Node node in GetTree().Root.FindChildren("*", "Node3D", true, false))
+            {
+                if (node is DownhillRoguelite.Environment.Fog.GroundFog fog) { GD.Print("FOG depth " + depth.ToString("0", CultureInfo.InvariantCulture) + ": " + fog.Stats().Replace('\n', '|')); }
+            }
             if (frameTimes)
             {
                 double with = await FrameMilliseconds();

@@ -26,7 +26,7 @@ public partial class GroundFogSettings : Resource
     [ExportGroup("Body")]
     /// <summary>How high the fog stands where its density is 1, in m.</summary>
     [Export] public float Depth { get; set; } = 1.1f;
-    /// <summary>The density the fog settles back to on open, even ground.</summary>
+    /// <summary>The density the fog settles back to among dense trees or low rocks (none lies on open ground).</summary>
     [Export] public float Ambient { get; set; } = 0.7f;
     /// <summary>Extra settled density per metre a cell lies below the ground around it (hollows fill).</summary>
     [Export] public float PoolBoost { get; set; } = 0.9f;
@@ -37,6 +37,17 @@ public partial class GroundFogSettings : Resource
     [Export] public float RecoveryTime { get; set; } = 3.5f;
     /// <summary>The thickest the fog may pile up (density).</summary>
     [Export] public float MaxDensity { get; set; } = 2.2f;
+
+    [ExportGroup("Cover")]
+    /// <summary>How far a tree holds fog around itself, in m.</summary>
+    [Export] public float TreeReach { get; set; } = 7.0f;
+    /// <summary>How many trees must stand close by before any fog lies there, and how many for the full layer (a tree counts 1 at its foot and less with distance, to nothing at TreeReach).</summary>
+    [Export] public float TreesForSome { get; set; } = 1.6f;
+    [Export] public float TreesForFull { get; set; } = 3.2f;
+    /// <summary>The same for low rocks: reach in m, and the weight of rocks close by (a knee-high stone counts 1, a low boulder 2).</summary>
+    [Export] public float RockReach { get; set; } = 3.5f;
+    [Export] public float RocksForSome { get; set; } = 1.2f;
+    [Export] public float RocksForFull { get; set; } = 3.0f;
 
     [ExportGroup("Flow")]
     /// <summary>How hard the fog's own surface slope drives it (m/s² per unit of slope): its speed downhill.</summary>
@@ -60,9 +71,13 @@ public partial class GroundFogSettings : Resource
     [ExportGroup("Carrier")]
     /// <summary>Overall strength of what the carrier does to the fog (1 = as designed).</summary>
     [Export] public float WakeStrength { get; set; } = 1.0f;
-    /// <summary>Radius of the bubble the body clears, in m, and how much wider it gets at a sprint.</summary>
-    [Export] public float PushRadius { get; set; } = 1.1f;
-    [Export] public float SprintRadiusBoost { get; set; } = 0.6f;
+    /// <summary>How far round each part of the body (a bone of the character's model) the fog is cleared, in m, and how much wider at a sprint.</summary>
+    [Export] public float PushRadius { get; set; } = 0.7f;
+    [Export] public float SprintRadiusBoost { get; set; } = 0.25f;
+    /// <summary>A part of the body parts the fog only if it is no higher than this above the fog's top, in m.</summary>
+    [Export] public float BodyReach { get; set; } = 0.15f;
+    /// <summary>Bones of a body that part the fog: those whose names contain one of these (no match: every bone).</summary>
+    [Export] public string[] BodyBones { get; set; } = { "spine", "head", "upper_arm", "forearm", "hand", "thigh", "shin", "foot" };
     /// <summary>The speed counted as a full sprint, in m/s.</summary>
     [Export] public float SprintSpeed { get; set; } = 6.0f;
     /// <summary>How fast the body shoves fog outward (m/s at the middle), and how much of its own velocity it drags along.</summary>

@@ -9,7 +9,7 @@ namespace DownhillRoguelite.Terrain;
 /// Placed at the chunk's corner. Answers surface queries from the generator, so grip
 /// and fall damage vary across the chunk.
 /// </summary>
-public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
+public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
 {
     public Vector2I Coord { get; private set; }
 
@@ -25,6 +25,21 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
     private Material? _woodMaterial;
     private static readonly System.Collections.Generic.Dictionary<Color, StandardMaterial3D> ShrubMaterials = new();
     private StaticBody3D? _treeBody;
+    private Vector2[] _fogTrees = System.Array.Empty<Vector2>();
+    private Vector3[] _fogRocks = System.Array.Empty<Vector3>();
+
+    /// <summary>The ground fog lies among this chunk's trees and low rocks.</summary>
+    public void GatherFogCover(System.Collections.Generic.List<Vector2> trees, System.Collections.Generic.List<Vector3> rocks)
+    {
+        trees.AddRange(_fogTrees);
+        rocks.AddRange(_fogRocks);
+    }
+
+    public override void _EnterTree()
+    {
+        AddToGroup(FogCover.Group);
+        FogCover.Changed();
+    }
 
     /// <summary>Creates the chunk's nodes from generated data. Main thread only.</summary>
     public void Build(TerrainChunkData data, TerrainGenerator generator, SurfaceType?[] surfaces,
@@ -33,6 +48,9 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
     {
         Coord = data.Coord;
         _generator = generator;
+        _fogTrees = data.FogTrees.ToArray();
+        _fogRocks = data.FogRocks.ToArray();
+        FogCover.Changed();
         _surfaces = surfaces;
         _grassMaterial = grassMaterial;
         _rockMaterial = boulderMaterial;
@@ -161,6 +179,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
 
     public override void _ExitTree()
     {
+        FogCover.Changed();
         _plantBuild?.Dispose();
         _plantBuild = null;
         _pendingPlants = null;

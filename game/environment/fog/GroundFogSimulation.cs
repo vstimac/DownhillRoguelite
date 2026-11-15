@@ -21,7 +21,11 @@ namespace DownhillRoguelite.Environment.Fog;
 ///    RecoveryTime, so a wake closes up behind the carrier.
 ///
 /// The patch is aligned to whole cells in the world; Shift moves it by whole cells and keeps
-/// everything in the overlap, so nothing snaps. New cells start as settled fog over unknown ground.
+/// everything in the overlap, so nothing snaps. New cells start as they would lie once their cover is known.
+///
+/// The fog lies only where the cover lets it: among dense trees or low rocks (Cover, laid out by
+/// BeginCover / AddTree / AddRock / FinishCover). On open ground it settles to nothing, so what
+/// pours out of a wood thins away within a few metres.
 /// </summary>
 public sealed class GroundFogSimulation
 {
@@ -49,7 +53,12 @@ public sealed class GroundFogSimulation
     public readonly float[] FlowX;
     public readonly float[] FlowZ;
     public readonly float[] Settled;
+    /// <summary>How much fog a cell may hold, 0 (open ground) to 1 (among dense trees or low rocks).</summary>
+    public readonly float[] Cover;
 
+    private readonly float[] _trees;
+    private readonly float[] _rocks;
+    private readonly bool[] _fresh;
     private readonly float[] _density2;
     private readonly float[] _flowX2;
     private readonly float[] _flowZ2;
@@ -81,6 +90,10 @@ public sealed class GroundFogSimulation
         FlowX = new float[n];
         FlowZ = new float[n];
         Settled = new float[n];
+        Cover = new float[n];
+        _trees = new float[n];
+        _rocks = new float[n];
+        _fresh = new bool[n];
         _density2 = new float[n];
         _flowX2 = new float[n];
         _flowZ2 = new float[n];
@@ -121,10 +134,79 @@ public sealed class GroundFogSimulation
         Height[i] = 0.0f;
         Ground[i] = Unknown;
         Solid[i] = false;
-        Density[i] = Settings.Ambient;
+        Density[i] = 0.0f;
         FlowX[i] = 0.0f;
         FlowZ[i] = 0.0f;
-        Settled[i] = Settings.Ambient;
+        Settled[i] = 0.0f;
+        Cover[i] = 0.0f;
+        _fresh[i] = true;
+    }
+
+    // --- Cover: where the fog may lie ---
+
+    /// <summary>Forgets the cover; follow with AddTree / AddRock for everything near the patch and then FinishCover.</summary>
+    public void BeginCover()
+    {
+        Array.Clear(_trees);
+        Array.Clear(_rocks);
+    }
+
+    /// <summary>A standing tree at this world point holds fog around its foot.</summary>
+    public void AddTree(float worldX, float worldZ)
+    {
+        Splat(_trees, worldX, worldZ, Settings.TreeReach, 1.0f);
+    }
+
+    /// <summary>A low rock at this world point (weight 1 for a knee-high stone).</summary>
+    public void AddRock(float worldX, float worldZ, float weight)
+    {
+        Splat(_rocks, worldX, worldZ, Settings.RockReach, weight);
+    }
+
+    private void Splat(float[] field, float worldX, float worldZ, float reach, float weight)
+    {
+        if (reach <= 0.0f)
+        {
+            return;
+        }
+        int x0 = Math.Max(Mathf.FloorToInt((worldX - reach) / Cell) - OriginX, 0);
+        int x1 = Math.Min(Mathf.FloorToInt((worldX + reach) / Cell) - OriginX, Size - 1);
+        int z0 = Math.Max(Mathf.FloorToInt((worldZ - reach) / Cell) - OriginZ, 0);
+        int z1 = Math.Min(Mathf.FloorToInt((worldZ + reach) / Cell) - OriginZ, Size - 1);
+        float inverse = 1.0f / (reach * reach);
+        for (int z = z0; z <= z1; z++)
+        {
+            float dz = (OriginZ + z + 0.5f) * Cell - worldZ;
+            for (int x = x0; x <= x1; x++)
+            {
+                float dx = (OriginX + x + 0.5f) * Cell - worldX;
+                float r = (dx * dx + dz * dz) * inverse;
+                if (r < 1.0f)
+                {
+                    field[z * Size + x] += weight * (1.0f - r) * (1.0f - r);
+                }
+            }
+        }
+    }
+
+    /// <summary>Works the cover out from the trees and rocks added: dense trees or enough low rocks close by, whichever gives more.</summary>
+    public void FinishCover()
+    {
+        GroundFogSettings s = Settings;
+        for (int i = 0; i < Cover.Length; i++)
+        {
+            float trees = Mathf.SmoothStep(s.TreesForSome, Mathf.Max(s.TreesForFull, s.TreesForSome + 0.01f), _trees[i]);
+            float rocks = Mathf.SmoothStep(s.RocksForSome, Mathf.Max(s.RocksForFull, s.RocksForSome + 0.01f), _rocks[i]);
+            Cover[i] = Mathf.Max(trees, rocks);
+        }
+        _settledDirty = true;
+    }
+
+    /// <summary>The same cover everywhere (tests, or a scene that wants fog all over).</summary>
+    public void FillCover(float cover)
+    {
+        Array.Fill(Cover, cover);
+        _settledDirty = true;
     }
 
     public int Index(int x, int z) => z * Size + x;
@@ -234,6 +316,8 @@ public sealed class GroundFogSimulation
                 FlowX[to] = FlowX[from];
                 FlowZ[to] = FlowZ[from];
                 Settled[to] = Settled[from];
+                Cover[to] = Cover[from];
+                _fresh[to] = _fresh[from];
             }
         }
         OriginX += dx;
@@ -243,61 +327,143 @@ public sealed class GroundFogSimulation
 
     // --- The carrier ---
 
+    private readonly List<Vector3> _twoPoints = new();
+    private readonly List<Vector3> _twoVelocities = new();
+
     /// <summary>
-    /// The carrier's body moving through the fog for <paramref name="dt"/> seconds: a bubble around
-    /// <paramref name="feet"/> is cleared and shoved outward (wider at a sprint), the fog is dragged
-    /// along a little, and two eddies peel off behind, churning harder the faster it goes.
+    /// A body with no model to read (a lab's walker, a test): parted as if by two shins standing at
+    /// <paramref name="feet"/>.
     /// </summary>
-    public void Push(Vector3 feet, Vector3 velocity, float dt)
+    public int Push(Vector3 feet, Vector3 velocity, float dt)
+    {
+        _twoPoints.Clear();
+        _twoVelocities.Clear();
+        _twoPoints.Add(feet + Vector3.Up * 0.12f);
+        _twoPoints.Add(feet + Vector3.Up * 0.4f);
+        _twoVelocities.Add(velocity);
+        _twoVelocities.Add(velocity);
+        return PushBody(_twoPoints, _twoVelocities, dt);
+    }
+
+    /// <summary>
+    /// The parts of a body (points on the character's model: its bones) moving through the fog for
+    /// <paramref name="dt"/> seconds. Each part that is down in the fog clears it close around itself
+    /// and shoves it outward, harder the faster that part moves, and drags it along a little; parts
+    /// above the fog do nothing, so someone standing parts it with the legs only and someone lying
+    /// in it with the whole body. Two eddies peel off behind the parts that are in it, churning
+    /// harder at a sprint. Returns how many parts were in the fog.
+    /// </summary>
+    public int PushBody(IReadOnlyList<Vector3> points, IReadOnlyList<Vector3> velocities, float dt)
     {
         GroundFogSettings s = Settings;
-        Vector2 at = new(feet.X, feet.Z);
-        Vector2 move = new(velocity.X, velocity.Z);
-        float speed = move.Length();
-        float sprint = Mathf.Clamp(speed / Mathf.Max(s.SprintSpeed, 0.1f), 0.0f, 1.0f);
-        float radius = s.PushRadius + s.SprintRadiusBoost * sprint;
         float strength = s.WakeStrength;
-        if (strength <= 0.0f || radius <= 0.0f)
+        if (strength <= 0.0f || s.PushRadius <= 0.0f)
         {
-            return;
+            return 0;
         }
-        float blend = Mathf.Clamp(10.0f * dt * strength, 0.0f, 1.0f);
-        float clear = Mathf.Clamp(s.Displace * (0.6f + 1.4f * sprint) * dt * strength, 0.0f, 1.0f);
-        float shove = s.PushSpeed * (0.5f + sprint);
-        ForCells(at, radius, (i, offset, distance) =>
+        Vector2 middle = Vector2.Zero;
+        Vector2 mean = Vector2.Zero;
+        int inFog = 0;
+        for (int p = 0; p < points.Count; p++)
         {
-            float r = distance / radius;
-            float share = 1.0f - r * r;
-            Vector2 outward = Vector2.Zero;
-            if (distance > 0.001f)
+            Vector3 point = points[p];
+            if (!CellAt(point.X, point.Z, out int cx, out int cz))
             {
-                outward = offset / distance;
+                continue;
             }
-            Vector2 wanted = outward * shove + move * s.DragAlong;
-            float k = blend * share;
-            FlowX[i] += (wanted.X - FlowX[i]) * k;
-            FlowZ[i] += (wanted.Y - FlowZ[i]) * k;
-            Density[i] *= 1.0f - clear * share;
-        });
+            int cell = Index(cx, cz);
+            // What lies here, or would if this body hadn't cleared it (so a part standing in its own gap still holds it open).
+            float lying = Mathf.Max(Density[cell], Settled[cell]);
+            if (lying < 0.02f)
+            {
+                continue;
+            }
+            if (Ground[cell] == Known)
+            {
+                float above = point.Y - Height[cell];
+                if (above > s.Depth * lying + s.BodyReach || above < -1.0f)
+                {
+                    continue;
+                }
+            }
+            Vector2 at = new(point.X, point.Z);
+            Vector2 move = new(velocities[p].X, velocities[p].Z);
+            float sprint = Mathf.Clamp(move.Length() / Mathf.Max(s.SprintSpeed, 0.1f), 0.0f, 1.0f);
+            float radius = s.PushRadius + s.SprintRadiusBoost * sprint;
+            float blend = Mathf.Clamp(10.0f * dt * strength, 0.0f, 1.0f);
+            float clear = Mathf.Clamp(s.Displace * (0.6f + 1.4f * sprint) * dt * strength, 0.0f, 1.0f);
+            float shove = s.PushSpeed * (0.15f + sprint);
+            PushPoint(at, radius, move * s.DragAlong, shove, blend, clear);
+            middle += at;
+            mean += move;
+            inFog++;
+        }
+        if (inFog == 0)
+        {
+            return 0;
+        }
+        middle /= inFog;
+        mean /= inFog;
+        float speed = mean.Length();
         if (speed < 0.3f)
         {
-            return;
+            return inFog;
         }
-        Vector2 ahead = move / speed;
+        float pace = Mathf.Clamp(speed / Mathf.Max(s.SprintSpeed, 0.1f), 0.0f, 1.0f);
+        float reach = s.PushRadius + s.SprintRadiusBoost * pace;
+        Vector2 ahead = mean / speed;
         Vector2 side = new(-ahead.Y, ahead.X);
-        Vector2 behind = at - ahead * (s.WakeBehind + radius * 0.5f);
+        Vector2 behind = middle - ahead * (s.WakeBehind + reach * 0.5f);
         float spin = s.WakeSpin * strength * Mathf.Clamp(speed / Mathf.Max(s.SprintSpeed, 0.1f), 0.2f, 1.2f);
         float rate = Mathf.Clamp(6.0f * dt, 0.0f, 1.0f);
         Swirl(behind + side * s.WakeRadius * 0.8f, s.WakeRadius, spin, 0.0f, rate);
         Swirl(behind - side * s.WakeRadius * 0.8f, s.WakeRadius, -spin, 0.0f, rate);
-        float churn = s.SprintTurbulence * sprint * sprint * strength * dt;
+        float churn = s.SprintTurbulence * pace * pace * strength * dt;
         if (churn > 0.0f)
         {
-            ForCells(behind, radius * 1.6f, (i, offset, distance) =>
+            ForCells(behind, s.WakeRadius * 1.6f, (i, offset, distance) =>
             {
                 FlowX[i] += ((float)_random.NextDouble() * 2.0f - 1.0f) * churn;
                 FlowZ[i] += ((float)_random.NextDouble() * 2.0f - 1.0f) * churn;
             });
+        }
+        return inFog;
+    }
+
+    /// <summary>One part of a body: the fog within <paramref name="radius"/> is thinned and turned outward (most at the part itself).</summary>
+    private void PushPoint(Vector2 at, float radius, Vector2 along, float shove, float blend, float clear)
+    {
+        int x0 = Math.Max(Mathf.FloorToInt((at.X - radius) / Cell) - OriginX, 0);
+        int x1 = Math.Min(Mathf.FloorToInt((at.X + radius) / Cell) - OriginX, Size - 1);
+        int z0 = Math.Max(Mathf.FloorToInt((at.Y - radius) / Cell) - OriginZ, 0);
+        int z1 = Math.Min(Mathf.FloorToInt((at.Y + radius) / Cell) - OriginZ, Size - 1);
+        for (int z = z0; z <= z1; z++)
+        {
+            for (int x = x0; x <= x1; x++)
+            {
+                int i = Index(x, z);
+                if (Solid[i])
+                {
+                    continue;
+                }
+                Vector2 offset = CellCentre(x, z) - at;
+                float distance = offset.Length();
+                if (distance >= radius)
+                {
+                    continue;
+                }
+                float r = distance / radius;
+                float share = 1.0f - r * r;
+                Vector2 wanted = along;
+                if (distance > 0.001f)
+                {
+                    wanted += offset / distance * shove;
+                }
+                float k = blend * share;
+                FlowX[i] += (wanted.X - FlowX[i]) * k;
+                FlowZ[i] += (wanted.Y - FlowZ[i]) * k;
+                Density[i] *= 1.0f - clear * share;
+            }
         }
     }
 
@@ -389,7 +555,7 @@ public sealed class GroundFogSimulation
         LastStepMs = _watch.Elapsed.TotalMilliseconds;
     }
 
-    /// <summary>The density each cell settles to: Ambient, more in hollows (how far it lies below the mean of the ground around it).</summary>
+    /// <summary>The density each cell settles to: Ambient times its cover (none on open ground), more in hollows (how far it lies below the mean of the ground around it).</summary>
     private void UpdateSettled()
     {
         GroundFogSettings s = Settings;
@@ -458,19 +624,24 @@ public sealed class GroundFogSimulation
         }
         for (int i = 0; i < Settled.Length; i++)
         {
+            bool fresh = _fresh[i];
+            _fresh[i] = false;
             if (Solid[i])
             {
                 Settled[i] = 0.0f;
                 continue;
             }
-            if (Ground[i] != Known || _count[i] < 0.5f)
+            float hollow = 0.0f;
+            if (Ground[i] == Known && _count[i] >= 0.5f)
             {
-                Settled[i] = s.Ambient;
-                continue;
+                hollow = Mathf.Clamp(_sum[i] / _count[i] - Height[i], 0.0f, s.PoolMaxDepth);
             }
-            float mean = _sum[i] / _count[i];
-            float hollow = Mathf.Clamp(mean - Height[i], 0.0f, s.PoolMaxDepth);
-            Settled[i] = Mathf.Min(s.Ambient * (1.0f + s.PoolBoost * hollow), s.MaxDensity);
+            Settled[i] = Mathf.Min(s.Ambient * Cover[i] * (1.0f + s.PoolBoost * hollow), s.MaxDensity);
+            if (fresh)
+            {
+                // A cell that has just come into the patch starts as it would lie, instead of filling up in view.
+                Density[i] = Settled[i];
+            }
         }
         _settledDirty = false;
     }

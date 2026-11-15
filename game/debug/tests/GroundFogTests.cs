@@ -1,14 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using DownhillRoguelite.Core;
 using DownhillRoguelite.Environment.Fog;
 using Godot;
 
 namespace DownhillRoguelite.Debug;
 
 /// <summary>
-/// The ground fog. The simulation on its own: it runs downhill, fills hollows, parts around what
-/// blocks it, the carrier clears a bubble that closes again within the recovery time, a sprint
+/// The ground fog. The simulation on its own: it lies among dense trees and low rocks and nowhere
+/// else, runs downhill, fills hollows, parts around what blocks it, the parts of a body that are down
+/// in it clear it close around themselves (and those above it don't), the gap closes again within the recovery time, a sprint
 /// leaves a bigger wake than a walk, a footfall leaves a whirl turning the foot's way, still fog keeps
 /// moving, shifting the patch keeps what was there, and nothing blows up under hard use. Then with
 /// physics: the sampler finds a height-map ground through a rock standing on it and marks the rock
@@ -16,13 +18,27 @@ namespace DownhillRoguelite.Debug;
 /// (shifting), and uploads to its renderer. Timings for the README at the end.
 /// Run: godot --headless --path . --fixed-fps 60 res://debug/tests/GroundFogTests.tscn
 /// </summary>
-public partial class GroundFogTests : Node3D
+public partial class GroundFogTests : Node3D, IFogCover
 {
+    /// <summary>For the GroundFog node at the end: a dense wood over the whole of the test's ground.</summary>
+    public void GatherFogCover(List<Vector2> trees, List<Vector3> rocks)
+    {
+        for (float z = -40.0f; z <= 40.0f; z += 2.5f)
+        {
+            for (float x = -40.0f; x <= 40.0f; x += 2.5f)
+            {
+                trees.Add(new Vector2(x, z));
+            }
+        }
+    }
+
     private const float Slope = 0.25f;
     private readonly List<string> _failures = new();
 
     public override async void _Ready()
     {
+        Cover();
+        BodyParts();
         Downhill();
         Hollows();
         Obstacles();
@@ -58,6 +74,8 @@ public partial class GroundFogTests : Node3D
     {
         GroundFogSimulation sim = new(settings);
         sim.CentreOn(0.0f, 0.0f);
+        // Fog may lie everywhere, unless a test lays its own cover.
+        sim.FillCover(1.0f);
         for (int z = 0; z < sim.Size; z++)
         {
             for (int x = 0; x < sim.Size; x++)
@@ -76,6 +94,56 @@ public partial class GroundFogTests : Node3D
         {
             sim.Step(dt);
         }
+    }
+
+    private void Cover()
+    {
+        GroundFogSettings settings = Small();
+        GroundFogSimulation sim = Sim(settings, (x, z) => 0.0f);
+        sim.BeginCover();
+        // A grove of nine trees 2.5 m apart round (-10, -10), one tree alone at (10, -10), a field of low stones round (0, 12).
+        for (int i = 0; i < 9; i++)
+        {
+            sim.AddTree(-12.5f + (i % 3) * 2.5f, -12.5f + (i / 3) * 2.5f);
+        }
+        sim.AddTree(10.0f, -10.0f);
+        for (int i = 0; i < 12; i++)
+        {
+            sim.AddRock(-2.0f + (i % 4) * 1.3f, 11.0f + (i / 4) * 1.3f, 0.8f);
+        }
+        sim.FinishCover();
+        Run(sim, 4.0f);
+        float grove = sim.DensityAt(-10.0f, -10.0f);
+        float alone = sim.DensityAt(10.0f, -10.0f);
+        float stones = sim.DensityAt(0.0f, 12.0f);
+        float open = sim.DensityAt(8.0f, 6.0f);
+        Check("fog lies among dense trees", grove > settings.Ambient * 0.8f, $"in the grove {grove:0.00} of {settings.Ambient:0.00}");
+        Check("and among low rocks", stones > settings.Ambient * 0.5f, $"among the stones {stones:0.00}");
+        Check("none on open ground, none round a tree standing alone", open < 0.02f && alone < 0.02f, $"open {open:0.000}, lone tree {alone:0.000}");
+    }
+
+    private void BodyParts()
+    {
+        GroundFogSettings settings = Small();
+        GroundFogSimulation sim = Sim(settings, (x, z) => 0.0f);
+        Run(sim, 0.5f);
+        float settled = sim.DensityAt(0.0f, 0.0f);
+        float dt = 1.0f / 30.0f;
+        // Standing: a foot and a shin down in the fog at (0, 0), a hand and the head above it at (4, 0).
+        List<Vector3> parts = new() { new(0.0f, 0.08f, 0.0f), new(0.0f, 0.35f, 0.0f), new(4.0f, 1.1f, 0.0f), new(4.0f, 1.6f, 0.0f) };
+        List<Vector3> still = new() { Vector3.Zero, Vector3.Zero, Vector3.Zero, Vector3.Zero };
+        int inFog = 0;
+        for (int i = 0; i < 30; i++)
+        {
+            inFog = sim.PushBody(parts, still, dt);
+            sim.Step(dt);
+        }
+        float atLeg = sim.MeanDensity(Vector2.Zero, settings.PushRadius);
+        float nearLeg = sim.DensityAt(1.6f, 0.0f);
+        float underHand = sim.DensityAt(4.0f, 0.0f);
+        Check("the fog moves away from the parts of the body that are down in it", inFog == 2 && atLeg < settled * 0.5f, $"{inFog} of 4 parts in the fog, at the leg {atLeg:0.00} of {settled:0.00}");
+        Check("only close to them: 1.6 m from the leg it lies as before", nearLeg > settled * 0.9f, $"{nearLeg:0.00} of {settled:0.00}");
+        Check("a part above the fog leaves it alone", underHand > settled * 0.95f, $"under the hand {underHand:0.00} of {settled:0.00}");
     }
 
     private void Downhill()
@@ -131,6 +199,7 @@ public partial class GroundFogTests : Node3D
     {
         GroundFogSettings settings = Small();
         GroundFogSimulation sim = Sim(settings, (x, z) => 0.0f);
+        Run(sim, 0.2f);
         float settled = sim.DensityAt(0.0f, 0.0f);
         float dt = 1.0f / 30.0f;
         for (int i = 0; i < 30; i++)
@@ -138,10 +207,10 @@ public partial class GroundFogTests : Node3D
             sim.Push(Vector3.Zero, Vector3.Zero, dt);
             sim.Step(dt);
         }
-        float bubble = sim.MeanDensity(Vector2.Zero, settings.PushRadius * 0.6f);
-        Check("the carrier's body clears a bubble in the fog", bubble < settled * 0.5f, $"in the bubble {bubble:0.00} of {settled:0.00}");
+        float bubble = sim.MeanDensity(Vector2.Zero, settings.PushRadius);
+        Check("a body standing in the fog clears it round its legs", bubble < settled * 0.5f, $"in the bubble {bubble:0.00} of {settled:0.00}");
         Run(sim, settings.RecoveryTime * 2.0f);
-        float closed = sim.MeanDensity(Vector2.Zero, settings.PushRadius * 0.6f);
+        float closed = sim.MeanDensity(Vector2.Zero, settings.PushRadius);
         Check("the gap closes again within the recovery time", closed > settled * 0.8f, $"after {settings.RecoveryTime * 2.0f:0.0} s {closed:0.00} of {settled:0.00}");
     }
 
@@ -217,9 +286,9 @@ public partial class GroundFogTests : Node3D
         int j = sim.Index(nx, nz);
         bool same = kept && nx == x - 5 && nz == z + 3 && sim.Density[j] == 1.7f && sim.FlowX[j] == 0.9f && sim.Ground[j] == GroundFogSimulation.Known;
         int fresh = sim.Index(sim.Size - 1, 10);
-        bool newCell = sim.Ground[fresh] == GroundFogSimulation.Unknown && Mathf.IsEqualApprox(sim.Density[fresh], sim.Settings.Ambient);
+        bool newCell = sim.Ground[fresh] == GroundFogSimulation.Unknown && sim.Density[fresh] == 0.0f && sim.Cover[fresh] == 0.0f;
         Check("shifting the patch keeps density, flow and ground in the overlap", same && sim.OriginX == originX + 5, $"moved cell {nx},{nz} from {x},{z}");
-        Check("cells that come in are settled fog over unknown ground", newCell, $"ground state {sim.Ground[fresh]}, density {sim.Density[fresh]:0.00}");
+        Check("cells that come in hold no fog until their cover is known", newCell, $"ground state {sim.Ground[fresh]}, density {sim.Density[fresh]:0.00}");
     }
 
     private void Stable()
@@ -322,6 +391,8 @@ public partial class GroundFogTests : Node3D
         Check("a trunk blocks its cell", atTrunk && trunkSolid && Mathf.Abs(trunkGround - Ground(4.0f, -3.0f)) < 0.08f, $"blocked {trunkSolid}");
         Check("no ground beyond the terrain (tried again later)", !off, "");
 
+        AddToGroup(FogCover.Group);
+        FogCover.Changed();
         Node3D walker = new() { Name = "Walker", Position = new Vector3(0.0f, Ground(0.0f, 0.0f), 0.0f) };
         AddChild(walker);
         GroundFog fog = new() { Name = "GroundFog", Settings = settings, Target = walker, DrawWhenHeadless = true };
@@ -338,6 +409,7 @@ public partial class GroundFogTests : Node3D
             $"{known}/{sim.Size * sim.Size} cells in {learn:0} ms, {rays} rays, sampling {fog.LastSampleMs:0.00} ms in the last frame");
         sim.CellAt(4.0f, -3.0f, out int tx, out int tz);
         Check("the patch knows the trunk is there", sim.Solid[sim.Index(tx, tz)], "");
+        Check("the fog reads where the trees stand from the scene", fog.CoverShare > 0.9f, $"fog may lie on {fog.CoverShare * 100.0f:0} % of the patch");
 
         int origin = sim.OriginX;
         for (int i = 0; i < 60; i++)
