@@ -41,6 +41,8 @@ public partial class PackingMode : Node3D
     private bool _pressed;
     private float _heldFor;
     private float _timer;
+    /// <summary>A rendered check holds the key for the carrier (--set-pack-down).</summary>
+    private bool _heldByScript;
 
     public override async void _Ready()
     {
@@ -52,6 +54,12 @@ public partial class PackingMode : Node3D
         {
             await ToSignal(GetTree().CreateTimer(OpenPackDelay), SceneTreeTimer.SignalName.Timeout);
             TryOpen();
+        }
+        // `-- --set-pack-down` sets it down in its own time, as if the key were held.
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--set-pack-down") >= 0)
+        {
+            await ToSignal(GetTree().CreateTimer(OpenPackDelay), SceneTreeTimer.SignalName.Timeout);
+            _heldByScript = BeginSetDown();
         }
         // `-- --pack-look` shows the quick look instead.
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--pack-look") >= 0)
@@ -141,7 +149,7 @@ public partial class PackingMode : Node3D
                 }
                 break;
             case PackingPhase.SettingDown:
-                if (!keyDown || !CanSetDown())
+                if ((!keyDown && !_heldByScript) || !CanSetDown())
                 {
                     CancelSetDown();
                     break;
@@ -230,6 +238,7 @@ public partial class PackingMode : Node3D
 
     private void OpenNow()
     {
+        _heldByScript = false;
         Phase = PackingPhase.Open;
         GameEvents.PublishPackingProgress(-1.0f, true);
         Input.MouseMode = Input.MouseModeEnum.Visible;

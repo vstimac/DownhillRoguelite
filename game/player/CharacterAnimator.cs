@@ -62,6 +62,8 @@ public partial class CharacterAnimator : Node
     [Export] public float MaxPlaybackRate { get; set; } = 1.6f;
     /// <summary>How much of the crouch-walk is mixed in at full brake (0 = none, 1 = full crouch).</summary>
     [Export] public float BrakeCrouchAmount { get; set; } = 0.35f;
+    /// <summary>How deep the carrier crouches over the pack while it is set down (0 standing, 1 the full crouch clip).</summary>
+    [Export] public float PackingCrouchAmount { get; set; } = 0.9f;
     [Export] public float BrakeBlendSharpness { get; set; } = 8.0f;
     [Export] public float SpeedSharpness { get; set; } = 12.0f;
 
@@ -108,6 +110,7 @@ public partial class CharacterAnimator : Node
     public float LandingWeight { get; private set; }
     private float _speed;
     private float _brakeWeight;
+    private float _packWeight;
     private Vector3 _stepOffset;
     private Vector3 _visualHome;
     private float _airWeight;
@@ -228,7 +231,14 @@ public partial class CharacterAnimator : Node
         SetBlend(ToJogParameter, Band(_speed, WalkToJog));
         SetBlend(ToSprintParameter, Band(_speed, JogToSprint));
         SetBlend(BrakeMoveParameter, Band(_speed, IdleToWalk));
-        SetBlend(BrakeParameter, _brakeWeight * BrakeCrouchAmount);
+        // Bent over the pack while it is off the back.
+        float packTarget = 0.0f;
+        if (GameEvents.IsPacking)
+        {
+            packTarget = 1.0f;
+        }
+        _packWeight = Mathf.Lerp(_packWeight, packTarget, 1.0f - Mathf.Exp(-BrakeBlendSharpness * dt));
+        SetBlend(BrakeParameter, Mathf.Max(_brakeWeight * BrakeCrouchAmount, _packWeight * PackingCrouchAmount));
 
         UpdateCadence(targetSpeed);
         UpdateAirTransitions(dt);

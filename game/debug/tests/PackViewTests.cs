@@ -32,6 +32,12 @@ public partial class PackViewTests : Node3D
     /// <summary>Taking a thing out and putting it elsewhere must move the centre of mass at least this far, in m.</summary>
     [Export] public float MinComMove { get; set; } = 0.002f;
 
+    /// <summary>The set-down pack's lowest point may be this far from the ground, in m.</summary>
+    [Export] public float MaxGroundGap { get; set; } = 0.03f;
+    /// <summary>The set-down pack stands at least this far in front of the carrier, in m.</summary>
+    [Export] public float MinAhead { get; set; } = 0.3f;
+    [Export] public float MaxAhead { get; set; } = 1.2f;
+
     private readonly List<string> _failures = new();
 
     public override async void _Ready()
@@ -48,7 +54,9 @@ public partial class PackViewTests : Node3D
         }
         await Wait(SettleTime);
 
+        TestFill();
         TestLayout(Inventory);
+        await TestInventoryPage(Ui);
         TestLockedWhileCarried(Inventory);
         await TestQuickLook(Packing, Ui);
         await TestLetGoEarly(Packing);
@@ -149,6 +157,7 @@ public partial class PackViewTests : Node3D
         Check("holding the pack key sets the pack down, and that takes its time", waiting && ring > 0.5f && ring < 1.0f && open,
             $"still setting down just before the time is up {waiting} (ring {ring:0.00}), open after it {open}");
         Check("the packing page opens with the pack, takes the mouse and stops the world", page && frozen, $"page {page}, world stopped {frozen}");
+        TestOnTheGround(true);
     }
 
     private void TestPointing(PackGridView view)
@@ -252,6 +261,88 @@ public partial class PackViewTests : Node3D
         Check("shouldering the pack takes its time too, in the running world, and the pack is closed meanwhile", shouldering && locked,
             $"still shouldering just before the time is up {shouldering}, closed to changes {locked}");
         Check("then the pack is on the back again and the page is gone", carried, $"carried {carried}, phase {packing.Phase}");
+        TestOnTheGround(false);
+    }
+
+    /// <summary>Models are laid and stretched to fill the cells they take, within limits.</summary>
+    private void TestFill()
+    {
+        Vector3 longModel = new(0.1f, 0.4f, 0.1f);
+        Vector3 lyingBlock = new(0.4f, 0.1f, 0.1f);
+        float laid = PackGeometry.FillBlock(longModel, lyingBlock, false, 1.6f, 1.25f, out int turn, out Vector3 _);
+        float standing = PackGeometry.FillBlock(longModel, lyingBlock, true, 1.6f, 1.25f, out int uprightTurn, out Vector3 _);
+        float same = PackGeometry.FillBlock(lyingBlock, lyingBlock, false, 1.6f, 1.25f, out int sameTurn, out Vector3 sameScale);
+        bool ok = laid > 0.95f && turn != GridOrientations.Identity && GridOrientations.IsUpright(uprightTurn) && standing < 0.2f
+            && sameTurn == GridOrientations.Identity && same > 0.99f && sameScale.IsEqualApprox(Vector3.One);
+        Check("a long model is laid along a long block and fills it; an upright-only one stays up; a fitting one is left alone", ok,
+            $"laid fills {laid:0.00} (turn {turn}), kept upright fills {standing:0.00}, same shape fills {same:0.00} unturned {sameTurn == GridOrientations.Identity}");
+    }
+
+    /// <summary>The inventory page shows the pack: choosing a slot marks the thing in it, clicking a thing chooses its slot.</summary>
+    private async Task TestInventoryPage(Hud ui)
+    {
+        InventoryScreen page = ui.Inventory!;
+        ui.Toggle(page);
+        await Wait(0.6f);
+        PackGridView? view = page.PackView;
+        PackLayout layout = GameEvents.CurrentPackLayout;
+        PackLayoutEntry top = Topmost(layout);
+        int slot = -1;
+        for (int i = 0; i < page.Order.Count; i++)
+        {
+            if (page.Order[i] == top.ItemId)
+            {
+                slot = i;
+            }
+        }
+        page.Select(slot);
+        bool marked = view != null && view.IsMarked(top.InstanceId);
+        page.Select(-1);
+        bool cleared = view != null && !view.IsMarked(top.InstanceId);
+        Aabb box = PackGeometry.CellBox(layout, top.Origin, top.Size, 0.0f);
+        bool clicked = view != null && page.SelectInPack(view.Project(box.GetCenter() + Vector3.Up * box.Size.Y * 0.5f)) && page.SelectedIndex == slot;
+        page.Close();
+        await Wait(0.5f);
+        Check("the inventory page shows the pack: a chosen slot is marked in it, and clicking a thing in it chooses its slot",
+            view != null && slot >= 0 && marked && cleared && clicked, $"slot {slot}, marked {marked}, cleared {cleared}, clicked to slot {clicked}");
+    }
+
+    /// <summary>The real pack stands on the ground in front of the carrier while it is off, and is worn again after.</summary>
+    private void TestOnTheGround(bool down)
+    {
+        PackSetDown? setDown = PlayerBody!.FindChild("PackSetDown", true, false) as PackSetDown;
+        BackpackAttachment? mount = null;
+        if (PlayerBody.FindChild("ClothingVisuals", true, false) is ClothingVisualController clothing)
+        {
+            mount = clothing.BackpackMount;
+        }
+        if (setDown == null || mount == null)
+        {
+            Check("the carrier has a pack to set down", false, $"set-down {setDown != null}, worn pack {mount != null}");
+            return;
+        }
+        if (!down)
+        {
+            Check("shouldered, the pack is worn again and nothing is left on the ground", !setDown.Off && mount.Visible, $"off {setDown.Off}, worn shown {mount.Visible}");
+            return;
+        }
+        float lowest = float.MaxValue;
+        Vector3 centre = Vector3.Zero;
+        if (setDown.Copy != null)
+        {
+            Aabb bounds = ModelFit.Bounds(setDown.Copy);
+            for (int corner = 0; corner < 8; corner++)
+            {
+                lowest = Mathf.Min(lowest, (setDown.Copy.GlobalTransform * bounds.GetEndpoint(corner)).Y);
+            }
+            centre = setDown.Copy.GlobalTransform * bounds.GetCenter();
+        }
+        Vector3 away = centre - PlayerBody.GlobalPosition;
+        float ahead = away.Dot(-PlayerBody.GlobalBasis.Z);
+        float gap = lowest - setDown.GroundHeight;
+        bool stands = setDown.Off && setDown.Way > 0.99f && !mount.Visible && Mathf.Abs(gap) < MaxGroundGap && ahead > MinAhead && ahead < MaxAhead;
+        Check("set down, the real pack leaves the back and stands on the ground in front of the carrier", stands,
+            $"off {setDown.Off}, way {setDown.Way:0.00}, worn hidden {!mount.Visible}, {gap * 100.0f:0.0} cm over the ground, {ahead:0.00} m ahead");
     }
 
     /// <summary>The packed copy that reaches highest: nothing lies on it, so it is in plain sight from above.</summary>

@@ -28,6 +28,8 @@ The player isn't managing inventory slots. They're managing a physical load stra
 
 Decided 2026-11-13 with the director: packing is no longer station-only (it was, in the first version), and the pack is shown in 2.5D (the real 3D grid seen at a slant, item models inked like the icons, the view turning in quarter steps and the upper layers cut away on the wheel) instead of a separate in-world camera with coloured boxes. The grid, the fit check and the load calculation did not change.
 
+Added 2026-11-14: the inventory page (I) shows the same 2.5D pack at its left, looking only; choosing a slot outlines that thing in the pack, and clicking a thing in the pack chooses its slot. While the pack is off the back the real backpack model stands on the ground in front of the carrier, who crouches over it (`player/PackSetDown`, picture only). Models in the 2.5D view are laid along their block of cells and stretched a little (never far) so a full pack reads as full (`PackGeometry.FillBlock`).
+
 ## Cargo simulation levels
 
 | Level | When | Simulation |

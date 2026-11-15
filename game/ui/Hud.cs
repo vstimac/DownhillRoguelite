@@ -56,6 +56,8 @@ public partial class Hud : CanvasLayer
     public InteractionTooltip? Tooltip { get; private set; }
     public Notifications? Notes { get; private set; }
     public Subtitles? Captions { get; private set; }
+    /// <summary>Delay before --open-inventory opens the inventory page, in s.</summary>
+    [Export] public float OpenInventoryDelay { get; set; } = 0.5f;
     public InventoryScreen? Inventory { get; private set; }
     public PackQuickView? PackLook { get; private set; }
     public PackingRing? PackRing { get; private set; }
@@ -206,6 +208,11 @@ public partial class Hud : CanvasLayer
         GameEvents.VitalsUpdated += OnVitals;
         GetViewport().SizeChanged += Layout;
         Layout();
+        // For rendered checks (--write-movie): `-- --open-inventory` opens the inventory page shortly after the start.
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--open-inventory") >= 0)
+        {
+            GetTree().CreateTimer(OpenInventoryDelay).Timeout += () => Toggle(Inventory);
+        }
     }
 
     public override void _ExitTree()

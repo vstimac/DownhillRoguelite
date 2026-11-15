@@ -10,6 +10,8 @@ namespace DownhillRoguelite.Ui;
 public partial class PackingRing : Control
 {
     [Export] public float Radius { get; set; } = 26.0f;
+    /// <summary>Where the ring sits, as a share of the screen's height (under the carrier, not over him).</summary>
+    [Export] public float ScreenHeight { get; set; } = 0.74f;
     [Export] public string SettingDownText { get; set; } = "Setting the pack down…";
     [Export] public string PuttingOnText { get; set; } = "Shouldering the pack…";
 
@@ -40,7 +42,7 @@ public partial class PackingRing : Control
         if (Visible)
         {
             Vector2 screen = GetViewportRect().Size;
-            Position = new Vector2((screen.X - Size.X) * 0.5f, screen.Y * 0.62f);
+            Position = new Vector2((screen.X - Size.X) * 0.5f, screen.Y * ScreenHeight);
             QueueRedraw();
         }
     }

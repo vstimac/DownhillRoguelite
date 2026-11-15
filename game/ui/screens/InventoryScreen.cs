@@ -6,9 +6,11 @@ using Godot;
 namespace DownhillRoguelite.Ui;
 
 /// <summary>
-/// The inventory page (I): everything the carrier owns, one parchment slot per kind of item with
-/// its count, on a grid that can be rearranged by dragging (the order is the page's own; packing
-/// itself still happens in the 3D pack at stations). Clicking a slot opens its details: picture,
+/// The inventory page (I): on the left the pack itself in 2.5D, where every thing really sits; beside
+/// it everything the carrier owns, one parchment slot per kind of item with its count, on a grid
+/// that can be rearranged by dragging (the order is the page's own; moving things in the pack means
+/// setting it down: hold Tab). Choosing a slot outlines that thing in the pack, and clicking a thing
+/// in the pack chooses its slot. Clicking a slot opens its details: picture,
 /// description, real properties and the actions that exist for it (eat, drink). The load's weight
 /// is shown on a scale at the bottom. Unfolds on open, folds away on close.
 /// </summary>
@@ -36,8 +38,17 @@ public partial class InventoryScreen : ParchmentPanel
     private Label? _stats;
     private VitalsSnapshot? _vitals;
     private RunState? _run;
+    /// <summary>Width of the pack's column at the left of the page, in px.</summary>
+    private const float PackWidth = 270.0f;
+    /// <summary>Where the slots start, right of the pack, in px.</summary>
+    private const float ContentX = 24.0f + PackWidth + 14.0f;
     /// <summary>Where the carrier's stats column starts on the page, in px.</summary>
-    private const float StatsX = 652.0f;
+    private const float StatsX = ContentX + 628.0f;
+    private const string PackHint = "Tab: quick look  ·  hold Tab: set it down and repack";
+
+    /// <summary>The pack drawn on the page (looking only).</summary>
+    public PackGridView? PackView { get; private set; }
+    private Label? _packNote;
 
     public override void _ExitTree()
     {
@@ -151,14 +162,28 @@ public partial class InventoryScreen : ParchmentPanel
         Title = "Inventory";
         Closable = true;
         Seed = 41.0f;
-        Size = new Vector2(880, 600);
+        Size = new Vector2(StatsX + 228.0f, 600);
         base._Ready();
+        PackView = new PackGridView { Position = new Vector2(18, 56), Size = new Vector2(PackWidth, 404), MouseFilter = MouseFilterEnum.Stop };
+        PackView.GuiInput += OnPackInput;
+        AddChild(PackView);
+        InkButton turnLeft = new() { Glyph = InkButton.GlyphKind.Left, Position = new Vector2(18 + PackWidth * 0.5f - 44, 462), Size = new Vector2(36, 30) };
+        turnLeft.Pressed += () => PackView.TurnBy(-1);
+        AddChild(turnLeft);
+        InkButton turnRight = new() { Glyph = InkButton.GlyphKind.Right, Position = new Vector2(18 + PackWidth * 0.5f + 8, 462), Size = new Vector2(36, 30) };
+        turnRight.Pressed += () => PackView.TurnBy(1);
+        AddChild(turnRight);
+        _packNote = UiStyle.MakeLabel(PackHint, UiStyle.SmallSize, false, UiStyle.InkSoft);
+        _packNote.Position = new Vector2(20, 494);
+        _packNote.Size = new Vector2(PackWidth, 44);
+        _packNote.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        AddChild(_packNote);
         float cell = 72.0f;
         for (int i = 0; i < Columns * Rows; i++)
         {
             ItemSlot slot = new()
             {
-                Position = new Vector2(24 + (i % Columns) * (cell + 6), 60 + (i / Columns) * (cell + 6)),
+                Position = new Vector2(ContentX + (i % Columns) * (cell + 6), 60 + (i / Columns) * (cell + 6)),
                 Size = new Vector2(cell, cell),
                 Index = i,
                 SlotSeed = 3.0f,
@@ -170,7 +195,7 @@ public partial class InventoryScreen : ParchmentPanel
             AddChild(slot);
             _slots.Add(slot);
         }
-        float detailX = 24 + Columns * (cell + 6) + 12;
+        float detailX = ContentX + Columns * (cell + 6) + 12;
         _detailIcon = new ItemSlot { Position = new Vector2(detailX, 64), Size = new Vector2(96, 96), Index = 99 };
         AddChild(_detailIcon);
         float detailWidth = StatsX - detailX - 16;
@@ -206,7 +231,7 @@ public partial class InventoryScreen : ParchmentPanel
         AddChild(_stats);
         GameEvents.VitalsUpdated += OnVitals;
         _run = GetNodeOrNull<RunState>("/root/RunState");
-        _weight = new WeightScale { Position = new Vector2(24, Size.Y - 64), Size = new Vector2(StatsX - 48, 40) };
+        _weight = new WeightScale { Position = new Vector2(ContentX, Size.Y - 64), Size = new Vector2(StatsX - ContentX - 24, 40) };
         AddChild(_weight);
         SetOpenNow(false);
     }
@@ -321,6 +346,7 @@ public partial class InventoryScreen : ParchmentPanel
         {
             item = ItemText.Find(_order[index]);
         }
+        MarkInPack(item);
         if (_detailIcon == null || _detailTitle == null || _detailBody == null || _use == null)
         {
             return;
@@ -375,6 +401,53 @@ public partial class InventoryScreen : ParchmentPanel
         {
             _drop.Visible = true;
             _drop.QueueRedraw();
+        }
+    }
+
+    /// <summary>Outlines every packed copy of the chosen thing in the pack's picture (none for null).</summary>
+    private void MarkInPack(ItemDefinition? item)
+    {
+        if (PackView == null)
+        {
+            return;
+        }
+        List<string> copies = new();
+        if (item != null)
+        {
+            foreach (PackLayoutEntry entry in GameEvents.CurrentPackLayout.Entries)
+            {
+                if (entry.Packed && entry.ItemId == item.ItemId)
+                {
+                    copies.Add(entry.InstanceId);
+                }
+            }
+        }
+        PackView.SetMarked(copies);
+    }
+
+    /// <summary>Chooses the slot of the thing at a point of the pack's picture; false if nothing is there.</summary>
+    public bool SelectInPack(Vector2 at)
+    {
+        if (PackView == null || !PackView.EntryAt(at, false, out PackLayoutEntry entry))
+        {
+            return false;
+        }
+        int index = _order.IndexOf(entry.ItemId);
+        if (index < 0)
+        {
+            return false;
+        }
+        Select(index);
+        _slots[index].Pop();
+        return true;
+    }
+
+    private void OnPackInput(InputEvent @event)
+    {
+        if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left)
+        {
+            SelectInPack(mouse.Position);
+            AcceptEvent();
         }
     }
 

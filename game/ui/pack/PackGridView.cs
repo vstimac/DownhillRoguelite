@@ -26,6 +26,8 @@ public partial class PackGridView : Control
     [Export] public float TurnTime { get; set; } = 0.22f;
     /// <summary>A model may be stretched this much beyond its own proportions to fill the cells it takes.</summary>
     [Export] public float MaxStretch { get; set; } = 1.6f;
+    /// <summary>A model is laid another way than it was made only if it then fills this many times more of its cells.</summary>
+    [Export] public float TurnGain { get; set; } = 1.25f;
     /// <summary>The paper block drawn behind each model: the cells it really takes.</summary>
     [Export] public Color BlockFill { get; set; } = new(0.86f, 0.79f, 0.64f, 0.5f);
     [Export] public float OutlinePixels { get; set; } = 1.6f;
@@ -45,6 +47,7 @@ public partial class PackGridView : Control
     public PackLayout Layout { get; private set; } = PackLayout.Empty;
 
     private readonly Dictionary<string, Node3D> _models = new();
+    private readonly HashSet<string> _marked = new();
     private SubViewport? _studio;
     private SubViewportContainer? _picture;
     private Camera3D? _camera;
@@ -203,6 +206,23 @@ public partial class PackGridView : Control
             HoverId = instanceId;
             Repaint();
         }
+    }
+
+    /// <summary>Copies to outline besides the hovered one (every copy of the thing chosen on the inventory page).</summary>
+    public void SetMarked(IEnumerable<string> instanceIds)
+    {
+        _marked.Clear();
+        foreach (string id in instanceIds)
+        {
+            _marked.Add(id);
+        }
+        Repaint();
+    }
+
+    /// <summary>Whether a copy is outlined as marked.</summary>
+    public bool IsMarked(string instanceId)
+    {
+        return _marked.Contains(instanceId);
     }
 
     /// <summary>The copy lifted into the hand ("" for none): it leaves its place in the picture.</summary>
@@ -411,13 +431,14 @@ public partial class PackGridView : Control
         Vector3 block = (Vector3)item.SizeCells * Layout.CellSize - Vector3.One * ItemInset * 2.0f;
         Aabb bounds = ModelFit.Bounds(holder);
         Vector3 extent = new(Mathf.Max(bounds.Size.X, 1e-4f), Mathf.Max(bounds.Size.Y, 1e-4f), Mathf.Max(bounds.Size.Z, 1e-4f));
-        // Fill the block it takes, but never stretch a model far out of its own proportions.
-        float fit = Mathf.Min(block.X / extent.X, Mathf.Min(block.Y / extent.Y, block.Z / extent.Z));
-        float most = fit * Mathf.Max(MaxStretch, 1.0f);
-        Vector3 scale = new(Mathf.Min(block.X / extent.X, most), Mathf.Min(block.Y / extent.Y, most), Mathf.Min(block.Z / extent.Z, most));
+        // Fill the block it takes: lay a long model along a long block, and stretch it a little, never far.
+        bool upright = item.Orientation == OrientationRule.Upright;
+        PackGeometry.FillBlock(extent, block, upright, MaxStretch, TurnGain, out int turn, out Vector3 scale);
         holder.Transform = new Transform3D(Basis.FromScale(scale), -bounds.GetCenter() * scale);
+        Node3D laid = new() { Basis = GridOrientations.All[turn] };
+        laid.AddChild(holder);
         Node3D pivot = new();
-        pivot.AddChild(holder);
+        pivot.AddChild(laid);
         return pivot;
     }
 
@@ -526,7 +547,7 @@ public partial class PackGridView : Control
                 // No renderer (headless): an inked block stands in for the model.
                 DrawBox(canvas, box, new Color(UiStyle.PaperDark, 0.8f), UiStyle.Ink, 1.5f);
             }
-            if (entry.InstanceId == HoverId)
+            if (entry.InstanceId == HoverId || _marked.Contains(entry.InstanceId))
             {
                 DrawBox(canvas, box, new Color(UiStyle.Highlight, 0.18f), UiStyle.Highlight, 3.0f);
             }

@@ -231,6 +231,7 @@ public partial class CarrierModel : Node3D
             ShowRemoteGear(_remoteGear);
             return;
         }
+        AddChild(new PackSetDown { Name = "PackSetDown", Clothing = Clothing });
         OnGear(GameEvents.CurrentGear);
     }
 
@@ -239,6 +240,7 @@ public partial class CarrierModel : Node3D
         if (Driver == null) { return; }
         Clothing = new ClothingVisualController { Name = "ClothingVisuals", ListenToGear = !Remote, Skeleton = Driver, CharacterId = "mannequin" };
         AddChild(Clothing);
+        AddChild(new PackSetDown { Name = "PackSetDown", Clothing = Clothing });
     }
 
     private static MeshInstance3D? Piece(Skeleton3D skeleton, string name)
