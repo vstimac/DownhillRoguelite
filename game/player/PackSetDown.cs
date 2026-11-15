@@ -114,6 +114,11 @@ public partial class PackSetDown : Node
         {
             return;
         }
+        // A carrier that isn't in the world (a preview, a model being swapped) has no ground to set a pack on.
+        if (!IsInsideTree() || !_body.IsInsideTree() || !mount.Model.IsInsideTree())
+        {
+            return;
+        }
         _mount = mount;
         _copy = mount.Model.Duplicate() as Node3D;
         if (_copy == null)
