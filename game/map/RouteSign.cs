@@ -61,8 +61,9 @@ public partial class RouteSign : Node3D
             float y = top - 0.08f - i * LineSpacing;
             if (i == 0)
             {
+                // The heading sits inside the board's top edge, not on it.
                 size = FontSize + 8;
-                y = top;
+                y = top - 0.12f;
             }
             _lines[i] = new Label3D
             {

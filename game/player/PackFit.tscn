@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://art/characters/quaternius_ual/UAL_Mannequin.glb" id="1_body"]
+[ext_resource type="PackedScene" path="res://art/characters/backpack/trail_pack.tscn" id="2_pack"]
+
+[node name="PackFit" type="Node3D"]
+
+[node name="UAL_Mannequin" parent="." instance=ExtResource("1_body")]
+
+[node name="BackpackPivot" type="Node3D" parent="."]
+transform = Transform3D(-0.973256, -0.018584, 0.228972, -0.000447, 0.996874, 0.07901, -0.229725, 0.076795, -0.970221, 0.06108, 1.297059, -0.342059)
+
+[node name="PackModel" parent="BackpackPivot" instance=ExtResource("2_pack")]

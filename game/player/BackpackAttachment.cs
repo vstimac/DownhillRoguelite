@@ -33,6 +33,8 @@ public partial class BackpackAttachment : BoneAttachment3D
     private Transform3D _anchorInBone = Transform3D.Identity;
     private Transform3D _adjustment = Transform3D.Identity;
     private Transform3D _fitted = Transform3D.Identity;
+    /// <summary>The pack's place was set by hand (PackFit.tscn): the base the hand fit is applied to.</summary>
+    public bool Authored { get; private set; }
 
     /// <summary>Counts every change of the fit (the harness starts over from a new fit).</summary>
     public int FitVersion { get; private set; }
@@ -148,7 +150,8 @@ public partial class BackpackAttachment : BoneAttachment3D
             return null;
         }
         // The harness (straps, sternum strap, hip belt) comes with every pack; it hangs the pack on them.
-        attachment.AddChild(new BackpackHarness { Name = "BackpackHarness" });
+        // A placed pack stays where it was put; only the straps move with the body.
+        attachment.AddChild(new BackpackHarness { Name = "BackpackHarness", Simulate = !attachment.Authored });
         rig.AddChild(attachment);
         return attachment;
     }
@@ -204,6 +207,13 @@ public partial class BackpackAttachment : BoneAttachment3D
         FitAnchor = new Transform3D(frame.Scaled(Vector3.One / metres),
             rest.Origin + frame * ((offset + footprint.GetCenter()) / metres));
         _anchorInBone = rest.AffineInverse() * FitAnchor;
+        // A placed pack (PackFit.tscn) is the pack's place on the base model only: other packs keep their fit.
+        Authored = false;
+        if (Model.Name == "PackModel" && PackFit.TryGet(out Transform3D placed))
+        {
+            Authored = true;
+            _placement = rest.AffineInverse() * placed;
+        }
         ApplyPlacement();
         SetMeta("fit_measured_body", MeasuredBody);
         SetMeta("equipped_item", EquippedItemId);

@@ -647,6 +647,8 @@ public partial class BackpackHarness : Node3D
         }
         if (!Simulate || _physics == null)
         {
+            // Still read the body's pose each update: the body's surface stays current for the rest of the game.
+            _hull?.Pose(false);
             PublishSway(Vector3.Zero);
             _pack.StopSimulating();
             DrawStraps();

@@ -36,7 +36,9 @@ public partial class BackpackAttachmentTests : Node3D
                 player.Stamina?.Refill();
                 await Frames(15);
                 float gap = FrontGap(rig, mount);
-                Check(id + " mesh front has the configured torso clearance", Mathf.Abs(gap - mount.Clearance) < 0.0001f, "gap=" + gap.ToString("0.0000") + " clearance=" + mount.Clearance.ToString("0.0000"));
+                // A pack placed by hand (PackFit.tscn) keeps the place it was given: it only has to stay off the body.
+                Check(id + (mount.Authored ? " mesh front is off the torso (placed by hand)" : " mesh front has the configured torso clearance"),
+                    mount.Authored ? gap > 0.0f : Mathf.Abs(gap - mount.Clearance) < 0.0001f, "gap=" + gap.ToString("0.0000") + " clearance=" + mount.Clearance.ToString("0.0000"));
                 int observations = 0;
                 float worst = 0;
                 void Observe()
@@ -138,8 +140,12 @@ public partial class BackpackAttachmentTests : Node3D
                 float settledTurn = harness?.SwingAngle ?? 1;
                 float average = totalMicroseconds / Mathf.Max(stepped, 1.0f);
                 int resets = (harness?.Resets ?? 0) - resetsBefore;
-                Check(id + " hangs the pack from its straps (no bone holds it): it swings, stays on the back and settles back",
-                    harness != null && hanging && mostDrift > 0.003f && mostDrift < (harness.ResetDistance * 0.5f) && settled < 0.06f && settledTurn < 0.25f,
+                // A pack placed by hand (PackFit.tscn) stays where it was put; the straps only follow it.
+                Check(id + " hangs the pack from its straps (no bone holds it): it swings, stays on the back and settles back"
+                    + (mount.Authored ? " (placed by hand: stays put)" : ""),
+                    harness != null && (mount.Authored
+                        ? !hanging && mostDrift < 0.001f && settled < 0.001f
+                        : hanging && mostDrift > 0.003f && mostDrift < (harness.ResetDistance * 0.5f) && settled < 0.06f && settledTurn < 0.25f),
                     "most swing=" + mostDrift.ToString("0.000") + " m / " + Mathf.RadToDeg(mostTurn).ToString("0.0") + " deg, settled " + settled.ToString("0.000") + " m / " + Mathf.RadToDeg(settledTurn).ToString("0.0") + " deg");
                 Check(id + " keeps the straps and back panel out of the body", deepest < 0.01f, "deepest inside after a frame=" + deepest.ToString("0.0000") + " m (" + deepestAt + ")");
                 Check(id + " starts over only when teleported", resets <= 4, "resets=" + resets);

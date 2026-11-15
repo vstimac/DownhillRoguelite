@@ -188,6 +188,8 @@ public partial class TerrainSettings : Resource
     [Export] public float TreeStationGap { get; set; } = 6.0f;
     /// <summary>Trees don't grow on ground steeper than this, in degrees.</summary>
     [Export] public float TreeMaxSlope { get; set; } = 32.0f;
+    /// <summary>How far a tree's trunk sinks into the ground, as a share of its height (0.10 = a tenth).</summary>
+    [Export] public float TreeSink { get; set; } = 0.10f;
 
     [ExportGroup("Forest detail")]
     [Export] public float PlantBatchSize { get; set; } = 16.0f;

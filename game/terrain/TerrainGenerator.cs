@@ -1043,7 +1043,8 @@ public sealed class TerrainGenerator
             {
                 height = Mathf.Lerp(biome.SaplingHeight.X, biome.SaplingHeight.Y, tall / biome.SaplingShare);
             }
-            data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground, z), yaw, height,
+            // The trunk sinks a share of its height into the ground, so no root hangs in the air on a slope.
+            data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground - height * _settings.TreeSink, z), yaw, height,
                 lean * Mathf.DegToRad(biome.TreeLean), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
         }
 
