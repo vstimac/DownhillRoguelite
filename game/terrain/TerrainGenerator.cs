@@ -648,9 +648,11 @@ public sealed class TerrainGenerator
                     smoothNormals[i + j * points] = normal;
                     float slope = Mathf.RadToDeg(normal.AngleTo(Vector3.Up));
                     Color ground = GroundColor(new Vector3(x, data.Heights[i + j * points], z), slope, surfaceColors,
-                        out TerrainSurface surface, out float pathWeight);
-                    smoothColors[i + j * points] = ground;
-                    WriteCarpet(data.CarpetMask, (i + j * points) * 4, x, z, ground, slope, surface, pathWeight);
+                        out TerrainSurface surface, out float pathWeight, out float snowCover);
+                    // The ground beneath, with the snow lying on it in alpha (1: none): the ground shader
+                    // lays the snow on with a ragged edge finer than this grid.
+                    smoothColors[i + j * points] = new Color(ground.R, ground.G, ground.B, 1.0f - snowCover);
+                    WriteCarpet(data.CarpetMask, (i + j * points) * 4, x, z, ground, slope, surface, pathWeight, snowCover);
                 }
             }
             data.Indices = SmoothIndices(cells);
@@ -761,13 +763,50 @@ public sealed class TerrainGenerator
         return GroundColor(centre, slope, surfaceColors, out _, out _);
     }
 
+    /// <summary>
+    /// The colour of the ground under any snow, and how much snow lies there (0 none, 1 deep; 0.5 is
+    /// where the surface turns to snow). Snow only ever lies on what would be grass, or on a hazardous
+    /// path's scree, so those are the only places with any.
+    /// </summary>
+    private Color GroundColor(Vector3 centre, float slope, Color[] surfaceColors, out TerrainSurface surface, out float pathWeight, out float snowCover)
+    {
+        pathWeight = PathWeight(centre.X, centre.Z, out RouteKind kind);
+        surface = Classify(centre.X, centre.Z, slope, pathWeight, kind);
+        Color color = SurfaceColor(surface, centre.Y, surfaceColors);
+        snowCover = 0.0f;
+        bool hazardPath = pathWeight > 0.5f && kind == RouteKind.Hazardous;
+        TerrainSurface beneath = TerrainSurface.Grass;
+        if (hazardPath)
+        {
+            beneath = TerrainSurface.Scree;
+        }
+        if (surface != TerrainSurface.Snow && surface != beneath)
+        {
+            return color;
+        }
+        float scale = 1.0f / _settings.SurfaceNoiseWavelength;
+        float snow = _snow.Sample(centre.X * scale, centre.Z * scale);
+        float band = Mathf.Max(_settings.SnowEdgeBand, 0.001f);
+        snowCover = Mathf.Clamp((snow - _settings.SnowThreshold) / (2.0f * band) + 0.5f, 0.0f, 1.0f);
+        if (surface == TerrainSurface.Snow)
+        {
+            color = SurfaceColor(beneath, centre.Y, surfaceColors);
+        }
+        return color;
+    }
+
     private Color GroundColor(Vector3 centre, float slope, Color[] surfaceColors, out TerrainSurface surface, out float pathWeight)
     {
         pathWeight = PathWeight(centre.X, centre.Z, out RouteKind kind);
         surface = Classify(centre.X, centre.Z, slope, pathWeight, kind);
+        return SurfaceColor(surface, centre.Y, surfaceColors);
+    }
+
+    private Color SurfaceColor(TerrainSurface surface, float height, Color[] surfaceColors)
+    {
         Color color = surfaceColors[(int)surface];
         // The biome tints the ground: grass and mud fully, snow and rock half as much.
-        Color tint = BiomeTint(DepthAt(centre.Y));
+        Color tint = BiomeTint(DepthAt(height));
         if (surface != TerrainSurface.Grass && surface != TerrainSurface.Mud)
         {
             tint = Colors.White.Lerp(tint, 0.5f);
@@ -781,7 +820,7 @@ public sealed class TerrainGenerator
     /// grows (alpha). Full on grassy ground, thinning on mud and scree, none on rock, snow, the summit
     /// pad or a station's terrace, and stopping at a path's trodden band with a crisp edge.
     /// </summary>
-    private void WriteCarpet(byte[] mask, int at, float x, float z, Color ground, float slope, TerrainSurface surface, float pathWeight)
+    private void WriteCarpet(byte[] mask, int at, float x, float z, Color ground, float slope, TerrainSurface surface, float pathWeight, float snowCover)
     {
         float density = 0.0f;
         if (surface == TerrainSurface.Grass)
@@ -798,6 +837,8 @@ public sealed class TerrainGenerator
         }
         density *= 1.0f - Mathf.SmoothStep(0.985f, 0.999f, pathWeight);
         density *= 1.0f - Mathf.SmoothStep(34.0f, 42.0f, slope);
+        // The grass thins out before a snow patch's ragged edge, so only the odd blade stands in the snow.
+        density *= 1.0f - Mathf.SmoothStep(0.22f, 0.46f, snowCover);
         if (density > 0.0f && (OnSummitPad(x, z, 0.5f) || NearStation(x, z, _settings.ClearingRadius * 0.85f)))
         {
             density = 0.0f;
@@ -1124,7 +1165,8 @@ public sealed class TerrainGenerator
         }
 
         // Shrubs in thickets: a few bushes or dwarf pines together where the thicket noise is high.
-        int shrubTries = Mathf.RoundToInt(maxShrubs * area);
+        float shrubScatter = Mathf.Max(_settings.ShrubScatter, 0.0f);
+        int shrubTries = Mathf.RoundToInt(maxShrubs * area * shrubScatter);
         for (int n = 0; n < shrubTries; n++)
         {
             float lx = random.Range(0.0f, size);
@@ -1170,7 +1212,7 @@ public sealed class TerrainGenerator
         // Loose rocks: a scatter everywhere, several times thicker on scree and rocky ground, and
         // poking out of the snow here and there.
         float rockyFactor = Mathf.Max(_settings.RockySurfaceRockFactor, 1.0f);
-        int rockTries = Mathf.RoundToInt(maxRocks * rockyFactor * area);
+        int rockTries = Mathf.RoundToInt(maxRocks * rockyFactor * area * Mathf.Max(_settings.RockScatter, 0.0f));
         if (_settings.RockModels.Length > 0)
         {
             for (int n = 0; n < rockTries; n++)
@@ -1205,7 +1247,8 @@ public sealed class TerrainGenerator
                 {
                     continue;
                 }
-                float height = Mathf.Lerp(_settings.RockHeight.X, _settings.RockHeight.Y, big * big * big);
+                // Mostly fist-sized stones, a fair few knee-high, the odd one to sit on.
+                float height = Mathf.Lerp(_settings.RockHeight.X, _settings.RockHeight.Y, big * big);
                 AddCover(data, PlantKind.Rock, model, corner, lx, lz, yaw, height);
             }
             // Broken pieces round each boulder's foot, so boulders sit in the ground instead of on it.

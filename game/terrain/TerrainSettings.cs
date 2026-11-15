@@ -123,6 +123,12 @@ public partial class TerrainSettings : Resource
     [Export] public float MudMaxSlope { get; set; } = 12.0f;
     /// <summary>Snow where its noise is above this (-1..1).</summary>
     [Export] public float SnowThreshold { get; set; } = 0.35f;
+    /// <summary>
+    /// How far either side of SnowThreshold (in the snow noise's own units) the snow thins out to
+    /// nothing or deepens to full, for the ground's look only: wider, and a patch's edge is a broader,
+    /// more ragged band. Where the carrier slips is still decided at the threshold itself.
+    /// </summary>
+    [Export] public float SnowEdgeBand { get; set; } = 0.09f;
     [Export] public float MudThreshold { get; set; } = 0.4f;
     [Export] public float SurfaceNoiseWavelength { get; set; } = 25.0f;
     /// <summary>Random brightness change per triangle, for the low-poly faceted look.</summary>
@@ -215,7 +221,11 @@ public partial class TerrainSettings : Resource
     /// <summary>Wavelength of the thickets shrubs grow in and the meadows flowers gather in, in m.</summary>
     [Export] public float ThicketWavelength { get; set; } = 28.0f;
     /// <summary>Loose rock height range, in m (a few grow into knee-high outcrops).</summary>
-    [Export] public Vector2 RockHeight { get; set; } = new(0.15f, 0.6f);
+    [Export] public Vector2 RockHeight { get; set; } = new(0.12f, 0.7f);
+    /// <summary>Every circle's shrub density (Biome.ShrubDensity) times this: how bushy the whole mountain is.</summary>
+    [Export] public float ShrubScatter { get; set; } = 1.6f;
+    /// <summary>Every circle's loose-rock density (Biome.RockDensity) times this: how stony the whole mountain is.</summary>
+    [Export] public float RockScatter { get; set; } = 3.0f;
     /// <summary>Loose rocks are this many times as thick on scree and rocky ground.</summary>
     [Export] public float RockySurfaceRockFactor { get; set; } = 5.0f;
     /// <summary>Broken pieces lying round each boulder's foot (most and least).</summary>
@@ -225,7 +235,7 @@ public partial class TerrainSettings : Resource
         Kit + "rock_smallA.glb", Kit + "rock_smallC.glb", Kit + "rock_smallFlatA.glb", Kit + "rock_tallB.glb", Kit + "stone_smallF.glb",
     };
     /// <summary>The grass carpet (terrain/grass_carpet.gdshader): clumps this far apart, in m, ...</summary>
-    [Export] public float CarpetSpacing { get; set; } = 0.4f;
+    [Export] public float CarpetSpacing { get; set; } = 0.36f;
     /// <summary>...their tallest blades, in m...</summary>
     [Export] public float CarpetBladeHeight { get; set; } = 0.24f;
     /// <summary>...and how far from the camera they are drawn, in m (scaled by QualityViewScale; 0: no carpet).</summary>

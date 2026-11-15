@@ -26,6 +26,14 @@ uniform sampler2D stone_normal : hint_normal, filter_linear_mipmap, repeat_enabl
 uniform float forest_metres = 3.2;
 uniform float stone_metres = 1.5;
 uniform float texture_strength = 0.0;
+/// Snow lies where the vertex colour's alpha says (1 - alpha: 0 none, 1 deep), laid on here so a
+/// patch's edge is ragged at a finer scale than the ground's grid, with a dark wet rim round it.
+/// The colour is used as the vertex colours are (no sRGB conversion), so it matches the other surfaces.
+uniform vec3 snow_colour = vec3(0.88, 0.91, 0.95);
+uniform float snow_edge_scale = 0.11;
+uniform float snow_edge_detail = 0.47;
+uniform float snow_raggedness = 0.55;
+uniform float snow_wet_rim = 0.28;
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -46,6 +54,17 @@ void fragment() {
 	vec3 colour = mix(base, rock_color * (0.75 + 0.5 * base), rock);
 	vec3 detailed_normal = vec3(0.0, 0.0, 1.0);
 	float snow = smoothstep(0.72, 0.86, min(base.r, min(base.g, base.b)));
+	float cover = 1.0 - COLOR.a;
+	float lying = 0.0;
+	float rim = 0.0;
+	if (cover > 0.001) {
+		float ragged = texture(height_noise, world_pos.xz * snow_edge_scale + vec2(0.71, 0.19)).r * 0.65
+			+ texture(height_noise, world_pos.xz * snow_edge_detail + vec2(0.37, 0.83)).r * 0.35;
+		float depth = cover + (ragged - 0.5) * snow_raggedness * min(1.0, 4.0 * cover * (1.0 - cover) + 0.35);
+		lying = smoothstep(0.46, 0.54, depth);
+		rim = smoothstep(0.3, 0.46, depth) * (1.0 - lying);
+		snow = max(snow, lying);
+	}
 	if (texture_strength > 0.001) {
 		float stony_surface = 1.0 - smoothstep(0.01, 0.12, base.g - base.r);
 		float stone_blend = max(rock, stony_surface * 0.65);
@@ -60,6 +79,12 @@ void fragment() {
 		// VRAM normal compression can store RG only; reconstruct Z instead of sampling a missing blue channel.
 		detailed_normal.z = sqrt(max(1.0 - dot(detailed_normal.xy, detailed_normal.xy), 0.001));
 	}
+
+	// Melt water darkens the ground just outside a snow patch; then the snow itself, faintly the
+	// colour of the ground it lies on.
+	colour *= 1.0 - rim * snow_wet_rim;
+	vec3 lit_snow = snow_colour * mix(vec3(1.0), base / max(max(base.r, base.g), max(base.b, 0.001)), 0.18);
+	colour = mix(colour, lit_snow, lying);
 
 	float macro = texture(height_noise, world_pos.xz * macro_scale + vec2(0.31, 0.77)).r;
 	float micro = texture(height_noise, world_pos.xz * micro_scale + vec2(0.13, 0.52)).r;

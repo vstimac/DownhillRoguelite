@@ -16,12 +16,19 @@ uniform int columns = 64;
 uniform float spacing = 0.5;
 uniform float draw_distance = 32.0;
 uniform float blade_height = 0.3;
-/// How much brighter and greener the blade tips are than the ground beneath, and how dark the roots.
-uniform vec3 tip_tint = vec3(1.0, 1.08, 0.9);
-uniform float root_shade = 0.6;
+/// The ground's soil texture, its tile in m and how strongly the ground shows it (0: flat colour
+/// only). The blades' roots take exactly what the ground shows there, so the carpet grows out of it.
+uniform sampler2D soil : source_color, filter_linear_mipmap, repeat_enable;
+uniform float soil_metres = 3.2;
+uniform float soil_strength = 0.0;
+/// How far the blades keep the meadow's own green (the ground's flat colour) over the soil's brown.
+uniform float greenness = 0.3;
+/// How much greener the blade tips are than that, and how dark the roots.
+uniform vec3 tip_tint = vec3(0.96, 1.04, 0.86);
+uniform float root_shade = 0.72;
 /// Richer than the ground's muted colour (1: as the ground). Much above 1.1 and the carpet reads as
 /// a bright lawn laid over the olive ground instead of growing out of it.
-uniform float saturation = 1.1;
+uniform float saturation = 1.05;
 uniform float bend = 1.1;
 uniform float steady_share = 0.35;
 uniform float gust_scale = 0.02;
@@ -40,6 +47,8 @@ global uniform sampler2D wind_noise;
 global uniform vec4 foliage_pusher;
 
 varying vec3 ground_colour;
+varying vec3 blade_colour;
+varying vec3 lit_normal;
 varying float sheen;
 
 uint pcg(uint v) {
@@ -90,6 +99,8 @@ void vertex() {
 	// Thin edges: a clump survives where its roll is under the carpet's thickness there.
 	float grow = clamp((mask.a - keep) * 6.0, 0.0, 1.0) * fade;
 	sheen = 0.0;
+	// Lit like the ground it stands on (nearly straight up, a little its own way), on both faces.
+	lit_normal = normalize(vec3(sin(turn) * 0.22, 1.0, cos(turn) * 0.22));
 	if (grow <= 0.001) {
 		VERTEX = vec3(0.0);
 	} else {
@@ -114,20 +125,29 @@ void vertex() {
 		float lowered = dot(shift, shift) / max(2.0 * height, 0.02);
 		world += vec3(shift.x, -min(lowered, height * 0.8), shift.y);
 		VERTEX = world - chunk;
-		NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), 0.75));
+		NORMAL = lit_normal;
 		sheen = gust * wind;
 	}
-	ground_colour = mask.rgb;
+	vec3 shown = mask.rgb;
+	if (soil_strength > 0.001) {
+		// As terrain_ground.gdshader mixes it, from a blurred mip so a clump is one colour.
+		vec3 earth = textureLod(soil, root.xz / soil_metres, 3.0).rgb;
+		shown = mix(shown, earth * mix(vec3(1.0), mask.rgb * 1.7, 0.15), soil_strength);
+	}
+	ground_colour = shown;
+	blade_colour = mix(shown, mask.rgb, greenness);
 }
 
 void fragment() {
 	float up = clamp(UV.y, 0.0, 1.0);
-	vec3 tip = ground_colour * tip_tint;
-	vec3 colour = mix(ground_colour * root_shade, tip, up);
+	vec3 tip = blade_colour * tip_tint;
+	vec3 colour = mix(ground_colour * root_shade, tip, smoothstep(0.0, 0.7, up));
 	float grey = dot(colour, vec3(0.299, 0.587, 0.114));
 	colour = max(mix(vec3(grey), colour, saturation), vec3(0.0));
 	colour *= 1.0 + sheen * gust_sheen * up;
 	ALBEDO = colour;
 	ROUGHNESS = 1.0;
+	// A blade's back face would otherwise be lit from below (the engine flips its normal) and go black.
+	NORMAL = normalize((VIEW_MATRIX * vec4(lit_normal, 0.0)).xyz);
 	BACKLIGHT = colour * translucency;
 }

@@ -14,25 +14,44 @@ public static class GrassCarpet
 {
     public const string NodeName = "GrassCarpet";
     /// <summary>Blades in one clump, and the clump's radius in m.</summary>
-    public const int BladesPerClump = 14;
-    public const float ClumpRadius = 0.28f;
+    public const int BladesPerClump = 22;
+    public const float ClumpRadius = 0.27f;
+    /// <summary>Half a blade's width at its root, in m; how far its tip hangs outward (a share of its distance from the clump's centre); and where it bends (a share of its height).</summary>
+    public const float BladeHalfWidth = 0.011f;
+    public const float BladeLean = 0.22f;
+    public const float BendAt = 0.55f;
     /// <summary>A quarter is this wide, in m (a 64 m chunk has four).</summary>
     public const float QuarterSize = 32.0f;
+
+    /// <summary>
+    /// The ground's own soil texture, its tile size in m and how strongly the ground shows it
+    /// (TerrainStreamer sets these to what its ground material uses), so the blades take the colour
+    /// of the ground they stand on and not only its flat vertex colour.
+    /// </summary>
+    public static Texture2D? Soil { get; set; }
+    public static float SoilMetres { get; set; } = 3.2f;
+    public static float SoilStrength { get; set; }
 
     private static ArrayMesh? _clump;
     private static MultiMesh? _quarter;
     private static float _quarterSpacing;
 
-    /// <summary>One clump: thin triangle blades round its root, 1 m tall (the shader scales them), UV.y up the blade.</summary>
+    /// <summary>
+    /// One clump: bent blades round its root (a wide lower half and a narrowing tip, three triangles
+    /// each), 1 m tall (the shader scales them), UV.y up the blade. The blades stand nearly upright
+    /// and lean only a little outward: splayed wide, a clump reads as a spiked star, not as grass.
+    /// </summary>
     public static ArrayMesh Clump()
     {
         if (_clump != null)
         {
             return _clump;
         }
-        Vector3[] vertices = new Vector3[BladesPerClump * 3];
-        Vector3[] normals = new Vector3[BladesPerClump * 3];
-        Vector2[] uvs = new Vector2[BladesPerClump * 3];
+        const int perBlade = 5;
+        Vector3[] vertices = new Vector3[BladesPerClump * perBlade];
+        Vector3[] normals = new Vector3[BladesPerClump * perBlade];
+        Vector2[] uvs = new Vector2[BladesPerClump * perBlade];
+        int[] indices = new int[BladesPerClump * 9];
         // A fixed layout (golden-angle spiral), so the clump looks the same on every machine.
         for (int b = 0; b < BladesPerClump; b++)
         {
@@ -40,27 +59,46 @@ public static class GrassCarpet
             float reach = ClumpRadius * Mathf.Sqrt((b + 0.5f) / BladesPerClump);
             Vector3 root = new(Mathf.Cos(angle) * reach, 0.0f, Mathf.Sin(angle) * reach);
             float facing = angle * 1.7f + b;
-            Vector3 side = new(Mathf.Cos(facing) * 0.022f, 0.0f, Mathf.Sin(facing) * 0.022f);
-            float height = 0.65f + 0.35f * ((b * 37) % 11) / 10.0f;
-            Vector3 lean = new Vector3(root.X, 0.0f, root.Z) * 0.6f;
-            int v = b * 3;
+            Vector3 across = new(Mathf.Cos(facing), 0.0f, Mathf.Sin(facing));
+            Vector3 side = across * BladeHalfWidth;
+            float height = 0.55f + 0.45f * ((b * 37) % 11) / 10.0f;
+            // The tip hangs a little outward and to one side of the blade's own face.
+            float sideways = ((b * 53) % 7) / 6.0f - 0.5f;
+            Vector3 hang = new Vector3(root.X, 0.0f, root.Z) * BladeLean + across.Cross(Vector3.Up) * (0.07f * sideways);
+            Vector3 middle = root + hang * 0.3f + Vector3.Up * (height * BendAt);
+            int v = b * perBlade;
             vertices[v] = root - side;
             vertices[v + 1] = root + side;
-            vertices[v + 2] = root + lean + Vector3.Up * height;
+            vertices[v + 2] = middle - side * 0.75f;
+            vertices[v + 3] = middle + side * 0.75f;
+            vertices[v + 4] = root + hang + Vector3.Up * height;
             Vector3 normal = side.Cross(Vector3.Up).Normalized();
-            for (int k = 0; k < 3; k++)
+            for (int k = 0; k < perBlade; k++)
             {
                 normals[v + k] = normal;
             }
             uvs[v] = new Vector2(0.0f, 0.0f);
             uvs[v + 1] = new Vector2(1.0f, 0.0f);
-            uvs[v + 2] = new Vector2(0.5f, 1.0f);
+            uvs[v + 2] = new Vector2(0.0f, BendAt);
+            uvs[v + 3] = new Vector2(1.0f, BendAt);
+            uvs[v + 4] = new Vector2(0.5f, 1.0f);
+            int at = b * 9;
+            indices[at] = v;
+            indices[at + 1] = v + 1;
+            indices[at + 2] = v + 3;
+            indices[at + 3] = v;
+            indices[at + 4] = v + 3;
+            indices[at + 5] = v + 2;
+            indices[at + 6] = v + 2;
+            indices[at + 7] = v + 3;
+            indices[at + 8] = v + 4;
         }
         using Godot.Collections.Array arrays = new();
         arrays.Resize((int)Mesh.ArrayType.Max);
         arrays[(int)Mesh.ArrayType.Vertex] = vertices;
         arrays[(int)Mesh.ArrayType.Normal] = normals;
         arrays[(int)Mesh.ArrayType.TexUV] = uvs;
+        arrays[(int)Mesh.ArrayType.Index] = indices;
         _clump = new ArrayMesh();
         _clump.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
         return _clump;
@@ -123,6 +161,12 @@ public static class GrassCarpet
         material.SetShaderParameter("spacing", spacing);
         material.SetShaderParameter("draw_distance", drawDistance);
         material.SetShaderParameter("blade_height", settings.CarpetBladeHeight);
+        if (Soil != null && SoilStrength > 0.0f)
+        {
+            material.SetShaderParameter("soil", Soil);
+            material.SetShaderParameter("soil_metres", Mathf.Max(SoilMetres, 0.1f));
+            material.SetShaderParameter("soil_strength", SoilStrength);
+        }
         Node3D carpet = new() { Name = NodeName };
         MultiMesh quarter = Quarter(spacing);
         float size = settings.ChunkSize;

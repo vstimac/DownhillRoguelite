@@ -23,6 +23,8 @@ public partial class EnvironmentShots : Node3D
     [Export] public float[] Depths { get; set; } = { 25.0f, 120.0f, 260.0f, 1250.0f, 2350.0f, 3400.0f, 4450.0f, 7600.0f };
     [Export] public float SettleSeconds { get; set; } = 1.5f;
     [Export] public float MaxWaitSeconds { get; set; } = 25.0f;
+    /// <summary>Frames timed per reading with `--frame-times` (vertical sync and the frame cap are off for it).</summary>
+    [Export] public int TimedFrames { get; set; } = 150;
 
     public override async void _Ready()
     {
@@ -30,6 +32,11 @@ public partial class EnvironmentShots : Node3D
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             if (arg.StartsWith("--shots-directory=", StringComparison.Ordinal)) { directory = arg["--shots-directory=".Length..]; }
+        }
+        bool frameTimes = false;
+        foreach (string arg in OS.GetCmdlineUserArgs())
+        {
+            if (arg == "--frame-times") { frameTimes = true; }
         }
         Directory.CreateDirectory(directory);
         PlayerController player = GetNode<PlayerController>("World/Player");
@@ -78,10 +85,46 @@ public partial class EnvironmentShots : Node3D
             Vector3 sideEye = new(at.X - 6.0f, at.Y + 2.4f, z + 4.0f);
             await Shoot(camera, sideEye, side, Path.Combine(directory, $"{index:D2}_depth{depth:0}_side.png"));
             GD.Print($"SHOT depth {depth:0} at {at}, loaded {streamer.LoadedCount}, waited {waited:0.0}s, biome {generator.BiomeAt(at.X, at.Z, depth)?.Name}");
+            if (frameTimes)
+            {
+                double with = await FrameMilliseconds();
+                SetCarpets(streamer, false);
+                double without = await FrameMilliseconds();
+                SetCarpets(streamer, true);
+                GD.Print($"FRAME depth {depth:0}: {with:0.00} ms with the grass carpet, {without:0.00} ms without ({with - without:0.00} ms for the carpet)");
+            }
             index++;
         }
         GD.Print("PASS  environment shots saved in " + directory);
         GetTree().Quit(0);
+    }
+
+    /// <summary>Average frame time over TimedFrames, uncapped, in ms.</summary>
+    private async Task<double> FrameMilliseconds()
+    {
+        int cap = Engine.MaxFps;
+        DisplayServer.VSyncMode sync = DisplayServer.WindowGetVsyncMode();
+        Engine.MaxFps = 0;
+        DisplayServer.WindowSetVsyncMode(DisplayServer.VSyncMode.Disabled);
+        for (int i = 0; i < 20; i++)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+        ulong start = Time.GetTicksUsec();
+        for (int i = 0; i < TimedFrames; i++)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+        double average = (Time.GetTicksUsec() - start) / 1000.0 / TimedFrames;
+        Engine.MaxFps = cap;
+        DisplayServer.WindowSetVsyncMode(sync);
+        return average;
+    }
+
+    private static void SetCarpets(Node node, bool shown)
+    {
+        if (node is Node3D spatial && node.Name == GrassCarpet.NodeName) { spatial.Visible = shown; }
+        foreach (Node child in node.GetChildren()) { SetCarpets(child, shown); }
     }
 
     private static void HideOverlays(Node node)

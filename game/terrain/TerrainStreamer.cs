@@ -137,6 +137,10 @@ public partial class TerrainStreamer : Node3D
         material.SetShaderParameter("rock_end", RockEnd);
         material.SetShaderParameter("rock_amount", RockAmount);
         material.SetShaderParameter("slope_darkening", SlopeDarkening);
+        if (_surfaceColors.Length > (int)TerrainSurface.Snow)
+        {
+            material.SetShaderParameter("snow_colour", _surfaceColors[(int)TerrainSurface.Snow]);
+        }
         bool textures = BindTexture(material, "forest_colour", ForestColourPath)
             && BindTexture(material, "forest_normal", ForestNormalPath)
             && BindTexture(material, "stone_colour", RockColourPath)
@@ -199,6 +203,15 @@ public partial class TerrainStreamer : Node3D
         if (CarpetShader.Length > 0 && ResourceLoader.Exists(CarpetShader) && ResourceLoader.Load(CarpetShader) is Shader carpetShader)
         {
             _carpetShader = carpetShader;
+            GrassCarpet.Soil = null;
+            GrassCarpet.SoilStrength = 0.0f;
+            if (_groundMaterial is ShaderMaterial ground && ground.GetShaderParameter("texture_strength").AsSingle() > 0.0f
+                && ResourceLoader.Load(ForestColourPath) is Texture2D soil)
+            {
+                GrassCarpet.Soil = soil;
+                GrassCarpet.SoilMetres = ForestTextureMetres;
+                GrassCarpet.SoilStrength = GroundTextureStrength;
+            }
             GrassCarpet.Quarter(Settings.CarpetSpacing);
         }
         _boulderMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_boulderSurface, new Color(0.5f, 0.5f, 0.52f)), Roughness = 1.0f };
