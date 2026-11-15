@@ -84,6 +84,8 @@ public partial class TerrainStreamer : Node3D
     [Export] public float SlopeDarkening { get; set; } = 0.28f;
     [Export] public int NoiseSize { get; set; } = 256;
     [Export(PropertyHint.File, "*.gdshader")] public string GrassShader { get; set; } = "res://terrain/forest_grass.gdshader";
+    /// <summary>The thick short-grass carpet near the camera (terrain/GrassCarpet); empty: none.</summary>
+    [Export(PropertyHint.File, "*.gdshader")] public string CarpetShader { get; set; } = "res://terrain/grass_carpet.gdshader";
     [Export] public float GroundTextureStrength { get; set; } = 0.9f;
     [Export] public float ForestTextureMetres { get; set; } = 3.2f;
     [Export] public float RockTextureMetres { get; set; } = 1.5f;
@@ -100,6 +102,7 @@ public partial class TerrainStreamer : Node3D
     private SurfaceType? _trunkSurface;
     private Material? _groundMaterial;
     private Material? _grassMaterial;
+    private Shader? _carpetShader;
     private StandardMaterial3D? _boulderMaterial;
     private StandardMaterial3D? _trunkMaterial;
     private Task<TerrainChunkData>? _pending;
@@ -134,6 +137,10 @@ public partial class TerrainStreamer : Node3D
         material.SetShaderParameter("rock_end", RockEnd);
         material.SetShaderParameter("rock_amount", RockAmount);
         material.SetShaderParameter("slope_darkening", SlopeDarkening);
+        if (_surfaceColors.Length > (int)TerrainSurface.Snow)
+        {
+            material.SetShaderParameter("snow_colour", _surfaceColors[(int)TerrainSurface.Snow]);
+        }
         bool textures = BindTexture(material, "forest_colour", ForestColourPath)
             && BindTexture(material, "forest_normal", ForestNormalPath)
             && BindTexture(material, "stone_colour", RockColourPath)
@@ -161,9 +168,10 @@ public partial class TerrainStreamer : Node3D
         foreach (string model in Settings.PebbleModels) { ModelFit.FirstMesh(model, out _); }
         foreach (string model in Settings.BoulderModels) { ModelFit.FirstMesh(model, out _); }
         foreach (string model in Settings.TrunkModels) { ModelFit.FirstMesh(model, out _); }
+        foreach (string model in Settings.RockModels) { ModelFit.FirstMesh(model, out _); }
         foreach (Biome biome in Settings.Biomes)
         {
-            foreach (string[] models in new[] { biome.TreeModels, biome.GrassModels, biome.FlowerModels })
+            foreach (string[] models in new[] { biome.TreeModels, biome.GrassModels, biome.FlowerModels, biome.ShrubModels, biome.DebrisModels, biome.WaysideModels })
             {
                 foreach (string model in models)
                 {
@@ -182,6 +190,8 @@ public partial class TerrainStreamer : Node3D
         AddChild(new DownhillRoguelite.Environment.FallingLeaves { Name = "FallingLeaves", Streamer = this });
         // Fireflies on dry nights in the green circles.
         AddChild(new DownhillRoguelite.Environment.Fireflies { Name = "Fireflies", Streamer = this });
+        // Birds, pollen, insects and banks of mist round the camera.
+        AddChild(new DownhillRoguelite.Environment.AmbientLife { Name = "AmbientLife", Streamer = this });
         _groundMaterial = MakeGroundMaterial();
         if (ResourceLoader.Exists(GrassShader) && ResourceLoader.Load(GrassShader) is Shader grassShader)
         {
@@ -189,6 +199,20 @@ public partial class TerrainStreamer : Node3D
             material.SetShaderParameter("grass_colour", Settings.GrassColor);
             material.SetShaderParameter("draw_distance", Settings.GrassViewDistance);
             _grassMaterial = material;
+        }
+        if (CarpetShader.Length > 0 && ResourceLoader.Exists(CarpetShader) && ResourceLoader.Load(CarpetShader) is Shader carpetShader)
+        {
+            _carpetShader = carpetShader;
+            GrassCarpet.Soil = null;
+            GrassCarpet.SoilStrength = 0.0f;
+            if (_groundMaterial is ShaderMaterial ground && ground.GetShaderParameter("texture_strength").AsSingle() > 0.0f
+                && ResourceLoader.Load(ForestColourPath) is Texture2D soil)
+            {
+                GrassCarpet.Soil = soil;
+                GrassCarpet.SoilMetres = ForestTextureMetres;
+                GrassCarpet.SoilStrength = GroundTextureStrength;
+            }
+            GrassCarpet.Quarter(GrassCarpet.QuarterSize / GrassCarpet.Columns(Settings.CarpetSpacing));
         }
         _boulderMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_boulderSurface, new Color(0.5f, 0.5f, 0.52f)), Roughness = 1.0f };
         if (ResourceLoader.Exists(RockColourPath) && ResourceLoader.Load(RockColourPath) is Texture2D rockColour)
@@ -363,7 +387,7 @@ public partial class TerrainStreamer : Node3D
 
         Stopwatch timer = Stopwatch.StartNew();
         TerrainChunk chunk = new();
-        chunk.Build(data, Generator, _surfaces, _groundMaterial, _boulderMaterial, _trunkMaterial, _boulderSurface, _trunkSurface, _grassMaterial);
+        chunk.Build(data, Generator, _surfaces, _groundMaterial, _boulderMaterial, _trunkMaterial, _boulderSurface, _trunkSurface, _grassMaterial, _carpetShader);
         AddChild(chunk);
         _chunks[data.Coord] = chunk;
 

@@ -123,6 +123,12 @@ public partial class TerrainSettings : Resource
     [Export] public float MudMaxSlope { get; set; } = 12.0f;
     /// <summary>Snow where its noise is above this (-1..1).</summary>
     [Export] public float SnowThreshold { get; set; } = 0.35f;
+    /// <summary>
+    /// How far either side of SnowThreshold (in the snow noise's own units) the snow thins out to
+    /// nothing or deepens to full, for the ground's look only: wider, and a patch's edge is a broader,
+    /// more ragged band. Where the carrier slips is still decided at the threshold itself.
+    /// </summary>
+    [Export] public float SnowEdgeBand { get; set; } = 0.09f;
     [Export] public float MudThreshold { get; set; } = 0.4f;
     [Export] public float SurfaceNoiseWavelength { get; set; } = 25.0f;
     /// <summary>Random brightness change per triangle, for the low-poly faceted look.</summary>
@@ -206,6 +212,37 @@ public partial class TerrainSettings : Resource
         Kit + "stone_smallA.glb", Kit + "stone_smallB.glb", Kit + "stone_smallC.glb",
     };
 
+    [ExportGroup("Ground cover")]
+    /// <summary>Shrubs, rocks and debris are batched in cells this wide (sparser than grass, so fewer draws).</summary>
+    [Export] public float GroundCoverBatchSize { get; set; } = 64.0f;
+    [Export] public float ShrubViewDistance { get; set; } = 80.0f;
+    [Export] public float RockViewDistance { get; set; } = 70.0f;
+    [Export] public float DebrisViewDistance { get; set; } = 45.0f;
+    /// <summary>Wavelength of the thickets shrubs grow in and the meadows flowers gather in, in m.</summary>
+    [Export] public float ThicketWavelength { get; set; } = 28.0f;
+    /// <summary>Loose rock height range, in m (a few grow into knee-high outcrops).</summary>
+    [Export] public Vector2 RockHeight { get; set; } = new(0.12f, 0.7f);
+    /// <summary>Every circle's shrub density (Biome.ShrubDensity) times this: how bushy the whole mountain is.</summary>
+    [Export] public float ShrubScatter { get; set; } = 1.6f;
+    /// <summary>Every circle's loose-rock density (Biome.RockDensity) times this: how stony the whole mountain is.</summary>
+    [Export] public float RockScatter { get; set; } = 3.0f;
+    /// <summary>Loose rocks are this many times as thick on scree and rocky ground.</summary>
+    [Export] public float RockySurfaceRockFactor { get; set; } = 5.0f;
+    /// <summary>Broken pieces lying round each boulder's foot (most and least).</summary>
+    [Export] public Vector2I BoulderFragments { get; set; } = new(1, 4);
+    [Export] public string[] RockModels { get; set; } =
+    {
+        Kit + "rock_smallA.glb", Kit + "rock_smallC.glb", Kit + "rock_smallFlatA.glb", Kit + "rock_tallB.glb", Kit + "stone_smallF.glb",
+    };
+    /// <summary>The grass carpet (terrain/grass_carpet.gdshader): clumps this far apart, in m, ...</summary>
+    [Export] public float CarpetSpacing { get; set; } = 0.36f;
+    /// <summary>...their tallest blades, in m...</summary>
+    [Export] public float CarpetBladeHeight { get; set; } = 0.24f;
+    /// <summary>...and how far from the camera they are drawn, in m (scaled by QualityViewScale; 0: no carpet).</summary>
+    [Export] public float CarpetViewDistance { get; set; } = 30.0f;
+    /// <summary>Fallen-log length range, in m (solid, vaultable, like the obstacles' trunks).</summary>
+    [Export] public Vector2 FallenLogLength { get; set; } = new(2.5f, 5.5f);
+
     public static Biome[] DefaultBiomes()
     {
         Biome[] biomes = new[]
@@ -258,6 +295,7 @@ public partial class TerrainSettings : Resource
                     biome.LeafColour = new Color(0.72f, 0.3f, 0.12f);
                     break;
             }
+            ApplyGroundCover(biome);
             // Every circle grows the generated grass tufts (they bend in the wind), keeping its own
             // leafy plants for variety; all ground plants are then fitted in metres.
             if (biome.GrassModels.Length > 0 && !biome.GroundPlantsInMetres)
@@ -281,6 +319,130 @@ public partial class TerrainSettings : Resource
             }
         }
         return biomes;
+    }
+
+    /// <summary>
+    /// Each circle's ground cover: what grows under its trees and between them, what lies at the
+    /// path's edge, how rocky it is and how many meadows it has. High, cold circles are rocky with
+    /// dwarf pines; green ones have bushes, mushrooms and flowers; burnt and broken ones have stumps
+    /// and stones; the lost carriers' things turn up by the path all the way down.
+    /// </summary>
+    private static void ApplyGroundCover(Biome biome)
+    {
+        const string survival = "res://art/items/kenney_survival_kit/GLB format/";
+        const string graveyard = "res://art/props/kenney_graveyard_kit/GLB format/";
+        string[] lostGear = { survival + "box-open.glb", survival + "bucket.glb", survival + "resource-wood.glb", survival + "bedroll-packed.glb", Kit + "stump_square.glb" };
+        switch (biome.Name)
+        {
+            case "Limbo":
+                biome.ShrubColour = new Color(0.2f, 0.3f, 0.23f);
+                biome.ShrubModels = new[] { Kit + "tree_pineGroundA.glb", Kit + "tree_pineSmallB.glb", Kit + "plant_bushSmall.glb" };
+                biome.ShrubDensity = 10.0f;
+                biome.ShrubHeight = new Vector2(0.4f, 1.6f);
+                biome.DebrisModels = new[] { Kit + "stump_old.glb", Kit + "mushroom_tanGroup.glb", Kit + "log.glb", Kit + "plant_flatShort.glb" };
+                biome.DebrisDensity = 7.0f;
+                biome.WaysideModels = new[] { Kit + "stump_round.glb", survival + "resource-wood.glb", graveyard + "cross-wood.glb", survival + "bucket.glb" };
+                biome.WaysideDensity = 3.0f;
+                biome.RockDensity = 9.0f;
+                biome.MeadowFlowerDensity = 0.12f;
+                biome.FallenLogDensity = 0.5f;
+                break;
+            case "Lust":
+                biome.ShrubColour = new Color(0.33f, 0.46f, 0.22f);
+                biome.ShrubModels = new[] { Kit + "plant_bush.glb", Kit + "plant_bushDetailed.glb", Kit + "plant_flatTall.glb" };
+                biome.ShrubDensity = 14.0f;
+                biome.DebrisModels = new[] { Kit + "mushroom_redGroup.glb", Kit + "stump_round.glb", Kit + "plant_flatShort.glb" };
+                biome.DebrisDensity = 6.0f;
+                biome.WaysideModels = lostGear;
+                biome.WaysideDensity = 2.5f;
+                biome.RockDensity = 5.0f;
+                biome.MeadowFlowerDensity = 0.3f;
+                biome.FallenLogDensity = 0.4f;
+                break;
+            case "Gluttony":
+                biome.ShrubColour = new Color(0.22f, 0.34f, 0.18f);
+                biome.ShrubModels = new[] { Kit + "plant_bushLarge.glb", Kit + "plant_bushDetailed.glb", Kit + "plant_flatTall.glb" };
+                biome.ShrubDensity = 22.0f;
+                biome.ShrubHeight = new Vector2(0.6f, 1.8f);
+                biome.DebrisModels = new[] { Kit + "mushroom_redGroup.glb", Kit + "mushroom_tanTall.glb", Kit + "stump_oldTall.glb", Kit + "plant_flatShort.glb" };
+                biome.DebrisDensity = 12.0f;
+                biome.WaysideModels = lostGear;
+                biome.WaysideDensity = 2.5f;
+                biome.RockDensity = 4.0f;
+                biome.MeadowFlowerDensity = 0.08f;
+                biome.FallenLogDensity = 1.0f;
+                biome.FlowerModels = new[] { Kit + "flower_purpleA.glb", Kit + "flower_purpleC.glb" };
+                break;
+            case "Greed":
+                biome.ShrubColour = new Color(0.62f, 0.38f, 0.16f);
+                biome.ShrubModels = new[] { Kit + "plant_bush.glb", Kit + "plant_bushTriangle.glb" };
+                biome.ShrubDensity = 10.0f;
+                biome.DebrisModels = new[] { Kit + "stump_round.glb", Kit + "mushroom_tanGroup.glb", Kit + "log.glb" };
+                biome.DebrisDensity = 7.0f;
+                biome.WaysideModels = lostGear;
+                biome.WaysideDensity = 3.0f;
+                biome.RockDensity = 6.0f;
+                biome.MeadowFlowerDensity = 0.25f;
+                biome.FallenLogDensity = 0.8f;
+                break;
+            case "Wrath":
+                biome.ShrubColour = new Color(0.3f, 0.34f, 0.22f);
+                biome.ShrubModels = new[] { Kit + "plant_bushTriangle.glb", Kit + "plant_bushSmall.glb" };
+                biome.ShrubDensity = 7.0f;
+                biome.DebrisModels = new[] { Kit + "stump_old.glb", Kit + "log.glb" };
+                biome.DebrisDensity = 5.0f;
+                biome.WaysideModels = new[] { graveyard + "debris-wood.glb", graveyard + "cross-wood.glb", survival + "box-open.glb", Kit + "stump_old.glb" };
+                biome.WaysideDensity = 3.0f;
+                biome.RockDensity = 12.0f;
+                biome.MeadowFlowerDensity = 0.1f;
+                biome.FallenLogDensity = 0.8f;
+                biome.FlowerModels = new[] { Kit + "flower_redA.glb", Kit + "flower_yellowB.glb" };
+                break;
+            case "Heresy":
+            case "Violence":
+                biome.ShrubColour = new Color(0.42f, 0.3f, 0.2f);
+                biome.ShrubModels = new[] { Kit + "plant_bushTriangle.glb", Kit + "plant_bushSmall.glb" };
+                biome.ShrubDensity = 4.0f;
+                biome.ShrubHeight = new Vector2(0.4f, 0.9f);
+                biome.DebrisModels = new[] { Kit + "stump_oldTall.glb", Kit + "stump_old.glb", Kit + "log.glb" };
+                biome.DebrisDensity = 6.0f;
+                biome.WaysideModels = new[] { graveyard + "debris-wood.glb", graveyard + "gravestone-debris.glb", graveyard + "cross-wood.glb", graveyard + "shovel.glb" };
+                biome.WaysideDensity = 3.5f;
+                biome.RockDensity = 16.0f;
+                biome.FallenLogDensity = 0.6f;
+                break;
+            case "Fraud":
+                biome.ShrubColour = new Color(0.2f, 0.28f, 0.25f);
+                biome.ShrubModels = new[] { Kit + "tree_pineGroundB.glb", Kit + "tree_pineSmallD.glb", Kit + "plant_bushSmall.glb" };
+                biome.ShrubDensity = 9.0f;
+                biome.ShrubHeight = new Vector2(0.4f, 1.6f);
+                biome.DebrisModels = new[] { Kit + "stump_old.glb", Kit + "mushroom_tan.glb", Kit + "log.glb" };
+                biome.DebrisDensity = 5.0f;
+                biome.WaysideModels = lostGear;
+                biome.WaysideDensity = 3.0f;
+                biome.RockDensity = 12.0f;
+                biome.MeadowFlowerDensity = 0.08f;
+                biome.FallenLogDensity = 0.5f;
+                biome.FlowerModels = new[] { Kit + "flower_purpleB.glb", Kit + "flower_yellowA.glb" };
+                break;
+            case "Treachery":
+                biome.DebrisModels = new[] { graveyard + "debris.glb" };
+                biome.DebrisDensity = 1.5f;
+                biome.WaysideModels = new[] { graveyard + "gravestone-debris.glb", survival + "box-open.glb" };
+                biome.WaysideDensity = 2.0f;
+                biome.RockDensity = 18.0f;
+                break;
+            case "Beyond":
+                biome.ShrubColour = new Color(0.42f, 0.33f, 0.5f);
+                biome.ShrubModels = new[] { Kit + "plant_bushLargeTriangle.glb", Kit + "plant_bushTriangle.glb" };
+                biome.ShrubDensity = 8.0f;
+                biome.DebrisModels = new[] { Kit + "mushroom_redTall.glb", Kit + "mushroom_tanTall.glb" };
+                biome.DebrisDensity = 4.0f;
+                biome.WaysideModels = lostGear;
+                biome.WaysideDensity = 2.0f;
+                biome.RockDensity = 8.0f;
+                break;
+        }
     }
 
     public float ChunkSize => ChunkCells * CellSize;

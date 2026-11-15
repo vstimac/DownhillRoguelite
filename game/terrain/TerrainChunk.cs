@@ -22,18 +22,21 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
     private SurfaceType?[] _surfaces = System.Array.Empty<SurfaceType?>();
     private Material? _grassMaterial;
     private Material? _rockMaterial;
+    private Material? _woodMaterial;
+    private static readonly System.Collections.Generic.Dictionary<Color, StandardMaterial3D> ShrubMaterials = new();
     private StaticBody3D? _treeBody;
 
     /// <summary>Creates the chunk's nodes from generated data. Main thread only.</summary>
     public void Build(TerrainChunkData data, TerrainGenerator generator, SurfaceType?[] surfaces,
         Material groundMaterial, Material boulderMaterial, Material trunkMaterial,
-        SurfaceType? boulderSurface, SurfaceType? trunkSurface, Material? grassMaterial = null)
+        SurfaceType? boulderSurface, SurfaceType? trunkSurface, Material? grassMaterial = null, Shader? carpetShader = null)
     {
         Coord = data.Coord;
         _generator = generator;
         _surfaces = surfaces;
         _grassMaterial = grassMaterial;
         _rockMaterial = boulderMaterial;
+        _woodMaterial = trunkMaterial;
         Name = $"Chunk_{data.Coord.X}_{data.Coord.Y}";
         Position = generator.ChunkCorner(data.Coord);
 
@@ -46,6 +49,8 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
         ArrayMesh mesh = new();
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
         AddChild(new MeshInstance3D { Name = "Ground", Mesh = mesh, MaterialOverride = groundMaterial });
+        float carpetDistance = generator.Settings.CarpetViewDistance * generator.Settings.QualityViewScale[(int)DownhillRoguelite.Core.GameOptions.Quality];
+        GrassCarpet.Add(this, data, carpetShader, generator.Settings, carpetDistance);
 
         // HeightMapShape3D is centred on its node, one unit between points: centre it and scale by cell size.
         float size = generator.Settings.ChunkSize;
@@ -193,6 +198,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             }
             float batchSize = Mathf.Max(_generator!.Settings.PlantBatchSize, 4);
             if (plant.Kind == PlantKind.Tree) { batchSize = _generator.Settings.ChunkSize; }
+            else if (IsGroundCover(plant.Kind)) { batchSize = Mathf.Max(_generator.Settings.GroundCoverBatchSize, 4); }
             _plantPhase = "grouping detail";
             Vector3 at = plant.Position - chunkOrigin;
             var key = (plant.Model, plant.Kind, Mathf.FloorToInt(at.X / batchSize), Mathf.FloorToInt(at.Z / batchSize));
@@ -280,8 +286,11 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             {
                 material = grassMaterial;
             }
-            else if (kind == PlantKind.Pebble) { material = _rockMaterial; }
+            else if (kind == PlantKind.Pebble || kind == PlantKind.Rock) { material = _rockMaterial; }
+            else if (kind == PlantKind.Shrub) { material = ShrubMaterial(source[plants[0]].Position); }
+            else if (kind == PlantKind.Debris && (model.Contains("/log") || model.Contains("/stump"))) { material = _woodMaterial; }
             float view = _generator!.Settings.GrassViewDistance;
+            float cell = _generator.Settings.PlantBatchSize;
             GeometryInstance3D.ShadowCastingSetting shadows = GeometryInstance3D.ShadowCastingSetting.Off;
             // Far trees fade out (into the fog) over a margin; small plants just stop.
             float margin = 2.0f;
@@ -294,6 +303,14 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
                 fade = GeometryInstance3D.VisibilityRangeFadeModeEnum.Self;
             }
             else if (kind == PlantKind.Pebble) { view = _generator.Settings.PebbleViewDistance; }
+            else if (kind == PlantKind.Shrub) { view = _generator.Settings.ShrubViewDistance; }
+            else if (kind == PlantKind.Rock) { view = _generator.Settings.RockViewDistance; }
+            else if (kind == PlantKind.Debris) { view = _generator.Settings.DebrisViewDistance; }
+            if (IsGroundCover(kind))
+            {
+                // Sparse cover is batched in larger cells: the range is measured to the cell's centre.
+                cell = _generator.Settings.GroundCoverBatchSize * 0.71f;
+            }
             view *= _generator.Settings.QualityViewScale[(int)DownhillRoguelite.Core.GameOptions.Quality];
             AddChild(new MultiMeshInstance3D
             {
@@ -301,12 +318,51 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
                 MaterialOverride = material,
                 Multimesh = batch,
                 CastShadow = shadows,
-                VisibilityRangeEnd = view + _generator.Settings.PlantBatchSize,
+                VisibilityRangeEnd = view + cell,
                 VisibilityRangeEndMargin = margin,
                 VisibilityRangeFadeMode = fade,
             }, true);
             yield return true;
         }
+    }
+
+    /// <summary>One shared material per circle's foliage colour, for the art pack's bushes and dwarf pines.</summary>
+    private Material? ShrubMaterial(Vector3 at)
+    {
+        Biome? biome = _generator!.BiomeAt(at.X, at.Z, _generator.DepthAt(at.Y));
+        if (biome == null)
+        {
+            return null;
+        }
+        if (!ShrubMaterials.TryGetValue(biome.ShrubColour, out StandardMaterial3D? material))
+        {
+            material = new StandardMaterial3D { AlbedoColor = biome.ShrubColour, Roughness = 1.0f, BacklightEnabled = true, Backlight = biome.ShrubColour * 0.4f };
+            ShrubMaterials[biome.ShrubColour] = material;
+        }
+        return material;
+    }
+
+    /// <summary>Shrubs, loose rocks and debris: sparse ground cover, batched in larger cells and drawn further.</summary>
+    public static bool IsGroundCover(PlantKind kind)
+    {
+        return kind == PlantKind.Shrub || kind == PlantKind.Rock || kind == PlantKind.Debris;
+    }
+
+    /// <summary>
+    /// How far a plant's foot is pushed into the ground, in m: rocks sit a fifth of their height
+    /// deep and shrubs and debris a little, so on a slope their downhill side doesn't hang in the air.
+    /// </summary>
+    public static float GroundSink(PlantData plant)
+    {
+        if (plant.Kind == PlantKind.Rock)
+        {
+            return plant.Scale * 0.2f;
+        }
+        if (plant.Kind == PlantKind.Shrub || plant.Kind == PlantKind.Debris)
+        {
+            return plant.Scale * 0.08f;
+        }
+        return 0.0f;
     }
 
     /// <summary>Fits authored plants in metres; legacy ground plants retain their original scale.</summary>
@@ -321,7 +377,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
             foot = new Vector3(bounds.GetCenter().X, bounds.Position.Y, bounds.GetCenter().Z);
         }
         Basis lean = Basis.FromEuler(new Vector3(plant.Lean.X, 0.0f, plant.Lean.Y));
-        Transform3D placement = new(lean * new Basis(Vector3.Up, plant.Yaw), plant.Position - chunkOrigin);
+        Transform3D placement = new(lean * new Basis(Vector3.Up, plant.Yaw), plant.Position - chunkOrigin + Vector3.Down * GroundSink(plant));
         Transform3D fit = new(Basis.Identity.Scaled(Vector3.One * scale), -foot * scale);
         return placement * fit * local;
     }
@@ -383,7 +439,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery
         else
         {
             float radius = obstacle.Size.X * 0.5f;
-            if (!AddModel(body, _generator!.Settings.TrunkModels, obstacle, new Vector3(radius * 2.0f, obstacle.Size.Y, radius * 2.0f), true))
+            if (!AddModel(body, _generator!.Settings.TrunkModels, obstacle, new Vector3(radius * 2.0f, obstacle.Size.Y, radius * 2.0f), true, trunkMaterial))
             {
                 body.AddChild(new MeshInstance3D
                 {
