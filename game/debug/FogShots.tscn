@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://debug/FogShots.cs" id="1_shots"]
+[ext_resource type="PackedScene" path="res://debug/TestTerrain.tscn" id="2_world"]
+
+[node name="FogShots" type="Node3D"]
+script = ExtResource("1_shots")
+
+[node name="World" parent="." instance=ExtResource("2_world")]

@@ -91,6 +91,8 @@ public static class GameOptions
     public static string NetName { get; private set; } = "";
 
     private static bool _loaded;
+    private static bool _qualityForThisRun;
+    private static GraphicsQuality _savedQuality = GraphicsQuality.High;
     private static string _path = DefaultPath;
 
     /// <summary>Tests: read and save another file from now on (so the player's own options stay untouched), starting from defaults.</summary>
@@ -149,8 +151,10 @@ public static class GameOptions
             return;
         }
         _loaded = true;
+        _qualityForThisRun = false;
         if (PlayersFileOffLimits())
         {
+            UseCommandLineQuality();
             return;
         }
         ConfigFile file = new();
@@ -161,6 +165,7 @@ public static class GameOptions
             {
                 Quality = GraphicsQuality.Low;
             }
+            UseCommandLineQuality();
             return;
         }
         PauseWhileOpen = (bool)file.GetValue(Section, "pause_while_open", PauseWhileOpen);
@@ -197,7 +202,38 @@ public static class GameOptions
         CheckForUpdates = (bool)file.GetValue(Section, "check_updates", CheckForUpdates);
         SideHearts = (bool)file.GetValue(Section, "side_hearts", SideHearts);
         DialogueLanguage = (DialogueLanguage)Mathf.Clamp((int)file.GetValue(Section, "dialogue_language", (int)DialogueLanguage), 0, 1);
+        UseCommandLineQuality();
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// `-- --quality=low|medium|high` (screenshots and checks of one preset): the graphics preset for
+    /// this run only. The saved one is kept and written back unless the player picks another in Options.
+    /// </summary>
+    private static void UseCommandLineQuality()
+    {
+        foreach (string arg in OS.GetCmdlineUserArgs())
+        {
+            GraphicsQuality? asked = null;
+            if (arg == "--quality=low")
+            {
+                asked = GraphicsQuality.Low;
+            }
+            else if (arg == "--quality=medium")
+            {
+                asked = GraphicsQuality.Medium;
+            }
+            else if (arg == "--quality=high")
+            {
+                asked = GraphicsQuality.High;
+            }
+            if (asked is GraphicsQuality quality)
+            {
+                _savedQuality = Quality;
+                _qualityForThisRun = true;
+                Quality = quality;
+            }
+        }
     }
 
     public static void SetPauseWhileOpen(bool on) => Set(() => PauseWhileOpen = on);
@@ -220,7 +256,7 @@ public static class GameOptions
     public static void SetWindowSize(Vector2I size) => Set(() => WindowSize = new Vector2I(Mathf.Max(0, size.X), Mathf.Max(0, size.Y)));
     public static void SetVSync(bool on) => Set(() => VSync = on);
     public static void SetGroundFog(bool on) => Set(() => GroundFog = on);
-    public static void SetQuality(GraphicsQuality quality) => Set(() => Quality = quality);
+    public static void SetQuality(GraphicsQuality quality) => Set(() => { Quality = quality; _qualityForThisRun = false; });
     public static void SetMaxFps(int fps) => Set(() => MaxFps = Mathf.Max(0, fps));
     public static void SetLookSensitivity(float multiplier) => Set(() => LookSensitivity = Mathf.Clamp(multiplier, 0.25f, 3.0f));
     public static void SetMouseSensitivity(float multiplier) => Set(() => MouseSensitivity = Mathf.Clamp(multiplier, 0.1f, 5.0f));
@@ -301,7 +337,12 @@ public static class GameOptions
         file.SetValue(Section, "window_height", WindowSize.Y);
         file.SetValue(Section, "vsync", VSync);
         file.SetValue(Section, "ground_fog", GroundFog);
-        file.SetValue(Section, "graphics_quality", (int)Quality);
+        GraphicsQuality kept = Quality;
+        if (_qualityForThisRun)
+        {
+            kept = _savedQuality;
+        }
+        file.SetValue(Section, "graphics_quality", (int)kept);
         file.SetValue(Section, "max_fps", MaxFps);
         file.SetValue(Section, "look_sensitivity", LookSensitivity);
         file.SetValue(Section, "mouse_sensitivity", MouseSensitivity);
