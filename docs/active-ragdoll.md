@@ -125,3 +125,38 @@ publication was completed. Both public full-download links return HTTP 200. The 
 planner selects the 2.9 patch for Windows 2.8, the 2.9 full build for older Linux, and no update
 for either platform already on 2.9. These prebuilt 2.9 packages predate this ragdoll integration;
 the new controller changes will ship in a subsequent build/update.
+
+## Joint limits and solver steps, 2026-11-15
+
+The ragdoll's joints overshot their limits in about half of all falls: an elbow bent sideways, a
+wrist or the neck swung 10 to 30 degrees past its limit and stayed there. `RagdollJointTests`
+measures four fixed falls, which is one sample of something chaotic, so it passed or failed with
+any unrelated change to how a fall begins (the pack's pull on the balance was switched off for a
+day because of it).
+
+`RagdollJointTests.tscn -- --falls=60` is a survey instead of the test: that many falls with seeded
+pushes, speeds and headings, and how many of them went past each limit. With it:
+
+| Jolt velocity / position steps | elbows sideways | wrists, neck, hips, ankles past their swing |
+|---|---|---|
+| 12 / 4 (until 3.1) | 18 of 60 falls, worst 36 deg | 29 of 60, worst 30 deg |
+| 32 / 16 | 8 of 60, worst 26 deg | 8 of 60, worst 18 deg |
+| 48 / 24 | 0 of 60 | 2 of 60, worst 13 deg |
+| **64 / 32 (now)** | 0 of 120 | 1 of 120, worst 10.07 deg (limit 10) |
+
+So the cause was the solver not converging on a heavy trunk hanging off light hands, feet and
+forearms, not the joints' frames or the living fall's muscles (`-- --no-muscles` gives the same
+numbers). More steps cost nothing measurable here: 30 surveyed falls, the enemy tests and a 30 s
+descent take the same time at 12 / 4 and 64 / 32, because one ragdoll is a tiny island.
+
+What did not work: a stronger Baumgarte factor (0.4), and a guard in `PlayerRagdoll` that turned
+an overshooting limb back by its angular velocity (it fought the solver and made things worse).
+
+Two things follow from the stiffer joints:
+- A hand or a foot can twitch against the ground while the body lies still. Lying still is now
+  judged without them (`PlayerRagdoll.SettleMinMassShare`), or he waited seconds to get up.
+- `BalanceSettings.PackSwayFactor` is back at 3 (the swinging pack pulls at the balance).
+
+**Releases:** the steps are project settings (`physics/jolt_physics_3d/simulation/*`). A small
+update cannot change them (see `docs/auto-update.md`): `make_update.py` refuses, and with
+`--allow-settings` players on the old base keep 12 / 4 until the next full release.
