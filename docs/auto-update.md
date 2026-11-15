@@ -141,3 +141,12 @@ folder (old exe + update, `-- --host`).
 `make_update.py` checks this: it refuses a small update when `project.godot` differs from the base's
 tag in any line but those `PatchLoader` makes up for (`ALLOWED_SETTINGS`). Make a full release
 instead, or pass `--allow-settings` when you are sure the change doesn't matter at startup.
+
+One kind of startup setting does travel in a small update: those in `OVERRIDE_SETTINGS`
+(`make_update.py`), today the physics solver steps. Godot reads an `override.cfg` next to the game
+at startup, before the physics starts, so the update writes the project's current values into that
+file and the old base runs with them. `PatchLoader` prints `physics solver steps N / M` in an
+exported game's log, so a folder that lacks the file can be told apart. Setting the same values
+from code at startup does nothing (measured: the physics has read them by then). A full release
+has the values in its own settings; an `override.cfg` left over from an earlier update still wins,
+so keep the two the same or delete the file when the settings change again.

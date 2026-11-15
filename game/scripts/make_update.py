@@ -30,7 +30,9 @@ needs only the newest. When updates grow large, make a new full release (and a n
 A small update can't change the game's startup settings: autoloads, input actions, shader globals and
 physics settings come from the base's project.binary, which a patch never replaces. So it refuses when
 project.godot differs from the base's tag (base.txt) in any line but the few that PatchLoader makes
-up for itself (ALLOWED_SETTINGS). Such a change needs a full release; --allow-settings overrides.
+up for itself (ALLOWED_SETTINGS) and the few it can carry as override.cfg (OVERRIDE_SETTINGS: Godot
+reads that file next to the game at startup, before the physics starts, so the update writes the
+current values there). Any other change needs a full release; --allow-settings overrides.
 
 Versions: a major version (3.0, 4.0, ...) is a full release and the new base; the minor versions
 after it (3.1, 3.2, ...) are small updates on that base.
@@ -154,6 +156,39 @@ ALLOWED_SETTINGS = {
 }
 
 
+# Startup settings a small update carries as override.cfg next to the game, by section. Godot reads
+# that file at startup, before the physics server starts, so they take effect on an older base too
+# (checked on an exported 3.0 folder; setting them from code at startup does nothing: the physics
+# has read them by then).
+OVERRIDE_SETTINGS = {
+    "physics": ("jolt_physics_3d/simulation/velocity_steps", "jolt_physics_3d/simulation/position_steps"),
+}
+OVERRIDE_FILE = "override.cfg"
+
+
+def carried_by_override(line):
+    """Whether a project.godot line sets one of OVERRIDE_SETTINGS."""
+    key = line.split("=", 1)[0].strip()
+    return any(key in keys for keys in OVERRIDE_SETTINGS.values())
+
+
+def override_text():
+    """override.cfg for the current project: the OVERRIDE_SETTINGS it sets, or "" when it sets none."""
+    found = {}
+    section = ""
+    with open(os.path.join(ROOT, "project.godot"), encoding="utf-8") as f:
+        for raw in f:
+            line = raw.strip()
+            if line.startswith("[") and line.endswith("]"):
+                section = line[1:-1]
+            elif "=" in line and section in OVERRIDE_SETTINGS and line.split("=", 1)[0].strip() in OVERRIDE_SETTINGS[section]:
+                found.setdefault(section, []).append(line)
+    text = ""
+    for section in sorted(found):
+        text += f"[{section}]\n\n" + "\n".join(found[section]) + "\n\n"
+    return text
+
+
 def settings_guard(base_id):
     """Fails when project.godot changed since the base in a way a small update can't carry."""
     old = subprocess.run(["git", "-C", ROOT, "show", f"{base_id}:./project.godot"], capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -166,8 +201,8 @@ def settings_guard(base_id):
     with open(os.path.join(ROOT, "project.godot"), encoding="utf-8") as f:
         new_lines = [line.rstrip() for line in f]
     old_lines = [line.rstrip() for line in old.stdout.splitlines()]
-    removed = [line for line in old_lines if line and line not in new_lines]
-    added = [line for line in new_lines if line and line not in old_lines and line not in ALLOWED_SETTINGS]
+    removed = [line for line in old_lines if line and line not in new_lines and not carried_by_override(line)]
+    added = [line for line in new_lines if line and line not in old_lines and line not in ALLOWED_SETTINGS and not carried_by_override(line)]
     if not removed and not added:
         return
     for line in removed[:12]:
@@ -364,6 +399,16 @@ def main():
             old = base_files.get(name)
             if os.path.isfile(source) and (old is None or digest(old) != digest(source)):
                 changed.append((name, source))
+
+        # Startup settings the base's own project settings don't have yet (OVERRIDE_SETTINGS).
+        carried = override_text()
+        if carried:
+            override_path = os.path.join(scratch, OVERRIDE_FILE)
+            with open(override_path, "w", encoding="utf-8", newline="\n") as f:
+                f.write(carried)
+            old = base_files.get(OVERRIDE_FILE)
+            if old is None or digest(old) != digest(override_path):
+                changed.append((OVERRIDE_FILE, override_path))
 
         os.makedirs(out_dir, exist_ok=True)
         if platform == "linux":

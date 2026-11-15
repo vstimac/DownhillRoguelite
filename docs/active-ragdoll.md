@@ -157,6 +157,7 @@ Two things follow from the stiffer joints:
   judged without them (`PlayerRagdoll.SettleMinMassShare`), or he waited seconds to get up.
 - `BalanceSettings.PackSwayFactor` is back at 3 (the swinging pack pulls at the balance).
 
-**Releases:** the steps are project settings (`physics/jolt_physics_3d/simulation/*`). A small
-update cannot change them (see `docs/auto-update.md`): `make_update.py` refuses, and with
-`--allow-settings` players on the old base keep 12 / 4 until the next full release.
+**Releases:** the steps are project settings (`physics/jolt_physics_3d/simulation/*`), which a
+patch file cannot change on an older base. A small update carries them as `override.cfg` next to
+the game instead (see `docs/auto-update.md`); checked on a 3.0 folder with a test update: its log
+says `PatchLoader: physics solver steps 64 / 32`.
