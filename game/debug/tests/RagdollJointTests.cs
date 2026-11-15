@@ -47,6 +47,9 @@ public partial class RagdollJointTests : Node3D
     private readonly List<string> _failures = new();
     private readonly Dictionary<string, Queue<float>> _recent = new();
     private readonly Dictionary<string, (float Value, string Where)> _worst = new();
+    /// <summary>This fall's worst per kind of limit, and every fall's (the survey).</summary>
+    private readonly Dictionary<string, float> _fallWorst = new();
+    private readonly Dictionary<string, List<float>> _survey = new();
 
     public override async void _Ready()
     {
@@ -57,6 +60,38 @@ public partial class RagdollJointTests : Node3D
         PlayerController player = world.GetNode<PlayerController>("Player");
         player.DirectionOverride = Vector3.Zero;
         PlayerRagdoll ragdoll = player.GetNode<PlayerRagdoll>("Ragdoll");
+        // `-- --falls=40` is a survey instead of the test: that many falls with seeded pushes, speeds and
+        // headings, and how many of them went past each limit (the four fixed falls are one sample of
+        // something chaotic; the survey shows how often a change really helps or hurts).
+        int surveyFalls = 0;
+        // `-- --verbose` prints every joint's worst moment; `-- --pack-sway=3` runs the falls with the
+        // swinging pack pulling at the balance that hard (BalanceSettings.PackSwayFactor); `-- --no-muscles`
+        // runs them without the living fall's arm muscles (RagdollMuscles), to tell the two apart.
+        foreach (string arg in OS.GetCmdlineUserArgs())
+        {
+            if (arg == "--verbose")
+            {
+                Verbose = true;
+            }
+            if (arg.StartsWith("--falls=") && int.TryParse(arg["--falls=".Length..], out int count))
+            {
+                surveyFalls = Mathf.Max(count, 1);
+            }
+            if (arg == "--no-muscles" && player.GetNodeOrNull<RagdollMuscles>("RagdollMuscles") is RagdollMuscles muscles)
+            {
+                muscles.Enabled = false;
+            }
+            if (arg.StartsWith("--pack-sway=") && float.TryParse(arg["--pack-sway=".Length..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float sway))
+            {
+                foreach (Node node in player.FindChildren("*", "", true, false))
+                {
+                    if (node is DownhillRoguelite.Balance.BalanceController balance)
+                    {
+                        balance.Settings.PackSwayFactor = sway;
+                    }
+                }
+            }
+        }
         Skeleton3D skeleton = player.GetNode<Skeleton3D>("Model/Rig/Skeleton3D");
         for (int i = 0; i < 30; i++)
         {
@@ -66,17 +101,40 @@ public partial class RagdollJointTests : Node3D
         TestMasses(ragdoll);
         float mostBent = 0.0f;
         Vector3[] pushes = { Vector3.Zero, Vector3.Up * 3.0f, Vector3.Right * 4.0f, Vector3.Back * 4.0f };
+        float[] speeds = { 5.0f, 5.0f, 5.0f, 5.0f };
+        float[] headings = { 0.0f, 1.3f, 2.6f, 3.9f };
+        if (surveyFalls > 0)
+        {
+            System.Random random = new(20261115);
+            pushes = new Vector3[surveyFalls];
+            speeds = new float[surveyFalls];
+            headings = new float[surveyFalls];
+            for (int n = 0; n < surveyFalls; n++)
+            {
+                float angle = (float)random.NextDouble() * Mathf.Tau;
+                float strength = (float)random.NextDouble() * 5.0f;
+                float lift = 0.0f;
+                if (random.NextDouble() < 0.3)
+                {
+                    lift = (float)random.NextDouble() * 3.0f;
+                }
+                pushes[n] = new Vector3(Mathf.Cos(angle) * strength, lift, Mathf.Sin(angle) * strength);
+                speeds[n] = 2.0f + (float)random.NextDouble() * 5.0f;
+                headings[n] = (float)random.NextDouble() * Mathf.Tau;
+            }
+        }
         for (int fall = 0; fall < pushes.Length; fall++)
         {
             player.Health?.Refill();
-            player.Teleport(new Vector3(0.0f, 0.1f, 0.0f), fall * 1.3f);
+            player.Teleport(new Vector3(0.0f, 0.1f, 0.0f), headings[fall]);
             for (int i = 0; i < 30; i++)
             {
                 await Frame();
             }
-            ragdoll.GoDown(-player.GlobalBasis.Z * 5.0f, pushes[fall]);
+            ragdoll.GoDown(-player.GlobalBasis.Z * speeds[fall], pushes[fall]);
             await Frame();
             _recent.Clear();
+            _fallWorst.Clear();
             // The joints are built in the rig's rest pose: their axes and the middle of their swing are
             // measured from there; coming apart is measured from the first frame down.
             Dictionary<string, Vector3> anchors = new();
@@ -99,9 +157,18 @@ public partial class RagdollJointTests : Node3D
                 parentAxes[childName] = (parentRest.Inverse() * childRest * axis).Normalized();
             }
 
+            // The fall itself: once he starts to rise the ragdoll is blended out and the animation is what is seen.
             for (int f = 0; f < FallFrames && ragdoll.Downed; f++)
             {
                 await Frame();
+                if (ragdoll.GettingUp)
+                {
+                    if (Verbose)
+                    {
+                        GD.Print($"  fall {fall}: starts to rise at frame {f}");
+                    }
+                    break;
+                }
                 string where = $"fall {fall} frame {f}";
                 foreach ((string parentName, string childName) in Hinges.Concat(Balls))
                 {
@@ -135,6 +202,26 @@ public partial class RagdollJointTests : Node3D
             {
                 await Frame();
             }
+            foreach (KeyValuePair<string, float> worst in _fallWorst)
+            {
+                if (!_survey.TryGetValue(worst.Key, out List<float>? falls))
+                {
+                    falls = new List<float>();
+                    _survey[worst.Key] = falls;
+                }
+                falls.Add(worst.Value);
+            }
+        }
+
+        if (surveyFalls > 0)
+        {
+            Survey("wrong way", Slack, ragdoll.HingeOverextension);
+            Survey("sideways", SidewaysSlack, 0.0f);
+            Survey("past the limit", Slack, 0.0f);
+            Survey("swing", Slack, 0.0f);
+            Survey("apart", MaxGap, 0.0f);
+            GetTree().Quit(0);
+            return;
         }
 
         if (Verbose)
@@ -163,6 +250,19 @@ public partial class RagdollJointTests : Node3D
         }
     }
 
+    /// <summary>One line of the survey: how many falls went past the limit, the worst and the middle one.</summary>
+    private void Survey(string what, float allowed, float allowedExtra)
+    {
+        if (!_survey.TryGetValue(what, out List<float>? falls) || falls.Count == 0)
+        {
+            GD.Print($"SURVEY {what}: nothing measured");
+            return;
+        }
+        List<float> sorted = falls.OrderBy(value => value).ToList();
+        int over = sorted.Count(value => value > allowed);
+        GD.Print($"SURVEY {what}: {over} of {sorted.Count} falls past {allowed + allowedExtra:0.##}, worst {sorted[^1]:0.00}, median {sorted[sorted.Count / 2]:0.00}, nine in ten under {sorted[Mathf.Min(sorted.Count * 9 / 10, sorted.Count - 1)]:0.00}");
+    }
+
     /// <summary>Counts how far <paramref name="what"/> stayed out over the last HoldFrames frames.</summary>
     private void Hold(string what, string joint, float value, string where)
     {
@@ -182,6 +282,10 @@ public partial class RagdollJointTests : Node3D
             return;
         }
         float held = recent.Min();
+        if (!_fallWorst.TryGetValue(what, out float fallWorst) || held > fallWorst)
+        {
+            _fallWorst[what] = held;
+        }
         if (!_worst.TryGetValue(key, out (float Value, string Where) worst) || held > worst.Value)
         {
             _worst[key] = (held, $"{where} ({joint})");

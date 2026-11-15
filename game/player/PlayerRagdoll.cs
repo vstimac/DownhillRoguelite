@@ -85,6 +85,8 @@ public partial class PlayerRagdoll : Node
     [Export] public float MaxDownTime { get; set; } = 6.0f;
     /// <summary>The ragdoll counts as settled when every bone is slower than this, in m/s.</summary>
     [Export] public float SettleSpeed { get; set; } = 0.35f;
+    /// <summary>Bodies lighter than this share of the body's mass (hands and feet) don't count toward lying still.</summary>
+    [Export] public float SettleMinMassShare { get; set; } = 0.016f;
     [Export] public float SettleTime { get; set; } = 0.8f;
     [Export] public float GetUpBlendTime { get; set; } = 0.6f;
 
@@ -100,6 +102,8 @@ public partial class PlayerRagdoll : Node
     [Export] public float GroundProbeDistance { get; set; } = 3.0f;
 
     public bool Downed { get; private set; }
+    /// <summary>Down, and already blending out of the ragdoll into the rise (what is seen is the animation by then).</summary>
+    public bool GettingUp => Downed && _gettingUp;
     /// <summary>Total damage taken in the current fall.</summary>
     public float FallDamage { get; private set; }
 
@@ -460,9 +464,15 @@ public partial class PlayerRagdoll : Node
             return;
         }
 
+        // Lying still is judged by the body and its limbs: a hand or a foot twitching against the
+        // ground (their joints are the lightest and the least steady) doesn't keep him down.
         float fastest = 0.0f;
         foreach (RagdollBone bone in _bones)
         {
+            if (bone.MassShare < SettleMinMassShare)
+            {
+                continue;
+            }
             fastest = Mathf.Max(fastest, bone.Body.LinearVelocity.Length());
         }
         if (fastest < SettleSpeed)
