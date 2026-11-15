@@ -212,7 +212,7 @@ public partial class TerrainStreamer : Node3D
                 GrassCarpet.SoilMetres = ForestTextureMetres;
                 GrassCarpet.SoilStrength = GroundTextureStrength;
             }
-            GrassCarpet.Quarter(Settings.CarpetSpacing);
+            GrassCarpet.Quarter(GrassCarpet.QuarterSize / GrassCarpet.Columns(Settings.CarpetSpacing));
         }
         _boulderMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_boulderSurface, new Color(0.5f, 0.5f, 0.52f)), Roughness = 1.0f };
         if (ResourceLoader.Exists(RockColourPath) && ResourceLoader.Load(RockColourPath) is Texture2D rockColour)

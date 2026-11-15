@@ -1,5 +1,5 @@
 // A thick carpet of short grass over the ground near the carrier, drawn entirely on the GPU.
-// Every streamed chunk shows four quarters of one shared MultiMesh (a clump of blades per instance,
+// Every streamed chunk shows sixteen patches of one shared MultiMesh (a clump of blades per instance,
 // on a grid with a jitter); this shader stands each clump on the chunk's rendered ground (heights
 // from a small texture, following the same triangle diagonal as the mesh), colours it from the
 // ground beneath and thins it by the chunk's carpet mask, so it stops crisply at the paths' trodden

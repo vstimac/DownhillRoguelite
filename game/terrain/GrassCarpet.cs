@@ -5,8 +5,8 @@ namespace DownhillRoguelite.Terrain;
 
 /// <summary>
 /// The thick carpet of short grass round the carrier (terrain/grass_carpet.gdshader). One clump
-/// mesh and one MultiMesh of identity instances are shared by every chunk; each chunk adds four
-/// quarters of it with a material holding two small textures, its heights and its carpet mask
+/// mesh and one MultiMesh of identity instances are shared by every chunk; each chunk adds sixteen
+/// patches of it with a material holding two small textures, its heights and its carpet mask
 /// (TerrainChunkData.CarpetMask). The shader places, grounds, colours and thins every clump, so a
 /// chunk costs no transform buffer, no plant plan entries and no CPU work beyond the two uploads.
 /// </summary>
@@ -14,14 +14,18 @@ public static class GrassCarpet
 {
     public const string NodeName = "GrassCarpet";
     /// <summary>Blades in one clump, and the clump's radius in m.</summary>
-    public const int BladesPerClump = 22;
+    public const int BladesPerClump = 18;
     public const float ClumpRadius = 0.27f;
     /// <summary>Half a blade's width at its root, in m; how far its tip hangs outward (a share of its distance from the clump's centre); and where it bends (a share of its height).</summary>
     public const float BladeHalfWidth = 0.011f;
     public const float BladeLean = 0.22f;
     public const float BendAt = 0.55f;
-    /// <summary>A quarter is this wide, in m (a 64 m chunk has four).</summary>
-    public const float QuarterSize = 32.0f;
+    /// <summary>
+    /// A patch of the carpet is this wide, in m (a 64 m chunk has sixteen). Each patch is drawn or
+    /// skipped as a whole by its distance, so smaller patches waste fewer blades beyond the draw
+    /// distance: at 32 m the carpet cost about three million triangles a frame, at 16 m about half.
+    /// </summary>
+    public const float QuarterSize = 16.0f;
 
     /// <summary>
     /// The ground's own soil texture, its tile size in m and how strongly the ground shows it
@@ -151,7 +155,8 @@ public static class GrassCarpet
         Buffer.BlockCopy(data.Heights, 0, heightBytes, 0, heightBytes.Length);
         ImageTexture heights = ImageTexture.CreateFromImage(Image.CreateFromData(points, points, false, Image.Format.Rf, heightBytes));
         ImageTexture mask = ImageTexture.CreateFromImage(Image.CreateFromData(points, points, false, Image.Format.Rgba8, data.CarpetMask));
-        float spacing = settings.CarpetSpacing;
+        // The clumps fill a patch exactly: the asked spacing, rounded to a whole number of columns.
+        float spacing = QuarterSize / Columns(settings.CarpetSpacing);
         ShaderMaterial material = new() { Shader = shader };
         material.SetShaderParameter("heights", heights);
         material.SetShaderParameter("carpet", mask);
