@@ -188,6 +188,13 @@ public static partial class GameEvents
     public static event Action<float>? StaminaRestoreRequested;
     public static void RequestStaminaRestore(float amount) => StaminaRestoreRequested?.Invoke(amount);
 
+    /// <summary>Gives the carrier back this much health (medicine used up for it).</summary>
+    public static event Action<float>? HealRequested;
+    public static void RequestHeal(float amount) => HealRequested?.Invoke(amount);
+
+    /// <summary>How much health the carrier is short of right now (0: unhurt, dead, or no carrier), from the latest vitals.</summary>
+    public static float HealthMissing { get; private set; }
+
     /// <summary>Wakes an enemy of this kind (EnemySpecies Id) by the nearest tree, roused by the named cause (an item).</summary>
     public static event Action<string, string>? WakeRequested;
     public static void RequestWake(string speciesId, string cause) => WakeRequested?.Invoke(speciesId, cause);
@@ -763,6 +770,11 @@ public static partial class GameEvents
 
     public static void PublishVitals(VitalsSnapshot snapshot)
     {
+        HealthMissing = 0.0f;
+        if (!snapshot.Dead)
+        {
+            HealthMissing = Math.Max(0.0f, snapshot.MaxHealth - snapshot.Health);
+        }
         VitalsUpdated?.Invoke(snapshot);
     }
 

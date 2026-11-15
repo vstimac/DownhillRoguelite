@@ -101,6 +101,10 @@ public static class ItemText
         {
             text += $"\nStamina +{item.UseStamina:0}";
         }
+        if (item.UseHealth > 0.0f)
+        {
+            text += $"\nHealth +{item.UseHealth:0}";
+        }
         if (item.UseWakes.Length > 0 && item.UseWakeChance > 0.0f)
         {
             text += $"\n...or ({item.UseWakeChance * 100.0f:0} % chance) it wakes something";

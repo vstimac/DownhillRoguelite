@@ -4,8 +4,10 @@ using Godot;
 namespace DownhillRoguelite.Player;
 
 /// <summary>
-/// The carrier's health. Damage comes from physical impacts while ragdolling (PlayerRagdoll), hunger,
-/// thirst and night cold. No regeneration during the day; a night's sleep at a station heals part.
+/// The carrier's health. Damage comes from physical impacts while ragdolling (PlayerRagdoll), blows,
+/// hunger, thirst and night cold. It comes back three ways: a night's sleep at a station heals part,
+/// medicine used from the pack heals at once (GameEvents.HealRequested), and a fed, watered carrier
+/// mends slowly on the move (CarrierNeeds).
 /// At zero the carrier is dead for good (CarrierDied; the run loop in RunState ends the run and
 /// starts the next on a new mountain). KillRequested (the abyss behind the summit) kills at once.
 /// Publishes a VitalsSnapshot with stamina every physics frame.
@@ -37,6 +39,7 @@ public partial class CarrierHealth : Node
         GameEvents.Slept += OnSlept;
         GameEvents.KillRequested += OnKillRequested;
         GameEvents.DamageRequested += TakeDamage;
+        GameEvents.HealRequested += Heal;
     }
 
     public override void _ExitTree()
@@ -45,6 +48,7 @@ public partial class CarrierHealth : Node
         GameEvents.Slept -= OnSlept;
         GameEvents.KillRequested -= OnKillRequested;
         GameEvents.DamageRequested -= TakeDamage;
+        GameEvents.HealRequested -= Heal;
         if (_run != null) { _run.CharacterChanged -= OnCharacterChanged; }
     }
 
@@ -60,7 +64,7 @@ public partial class CarrierHealth : Node
         TakeDamage(EffectiveMax * 10.0f, cause);
     }
 
-    /// <summary>Health doesn't regenerate on its own; only sleep (and later medicine) heals.</summary>
+    /// <summary>Gives health back (sleep, medicine, mending while fed), never above the maximum and never to the dead.</summary>
     public void Heal(float amount)
     {
         if (Dead || amount <= 0.0f)

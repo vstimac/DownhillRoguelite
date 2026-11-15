@@ -97,12 +97,14 @@ public partial class UiTests : Node3D
         health.TakeDamage(health.Max * 0.85f, "a test");
         await Wait(0.1f);
         float value = hearts.Value;
+        // Health as it was when read, to a twentieth of a point: a fed carrier mends a little every tick.
+        float healthThen = health.Current;
         float easing = hearts.Shown;
         await Wait(1.0f);
         bool settled = Mathf.Abs(hearts.Shown - value) < 1.0f;
         int left = Mathf.CeilToInt(health.Current / hearts.HealthPerHeart - 0.001f);
         Check("health is a row of hearts: one per share of health, emptying with it, easing, beating when low",
-            full && Mathf.IsEqualApprox(value, health.Current) && easing > value + 1.0f && settled && hearts.Warning && hearts.FilledHearts == left && left < expected,
+            full && Mathf.Abs(value - healthThen) < 0.05f && easing > value + 1.0f && settled && hearts.Warning && hearts.FilledHearts == left && left < expected,
             $"{expected} hearts for {health.EffectiveMax:0} health (full at first {full}); health {health.Current:0} shown as {value:0} (easing from {easing:0}, settled {settled}), "
             + $"{hearts.FilledHearts} filled (want {left}), warning {hearts.Warning}");
         health.Refill();

@@ -9,7 +9,8 @@ namespace DownhillRoguelite.Player;
 /// recovery and hunger lowers maximum stamina; at 0 they drain health. Out at night without
 /// shelter the cold drains health and slows recovery; sleep uses food and water more slowly
 /// and refills stamina. Weather adds to it: rain, snow and wind chill (even by day), heat makes
-/// thirsty and slows recovery; shelter keeps the chill off. F eats and Q drinks: the
+/// thirsty and slows recovery; shelter keeps the chill off. With both needs well up, a hurt carrier
+/// mends slowly, at the cost of food and water going faster. F eats and Q drinks: the
 /// request goes out as an event and the inventory consumes the best-fitting item.
 /// See docs/survival-loop.md.
 /// </summary>
@@ -39,6 +40,16 @@ public partial class CarrierNeeds : Node
     [Export] public float HungryMaxStamina { get; set; } = 0.6f;
     /// <summary>Health lost per in-game hour for each need at zero.</summary>
     [Export] public float EmptyHealthPerHour { get; set; } = 8.0f;
+
+    [ExportGroup("Mending (fed and watered)")]
+    /// <summary>With hunger and thirst both at or above this, a hurt carrier mends on the move.</summary>
+    [Export] public float WellFedThreshold { get; set; } = 60.0f;
+    /// <summary>Health mended per in-game hour while well fed (0: off). Cold slows it; full cold stops it.</summary>
+    [Export] public float WellFedHealPerHour { get; set; } = 3.0f;
+    /// <summary>Mending burns food and water: hunger and thirst drain this much faster while it lasts.</summary>
+    [Export] public float MendingDrainMultiplier { get; set; } = 1.5f;
+    /// <summary>Said the first time in a run the carrier starts mending (empty: nothing).</summary>
+    [Export] public string MendingHint { get; set; } = "Fed and watered, your wounds slowly close.";
 
     [ExportGroup("Weather")]
     /// <summary>Extra thirst drain in full heat (1 = twice as fast).</summary>
@@ -71,6 +82,10 @@ public partial class CarrierNeeds : Node
     public float Cold { get; private set; }
     /// <summary>The weather's part of Cold (rain, snow, wind), before shelter.</summary>
     public float Chill { get; private set; }
+    /// <summary>Hurt, well fed and not frozen through: health is coming back this frame (and food and water go faster).</summary>
+    public bool Mending { get; private set; }
+
+    private bool _toldMending;
 
     private WorldClock? _clock;
     private RunState? _run;
@@ -95,6 +110,8 @@ public partial class CarrierNeeds : Node
     {
         Hunger = Full;
         Thirst = Full;
+        Mending = false;
+        _toldMending = false;
     }
 
     /// <summary>Sets both needs directly (tests and debugging).</summary>
@@ -177,6 +194,34 @@ public partial class CarrierNeeds : Node
                 Health.TakeDamage(ColdHealthPerHour * Cold * hours, "cold");
             }
         }
+        Mend(hours);
+    }
+
+    /// <summary>
+    /// A hurt carrier with enough food and water in them mends slowly while awake: slower the colder
+    /// they are, not at all while down. It costs food and water (DrainMultiplier), so it is a
+    /// reason to eat before the dial runs low, and no replacement for sleep or medicine.
+    /// </summary>
+    private void Mend(float hours)
+    {
+        Mending = false;
+        if (Health == null || Health.Dead || GameEvents.IsDowned || WellFedHealPerHour <= 0.0f || hours <= 0.0f
+            || Health.Current >= Health.EffectiveMax || Hunger < WellFedThreshold || Thirst < WellFedThreshold)
+        {
+            return;
+        }
+        float amount = WellFedHealPerHour * (1.0f - Cold) * hours;
+        if (amount <= 0.0f)
+        {
+            return;
+        }
+        Health.Heal(amount);
+        Mending = true;
+        if (!_toldMending && MendingHint.Length > 0)
+        {
+            _toldMending = true;
+            GameEvents.PublishHint(MendingHint);
+        }
     }
 
     private float DrainMultiplier()
@@ -185,6 +230,10 @@ public partial class CarrierNeeds : Node
         if (Body != null && Body.Sprinting)
         {
             rate *= SprintMultiplier;
+        }
+        if (Mending)
+        {
+            rate *= MendingDrainMultiplier;
         }
         if (_run != null)
         {

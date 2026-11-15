@@ -44,7 +44,9 @@ Death restarts the run from the beginning: back to the start, empty pack, full n
 - **Hunger** and **thirst** run from 100 (fine) to 0 and drain over in-game hours. Thirst drains faster than hunger. Sprinting, heavy loads and heat drain faster; sleeping drains slower.
 - **Thirsty** (below 25): stamina recovers at half speed. Controls: **F** eats, **Q** drinks, **E** picks up.
 - **Hungry** (below 25): maximum stamina drops.
-- **Empty** (at 0): health drains slowly. Health still doesn't regenerate during the day; sleeping in a shelter heals some.
+- **Empty** (at 0): health drains slowly.
+- **Well fed** (hunger and thirst both at 60 or more): a hurt carrier mends slowly while awake, about 3 health per in-game hour, slower the colder they are and not at all while down. Mending burns food and water half again as fast, so it is a reason to eat and drink early, not a replacement for sleep or medicine.
+- **Healing** comes three ways: a night's sleep in a shelter (40% of maximum), a med kit used from the pack or a pocket (40 health at once; an unhurt carrier keeps it), and mending while well fed.
 - Eating or drinking uses one item from the pack: the food or water item that best fits the need. It is consumed and the pack gets lighter, which also changes balance.
 
 ## Items and the empty pack
@@ -55,7 +57,7 @@ Every item has a **category**:
 | --- | --- | --- |
 | Food | ration, dried fruit, food bag | Restores hunger when eaten |
 | Water | flask, water skin, water bottle | Restores thirst when drunk |
-| Supply | rope, med kit, stove, tent, cookware | Gear and tools (uses come with later systems) |
+| Supply | rope, med kit, stove, tent, cookware | Gear and tools. The med kit heals 40 health when used; the others' uses come with later systems |
 | Cargo | ore sample, relics, contract goods | Carried for value, trade and score |
 
 - **A run starts with an empty pack** (meta progression can unlock starting kits later).

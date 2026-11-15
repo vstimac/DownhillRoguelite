@@ -7,6 +7,8 @@
 script = ExtResource("1_item")
 ItemId = "med_kit"
 DisplayName = "Med kit"
+Description = "Bandages, a splint and something that stings. Use it when you're hurt: it closes what a fall or a blow opened."
+UseHealth = 40.0
 MassKg = 0.8
 Category = 2
 SizeCells = Vector3i(2, 2, 2)

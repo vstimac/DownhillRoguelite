@@ -66,6 +66,7 @@ public partial class SurvivalTests : Node3D
         TestEmptyStart(_inventory);
         await TestClock(_clock);
         await TestNeeds(_needs, _stamina, _health, _clock);
+        await TestHealing(_inventory, _needs, _health, _clock);
         await TestPickupAndEat(PlayerBody, _inventory, _needs, _interactor);
         TestBestFit(_inventory);
         await TestNoRoom(PlayerBody, _inventory, _interactor);
@@ -135,6 +136,56 @@ public partial class SurvivalTests : Node3D
         Check("starving and dehydrated carrier loses health", lost > 5.0f && !health.Dead, $"lost {lost:0.0} health");
         health.Refill();
         needs.Refill();
+        await WaitSeconds(0.1f);
+    }
+
+    /// <summary>
+    /// Medicine heals a hurt carrier at once and stays in the pack of an unhurt one; fed and watered,
+    /// a hurt carrier mends slowly (and burns food and water faster for it); hungry, not at all.
+    /// </summary>
+    private async Task TestHealing(CarrierInventory inventory, CarrierNeeds needs, CarrierHealth health, WorldClock clock)
+    {
+        ItemDefinition kit = Load("med_kit");
+        inventory.Clear();
+        health.Refill();
+        needs.Refill();
+        inventory.TryAdd(kit);
+        await WaitSeconds(0.1f);
+        GameEvents.RequestUseItem(kit.ItemId);
+        await WaitSeconds(0.05f);
+        Check("an unhurt carrier keeps the med kit", inventory.AllItems.Contains(kit) && Near(health.Current, health.EffectiveMax),
+            $"kit kept {inventory.AllItems.Contains(kit)}, health {health.Current:0}/{health.EffectiveMax:0}");
+
+        health.TakeDamage(60.0f, "test");
+        await WaitSeconds(0.05f);
+        float hurt = health.Current;
+        GameEvents.RequestUseItem(kit.ItemId);
+        await WaitSeconds(0.05f);
+        Check("a med kit heals a hurt carrier and is used up",
+            kit.UseHealth > 0.0f && Near(health.Current, hurt + kit.UseHealth) && !inventory.AllItems.Contains(kit),
+            $"health {hurt:0} -> {health.Current:0} (kit +{kit.UseHealth:0}), kit left {inventory.AllItems.Contains(kit)}");
+
+        needs.Refill();
+        float before = health.Current;
+        clock.DebugTimeScale = FastClock;
+        await WaitSeconds(1.0f);
+        clock.DebugTimeScale = 1.0f;
+        bool mending = needs.Mending;
+        float mended = health.Current - before;
+        Check("fed and watered, a hurt carrier mends slowly", mending && mended > 0.5f && mended < kit.UseHealth * 0.5f,
+            $"mended {mended:0.0} health in {FastClock / 90.0f:0.0} in-game hours, cold {needs.Cold:0.00}");
+
+        needs.SetNeeds(needs.WellFedThreshold - 20.0f, needs.WellFedThreshold - 20.0f);
+        await WaitSeconds(0.05f);
+        before = health.Current;
+        clock.DebugTimeScale = FastClock;
+        await WaitSeconds(0.5f);
+        clock.DebugTimeScale = 1.0f;
+        Check("a hungry, thirsty carrier doesn't mend", !needs.Mending && health.Current <= before + 0.01f,
+            $"health {before:0.0} -> {health.Current:0.0}, mending {needs.Mending}");
+        health.Refill();
+        needs.Refill();
+        inventory.Clear();
         await WaitSeconds(0.1f);
     }
 

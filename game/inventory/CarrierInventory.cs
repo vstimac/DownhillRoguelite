@@ -854,7 +854,7 @@ public partial class CarrierInventory : Node
                 }
                 if (pocketed.UsableAlone && pocketed.Category != ItemCategory.Food && pocketed.Category != ItemCategory.Water)
                 {
-                    if (RemovePocketItem(pocketed))
+                    if (WorthUsing(pocketed) && RemovePocketItem(pocketed))
                     {
                         UseUp(pocketed);
                     }
@@ -893,7 +893,7 @@ public partial class CarrierInventory : Node
                 Consume(item);
                 GameEvents.PublishItemConsumed(SupplyNeed.Thirst, itemId, RestoreOf(item.Definition));
             }
-            else if (item.Definition.UsableAlone)
+            else if (item.Definition.UsableAlone && WorthUsing(item.Definition))
             {
                 Consume(item);
                 UseUp(item.Definition);
@@ -902,12 +902,30 @@ public partial class CarrierInventory : Node
         }
     }
 
-    /// <summary>An item used up for its effect: its stamina, or (by chance) what it wakes.</summary>
+    /// <summary>Said instead of using up medicine when the carrier isn't hurt.</summary>
+    [Export] public string UnhurtHint { get; set; } = "You aren't hurt: it stays in the pack.";
+
+    /// <summary>False (with a hint) for medicine an unhurt carrier would only waste; true for everything else.</summary>
+    private bool WorthUsing(ItemDefinition item)
+    {
+        if (!item.OnlyHeals || GameEvents.HealthMissing > 0.0f)
+        {
+            return true;
+        }
+        GameEvents.PublishHint(UnhurtHint);
+        return false;
+    }
+
+    /// <summary>An item used up for its effect: its health, its stamina, or (by chance) what it wakes.</summary>
     private void UseUp(ItemDefinition item)
     {
         if (item.UseLightSeconds > 0.0f)
         {
             GameEvents.RequestTorch(item.UseLightSeconds);
+        }
+        if (item.UseHealth > 0.0f)
+        {
+            GameEvents.RequestHeal(item.UseHealth);
         }
         if (item.Wakes(_useRoll.Randf()))
         {
