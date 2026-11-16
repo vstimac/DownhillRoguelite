@@ -124,7 +124,11 @@ public partial class WildlifeSpawner : Node3D
             _spawnTimer = Table.SpawnInterval;
             Vector3 original = _carrier;
             _carrier = WorldInterests.At(_tick, original);
-            TrySpawnGroup(space);
+            // Off the path the ground climbs into steep rock and scree, where most spots suit no animal:
+            // try a few places per interval so the population still fills up (each try is a few rays).
+            for (int attempt = 0; attempt < SpawnAttempts && !TrySpawnGroup(space); attempt++)
+            {
+            }
             _carrier = original;
         }
 
@@ -195,7 +199,11 @@ public partial class WildlifeSpawner : Node3D
         return animal;
     }
 
-    private void TrySpawnGroup(PhysicsDirectSpaceState3D space)
+    /// <summary>Places tried per spawn interval before giving up until the next one.</summary>
+    private const int SpawnAttempts = 4;
+
+    /// <summary>Tries one place for a group; false when the ground there suits no animal.</summary>
+    private bool TrySpawnGroup(PhysicsDirectSpaceState3D space)
     {
         Vector3 ahead = new(_carrierVelocity.X, 0.0f, _carrierVelocity.Z);
         if (ahead.Length() < 0.5f)
@@ -215,12 +223,12 @@ public partial class WildlifeSpawner : Node3D
         Vector3 centre = _carrier + direction * _random.RandfRange(Table.SpawnRing.X, Table.SpawnRing.Y);
         if (!Ground(space, centre, out Vector3 point, out string surface, out float slope))
         {
-            return;
+            return false;
         }
         WildlifeSpecies? species = PickSpecies(surface, slope);
         if (species == null)
         {
-            return;
+            return false;
         }
         string spotSurface = surface;
         float spotSlope = slope;
@@ -240,6 +248,7 @@ public partial class WildlifeSpawner : Node3D
             }
             Spawn(species, spot, spotSurface, spotSlope);
         }
+        return true;
     }
 
     private WildlifeSpecies? PickSpecies(string surface, float slope)
