@@ -94,11 +94,21 @@ public partial class WildlifeSpecies : Resource
     [Export] public float Health { get; set; }
     /// <summary>A bite or sting, for those too small to shove, in health points (0 = it doesn't bite).</summary>
     [Export] public float AttackDamage { get; set; }
+    /// <summary>Seconds between its bites or stings (0 = the table's AttackCooldown).</summary>
+    [Export] public float AttackInterval { get; set; }
+    /// <summary>An aggressive one only goes for a carrier within this many metres of its nest spot (where it was placed), and gives up once it is this far from it (0 = no limit).</summary>
+    [Export] public float ChaseLeash { get; set; }
+    /// <summary>An aggressive one gives up a chase after this many seconds (0 = when its anger is spent).</summary>
+    [Export] public float ChaseSeconds { get; set; }
+    /// <summary>Having given up, it goes back to its nest spot and leaves carriers alone this long.</summary>
+    [Export] public float ChaseRest { get; set; } = 6.0f;
     /// <summary>Clip played once when killed; empty means it keels over onto its side.</summary>
     [Export] public string DeathClip { get; set; } = "";
     /// <summary>Item ids it drops when killed (repeats allowed), and how many of them.</summary>
     [Export] public string[] Loot { get; set; } = System.Array.Empty<string>();
     [Export] public Vector2I LootCount { get; set; } = new(1, 2);
+    /// <summary>Item ids it always drops besides (raw meat from the big ones), one each.</summary>
+    [Export] public string[] AlwaysLoot { get; set; } = System.Array.Empty<string>();
     /// <summary>Relative chance among the species that fit a spot.</summary>
     [Export] public float Weight { get; set; } = 1.0f;
     /// <summary>0-based circles it lives in (Limbo 0, Treachery 8, 9 = beyond the ninth).</summary>

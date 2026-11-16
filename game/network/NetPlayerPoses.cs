@@ -1,10 +1,15 @@
 using DownhillRoguelite.Player;
 using DownhillRoguelite.Core;
+using DownhillRoguelite.Wildlife;
 using Godot;
 
 namespace DownhillRoguelite.Network;
 
-/// <summary>One bounded pose stream, relayed by the host. Remote drivers show the owner's actual body result.</summary>
+/// <summary>
+/// One bounded pose stream, relayed by the host. Remote drivers show the owner's actual body result.
+/// Its flags also carry crouching and a rough load, and a guest's sword swings go to the host
+/// (reliably), so the host's animals hear, see and scatter from guests as from the host.
+/// </summary>
 public partial class NetPlayerPoses : Node
 {
     [Export] public float SendRate { get; set; } = 15;
@@ -22,9 +27,24 @@ public partial class NetPlayerPoses : Node
     private int _sequence;
     private LocomotionSnapshot _locomotion;
     private bool _sprinting;
-    public override void _Ready() { GameEvents.LocomotionUpdated += OnLocomotion; GameEvents.VitalsUpdated += OnVitals; }
-    private void OnLocomotion(LocomotionSnapshot snapshot) { _locomotion = snapshot; }
+    private bool _crouching;
+    private float _loadMass;
+    /// <summary>Swings sent to the host (tests).</summary>
+    public int SwingsSent { get; private set; }
+    public override void _Ready()
+    {
+        GameEvents.LocomotionUpdated += OnLocomotion; GameEvents.VitalsUpdated += OnVitals;
+        GameEvents.LoadChanged += OnLoad; GameEvents.MeleeSwung += OnSwung;
+    }
+    private void OnLocomotion(LocomotionSnapshot snapshot) { _locomotion = snapshot; _crouching = WildlifeSpawner.IsCrouching(snapshot); }
     private void OnVitals(VitalsSnapshot snapshot) { _sprinting = snapshot.Sprinting; }
+    private void OnLoad(LoadSnapshot load) { _loadMass = load.Mass; }
+    private void OnSwung(Vector3 feet, Vector3 facing, string kind)
+    {
+        if (!Live || Session!.Mode != NetSession.Role.Client) { return; }
+        RpcId(1, MethodName.Swung);
+        SwingsSent++;
+    }
 
     private bool Live => Session != null && Session.Active && Session.Joined;
 
@@ -45,7 +65,11 @@ public partial class NetPlayerPoses : Node
         if (_timer >= 1.0 / Mathf.Max(1, SendRate)) { _timer = 0; _due = true; }
     }
 
-    public override void _ExitTree() { Detach(); GameEvents.LocomotionUpdated -= OnLocomotion; GameEvents.VitalsUpdated -= OnVitals; }
+    public override void _ExitTree()
+    {
+        Detach(); GameEvents.LocomotionUpdated -= OnLocomotion; GameEvents.VitalsUpdated -= OnVitals;
+        GameEvents.LoadChanged -= OnLoad; GameEvents.MeleeSwung -= OnSwung;
+    }
     private void Detach()
     {
         if (_skeleton != null && IsInstanceValid(_skeleton)) { _skeleton.SkeletonUpdated -= Capture; }
@@ -62,6 +86,8 @@ public partial class NetPlayerPoses : Node
         if (_melee?.Sword?.IsVisibleInTree() == true) { flags |= NetPoseCodec.SwordVisible; }
         if (_melee?.Shield?.IsVisibleInTree() == true) { flags |= NetPoseCodec.ShieldVisible; }
         if (_body?.GetNodeOrNull<CarrierModel>("CarrierModel")?.PackSetDown?.Off == true) { flags |= NetPoseCodec.PackOff; }
+        if (_crouching) { flags |= NetPoseCodec.Crouching; }
+        flags |= NetPoseCodec.LoadFlags(_loadMass);
         if (Session!.Mode == NetSession.Role.Host)
         {
             foreach (long peer in Session.Peers.Keys) { RpcId(peer, MethodName.PeerPose, 1L, _sequence, flags, _data); }
@@ -82,6 +108,16 @@ public partial class NetPlayerPoses : Node
         { DownhillRoguelite.Core.GameEvents.PublishSharedCarrierFell(remote.GlobalPosition); }
         foreach (long peer in Session.Peers.Keys)
         { if (peer != sender) { RpcId(peer, MethodName.PeerPose, sender, sequence, flags, data); } }
+    }
+
+    /// <summary>A guest swung its sword: the host's animals near its carrier (as the host shows it) scatter.</summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void Swung()
+    {
+        if (!Live || Session!.Mode != NetSession.Role.Host) { return; }
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (!Session.Peers.ContainsKey(sender) || !Session.Remotes.TryGetValue(sender, out RemoteCarrier? remote) || remote.Dead) { return; }
+        GameEvents.PublishSharedCarrierSwung(remote.GlobalPosition);
     }
 
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.UnreliableOrdered, TransferChannel = 3)]

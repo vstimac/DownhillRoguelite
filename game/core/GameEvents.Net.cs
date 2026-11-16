@@ -14,6 +14,8 @@ public static partial class GameEvents
     public static bool MaySimulateWorld => !SharedWorldActive || SharedWorldHost;
     public static event Action? WorldAuthorityChanged;
     public static event Action<Godot.Vector3>? SharedCarrierFell;
+    /// <summary>Another player swung a sword at this point (the host hears of guests' swings).</summary>
+    public static event Action<Godot.Vector3>? SharedCarrierSwung;
     public static void SetWorldAuthority(bool active, bool host)
     {
         bool changed = SharedWorldActive != active || SharedWorldHost != host;
@@ -22,6 +24,7 @@ public static partial class GameEvents
         if (changed) { WorldAuthorityChanged?.Invoke(); }
     }
     public static void PublishSharedCarrierFell(Godot.Vector3 at) => SharedCarrierFell?.Invoke(at);
+    public static void PublishSharedCarrierSwung(Godot.Vector3 at) => SharedCarrierSwung?.Invoke(at);
     public static Func<string, Action, bool>? SharedNpcUseGate { get; set; }
     public static bool MayUseSharedNpc(string key, Action retry) => SharedNpcUseGate?.Invoke(key, retry) ?? true;
     /// <summary>

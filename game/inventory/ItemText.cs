@@ -22,6 +22,10 @@ public static class ItemText
             ItemCategory.Cargo => "Cargo: carry it down. Its weight and place in the pack shift your balance.",
             _ => "Kept in the pack: it helps by being carried.",
         };
+        if (item.Cookable)
+        {
+            use = "Cook: the Cook button or V on the hotbar, at a station's fire. Eat: F, or the Eat button away from a fire.";
+        }
         if (OpensMap(item))
         {
             use = "Right-click or V opens the map ready to draw: drag to mark it (B switches between drawing and moving the map).";

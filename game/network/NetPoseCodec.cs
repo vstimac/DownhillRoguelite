@@ -24,8 +24,19 @@ public static class NetPoseCodec
     public const int ShieldVisible = 4;
     /// <summary>The pack is off their back (set down to be repacked): others show it standing on the ground.</summary>
     public const int PackOff = 8;
+    /// <summary>Crouching (the brake key held): animals on the host hear and see them less.</summary>
+    public const int Crouching = 16;
+    /// <summary>Two bits for how heavy their load is, in steps of LoadStep kg (0 to 3): animals hear a heavy pack.</summary>
+    public const int LoadShift = 5;
+    public const int LoadBits = 3 << LoadShift;
+    public const float LoadStep = 20.0f;
     /// <summary>Every flag together; anything above is refused.</summary>
-    public const int AllFlags = Falling | SwordVisible | ShieldVisible | PackOff;
+    public const int AllFlags = Falling | SwordVisible | ShieldVisible | PackOff | Crouching | LoadBits;
+
+    /// <summary>The load flags for a pack of this mass (rounded to the nearest step, at most 3 steps).</summary>
+    public static int LoadFlags(float mass) => Mathf.Clamp(Mathf.RoundToInt(mass / LoadStep), 0, 3) << LoadShift;
+    /// <summary>The load mass the flags stand for.</summary>
+    public static float LoadMass(int flags) => ((flags & LoadBits) >> LoadShift) * LoadStep;
 
     public static int[] Bind(Skeleton3D skeleton)
     {

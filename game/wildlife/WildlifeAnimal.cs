@@ -22,7 +22,7 @@ namespace DownhillRoguelite.Wildlife;
 /// nowhere to go it is cornered and a big one shoves. Pushed for long it gives way a little, then
 /// turns round and shoves the carrier into the air (GameEvents.RequestLaunch). A fall or a sword
 /// swing nearby scatters it (FleeFrom), a hard landing startles it (Startle). It has health: killed
-/// by sword or boot it drops its species' loot (hide, silk) through KillLoot and lies there a while.
+/// by sword or boot it drops its species' loot (hide and raw meat, silk) through KillLoot and lies there a while.
 /// A physics body: a capsule sized to the species walks on the ground with gravity, slides on what's
 /// too steep and bumps into rocks, other animals and the carrier; its model leans to the slope
 /// underfoot so legs and head don't sink in. Flyers float at their height above the ground. The
@@ -111,6 +111,8 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     public int LookBacks { get; private set; }
     public int Cornered { get; private set; }
     public int Bites { get; private set; }
+    /// <summary>Chases given up (aggressive ones, tests).</summary>
+    public int GiveUps { get; private set; }
     /// <summary>0 unaware, 1 alerted (up to 1.5 while it keeps sensing the carrier).</summary>
     public float Suspicion => _suspicion;
     /// <summary>Health left, in points.</summary>
@@ -200,6 +202,13 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     private float _maxHealth;
     private float _anger;
     private float _attackCooldown;
+    /// <summary>Where it was placed (an aggressive one's nest spot), and whether that is known yet.</summary>
+    private Vector3 _home;
+    private bool _homeKnown;
+    /// <summary>Seconds an aggressive one leaves carriers alone after giving up a chase.</summary>
+    private float _chaseRest;
+    /// <summary>The carrier it watches, as of this tick.</summary>
+    private Vector3 _carrierAt;
     private float _deadTimer;
     private float _deathTip;
     private bool _puppetDown;
@@ -353,9 +362,16 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             LeanToGround(dt);
             return;
         }
+        if (!_homeKnown)
+        {
+            _home = GlobalPosition;
+            _homeKnown = true;
+        }
         Vector3 toCarrier = carrier.Position - GlobalPosition;
         toCarrier.Y = 0.0f;
         float distance = toCarrier.Length();
+        _chaseRest -= dt;
+        _carrierAt = carrier.Position;
         _shoveCooldown = Mathf.Max(0.0f, _shoveCooldown - dt);
         _alertCooldown -= dt;
         _curiousCooldown -= dt;
@@ -538,7 +554,8 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
                 }
                 return Mode.Idle;
             case Temperament.Aggressive:
-                return distance < species.SightRange ? Mode.Fight : Mode.Idle;
+                // It defends its nest spot: not while resting from a chase, nor for a carrier far from it.
+                return distance < species.SightRange && _chaseRest <= 0.0f && NearHome(_carrierAt, species.ChaseLeash) ? Mode.Fight : Mode.Idle;
             default:
                 // Bold: holds its ground (it fights when struck, shoves when pushed).
                 return Mode.Idle;
@@ -852,6 +869,13 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         WildlifeSpecies species = Species!;
         WildlifeTable table = _table!;
         _anger -= dt;
+        if (species.Temperament == Temperament.Aggressive
+            && ((species.ChaseSeconds > 0.0f && _stateTime > species.ChaseSeconds) || !NearHome(GlobalPosition, species.ChaseLeash)))
+        {
+            // A short chase only: it gives up and goes back to its nest spot.
+            GiveUpChase(space);
+            return Vector3.Zero;
+        }
         if (_anger <= 0.0f || distance > species.SightRange * 1.2f)
         {
             _uneasy = table.UneasySeconds;
@@ -888,10 +912,30 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         return toward * species.FleeSpeed * 0.85f;
     }
 
+    /// <summary>Whether a point is within the leash of its nest spot (always, with no leash).</summary>
+    private bool NearHome(Vector3 point, float leash)
+    {
+        return leash <= 0.0f || !_homeKnown || Flat(point - _home).Length() <= leash;
+    }
+
+    /// <summary>Ends a chase: it heads back to its nest spot and leaves carriers alone for a while.</summary>
+    private void GiveUpChase(PhysicsDirectSpaceState3D space)
+    {
+        _anger = 0.0f;
+        _chaseRest = Species!.ChaseRest;
+        _suspicion = 0.0f;
+        _threatIsCarrier = false;
+        GiveUps++;
+        if (!TryWalk(_home, space))
+        {
+            StartIdle();
+        }
+    }
+
     /// <summary>A bite or a sting: a little damage to the carrier it fights.</summary>
     private void Bite(Vector3 toward)
     {
-        _attackCooldown = _table!.AttackCooldown;
+        _attackCooldown = Species!.AttackInterval > 0.0f ? Species.AttackInterval : _table!.AttackCooldown;
         Bites++;
         if (TargetPeer == 0)
         {
@@ -984,7 +1028,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         {
             _animation.SpeedScale = 0.0f;
         }
-        if (species.Loot.Length > 0)
+        if (species.Loot.Length > 0 || species.AlwaysLoot.Length > 0)
         {
             KillLoot loot = new()
             {
@@ -993,7 +1037,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
                 RareChance = 0.0f,
                 GroundMask = _table.GroundMask,
             };
-            loot.Scatter(this, GlobalPosition, species.DisplayName);
+            loot.Scatter(this, GlobalPosition, species.DisplayName, species.AlwaysLoot);
         }
     }
 
