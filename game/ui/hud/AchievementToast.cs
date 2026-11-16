@@ -75,7 +75,7 @@ public partial class AchievementToast : Control
             }
             return;
         }
-        if (_queue.Count > 0 && !GetTree().Paused)
+        if (_queue.Count > 0 && !GetTree().Paused && !GameEvents.MenuOpen)
         {
             SlideIn(_card, _queue.Dequeue());
         }

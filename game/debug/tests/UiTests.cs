@@ -67,6 +67,7 @@ public partial class UiTests : Node3D
         await TestAlerts(needs);
         await TestInventory(needs);
         await TestInventoryInCoop();
+        await TestPauseMenuInCoop(PlayerBody);
         await TestMap();
         await TestJournal();
         TestDragging();
@@ -350,6 +351,48 @@ public partial class UiTests : Node3D
         GameEvents.SetWorldAuthority(false, false);
         Check("in co-op the inventory page leaves the world running (the others play on)", open && running && !GetTree().Paused,
             $"open {open}, world running {running}");
+    }
+
+    /// <summary>
+    /// Co-op: Esc opens the menu over the running world (the others play on): nothing stops, the
+    /// carrier's controls are locked, and a game key pressed behind the menu does nothing. Closing it
+    /// gives everything back. Single player still stops the world.
+    /// </summary>
+    private async Task TestPauseMenuInCoop(PlayerController player)
+    {
+        CanvasLayer layer = new();
+        AddChild(layer);
+        PauseMenu menu = new();
+        layer.AddChild(menu);
+        await Wait(0.05f);
+        Hotbar? hotbar = Ui!.Hotbar;
+        hotbar?.Select(0);
+        GameEvents.SetWorldAuthority(true, true);
+        menu.Open();
+        await Wait(0.2f);
+        bool running = !GetTree().Paused;
+        bool held = GameEvents.MenuOpen && !player.InputEnabled && Network.NetSession.Instance?.ControlsLocked == true;
+        // The hotbar's 3 key, pressed behind the menu.
+        InputEventKey three = new() { PhysicalKeycode = Godot.Key.Key3, Keycode = Godot.Key.Key3, Pressed = true };
+        Input.ParseInputEvent(three);
+        await Wait(0.1f);
+        Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = Godot.Key.Key3, Keycode = Godot.Key.Key3, Pressed = false });
+        bool keyHeld = hotbar == null || hotbar.Selected == 0;
+        menu.Resume();
+        await Wait(0.1f);
+        bool back = !GameEvents.MenuOpen && player.InputEnabled && Network.NetSession.Instance?.ControlsLocked != true;
+        GameEvents.SetWorldAuthority(false, false);
+        menu.Open();
+        await Wait(0.05f);
+        bool soloStops = GetTree().Paused && player.InputEnabled;
+        menu.Resume();
+        await Wait(0.05f);
+        bool soloRuns = !GetTree().Paused && !GameEvents.MenuOpen;
+        layer.QueueFree();
+        Check("in co-op the pause menu leaves the world running, holds the carrier and the game's keys, and gives them back",
+            running && held && keyHeld && back && soloStops && soloRuns,
+            $"running {running}, controls held {held}, hotbar key held back {keyHeld} (slot {hotbar?.Selected}), given back {back}; single player stops {soloStops} and runs again {soloRuns}");
+        Input.MouseMode = Input.MouseModeEnum.Visible;
     }
 
     private async Task TestMap()

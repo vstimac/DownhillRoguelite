@@ -79,7 +79,7 @@ public partial class LockOn : Node
         {
             return;
         }
-        if (GameEvents.IsPacking || GameEvents.IsScreenOpen || GameEvents.IsMapOpen || GameEvents.IsConversing || GetTree().Paused)
+        if (GameEvents.IsPacking || GameEvents.IsScreenOpen || GameEvents.IsMapOpen || GameEvents.IsConversing || GetTree().Paused || GameEvents.MenuOpen)
         {
             return;
         }

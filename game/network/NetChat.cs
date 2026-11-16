@@ -122,7 +122,7 @@ public partial class NetChat : CanvasLayer
             return;
         }
         if (!Live || key.AltPressed || key.CtrlPressed || Input.MouseMode != Input.MouseModeEnum.Captured
-            || GameEvents.IsScreenOpen || GameEvents.IsPacking || GameEvents.IsMapOpen || GameEvents.IsConversing || GetTree().Paused)
+            || GameEvents.IsScreenOpen || GameEvents.IsPacking || GameEvents.IsMapOpen || GameEvents.IsConversing || GetTree().Paused || GameEvents.MenuOpen)
         {
             return;
         }
@@ -297,7 +297,7 @@ public partial class NetChat : CanvasLayer
 
     public override void _Process(double delta)
     {
-        if (_open && (!Live || GetTree().Paused))
+        if (_open && (!Live || GetTree().Paused || GameEvents.MenuOpen))
         {
             Close();
         }
