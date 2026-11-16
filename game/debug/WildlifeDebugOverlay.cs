@@ -51,9 +51,21 @@ public partial class WildlifeDebugOverlay : CanvasLayer
             {
                 color = Colors.Yellow;
             }
-            else if (animal.State == WildlifeAnimal.Mode.Flee)
+            else if (animal.State is WildlifeAnimal.Mode.Flee or WildlifeAnimal.Mode.Fight or WildlifeAnimal.Mode.Shove)
             {
                 color = Colors.Red;
+            }
+            else if (animal.State is WildlifeAnimal.Mode.Alert or WildlifeAnimal.Mode.LookBack or WildlifeAnimal.Mode.Retreat)
+            {
+                color = Colors.Orange;
+            }
+            else if (animal.State == WildlifeAnimal.Mode.Approach)
+            {
+                color = Colors.Cyan;
+            }
+            else if (animal.State == WildlifeAnimal.Mode.Dead)
+            {
+                color = Colors.DimGray;
             }
             Vector3 top = animal.GlobalPosition + Vector3.Up * 2.5f;
             DebugDraw3D.Line(top, top + Vector3.Up * 0.8f, color);
