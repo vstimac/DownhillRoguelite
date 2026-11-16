@@ -138,6 +138,7 @@ public partial class TerrainSettings : Resource
     [Export(PropertyHint.File, "*.tres")] public string GrassPath { get; set; } = "res://terrain/surfaces/grass.tres";
     [Export(PropertyHint.File, "*.tres")] public string SnowPath { get; set; } = "res://terrain/surfaces/snow.tres";
     [Export(PropertyHint.File, "*.tres")] public string MudPath { get; set; } = "res://terrain/surfaces/mud.tres";
+    [Export(PropertyHint.File, "*.tres")] public string DirtPath { get; set; } = "res://terrain/surfaces/dirt.tres";
 
     [ExportGroup("Obstacles")]
     /// <summary>Boulders per 1000 m² of chunk (off the spine).</summary>

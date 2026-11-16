@@ -742,10 +742,14 @@ public sealed partial class TerrainGenerator
         return Mathf.RadToDeg(Mathf.Atan(Mathf.Sqrt(dx * dx + dz * dz)));
     }
 
+    /// <summary>
+    /// The ground underfoot (footsteps, grip, prints): Classify's kind, refined by what the ground
+    /// shows there (worn earth, bare patches and gravel; see Footing).
+    /// </summary>
     public TerrainSurface SurfaceAt(float x, float z)
     {
         float weight = PathWeight(x, z, out RouteKind kind);
-        return Classify(x, z, SlopeDegrees(x, z), weight, kind);
+        return Footing(x, z, SlopeDegrees(x, z), weight, kind);
     }
 
     public TerrainSurface Classify(float x, float z, float slope, float spineWeight)
@@ -1014,7 +1018,7 @@ public sealed partial class TerrainGenerator
         }
         float depth = DepthAt(centre.Y);
         Color tint = Colors.White.Lerp(BiomeTint(depth), 0.6f);
-        float wear = Mathf.SmoothStep(0.9f, 0.99f, pathWeight) * _settings.PathWear;
+        float wear = PathWearAt(pathWeight);
         if (wear > 0.0f)
         {
             float scale = 1.0f / Mathf.Max(_settings.BareWavelength * 0.3f, 1.0f);
@@ -1022,18 +1026,17 @@ public sealed partial class TerrainGenerator
             Color trodden = new(_settings.PathColour.R * tint.R * mottle, _settings.PathColour.G * tint.G * mottle, _settings.PathColour.B * tint.B * mottle);
             color = color.Lerp(trodden, wear);
             worn.Y = wear;
-            // Gravel shows through the trodden earth in high, stony circles.
-            worn.X = wear * 0.55f * StoninessAt(depth);
         }
         bare = Bareness(centre.X, centre.Z, slope, pathWeight, depth);
         if (bare > 0.0f)
         {
-            float stony = Mathf.Clamp(StoninessAt(depth) + (slope - 20.0f) / 40.0f, 0.0f, 1.0f);
+            float stony = GravelShare(depth, slope);
             Color ground = _settings.BareEarthColour.Lerp(_settings.GravelColour, stony);
             ground = new Color(ground.R * tint.R, ground.G * tint.G, ground.B * tint.B);
             color = color.Lerp(ground, bare * 0.85f);
-            worn.X = Mathf.Max(worn.X, bare * stony);
         }
+        // The stone channel: gravel through a stony path's trodden earth, and gravel patches (Footing reads the same).
+        worn.X = GrassyStone(wear, bare, GravelShare(depth, slope), depth, pathWeight, kind);
         return color;
     }
 
@@ -1053,10 +1056,7 @@ public sealed partial class TerrainGenerator
         {
             return color;
         }
-        float scale = 1.0f / _settings.SurfaceNoiseWavelength;
-        float snow = _snow.Sample(centre.X * scale, centre.Z * scale);
-        float band = Mathf.Max(_settings.SnowEdgeBand, 0.001f);
-        snowCover = Mathf.Clamp((snow - SnowThresholdAt(centre.X, centre.Z, pathWeight)) / (2.0f * band) + 0.5f, 0.0f, 1.0f);
+        snowCover = SnowCoverAt(centre.X, centre.Z, pathWeight);
         if (surface == TerrainSurface.Snow)
         {
             color = SurfaceColor(beneath, centre.Y, surfaceColors);
@@ -1091,6 +1091,16 @@ public sealed partial class TerrainGenerator
     /// </summary>
     private void WriteCarpet(byte[] mask, int at, float x, float z, Color ground, float slope, TerrainSurface surface, float pathWeight, float snowCover, float bare)
     {
+        float density = CarpetDensity(x, z, slope, surface, pathWeight, snowCover, bare);
+        mask[at] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.R * 255.0f), 0, 255);
+        mask[at + 1] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.G * 255.0f), 0, 255);
+        mask[at + 2] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.B * 255.0f), 0, 255);
+        mask[at + 3] = (byte)Mathf.Clamp(Mathf.RoundToInt(density * 255.0f), 0, 255);
+    }
+
+    /// <summary>How thick the grass carpet grows at a point (0 none, 1 full); see WriteCarpet.</summary>
+    private float CarpetDensity(float x, float z, float slope, TerrainSurface surface, float pathWeight, float snowCover, float bare)
+    {
         float density = 0.0f;
         if (surface == TerrainSurface.Grass)
         {
@@ -1114,10 +1124,7 @@ public sealed partial class TerrainGenerator
         {
             density = 0.0f;
         }
-        mask[at] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.R * 255.0f), 0, 255);
-        mask[at + 1] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.G * 255.0f), 0, 255);
-        mask[at + 2] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.B * 255.0f), 0, 255);
-        mask[at + 3] = (byte)Mathf.Clamp(Mathf.RoundToInt(density * 255.0f), 0, 255);
+        return density;
     }
 
     /// <summary>
