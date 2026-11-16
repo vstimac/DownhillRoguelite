@@ -29,6 +29,8 @@ public partial class TuntunSpawner : Node3D
     [Export] public float HardmodeArrivalSeconds { get; set; } = 1.0f;
 
     public TuntunSahur? Current { get; private set; }
+    /// <summary>The hard-mode Tuntun Sahurs this spawner brought (still in the world or on their way out).</summary>
+    public System.Collections.Generic.IReadOnlyList<TuntunSahur> HardmodeTuntuns => _hardmode;
 
     private readonly System.Collections.Generic.List<TuntunSahur> _hardmode = new();
     private double _hardmodeNext;

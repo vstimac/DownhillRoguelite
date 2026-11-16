@@ -29,13 +29,19 @@ public partial class BoonOfferings : Node3D
     [Export] public float Spread { get; set; } = 48.0f;
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
 
+    /// <summary>The station's normal offerings (OfferCount per station). The hard-mode stone is not among them.</summary>
     public IReadOnlyList<BoonStone> Stones => _stones;
+    /// <summary>Tuntun Sahur hard-mode stones beside the hand carts: an extra, apart from the offerings.</summary>
+    public IReadOnlyList<BoonStone> HardmodeStones => _hardmodeStones;
 
     private readonly List<BoonStone> _stones = new();
+    private readonly List<BoonStone> _hardmodeStones = new();
     private readonly HashSet<int> _offered = new();
     private readonly HashSet<int> _earned = new();
     private readonly HashSet<int> _hardmodeOffered = new();
     private const string HardmodePath = "res://progression/boons/tuntun_hardmode.tres";
+    /// <summary>The hard-mode stone's shared pickup key, before the station number (BoonStone.SharedPickupKey).</summary>
+    public const string HardmodeKey = "boon:tuntun:";
     private RunState? _run;
 
     public override void _Ready()
@@ -117,11 +123,21 @@ public partial class BoonOfferings : Node3D
 
     private void OnSharedTaken(string key)
     {
-        if (!key.StartsWith("boon:", System.StringComparison.Ordinal) || !int.TryParse(key.Substring(5), out int station)) { return; }
-        for (int i = _stones.Count - 1; i >= 0; i--)
+        if (key.StartsWith(HardmodeKey, System.StringComparison.Ordinal))
         {
-            if (_stones[i].Station == station)
-            { if (IsInstanceValid(_stones[i])) { _stones[i].QueueFree(); } _stones.RemoveAt(i); }
+            if (int.TryParse(key.Substring(HardmodeKey.Length), out int hardmodeStation)) { RemoveStation(_hardmodeStones, hardmodeStation); }
+            return;
+        }
+        if (!key.StartsWith("boon:", System.StringComparison.Ordinal) || !int.TryParse(key.Substring(5), out int station)) { return; }
+        RemoveStation(_stones, station);
+    }
+
+    private static void RemoveStation(List<BoonStone> stones, int station)
+    {
+        for (int i = stones.Count - 1; i >= 0; i--)
+        {
+            if (stones[i].Station == station)
+            { if (IsInstanceValid(stones[i])) { stones[i].QueueFree(); } stones.RemoveAt(i); }
         }
     }
 
@@ -132,7 +148,7 @@ public partial class BoonOfferings : Node3D
     private void OfferTuntunHardmode(int station)
     {
         if (station < 1 || _run == null || _run.TuntunHardmode || !_hardmodeOffered.Add(station)) { return; }
-        if (GameEvents.WasSharedPickupTaken("boon:tuntun:" + station)) { return; }
+        if (GameEvents.WasSharedPickupTaken(HardmodeKey + station)) { return; }
         if (!ResourceLoader.Exists(HardmodePath) || ResourceLoader.Load(HardmodePath) is not BoonDefinition boon) { return; }
         IRouteQuery? route = _run.Route;
         if (route == null) { return; }
@@ -153,7 +169,7 @@ public partial class BoonOfferings : Node3D
         stone.Setup(boon, station, this);
         AddChild(stone);
         stone.GlobalPosition = at;
-        _stones.Add(stone);
+        _hardmodeStones.Add(stone);
     }
 
     /// <summary>The hand cart of the station nearest to <paramref name="centre"/>, if the scene has one.</summary>
@@ -172,23 +188,23 @@ public partial class BoonOfferings : Node3D
 
     private void RemoveTuntunHardmodeStones()
     {
-        for (int i = _stones.Count - 1; i >= 0; i--)
+        foreach (BoonStone stone in _hardmodeStones)
         {
-            if (_stones[i].Boon?.TuntunHardmode != true) { continue; }
-            if (IsInstanceValid(_stones[i])) { _stones[i].QueueFree(); }
-            _stones.RemoveAt(i);
+            if (IsInstanceValid(stone)) { stone.QueueFree(); }
         }
+        _hardmodeStones.Clear();
     }
 
     /// <summary>Applies the stone's boon and takes away the station's other offerings.</summary>
     public bool Choose(BoonStone chosen)
     {
-        if (_run == null || chosen.Boon == null || !_stones.Contains(chosen) || chosen.IsQueuedForDeletion())
+        if (_run == null || chosen.Boon == null || chosen.IsQueuedForDeletion())
         {
             return false;
         }
         if (chosen.Boon.TuntunHardmode)
         {
+            if (!_hardmodeStones.Contains(chosen)) { return false; }
             // Hard mode is not a stat boon: it starts the run's Tuntun Sahurs and leaves the station's offerings alone.
             _run.StartTuntunHardmode();
             _run.Boons.Add(chosen.Boon.DisplayName);
@@ -196,6 +212,7 @@ public partial class BoonOfferings : Node3D
             GameEvents.PublishBoonChosen($"{chosen.Boon.DisplayName} (Tuntun Sahurs: 3, +1 per station)");
             return true;
         }
+        if (!_stones.Contains(chosen)) { return false; }
         if (chosen.Boon.IsConditional)
         {
             // Works only in its situation: RunState switches it on and off (and saves it without its effect).
@@ -247,6 +264,7 @@ public partial class BoonOfferings : Node3D
             stone.QueueFree();
         }
         _stones.Clear();
+        RemoveTuntunHardmodeStones();
         _offered.Clear();
         _earned.Clear();
         _hardmodeOffered.Clear();

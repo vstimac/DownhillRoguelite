@@ -14,7 +14,7 @@ namespace DownhillRoguelite.Progression;
 public partial class BoonStone : Node3D, ISharedWorldPickup, IDescribed
 {
     // Hard mode is its own pickup: taking it must not take the station's other offerings.
-    public string SharedPickupKey => (Boon != null && Boon.TuntunHardmode ? "boon:tuntun:" : "boon:") + Station;
+    public string SharedPickupKey => (Boon != null && Boon.TuntunHardmode ? BoonOfferings.HardmodeKey : "boon:") + Station;
     public BoonDefinition? Boon { get; private set; }
     public int Station { get; private set; }
 
