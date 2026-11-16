@@ -21,7 +21,7 @@ public partial class SetPiecePlacer : Node3D
     [Export] public Vector2I WaysidePerStage { get; set; } = new(9, 13);
     [Export] public float LandmarkChance { get; set; } = 0.8f;
     /// <summary>Landmarks tried per stage, each with LandmarkChance (the third round: two, so one is nearly always in sight).</summary>
-    [Export] public int LandmarksPerStage { get; set; } = 2;
+    [Export] public int LandmarksPerStage { get; set; } = 3;
     /// <summary>Landmarks stand up on the valley's flanks: they may take this many times MaxRise, bedded into the slope.</summary>
     [Export] public float LandmarkRiseFactor { get; set; } = 3.0f;
     /// <summary>A wayside piece's near edge keeps this far from the centre of every path, in m.</summary>
@@ -29,7 +29,7 @@ public partial class SetPiecePlacer : Node3D
     /// <summary>...and its centre stands up to this much further out, in m.</summary>
     [Export] public float WaysideSpread { get; set; } = 4.5f;
     /// <summary>A landmark stands this far from the main path (range), in m.</summary>
-    [Export] public Vector2 LandmarkDistance { get; set; } = new(45.0f, 85.0f);
+    [Export] public Vector2 LandmarkDistance { get; set; } = new(30.0f, 58.0f);
     /// <summary>...and keeps at least this far from every path, in m.</summary>
     [Export] public float LandmarkClearance { get; set; } = 28.0f;
     /// <summary>No piece within this distance (along Z) of a station, in m.</summary>

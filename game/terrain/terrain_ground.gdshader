@@ -37,6 +37,11 @@ uniform float snow_edge_scale = 0.11;
 uniform float snow_edge_detail = 0.47;
 uniform float snow_raggedness = 0.55;
 uniform float snow_wet_rim = 0.28;
+/// Rock strata (the fifth round): steep rock lies in bands this many metres thick, gently wavy and
+/// tilted, lighter and darker with a pale ledge now and then, so a flank reads as layered rock.
+uniform float strata_metres = 2.2;
+uniform float strata_strength = 0.85;
+uniform float strata_warp = 2.5;
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -81,6 +86,19 @@ void fragment() {
 		detailed_normal.xy *= 0.4 * texture_strength * (1.0 - snow);
 		// VRAM normal compression can store RG only; reconstruct Z instead of sampling a missing blue channel.
 		detailed_normal.z = sqrt(max(1.0 - dot(detailed_normal.xy, detailed_normal.xy), 0.001));
+	}
+
+	if (strata_strength > 0.001) {
+		float face = smoothstep(rock_start, rock_end, steep) * (1.0 - snow);
+		if (face > 0.001) {
+			float warp = texture(height_noise, world_pos.xz * 0.011 + vec2(0.53, 0.11)).r;
+			float layer = world_pos.y / strata_metres + (warp - 0.5) * strata_warp + dot(world_pos.xz, vec2(0.021, 0.008));
+			float band = sin(layer * 6.2832);
+			float ledge = smoothstep(0.9, 0.985, sin(layer * 6.2832 * 0.37 + 1.3));
+			vec3 tone = mix(vec3(0.76, 0.74, 0.72), vec3(1.14, 1.06, 0.94), band * 0.5 + 0.5);
+			tone = mix(tone, vec3(1.32, 1.28, 1.2), ledge * 0.7);
+			colour *= mix(vec3(1.0), tone, face * strata_strength);
+		}
 	}
 
 	// Melt water darkens the ground just outside a snow patch; then the snow itself, faintly the

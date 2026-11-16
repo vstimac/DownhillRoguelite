@@ -169,6 +169,7 @@ public partial class FootTrail : Node3D
             "mud" => (new Color(0.36f, 0.25f, 0.14f, 0.9f), MudLife, new Color(0.3f, 0.2f, 0.1f, 0.8f)),
             "grass" => (new Color(0.3f, 0.4f, 0.18f, 0.45f), GrassLife, new Color(0.35f, 0.5f, 0.2f, 0.7f)),
             "scree" => (new Color(0.45f, 0.42f, 0.38f, 0.4f), GrassLife, new Color(0.65f, 0.6f, 0.52f, 0.6f)),
+            "dirt" => (new Color(0.33f, 0.25f, 0.17f, 0.55f), GrassLife, new Color(0.55f, 0.45f, 0.33f, 0.5f)),
             "sand" => (new Color(0.7f, 0.58f, 0.4f, 0.6f), MudLife, new Color(0.8f, 0.7f, 0.5f, 0.6f)),
             "rock" => (Colors.Transparent, 0.0f, new Color(0.6f, 0.58f, 0.55f, 0.35f)),
             _ => (Colors.Transparent, 0.0f, new Color(0.0f, 0.0f, 0.0f, 0.0f)),

@@ -1,12 +1,14 @@
 """Generates footsteps per surface and a campfire loop (original, synthesized; no recordings).
 
-Writes audio/footsteps/<surface>_<n>.wav (grass, rock, scree, snow, mud, wood; 4 variants each)
+Writes audio/footsteps/<surface>_<n>.wav (grass, rock, scree, snow, mud, wood, dirt; 4 variants each)
 and audio/ambience/fire.wav (a seamless crackling loop).
 
 Run from the project folder:  python audio/tools/generate_foley.py
+Only the dry-earth steps (added later, with their own seed):  python audio/tools/generate_foley.py dirt
 Needs numpy.
 """
 import os
+import sys
 import wave
 
 import numpy as np
@@ -62,6 +64,11 @@ def step(surface):
         s = crunch * env(n, 0.02, 12)
     elif surface == "mud":
         s = tone(n, 260, 70, 12) * 0.6 + band_noise(n, 100, 1200, -0.5) * env(n, 0.02, 14) * 0.7
+    elif surface == "dirt":
+        # Dry, packed earth: a soft low thud, a dull scuff and a few fine grains.
+        s = (tone(n, 170, 85, 40) * 0.45
+             + band_noise(n, 150, 2200, -0.4) * env(n, 0.006, 24) * 0.8
+             + grains(n, 12, 900, 2600, 450) * env(n, 0.004, 14) * 0.25)
     else:  # wood
         s = tone(n, 110, 85, 30) * 0.8 + tone(n, 420, 380, 60) * 0.35 + band_noise(n, 1500, 6000) * env(n, 0.001, 120) * 0.2
     fade = np.clip((n - np.arange(n)) / (RATE * 0.03), 0, 1)
@@ -80,6 +87,20 @@ def save(path, signal, peak, channels=1):
         out.setframerate(RATE)
         out.writeframes(data.tobytes())
 
+
+
+def dirt_steps():
+    # Its own seed, so adding it left every file above exactly as it was.
+    global rng
+    rng = np.random.default_rng(23)
+    for i in range(4):
+        save(f"audio/footsteps/dirt_{i}.wav", step("dirt"), 0.75)
+    print("footsteps: 4 dirt files")
+
+
+if sys.argv[1:] == ["dirt"]:
+    dirt_steps()
+    sys.exit(0)
 
 for surface in ["grass", "rock", "scree", "snow", "mud", "wood"]:
     for i in range(4):
@@ -103,3 +124,4 @@ for _ in range(seconds * 25):
     fire[index] += pop
 save("audio/ambience/fire.wav", fire, 0.7, channels=2)
 print("audio/ambience/fire.wav: 20 s")
+dirt_steps()
