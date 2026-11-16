@@ -9,7 +9,7 @@ namespace DownhillRoguelite.Environment;
 /// Dresses the mountain with set pieces (environment/set_pieces/*.tres), chosen and placed by the
 /// run's seed so the same mountain looks the same: a few wayside pieces per stage beside its paths
 /// (ruins, wagons, banners, shrines), kept clear of every path's walking band and of the stations,
-/// and now and then a landmark far off the paths (a windmill, a tower) to tell one stretch from
+/// and now and then a landmark far off the paths (a tower, standing stones) to tell one stretch from
 /// another. Pieces favour their circles. Pieces on ground too uneven for them are left out. Only
 /// pieces near the carrier exist; landmarks load from further away. A new run plans afresh.
 /// </summary>

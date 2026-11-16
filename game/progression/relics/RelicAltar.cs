@@ -95,9 +95,10 @@ public partial class RelicAltar : Node3D, IInteractable, IDescribed
             {
                 Mesh = new BoxMesh { Size = new Vector3(1.1f, AltarHeight, 0.6f) },
                 Position = Vector3.Up * AltarHeight * 0.5f,
-                MaterialOverride = new StandardMaterial3D { AlbedoColor = StoneColor, Roughness = 1.0f },
+                MaterialOverride = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Stone, StoneColor),
             });
         }
+        DownhillRoguelite.Environment.WorldStyle.Solid(this, new Vector3(1.0f, _top, 0.55f), Vector3.Up * _top * 0.5f);
         AddModel(CandleModel, 0.22f, new Vector3(-0.38f, _top, 0.1f));
         AddModel(CandleModel, 0.18f, new Vector3(0.4f, _top, -0.08f));
         AddChild(new OmniLight3D { LightColor = CandleColor, LightEnergy = 0.8f, OmniRange = 4.0f, Position = new Vector3(0.0f, _top + 0.4f, 0.0f) });
@@ -114,7 +115,9 @@ public partial class RelicAltar : Node3D, IInteractable, IDescribed
             return 0.0f;
         }
         Node3D holder = new() { Name = "Model" };
-        holder.AddChild(scene.Instantiate<Node3D>());
+        Node3D instance = scene.Instantiate<Node3D>();
+        DownhillRoguelite.Environment.WorldStyle.Restyle(instance, path);
+        holder.AddChild(instance);
         Aabb bounds = ModelFit.Bounds(holder);
         float scale = height / Mathf.Max(bounds.Size.Y, 0.01f);
         holder.Transform = ModelFit.FitOnGround(bounds, bounds.Size * scale, true);

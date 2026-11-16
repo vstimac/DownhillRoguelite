@@ -37,7 +37,7 @@ public partial class RouteSign : Node3D
 
     public override void _Ready()
     {
-        StandardMaterial3D wood = new() { AlbedoColor = WoodColor, Roughness = 1.0f };
+        Material wood = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Wood, WoodColor);
         foreach (float x in new[] { -BoardSize.X * 0.42f, BoardSize.X * 0.42f })
         {
             // The posts stand behind the board's face: in front of it they hid the ends of the longest path lines.
@@ -47,6 +47,7 @@ public partial class RouteSign : Node3D
                 Position = new Vector3(x, (BoardHeight + 0.4f) * 0.5f, -0.1f),
                 MaterialOverride = wood,
             });
+            DownhillRoguelite.Environment.WorldStyle.Solid(this, new Vector3(0.12f, BoardHeight + 0.4f, 0.12f), new Vector3(x, (BoardHeight + 0.4f) * 0.5f, -0.1f));
         }
         AddChild(new MeshInstance3D
         {

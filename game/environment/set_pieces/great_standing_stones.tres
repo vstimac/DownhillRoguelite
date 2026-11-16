@@ -6,28 +6,28 @@
 [sub_resource type="Resource" id="part_0"]
 script = ExtResource("2_part")
 Model = "res://art/props/kenney_nature_kit/GLB format/stone_tallB.glb"
-Offset = Vector3(-5.76, 0, -1.6)
+Offset = Vector3(-3.34, 0, -0.93)
 Yaw = 0
 Tilt = Vector2(3, 0)
-Height = 8.32
+Height = 4.83
 Solid = true
 
 [sub_resource type="Resource" id="part_1"]
 script = ExtResource("2_part")
 Model = "res://art/props/kenney_nature_kit/GLB format/stone_tallE.glb"
-Offset = Vector3(5.12, 0, -3.2)
+Offset = Vector3(2.97, 0, -1.86)
 Yaw = 70
 Tilt = Vector2(0, -6)
-Height = 6.72
+Height = 3.90
 Solid = true
 
 [sub_resource type="Resource" id="part_2"]
 script = ExtResource("2_part")
 Model = "res://art/props/kenney_nature_kit/GLB format/stone_tallH.glb"
-Offset = Vector3(1.28, 0.96, 6.08)
+Offset = Vector3(0.74, 0.56, 3.53)
 Yaw = 15
 Tilt = Vector2(82, 0)
-Height = 7.04
+Height = 4.08
 Solid = true
 
 [sub_resource type="Resource" id="part_3"]
@@ -36,7 +36,7 @@ Model = "res://art/props/kenney_nature_kit/GLB format/stone_smallFlatA.glb"
 Offset = Vector3(0, 0, 0)
 Yaw = 0
 Tilt = Vector2(0, 0)
-Height = 0.96
+Height = 0.56
 Solid = false
 
 [resource]
@@ -47,4 +47,4 @@ Parts = [SubResource("part_0"), SubResource("part_1"), SubResource("part_2"), Su
 FavouredCircles = PackedInt32Array(0, 4, 7, 8)
 FirstCircle = 0
 Weight = 1
-Radius = 11.52
+Radius = 6.68

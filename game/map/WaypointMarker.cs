@@ -22,7 +22,7 @@ public partial class WaypointMarker : Node3D
         {
             Mesh = new CylinderMesh { TopRadius = 0.04f, BottomRadius = 0.05f, Height = PoleHeight, RadialSegments = 6 },
             Position = Vector3.Up * PoleHeight * 0.5f,
-            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.35f, 0.25f, 0.15f) },
+            MaterialOverride = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Wood, new Color(0.35f, 0.25f, 0.15f)),
         });
         AddChild(new MeshInstance3D
         {

@@ -167,13 +167,20 @@ public partial class LoreMark : Node3D, IInteractable, IDescribed
             return 0.0f;
         }
         Node3D holder = new() { Name = "Model" };
-        holder.AddChild(scene.Instantiate<Node3D>());
+        Node3D instance = scene.Instantiate<Node3D>();
+        DownhillRoguelite.Environment.WorldStyle.Restyle(instance, path);
+        holder.AddChild(instance);
         Aabb bounds = ModelFit.Bounds(holder);
         float scale = height / Mathf.Max(bounds.Size.Y, 0.01f);
         holder.Transform = ModelFit.FitOnGround(bounds, bounds.Size * scale, true);
         Node3D place = new() { Position = at, RotationDegrees = rotation };
         place.AddChild(holder);
         AddChild(place);
+        if (height >= DownhillRoguelite.Environment.WorldStyle.KneeHeight)
+        {
+            Vector3 size = bounds.Size * scale;
+            DownhillRoguelite.Environment.WorldStyle.Solid(place, new Vector3(size.X * 0.85f, size.Y, size.Z * 0.85f), Vector3.Up * size.Y * 0.5f);
+        }
         return height;
     }
 
@@ -185,13 +192,13 @@ public partial class LoreMark : Node3D, IInteractable, IDescribed
             Mesh = new BoxMesh { Size = new Vector3(0.24f, 0.3f, 0.006f) },
             Position = at,
             RotationDegrees = rotation,
-            MaterialOverride = new StandardMaterial3D { AlbedoColor = PaperColor, Roughness = 1.0f },
+            MaterialOverride = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Pale, PaperColor),
         });
     }
 
     private void AddBook(Vector3 at)
     {
-        StandardMaterial3D cover = new() { AlbedoColor = new Color(0.35f, 0.18f, 0.12f), Roughness = 1.0f };
+        Material cover = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Cloth, new Color(0.35f, 0.18f, 0.12f));
         AddChild(new MeshInstance3D { Name = "Book", Mesh = new BoxMesh { Size = new Vector3(0.44f, 0.04f, 0.3f) }, Position = at, MaterialOverride = cover });
         AddPage(at + new Vector3(0.0f, 0.025f, 0.0f), new Vector3(-90.0f, 0.0f, 0.0f));
     }

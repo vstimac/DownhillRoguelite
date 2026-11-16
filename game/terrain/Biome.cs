@@ -58,7 +58,7 @@ public partial class Biome : Resource
     [Export] public float ShrubDensity { get; set; }
     /// <summary>Shrub height range, in m.</summary>
     [Export] public Vector2 ShrubHeight { get; set; } = new(0.5f, 1.3f);
-    /// <summary>Shrubs' foliage colour, so the art pack's bushes match the circle's trees and grass.</summary>
+    /// <summary>No longer drawn: the bushes are the generated ones (art/environment/forest) in their own colours. Kept so saved biomes load.</summary>
     [Export] public Color ShrubColour { get; set; } = new(0.3f, 0.42f, 0.24f);
     /// <summary>Forest-floor debris (stumps, mushrooms, branches), per 1000 m², most of it at trees' feet.</summary>
     [Export] public string[] DebrisModels { get; set; } = System.Array.Empty<string>();

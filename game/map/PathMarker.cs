@@ -33,7 +33,9 @@ public partial class PathMarker : Node3D
         if (ResourceLoader.Exists(PostModel) && ResourceLoader.Load(PostModel) is PackedScene scene)
         {
             Node3D holder = new() { Name = "Post" };
-            holder.AddChild(scene.Instantiate<Node3D>());
+            Node3D instance = scene.Instantiate<Node3D>();
+        DownhillRoguelite.Environment.WorldStyle.Restyle(instance, PostModel);
+        holder.AddChild(instance);
             Aabb bounds = ModelFit.Bounds(holder);
             float scale = PostHeight / Mathf.Max(bounds.Size.Y, 0.01f);
             holder.Transform = ModelFit.FitOnGround(bounds, bounds.Size * scale, true);

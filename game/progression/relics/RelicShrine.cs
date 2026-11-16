@@ -27,9 +27,10 @@ public partial class RelicShrine : Node3D
             {
                 Mesh = new BoxMesh { Size = new Vector3(0.5f, StoneHeight, 0.18f) },
                 Position = Vector3.Up * StoneHeight * 0.5f,
-                MaterialOverride = new StandardMaterial3D { AlbedoColor = StoneColor, Roughness = 1.0f },
+                MaterialOverride = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Stone, StoneColor),
             });
         }
+        DownhillRoguelite.Environment.WorldStyle.Solid(this, new Vector3(0.5f, StoneHeight, 0.2f), Vector3.Up * StoneHeight * 0.5f);
         AddCandle(new Vector3(-0.45f, 0.0f, 0.35f));
         AddCandle(new Vector3(0.5f, 0.0f, 0.3f));
     }
@@ -47,7 +48,9 @@ public partial class RelicShrine : Node3D
             return 0.0f;
         }
         Node3D holder = new() { Name = "Model" };
-        holder.AddChild(scene.Instantiate<Node3D>());
+        Node3D instance = scene.Instantiate<Node3D>();
+        DownhillRoguelite.Environment.WorldStyle.Restyle(instance, path);
+        holder.AddChild(instance);
         Aabb bounds = ModelFit.Bounds(holder);
         float scale = height / Mathf.Max(bounds.Size.Y, 0.01f);
         holder.Transform = ModelFit.FitOnGround(bounds, bounds.Size * scale, true);

@@ -73,8 +73,8 @@ public partial class WaysideSite : Node3D, IInteractable, IDescribed
     {
         AddToGroup(IInteractable.Group);
         Color pennant = Definition?.PennantColor ?? new Color(0.75f, 0.2f, 0.15f);
-        StandardMaterial3D wood = new() { AlbedoColor = new Color(0.36f, 0.25f, 0.16f), Roughness = 1.0f };
-        StandardMaterial3D cloth = new() { AlbedoColor = pennant, Roughness = 0.9f, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+        Material wood = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Wood, new Color(0.36f, 0.25f, 0.16f));
+        Material cloth = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Cloth, pennant);
         AddMesh(new CylinderMesh { TopRadius = 0.035f, BottomRadius = 0.05f, Height = PoleHeight, RadialSegments = 6 }, new Vector3(0.0f, PoleHeight * 0.5f, 0.0f), wood);
         _pennant = new Node3D { Position = new Vector3(0.0f, PoleHeight - 0.35f, 0.0f) };
         AddChild(_pennant);
@@ -83,12 +83,13 @@ public partial class WaysideSite : Node3D, IInteractable, IDescribed
         int look = Definition?.Look ?? 0;
         if (look == 1)
         {
-            AddMesh(new BoxMesh { Size = new Vector3(0.9f, 0.7f, 0.35f) }, new Vector3(0.6f, 0.35f, 0.2f), new StandardMaterial3D { AlbedoColor = new Color(0.5f, 0.49f, 0.46f), Roughness = 1.0f });
+            AddMesh(new BoxMesh { Size = new Vector3(0.9f, 0.7f, 0.35f) }, new Vector3(0.6f, 0.35f, 0.2f), DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Stone, new Color(0.5f, 0.49f, 0.46f)));
+            DownhillRoguelite.Environment.WorldStyle.Solid(this, new Vector3(0.9f, 0.7f, 0.35f), new Vector3(0.6f, 0.35f, 0.2f));
         }
         else if (look == 2)
         {
-            AddMesh(new CylinderMesh { TopRadius = 0.55f, BottomRadius = 0.45f, Height = 0.35f, RadialSegments = 12 }, new Vector3(0.6f, 0.17f, 0.2f), new StandardMaterial3D { AlbedoColor = new Color(0.45f, 0.44f, 0.42f), Roughness = 1.0f });
-            AddMesh(new CylinderMesh { TopRadius = 0.46f, BottomRadius = 0.46f, Height = 0.02f, RadialSegments = 12 }, new Vector3(0.6f, 0.33f, 0.2f), new StandardMaterial3D { AlbedoColor = new Color(0.25f, 0.4f, 0.5f), Roughness = 0.1f, Metallic = 0.2f });
+            AddMesh(new CylinderMesh { TopRadius = 0.55f, BottomRadius = 0.45f, Height = 0.35f, RadialSegments = 12 }, new Vector3(0.6f, 0.17f, 0.2f), DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Stone, new Color(0.45f, 0.44f, 0.42f)));
+            AddMesh(new CylinderMesh { TopRadius = 0.46f, BottomRadius = 0.46f, Height = 0.02f, RadialSegments = 12 }, new Vector3(0.6f, 0.33f, 0.2f), DownhillRoguelite.Environment.WorldStyle.For(DownhillRoguelite.Environment.Look.Water));
         }
         else
         {

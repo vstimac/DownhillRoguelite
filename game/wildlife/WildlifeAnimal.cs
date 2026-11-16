@@ -311,6 +311,8 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         if (species.Model != null)
         {
             _model = species.Model.Instantiate<Node3D>();
+            // Smooth shading and a muted fur coat, like every animal on the mountain (WorldStyle).
+            DownhillRoguelite.Environment.WorldStyle.RestyleCreature(_model);
             _model.Scale = Vector3.One * species.ModelScale;
             _model.RotationDegrees = species.ModelRotationDegrees;
             AddChild(_model);
