@@ -8,6 +8,8 @@ namespace DownhillRoguelite.Ui;
 /// open, so sorting the load never costs a fall, warmth or daylight (GameOptions.PauseWhileOpen).
 /// The HUD and the pack screen keep running (ProcessMode Always); GameEvents.PagesFrozen tells them
 /// this pause is theirs and not the pause menu's.
+/// Co-op never stops: the others play on in the same world, and a stopped host would stop its
+/// creatures and its carrier (and the pack being set down) for everyone.
 /// </summary>
 public partial class PageFreeze : Node
 {
@@ -21,7 +23,7 @@ public partial class PageFreeze : Node
     public override void _Process(double delta)
     {
         bool open = (Inventory != null && Inventory.IsOpen && Inventory.Visible) || GameEvents.IsPackOpen;
-        bool want = open && GameOptions.PauseWhileOpen;
+        bool want = open && GameOptions.PauseWhileOpen && !GameEvents.SharedWorldActive;
         SceneTree tree = GetTree();
         if (want)
         {

@@ -66,6 +66,7 @@ public partial class UiTests : Node3D
         TestNotes();
         await TestAlerts(needs);
         await TestInventory(needs);
+        await TestInventoryInCoop();
         await TestMap();
         await TestJournal();
         TestDragging();
@@ -333,6 +334,22 @@ public partial class UiTests : Node3D
         Check("the inventory page takes the mouse, stops the world while open, reorders by drag and drop, and drinks",
             open && frozen && running && swapped && drank && !page.Visible && !GameEvents.IsScreenOpen,
             $"open {open}, world stopped {frozen} then running again {running}, swapped {swapped}, drank {drank} (thirst {needs.Thirst:0}), closed {!page.Visible}");
+    }
+
+    /// <summary>Co-op: the others play on in the same world, so the inventory page never stops it.</summary>
+    private async Task TestInventoryInCoop()
+    {
+        InventoryScreen page = Ui!.Inventory!;
+        GameEvents.SetWorldAuthority(true, true);
+        Ui.Toggle(page);
+        await Wait(0.6f);
+        bool open = page.Visible && page.IsOpen;
+        bool running = !GetTree().Paused && !GameEvents.PagesFrozen;
+        page.Close();
+        await Wait(0.3f);
+        GameEvents.SetWorldAuthority(false, false);
+        Check("in co-op the inventory page leaves the world running (the others play on)", open && running && !GetTree().Paused,
+            $"open {open}, world running {running}");
     }
 
     private async Task TestMap()
