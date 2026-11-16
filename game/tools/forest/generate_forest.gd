@@ -51,9 +51,9 @@ func _initialize() -> void:
 		save_asset("grass_" + str(variant), false)
 	# Broadleaf trees for the deeper circles: summer green, dark, autumn; and bare snags.
 	var palettes := {
-		"green": [Color(0.3, 0.5, 0.2), Color(0.36, 0.27, 0.2)],
+		"green": [Color(0.29, 0.43, 0.2), Color(0.36, 0.27, 0.2)],
 		"dark": [Color(0.17, 0.3, 0.17), Color(0.24, 0.19, 0.15)],
-		"fall": [Color(0.8, 0.44, 0.13), Color(0.33, 0.25, 0.19)],
+		"fall": [Color(0.6, 0.38, 0.16), Color(0.33, 0.25, 0.19)],
 	}
 	var palette_seed := 0
 	for palette in palettes.keys():
@@ -314,9 +314,10 @@ func grass(variant: int) -> void:
 				tri(a - wa, b - wb, b + wb, ca, cb, cb, rows[k], rows[k + 1], rows[k + 1])
 				tri(a - wa, b + wb, a + wa, ca, cb, ca, rows[k], rows[k + 1], rows[k])
 
-## A leaf cluster: a lumpy, faceted ball (a once-split icosahedron, each corner pushed in or out),
-## lit from above (darker underneath), each facet a little different; the coarse LODs use the
-## unsplit icosahedron. Flex grows toward the cluster's outside.
+## A leaf cluster: a lumpy, soft ball (a once-split icosahedron, each corner pushed in or out),
+## smooth-shaded like a mass of leaves rather than folded paper (each corner's normal points out of
+## the ball) and lit from above (darker underneath); the coarse LODs use the unsplit icosahedron.
+## Flex grows toward the cluster's outside.
 func leaf_cluster(centre: Vector3, radius: Vector3, colour: Color, flex: float) -> void:
 	var t := (1.0 + sqrt(5.0)) / 2.0
 	var corners := [Vector3(-1, t, 0), Vector3(1, t, 0), Vector3(-1, -t, 0), Vector3(1, -t, 0),
@@ -363,12 +364,27 @@ func leaf_cluster(centre: Vector3, radius: Vector3, colour: Color, flex: float) 
 			var normal := (b - a).cross(c - a).normalized()
 			if normal.dot((a + b + c) / 3.0 - centre) < 0.0:
 				normal = -normal
-			var light := 0.72 + 0.38 * (normal.y * 0.5 + 0.5) + random.randf_range(-0.05, 0.05)
-			var shade := Color(colour.r * light, colour.g * light, colour.b * light)
+			var na := soft_normal(a, centre, radius)
+			var nb := soft_normal(b, centre, radius)
+			var nc := soft_normal(c, centre, radius)
 			var fa := clampf(flex + 0.25 * (a - centre).length() / maxf(radius.x, 0.01), 0.0, 1.0)
 			var fb := clampf(flex + 0.25 * (b - centre).length() / maxf(radius.x, 0.01), 0.0, 1.0)
 			var fc := clampf(flex + 0.25 * (c - centre).length() / maxf(radius.x, 0.01), 0.0, 1.0)
-			tri(a, c, b, shade, shade, shade, fa, fc, fb, level, full)
+			var first := vertices.size()
+			tri(a, c, b, leaf_light(colour, na), leaf_light(colour, nc), leaf_light(colour, nb), fa, fc, fb, level, full)
+			normals[first] = na
+			normals[first + 1] = nc
+			normals[first + 2] = nb
+
+## The outward normal of an ellipsoid of these radii at a point (the same at every face sharing it).
+func soft_normal(point: Vector3, centre: Vector3, radius: Vector3) -> Vector3:
+	var d := point - centre
+	return Vector3(d.x / maxf(radius.x * radius.x, 0.0001), d.y / maxf(radius.y * radius.y, 0.0001), d.z / maxf(radius.z * radius.z, 0.0001)).normalized()
+
+## Leaves lit from above: darker underneath, by the corner's (smooth) normal.
+func leaf_light(colour: Color, normal: Vector3) -> Color:
+	var light := 0.74 + 0.32 * (normal.y * 0.5 + 0.5)
+	return Color(colour.r * light, colour.g * light, colour.b * light)
 
 ## A broadleaf tree about 8 m tall: a trunk that splits into three or four limbs, each forking once,
 ## crowned with leaf clusters (autumn trees mix in reds and yellows).
@@ -402,9 +418,9 @@ func broadleaf(variant: int, leaves: Color, bark: Color, autumn: bool) -> void:
 			if autumn:
 				var pick := random.randf()
 				if pick < 0.3:
-					colour = Color(0.72, 0.22, 0.1)
+					colour = Color(0.52, 0.27, 0.15)
 				elif pick < 0.55:
-					colour = Color(0.86, 0.66, 0.2)
+					colour = Color(0.62, 0.5, 0.25)
 			colour = colour.lightened(random.randf_range(-0.05, 0.08))
 			var size := random.randf_range(1.4, 1.9)
 			leaf_cluster(twig_end, Vector3(size, size * 0.8, size), colour, 0.55)
@@ -463,9 +479,9 @@ func bush(variant: int, leaves: Color, bark: Color, autumn: bool) -> void:
 		if autumn:
 			var pick := random.randf()
 			if pick < 0.3:
-				colour = Color(0.55, 0.22, 0.12)
+				colour = Color(0.5, 0.26, 0.15)
 			elif pick < 0.55:
-				colour = Color(0.68, 0.54, 0.22)
+				colour = Color(0.6, 0.49, 0.25)
 		colour = colour.lightened(random.randf_range(-0.05, 0.07))
 		leaf_cluster(out + Vector3.UP * random.randf_range(0.38, 0.62), Vector3(size, size * 0.8, size), colour, 0.4)
 	phase = random.randf()
