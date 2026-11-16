@@ -301,7 +301,9 @@ public partial class WeatherTests : Node3D
         await WaitSeconds(0.2f);
         float fogDensity = environment?.FogDensity ?? 0.0f;
         float fogSun = dayNight.Sun?.LightEnergy ?? 0.0f;
-        Check("fog closes in and dims the sun", fogDensity > clearFog * 3.0f && fogSun < clearSun * 0.6f,
+        // Weather adds a soft-limited amount (DayNightCycle.DayFogLimit) so ridges still show at 60 to
+        // 100 m: on this scene's thicker base fog that is about 2.5 times, in the game's about 6 times.
+        Check("fog closes in and dims the sun", fogDensity > clearFog * 2.0f && fogSun < clearSun * 0.6f,
             $"fog density {clearFog:0.000} → {fogDensity:0.000}, sun {clearSun:0.00} → {fogSun:0.00}");
 
         weather.Forced = WeatherKind.Rain;
