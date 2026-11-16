@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="BoonDefinition" format=3]
+
+[ext_resource type="Script" uid="uid://wiwl5ne4vej" path="res://progression/BoonDefinition.cs" id="1_boon"]
+
+[resource]
+script = ExtResource("1_boon")
+Id = "tuntun_hardmode"
+DisplayName = "Tuntun's Hard Mode"
+Description = "The log with the bat comes for you. Three of him at first; one more at every station after."
+Glow = Color(0.85, 0.35, 0.25, 1)
+TuntunHardmode = true

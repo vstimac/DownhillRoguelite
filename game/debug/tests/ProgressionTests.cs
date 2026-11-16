@@ -44,6 +44,7 @@ public partial class ProgressionTests : Node3D
         TestBargains(Offerings);
         TestConditionalBoons(_run);
         await TestOfferingAndChoice(PlayerBody, Offerings, _run.Route);
+        await TestHardmodeTaken(PlayerBody, Offerings);
         TestEffects(PlayerBody.Stamina);
         await TestCold(needs);
         await TestNewRunClears(Offerings);
@@ -179,6 +180,19 @@ public partial class ProgressionTests : Node3D
         Vector3 station = route.Station(1);
         await Place(player, station + new Vector3(0.0f, 0.0f, 2.0f), 1.0f);
         int laid = offerings.Stones.Count;
+        // Tuntun Sahur's hard mode is an extra stone beside the hand cart, not one of the offerings.
+        int hardmodeLaid = offerings.HardmodeStones.Count;
+        bool hardmodeApart = true;
+        float hardmodeGap = float.MaxValue;
+        foreach (BoonStone extra in offerings.HardmodeStones)
+        {
+            hardmodeApart = hardmodeApart && extra.Boon?.TuntunHardmode == true && !System.Linq.Enumerable.Contains(offerings.Stones, extra);
+            foreach (BoonStone stone in offerings.Stones)
+            {
+                hardmodeApart = hardmodeApart && stone.Boon?.TuntunHardmode != true;
+                hardmodeGap = Mathf.Min(hardmodeGap, extra.GlobalPosition.DistanceTo(stone.GlobalPosition));
+            }
+        }
         float farthest = 0.0f;
         foreach (BoonStone stone in offerings.Stones)
         {
@@ -216,6 +230,32 @@ public partial class ProgressionTests : Node3D
         Check("reaching a station lays out its offerings; choosing one keeps it and takes the rest away",
             laid == offerings.OfferCount && farthest < 8.0f && chosen && offerings.Stones.Count == 0 && _run!.Boons.Contains(name),
             $"{laid} offerings within {farthest:0.0} m of the fire, chose {name}: {chosen}, left {offerings.Stones.Count}, boons [{string.Join(", ", _run!.Boons)}]");
+        Check("the hard-mode stone stands apart from the three offerings, and choosing a boon leaves it there",
+            hardmodeLaid == 1 && hardmodeApart && hardmodeGap > BoonStone.LabelWidthMetres && offerings.HardmodeStones.Count == 1 && !_run.TuntunHardmode,
+            $"{laid} offerings and {hardmodeLaid} hard-mode stone (apart {hardmodeApart}, {hardmodeGap:0.00} m from the nearest offering); after the choice {offerings.HardmodeStones.Count} left, hard mode {_run.TuntunHardmode}");
+    }
+
+    /// <summary>
+    /// Taking the hard-mode stone turns Tuntun Sahur's hard mode on without taking a boon's place: the next
+    /// station still lays out three offerings and no second stone, and counts one more Tuntun.
+    /// </summary>
+    private async Task TestHardmodeTaken(PlayerController player, BoonOfferings offerings)
+    {
+        BoonStone? stone = offerings.HardmodeStones.Count > 0 ? offerings.HardmodeStones[0] : null;
+        int boonsBefore = _run!.Boons.Count;
+        bool taken = stone != null && stone.Interact(player);
+        await WaitSeconds(0.2f);
+        bool on = _run.TuntunHardmode && _run.TuntunHardmodeStations == 0 && offerings.HardmodeStones.Count == 0;
+        GameEvents.PublishStationReached(2);
+        await WaitSeconds(0.2f);
+        int nextStones = 0;
+        foreach (BoonStone next in offerings.Stones)
+        {
+            if (next.Station == 2) { nextStones++; }
+        }
+        Check("taking the hard-mode stone turns hard mode on; the next station still offers three boons, no second stone, and one more Tuntun",
+            taken && on && _run.Boons.Count == boonsBefore + 1 && nextStones == offerings.OfferCount && offerings.HardmodeStones.Count == 0 && _run.TuntunHardmodeStations == 1,
+            $"taken {taken}, on {on}; station 2: {nextStones} offerings, {offerings.HardmodeStones.Count} hard-mode stones, stations counted {_run.TuntunHardmodeStations}");
     }
 
     private void TestEffects(CarrierStamina stamina)
@@ -258,8 +298,9 @@ public partial class ProgressionTests : Node3D
         await WaitSeconds(0.3f);
         RunModifiers m = _run.Modifiers;
         bool reset = m.WalkDrain == 1.0f && m.Balance == 1.0f && m.ColdResistance == 0.0f && _run.Boons.Count == 0;
-        Check("a new run clears boons and offerings", laid && offerings.Stones.Count == 0 && reset,
-            $"offerings before {laid}, after {offerings.Stones.Count}, modifiers reset {reset}, boons {_run.Boons.Count}");
+        bool hardmodeOff = !_run.TuntunHardmode && _run.TuntunHardmodeStations == 0 && offerings.HardmodeStones.Count == 0;
+        Check("a new run clears boons, offerings and hard mode", laid && offerings.Stones.Count == 0 && reset && hardmodeOff,
+            $"offerings before {laid}, after {offerings.Stones.Count}, modifiers reset {reset}, boons {_run.Boons.Count}, hard mode off {hardmodeOff}");
     }
 
     private async Task TestDepthScaling(CarrierNeeds needs)

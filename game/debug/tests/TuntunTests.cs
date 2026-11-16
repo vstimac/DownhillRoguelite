@@ -120,7 +120,62 @@ public partial class TuntunTests : Node3D
 		step.QueueFree();
 		Check("a body he stands on jumping away neither carries nor throws him", stood && away < 2.0f && carried < 6.0f,
 			$"stood on it {stood}, carried {away:0.0} m, fastest after {carried:0.0} m/s");
+		await TestHardmode(PlayerBody, Spawner, start);
 		Finish();
+	}
+
+	/// <summary>
+	/// Hard mode (the stone at a rest site): three Tuntun Sahurs gather around the carrier, one more for
+	/// each station reached after that, and a new run takes them all away.
+	/// </summary>
+	private async Task TestHardmode(PlayerController player, TuntunSpawner spawner, Vector3 start)
+	{
+		RunState? run = GetNodeOrNull<RunState>("/root/RunState");
+		if (run == null)
+		{
+			Check("hard mode needs RunState", false, "no /root/RunState");
+			return;
+		}
+		if (spawner.Current != null && IsInstanceValid(spawner.Current)) { spawner.Current.QueueFree(); }
+		await Frames(player, start, 1.0f);
+		int before = Around(spawner, player);
+		run.StartTuntunHardmode();
+		await Wait(spawner.HardmodeArrivalSeconds * (spawner.HardmodeStart + 1) + 1.0f);
+		int first = Around(spawner, player);
+		int brought = spawner.HardmodeTuntuns.Count;
+		Check("hard mode brings three Tuntun Sahurs around the carrier, and no more",
+			before == 0 && first == spawner.HardmodeStart && brought == spawner.HardmodeStart,
+			$"before {before}, around the carrier {first}, brought {brought}, wanted {spawner.HardmodeStart}");
+
+		GameEvents.PublishStationReached(run.Stage + 1);
+		await Wait(spawner.HardmodeArrivalSeconds * 2.0f + 1.0f);
+		int next = Around(spawner, player);
+		Check("each station reached after that brings one more",
+			run.TuntunHardmodeStations == 1 && next == spawner.HardmodeStart + 1,
+			$"stations counted {run.TuntunHardmodeStations}, around the carrier {next}");
+
+		run.StartNewRun(run.Seed);
+		await Wait(1.0f);
+		int left = 0;
+		foreach (TuntunSahur tuntun in spawner.HardmodeTuntuns)
+		{
+			if (IsInstanceValid(tuntun) && !tuntun.IsQueuedForDeletion()) { left++; }
+		}
+		Check("a new run ends hard mode and takes them away", !run.TuntunHardmode && left == 0 && Around(spawner, player) == 0,
+			$"hard mode {run.TuntunHardmode}, left {left}");
+	}
+
+	/// <summary>Hard-mode Tuntun Sahurs standing within the spawner's hard-mode radius of the carrier.</summary>
+	private static int Around(TuntunSpawner spawner, PlayerController player)
+	{
+		int count = 0;
+		foreach (TuntunSahur tuntun in spawner.HardmodeTuntuns)
+		{
+			if (!IsInstanceValid(tuntun) || tuntun.IsQueuedForDeletion() || !tuntun.CanBeHit) { continue; }
+			Vector3 offset = tuntun.GlobalPosition - player.GlobalPosition;
+			if (new Vector2(offset.X, offset.Z).Length() <= spawner.HardmodeRadius) { count++; }
+		}
+		return count;
 	}
 
 	private void Finish()
