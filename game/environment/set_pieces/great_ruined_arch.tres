@@ -45,7 +45,7 @@ Model = "res://art/props/quaternius_medieval_village/Prop_Brick2.gltf"
 Offset = Vector3(3.6, 0, 3.9)
 Yaw = 30
 Tilt = Vector2(0, 0)
-Height = 0.6
+Height = 0.22
 Solid = false
 
 [sub_resource type="Resource" id="part_5"]
@@ -54,7 +54,7 @@ Model = "res://art/props/quaternius_medieval_village/Prop_Brick3.gltf"
 Offset = Vector3(-1.8, 0, 5.4)
 Yaw = 75
 Tilt = Vector2(0, 0)
-Height = 0.54
+Height = 0.2
 Solid = false
 
 [sub_resource type="Resource" id="part_6"]
@@ -63,7 +63,7 @@ Model = "res://art/props/quaternius_medieval_village/Prop_Brick4.gltf"
 Offset = Vector3(5.4, 0, -3)
 Yaw = -20
 Tilt = Vector2(0, 0)
-Height = 0.6
+Height = 0.22
 Solid = false
 
 [resource]

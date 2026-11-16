@@ -111,7 +111,7 @@ public partial class StationSite : Node3D
         Index = index;
         Name = $"Station{index}";
 
-        StandardMaterial3D wood = new() { AlbedoColor = WoodColor, Roughness = 1.0f };
+        Material wood = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Wood, WoodColor);
 
         // Fire: a stone ring and logs (models), glowing embers and a flickering light.
         AddMesh(new SphereMesh { Radius = 0.18f, Height = 0.22f, RadialSegments = 8, Rings = 4 },
@@ -126,12 +126,12 @@ public partial class StationSite : Node3D
 
         // The bedroll inside the tent.
         SleepSpot bed = new() { Name = "Bedroll", Position = TentAt + new Vector3(-0.2f, 0.08f, 0.0f) };
-        bed.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(1.9f, 0.12f, 0.75f) }, MaterialOverride = new StandardMaterial3D { AlbedoColor = BedrollColor } });
+        bed.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(1.9f, 0.12f, 0.75f) }, MaterialOverride = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Cloth, BedrollColor) });
         AddChild(bed);
         if (!_tentPlaced)
         {
             // No tent model: the old lean-to over the bedroll.
-            StandardMaterial3D canvas = new() { AlbedoColor = CanvasColor, Roughness = 1.0f };
+            Material canvas = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Cloth, CanvasColor);
             AddMesh(new BoxMesh { Size = new Vector3(0.12f, 1.6f, 0.12f) }, new Transform3D(Basis.Identity, TentAt + new Vector3(-0.8f, 0.8f, -1.1f)), wood);
             AddMesh(new BoxMesh { Size = new Vector3(0.12f, 1.6f, 0.12f) }, new Transform3D(Basis.Identity, TentAt + new Vector3(-0.8f, 0.8f, 1.1f)), wood);
             AddMesh(new BoxMesh { Size = new Vector3(2.0f, 0.05f, 2.6f) },
@@ -241,7 +241,9 @@ public partial class StationSite : Node3D
                 continue;
             }
             Node3D holder = new() { Name = path.GetFile().GetBaseName() };
-            holder.AddChild(scene.Instantiate<Node3D>());
+            Node3D instance = scene.Instantiate<Node3D>();
+            DownhillRoguelite.Environment.WorldStyle.Restyle(instance, path);
+            holder.AddChild(instance);
             Aabb bounds = DownhillRoguelite.Core.ModelFit.Bounds(holder);
             float scale = height / Mathf.Max(bounds.Size.Y, 0.01f);
             holder.Transform = DownhillRoguelite.Core.ModelFit.FitOnGround(bounds, bounds.Size * scale, true);

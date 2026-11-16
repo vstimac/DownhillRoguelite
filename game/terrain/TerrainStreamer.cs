@@ -108,7 +108,7 @@ public partial class TerrainStreamer : Node3D
     private Material? _grassMaterial;
     private Shader? _carpetShader;
     private StandardMaterial3D? _boulderMaterial;
-    private StandardMaterial3D? _trunkMaterial;
+    private Material? _trunkMaterial;
     private Task<TerrainChunkData>? _pending;
     private int _generation;
     private Vector3 _focus;
@@ -179,7 +179,11 @@ public partial class TerrainStreamer : Node3D
             {
                 foreach (string model in models)
                 {
-                    ModelFit.FirstMesh(model, out _);
+                    // The palette copies are made here too, not while a chunk's plants stream in.
+                    if (ModelFit.FirstMesh(model, out _) is Mesh mesh && models != biome.TreeModels && models != biome.GrassModels)
+                    {
+                        DownhillRoguelite.Environment.WorldStyle.Styled(mesh, model);
+                    }
                 }
             }
         }
@@ -218,22 +222,10 @@ public partial class TerrainStreamer : Node3D
             }
             GrassCarpet.Quarter(GrassCarpet.QuarterSize / GrassCarpet.Columns(Settings.CarpetSpacing));
         }
-        _boulderMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_boulderSurface, new Color(0.5f, 0.5f, 0.52f)), Roughness = 1.0f };
-        if (ResourceLoader.Exists(RockColourPath) && ResourceLoader.Load(RockColourPath) is Texture2D rockColour)
-        {
-            _boulderMaterial.AlbedoColor = Colors.White;
-            _boulderMaterial.AlbedoTexture = rockColour;
-            _boulderMaterial.Uv1Triplanar = true;
-            _boulderMaterial.Uv1WorldTriplanar = true;
-            _boulderMaterial.Uv1Scale = Vector3.One / Mathf.Max(RockTextureMetres, 0.1f);
-            if (ResourceLoader.Exists(RockNormalPath) && ResourceLoader.Load(RockNormalPath) is Texture2D rockNormal)
-            {
-                _boulderMaterial.NormalEnabled = true;
-                _boulderMaterial.NormalTexture = rockNormal;
-                _boulderMaterial.NormalScale = 0.5f;
-            }
-        }
-        _trunkMaterial = new StandardMaterial3D { AlbedoColor = ColorOf(_trunkSurface, new Color(0.42f, 0.3f, 0.2f)), Roughness = 1.0f };
+        // The one rock and bark of the mountain's palette (environment/WorldStyle), shared with set pieces and walls.
+        _boulderMaterial = DownhillRoguelite.Environment.WorldStyle.RockMaterial(RockColourPath, RockNormalPath, RockTextureMetres,
+            ColorOf(_boulderSurface, new Color(0.5f, 0.5f, 0.52f)));
+        _trunkMaterial = DownhillRoguelite.Environment.WorldStyle.For(DownhillRoguelite.Environment.Look.Bark);
         WarmPlantModels();
 
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
@@ -275,8 +267,7 @@ public partial class TerrainStreamer : Node3D
         _boulderSurface = null;
         _trunkSurface = null;
         _groundMaterial?.Dispose();
-        _boulderMaterial?.Dispose();
-        _trunkMaterial?.Dispose();
+        // The rock and bark belong to the shared palette (WorldStyle): only let go of them.
         _groundMaterial = null;
         _boulderMaterial = null;
         _trunkMaterial = null;

@@ -321,8 +321,7 @@ public partial class SupplySpawner : Node3D
         foreach (Slot slot in slots)
         {
             float top = route.RoutePoint(slot.Z).Y + RayHeight;
-            Godot.Collections.Dictionary hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(
-                new Vector3(slot.X, top, slot.Z), new Vector3(slot.X, top - RayDepth, slot.Z), GroundMask));
+            Godot.Collections.Dictionary hit = GroundHit(space, new Vector3(slot.X, top, slot.Z), new Vector3(slot.X, top - RayDepth, slot.Z), GroundMask);
             if (hit.Count == 0)
             {
                 // Terrain isn't loaded here yet; try the whole cell again next frame.
@@ -355,6 +354,27 @@ public partial class SupplySpawner : Node3D
             _items[slot.Key] = item;
         }
         _cells[cell] = keys;
+    }
+
+    /// <summary>
+    /// The ground under a point: rocks', walls' and bushes' collision boxes (which a chunk adds a moment
+    /// after its ground) are looked through, so a supply lies on the ground whenever its cell loads.
+    /// </summary>
+    public static Godot.Collections.Dictionary GroundHit(PhysicsDirectSpaceState3D space, Vector3 from, Vector3 to, uint mask)
+    {
+        PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(from, to, mask);
+        for (int i = 0; i < 8; i++)
+        {
+            Godot.Collections.Dictionary hit = space.IntersectRay(query);
+            if (hit.Count == 0 || hit["collider"].AsGodotObject() is not Node node || !node.IsInGroup(DownhillRoguelite.Terrain.TerrainChunk.CoverGroup))
+            {
+                return hit;
+            }
+            Godot.Collections.Array<Rid> exclude = query.Exclude;
+            exclude.Add(hit["rid"].AsRid());
+            query.Exclude = exclude;
+        }
+        return new Godot.Collections.Dictionary();
     }
 
     private void UnloadCell(Vector2I cell)

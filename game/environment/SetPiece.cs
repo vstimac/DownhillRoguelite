@@ -4,7 +4,7 @@ namespace DownhillRoguelite.Environment;
 
 /// <summary>
 /// A small composition of models left on the mountain (environment/set_pieces/*.tres): a ruined
-/// arch, an abandoned wagon, a row of banners, a far windmill. Wayside pieces stand beside a path;
+/// arch, an abandoned wagon, a row of banners, a far broken tower. Wayside pieces stand beside a path;
 /// landmarks stand far off it and are seen from a long way. A piece favours some circles.
 /// </summary>
 [GlobalClass]

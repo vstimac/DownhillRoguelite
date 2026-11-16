@@ -369,7 +369,7 @@ public partial class TerrainSettings : Resource
                 new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.2f, System.Array.Empty<string>(), 0.0f),
             Biome.Make("Treachery", 8400.0f, new Color(0.9f, 0.95f, 1.1f), System.Array.Empty<string>(), 0.0f, new Vector2(3.0f, 5.0f), 0.0f,
                 System.Array.Empty<string>(), 0.0f, System.Array.Empty<string>(), 0.0f),
-            Biome.Make("Beyond", 9450.0f, new Color(0.86f, 0.8f, 0.96f), new[] { Kit + "tree_blocks_dark.glb", Kit + "tree_blocks.glb", Kit + "tree_plateau_dark.glb" }, 1.5f, new Vector2(4.0f, 10.0f), 0.0f,
+            Biome.Make("Beyond", 9450.0f, new Color(0.86f, 0.8f, 0.96f), Trees("snag_0", "broadleaf_dark_1", "snag_1"), 1.5f, new Vector2(4.0f, 10.0f), 0.0f,
                 new[] { Kit + "grass.glb", Kit + "grass_large.glb" }, 0.1f, System.Array.Empty<string>(), 0.0f),
         };
         foreach (Biome biome in biomes)
@@ -481,10 +481,10 @@ public partial class TerrainSettings : Resource
         {
             case "Limbo":
                 biome.ShrubColour = new Color(0.2f, 0.3f, 0.23f);
-                biome.ShrubModels = new[] { Kit + "tree_pineGroundA.glb", Kit + "tree_pineSmallB.glb", Kit + "plant_bushSmall.glb" };
+                biome.ShrubModels = Trees("dwarf_pine_0", "dwarf_pine_1", "bush_dark_0");
                 biome.ShrubDensity = 10.0f;
                 biome.ShrubHeight = new Vector2(0.4f, 1.6f);
-                biome.DebrisModels = new[] { Kit + "stump_old.glb", Kit + "mushroom_tanGroup.glb", Kit + "log.glb", Kit + "plant_flatShort.glb" };
+                biome.DebrisModels = new[] { Kit + "stump_old.glb", Kit + "mushroom_tanGroup.glb", Kit + "log.glb" };
                 biome.DebrisDensity = 7.0f;
                 biome.WaysideModels = new[] { Kit + "stump_round.glb", survival + "resource-wood.glb", graveyard + "cross-wood.glb", survival + "bucket.glb" };
                 biome.WaysideDensity = 3.0f;
@@ -494,9 +494,9 @@ public partial class TerrainSettings : Resource
                 break;
             case "Lust":
                 biome.ShrubColour = new Color(0.33f, 0.46f, 0.22f);
-                biome.ShrubModels = new[] { Kit + "plant_bush.glb", Kit + "plant_bushDetailed.glb", Kit + "plant_flatTall.glb" };
+                biome.ShrubModels = Trees("bush_green_0", "bush_green_1");
                 biome.ShrubDensity = 14.0f;
-                biome.DebrisModels = new[] { Kit + "mushroom_redGroup.glb", Kit + "stump_round.glb", Kit + "plant_flatShort.glb" };
+                biome.DebrisModels = new[] { Kit + "mushroom_redGroup.glb", Kit + "stump_round.glb" };
                 biome.DebrisDensity = 6.0f;
                 biome.WaysideModels = lostGear;
                 biome.WaysideDensity = 2.5f;
@@ -506,10 +506,10 @@ public partial class TerrainSettings : Resource
                 break;
             case "Gluttony":
                 biome.ShrubColour = new Color(0.22f, 0.34f, 0.18f);
-                biome.ShrubModels = new[] { Kit + "plant_bushLarge.glb", Kit + "plant_bushDetailed.glb", Kit + "plant_flatTall.glb" };
+                biome.ShrubModels = Trees("bush_dark_0", "bush_dark_1", "bush_green_1");
                 biome.ShrubDensity = 22.0f;
                 biome.ShrubHeight = new Vector2(0.6f, 1.8f);
-                biome.DebrisModels = new[] { Kit + "mushroom_redGroup.glb", Kit + "mushroom_tanTall.glb", Kit + "stump_oldTall.glb", Kit + "plant_flatShort.glb" };
+                biome.DebrisModels = new[] { Kit + "mushroom_redGroup.glb", Kit + "mushroom_tanTall.glb", Kit + "stump_oldTall.glb" };
                 biome.DebrisDensity = 12.0f;
                 biome.WaysideModels = lostGear;
                 biome.WaysideDensity = 2.5f;
@@ -520,7 +520,7 @@ public partial class TerrainSettings : Resource
                 break;
             case "Greed":
                 biome.ShrubColour = new Color(0.62f, 0.38f, 0.16f);
-                biome.ShrubModels = new[] { Kit + "plant_bush.glb", Kit + "plant_bushTriangle.glb" };
+                biome.ShrubModels = Trees("bush_fall_0", "bush_fall_1");
                 biome.ShrubDensity = 10.0f;
                 biome.DebrisModels = new[] { Kit + "stump_round.glb", Kit + "mushroom_tanGroup.glb", Kit + "log.glb" };
                 biome.DebrisDensity = 7.0f;
@@ -532,7 +532,7 @@ public partial class TerrainSettings : Resource
                 break;
             case "Wrath":
                 biome.ShrubColour = new Color(0.3f, 0.34f, 0.22f);
-                biome.ShrubModels = new[] { Kit + "plant_bushTriangle.glb", Kit + "plant_bushSmall.glb" };
+                biome.ShrubModels = Trees("bush_dark_1", "dwarf_pine_1");
                 biome.ShrubDensity = 7.0f;
                 biome.DebrisModels = new[] { Kit + "stump_old.glb", Kit + "log.glb" };
                 biome.DebrisDensity = 5.0f;
@@ -546,7 +546,7 @@ public partial class TerrainSettings : Resource
             case "Heresy":
             case "Violence":
                 biome.ShrubColour = new Color(0.42f, 0.3f, 0.2f);
-                biome.ShrubModels = new[] { Kit + "plant_bushTriangle.glb", Kit + "plant_bushSmall.glb" };
+                biome.ShrubModels = Trees("bush_dry_0", "bush_dry_1");
                 biome.ShrubDensity = 4.0f;
                 biome.ShrubHeight = new Vector2(0.4f, 0.9f);
                 biome.DebrisModels = new[] { Kit + "stump_oldTall.glb", Kit + "stump_old.glb", Kit + "log.glb" };
@@ -558,7 +558,7 @@ public partial class TerrainSettings : Resource
                 break;
             case "Fraud":
                 biome.ShrubColour = new Color(0.2f, 0.28f, 0.25f);
-                biome.ShrubModels = new[] { Kit + "tree_pineGroundB.glb", Kit + "tree_pineSmallD.glb", Kit + "plant_bushSmall.glb" };
+                biome.ShrubModels = Trees("dwarf_pine_0", "dwarf_pine_1", "bush_dark_0");
                 biome.ShrubDensity = 9.0f;
                 biome.ShrubHeight = new Vector2(0.4f, 1.6f);
                 biome.DebrisModels = new[] { Kit + "stump_old.glb", Kit + "mushroom_tan.glb", Kit + "log.glb" };
@@ -579,7 +579,7 @@ public partial class TerrainSettings : Resource
                 break;
             case "Beyond":
                 biome.ShrubColour = new Color(0.42f, 0.33f, 0.5f);
-                biome.ShrubModels = new[] { Kit + "plant_bushLargeTriangle.glb", Kit + "plant_bushTriangle.glb" };
+                biome.ShrubModels = Trees("bush_dry_0", "bush_dry_1");
                 biome.ShrubDensity = 8.0f;
                 biome.DebrisModels = new[] { Kit + "mushroom_redTall.glb", Kit + "mushroom_tanTall.glb" };
                 biome.DebrisDensity = 4.0f;
@@ -592,7 +592,7 @@ public partial class TerrainSettings : Resource
 
     public float ChunkSize => ChunkCells * CellSize;
 
-    /// <summary>Generated trees (tools/forest/generate_forest.gd: pines, broadleaf, snags), by name.</summary>
+    /// <summary>Generated plants (tools/forest/generate_forest.gd: pines, broadleaf, snags, bushes, dwarf pines), by name.</summary>
     private static string[] Trees(params string[] names)
     {
         string[] paths = new string[names.Length];

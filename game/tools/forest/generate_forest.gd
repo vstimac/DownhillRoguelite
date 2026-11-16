@@ -20,33 +20,80 @@ var far_indices := PackedInt32Array()
 var random := RandomNumberGenerator.new()
 var phase := 0.0
 
+## `-- --only=bush,dwarf_pine` builds only the assets whose names start with one of these (the
+## others are left as they are); without it every asset is rebuilt.
+var only: PackedStringArray = []
+
+func wanted(name_value: String) -> bool:
+	if only.is_empty():
+		return true
+	for prefix in only:
+		if name_value.begins_with(prefix):
+			return true
+	return false
+
 func _initialize() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--only="):
+			only = arg.substr(7).split(",", false)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUTPUT))
 	for variant in range(3):
+		if not wanted("pine_" + str(variant)):
+			continue
 		reset(8401 + variant * 71)
 		pine(variant)
 		save_asset("pine_" + str(variant), true)
 	for variant in range(3):
+		if not wanted("grass_" + str(variant)):
+			continue
 		reset(391 + variant * 53)
 		grass(variant)
 		save_asset("grass_" + str(variant), false)
 	# Broadleaf trees for the deeper circles: summer green, dark, autumn; and bare snags.
 	var palettes := {
-		"green": [Color(0.3, 0.5, 0.2), Color(0.36, 0.27, 0.2)],
+		"green": [Color(0.29, 0.43, 0.2), Color(0.36, 0.27, 0.2)],
 		"dark": [Color(0.17, 0.3, 0.17), Color(0.24, 0.19, 0.15)],
-		"fall": [Color(0.8, 0.44, 0.13), Color(0.33, 0.25, 0.19)],
+		"fall": [Color(0.6, 0.38, 0.16), Color(0.33, 0.25, 0.19)],
 	}
 	var palette_seed := 0
 	for palette in palettes.keys():
 		palette_seed += 1
 		for variant in range(3):
+			if not wanted("broadleaf_" + palette + "_" + str(variant)):
+				continue
 			reset(6100 + palette_seed * 211 + variant * 37)
 			broadleaf(variant, palettes[palette][0], palettes[palette][1], palette == "fall")
 			save_asset("broadleaf_" + palette + "_" + str(variant), true)
 	for variant in range(2):
+		if not wanted("snag_" + str(variant)):
+			continue
 		reset(7300 + variant * 59)
 		snag(variant)
 		save_asset("snag_" + str(variant), false, true)
+	# Ground cover in the trees' own style (the art pack's flat bushes and dwarf pines are gone):
+	# bushes of the same leaf clusters as the broadleaf trees, in muted greens, autumn and dry
+	# browns, and low wind-bent dwarf pines of the pines' needle sprays.
+	var bush_palettes := {
+		"green": [Color(0.27, 0.41, 0.19), Color(0.33, 0.25, 0.19)],
+		"dark": [Color(0.16, 0.27, 0.16), Color(0.24, 0.19, 0.15)],
+		"fall": [Color(0.6, 0.37, 0.14), Color(0.31, 0.24, 0.18)],
+		"dry": [Color(0.39, 0.34, 0.21), Color(0.3, 0.24, 0.18)],
+	}
+	var bush_seed := 0
+	for palette in bush_palettes.keys():
+		bush_seed += 1
+		for variant in range(2):
+			if not wanted("bush_" + palette + "_" + str(variant)):
+				continue
+			reset(9100 + bush_seed * 157 + variant * 41)
+			bush(variant, bush_palettes[palette][0], bush_palettes[palette][1], palette == "fall")
+			save_asset("bush_" + palette + "_" + str(variant), true)
+	for variant in range(2):
+		if not wanted("dwarf_pine_" + str(variant)):
+			continue
+		reset(9700 + variant * 67)
+		dwarf_pine(variant)
+		save_asset("dwarf_pine_" + str(variant), true)
 	quit()
 
 func reset(seed_value: int) -> void:
@@ -267,9 +314,10 @@ func grass(variant: int) -> void:
 				tri(a - wa, b - wb, b + wb, ca, cb, cb, rows[k], rows[k + 1], rows[k + 1])
 				tri(a - wa, b + wb, a + wa, ca, cb, ca, rows[k], rows[k + 1], rows[k])
 
-## A leaf cluster: a lumpy, faceted ball (a once-split icosahedron, each corner pushed in or out),
-## lit from above (darker underneath), each facet a little different; the coarse LODs use the
-## unsplit icosahedron. Flex grows toward the cluster's outside.
+## A leaf cluster: a lumpy, soft ball (a once-split icosahedron, each corner pushed in or out),
+## smooth-shaded like a mass of leaves rather than folded paper (each corner's normal points out of
+## the ball) and lit from above (darker underneath); the coarse LODs use the unsplit icosahedron.
+## Flex grows toward the cluster's outside.
 func leaf_cluster(centre: Vector3, radius: Vector3, colour: Color, flex: float) -> void:
 	var t := (1.0 + sqrt(5.0)) / 2.0
 	var corners := [Vector3(-1, t, 0), Vector3(1, t, 0), Vector3(-1, -t, 0), Vector3(1, -t, 0),
@@ -316,12 +364,27 @@ func leaf_cluster(centre: Vector3, radius: Vector3, colour: Color, flex: float) 
 			var normal := (b - a).cross(c - a).normalized()
 			if normal.dot((a + b + c) / 3.0 - centre) < 0.0:
 				normal = -normal
-			var light := 0.72 + 0.38 * (normal.y * 0.5 + 0.5) + random.randf_range(-0.05, 0.05)
-			var shade := Color(colour.r * light, colour.g * light, colour.b * light)
+			var na := soft_normal(a, centre, radius)
+			var nb := soft_normal(b, centre, radius)
+			var nc := soft_normal(c, centre, radius)
 			var fa := clampf(flex + 0.25 * (a - centre).length() / maxf(radius.x, 0.01), 0.0, 1.0)
 			var fb := clampf(flex + 0.25 * (b - centre).length() / maxf(radius.x, 0.01), 0.0, 1.0)
 			var fc := clampf(flex + 0.25 * (c - centre).length() / maxf(radius.x, 0.01), 0.0, 1.0)
-			tri(a, c, b, shade, shade, shade, fa, fc, fb, level, full)
+			var first := vertices.size()
+			tri(a, c, b, leaf_light(colour, na), leaf_light(colour, nc), leaf_light(colour, nb), fa, fc, fb, level, full)
+			normals[first] = na
+			normals[first + 1] = nc
+			normals[first + 2] = nb
+
+## The outward normal of an ellipsoid of these radii at a point (the same at every face sharing it).
+func soft_normal(point: Vector3, centre: Vector3, radius: Vector3) -> Vector3:
+	var d := point - centre
+	return Vector3(d.x / maxf(radius.x * radius.x, 0.0001), d.y / maxf(radius.y * radius.y, 0.0001), d.z / maxf(radius.z * radius.z, 0.0001)).normalized()
+
+## Leaves lit from above: darker underneath, by the corner's (smooth) normal.
+func leaf_light(colour: Color, normal: Vector3) -> Color:
+	var light := 0.74 + 0.32 * (normal.y * 0.5 + 0.5)
+	return Color(colour.r * light, colour.g * light, colour.b * light)
 
 ## A broadleaf tree about 8 m tall: a trunk that splits into three or four limbs, each forking once,
 ## crowned with leaf clusters (autumn trees mix in reds and yellows).
@@ -355,9 +418,9 @@ func broadleaf(variant: int, leaves: Color, bark: Color, autumn: bool) -> void:
 			if autumn:
 				var pick := random.randf()
 				if pick < 0.3:
-					colour = Color(0.72, 0.22, 0.1)
+					colour = Color(0.52, 0.27, 0.15)
 				elif pick < 0.55:
-					colour = Color(0.86, 0.66, 0.2)
+					colour = Color(0.62, 0.5, 0.25)
 			colour = colour.lightened(random.randf_range(-0.05, 0.08))
 			var size := random.randf_range(1.4, 1.9)
 			leaf_cluster(twig_end, Vector3(size, size * 0.8, size), colour, 0.55)
@@ -394,6 +457,68 @@ func snag(variant: int) -> void:
 		var tip := elbow + (outward + bend).normalized() * random.randf_range(0.6, 1.2)
 		branch(at, elbow, 0.07, 0.04, bark, 4, 0.2, 0.5)
 		branch(elbow, tip, 0.04, 0.012, bark, 4, 0.5, 0.8, 1)
+
+## A bush about 1.25 m tall and 1.6 m across: a few woody stems under a mound of the broadleaf
+## trees' leaf clusters, dark inside, lighter on top (autumn bushes mix in reds and yellows).
+func bush(variant: int, leaves: Color, bark: Color, autumn: bool) -> void:
+	for stem in range(3 + variant):
+		phase = random.randf()
+		var angle := stem * TAU / (3 + variant) + variant
+		var outward := Vector3(cos(angle), 0, sin(angle))
+		branch(outward * 0.04, outward * random.randf_range(0.25, 0.4) + Vector3.UP * random.randf_range(0.45, 0.6),
+			0.045, 0.02, bark, 4, 0.0, 0.3, 1)
+	phase = random.randf()
+	leaf_cluster(Vector3.UP * 0.42, Vector3(0.62, 0.4, 0.62), leaves.darkened(0.16), 0.25)
+	var clusters := 6 + variant
+	for k in range(clusters):
+		phase = random.randf()
+		var angle := k * TAU / clusters + random.randf_range(-0.3, 0.3) + variant * 0.5
+		var out := Vector3(cos(angle), 0, sin(angle)) * random.randf_range(0.36, 0.55)
+		var size := random.randf_range(0.36, 0.48)
+		var colour := leaves
+		if autumn:
+			var pick := random.randf()
+			if pick < 0.3:
+				colour = Color(0.5, 0.26, 0.15)
+			elif pick < 0.55:
+				colour = Color(0.6, 0.49, 0.25)
+		colour = colour.lightened(random.randf_range(-0.05, 0.07))
+		leaf_cluster(out + Vector3.UP * random.randf_range(0.38, 0.62), Vector3(size, size * 0.8, size), colour, 0.4)
+	phase = random.randf()
+	leaf_cluster(Vector3.UP * 0.82, Vector3(0.5, 0.38, 0.5), leaves.lightened(0.05), 0.5)
+
+## A dwarf pine (krummholz) about 1 m tall: crooked limbs from one foot, spreading more than they
+## rise and bent the same way, clothed in the pines' needle sprays.
+func dwarf_pine(variant: int) -> void:
+	var bark := Color(0.27, 0.21, 0.16)
+	var hues := [Color(0.13, 0.25, 0.2), Color(0.16, 0.27, 0.18)]
+	var needles: Color = hues[variant % 2]
+	var limbs := 5 + variant
+	var bend := Vector3(0.25, 0, 0.1)
+	for limb in range(limbs):
+		phase = random.randf()
+		var angle := limb * TAU / limbs + random.randf_range(-0.3, 0.3)
+		var outward := Vector3(cos(angle), 0, sin(angle))
+		var rise := random.randf_range(0.4, 0.85)
+		var elbow := outward * random.randf_range(0.18, 0.3) + Vector3.UP * rise * 0.45 + bend * 0.3
+		var tip := outward * random.randf_range(0.55, 0.8) + Vector3.UP * rise + bend
+		branch(Vector3.ZERO, elbow, 0.06, 0.04, bark, 4, 0.0, 0.25, 1)
+		branch(elbow, tip, 0.04, 0.01, bark, 4, 0.25, 0.7, 1)
+		for k in range(5):
+			var f := 0.2 + k * 0.17
+			var at := elbow.lerp(tip, f)
+			var shade := random.randf_range(0.88, 1.12)
+			var green := Color(needles.r * shade, needles.g * shade, needles.b * shade).lightened(f * 0.08)
+			for sign_value in [-1.0, 1.0]:
+				var side: Vector3 = outward.cross(Vector3.UP) * sign_value
+				var direction: Vector3 = (outward * 0.5 + side * 0.7 + Vector3.UP * 0.35).normalized()
+				var level := 2
+				if k % 2 == 1:
+					level = 0
+				spray(at, direction, 0.4, 0.15, green, level, lerpf(0.3, 0.8, f))
+			spray(at, (outward + Vector3.UP * 0.6).normalized(), 0.34, 0.13, green.lightened(0.05), 1, minf(lerpf(0.3, 0.8, f) + 0.1, 1.0))
+		# A broad fan per limb for the far LODs, where the fine sprays drop out.
+		spray(elbow, (outward + Vector3.UP * 0.45).normalized(), 0.85, 0.36, needles, 2, 0.5, false)
 
 func save_asset(name_value: String, with_lods: bool, tree: bool = with_lods) -> void:
 	var arrays := []

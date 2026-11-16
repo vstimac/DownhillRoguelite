@@ -13,10 +13,10 @@ namespace DownhillRoguelite.Terrain;
 public sealed partial class TerrainGenerator
 {
     private const ulong ReedSalt = 26;
-    private const string NatureKit = "res://art/props/kenney_nature_kit/GLB format/";
     private const string GraveyardKit = "res://art/props/kenney_graveyard_kit/GLB format/";
     private static readonly string[] WallModels = { GraveyardKit + "stone-wall.glb", GraveyardKit + "stone-wall-damaged.glb" };
-    private static readonly string[] ReedModels = { NatureKit + "grass_leafsLarge.glb", NatureKit + "plant_flatTall.glb", NatureKit + "grass_large.glb" };
+    // Reeds are the generated grass tufts grown tall (the grass's own swaying material), not the art pack's flat leaves.
+    private static readonly string[] ReedModels = { "res://art/environment/forest/grass_0.tscn", "res://art/environment/forest/grass_1.tscn", "res://art/environment/forest/grass_2.tscn" };
     // Height of a wall piece, in m; the model is 1 m long by 0.725 m high, so a piece is about 1.24 m long.
     private const float WallHeight = 0.9f;
     private const float WallPieceLength = WallHeight / 0.725f;
@@ -300,7 +300,7 @@ public sealed partial class TerrainGenerator
             {
                 continue;
             }
-            AddCover(data, PlantKind.Shrub, Pick(ReedModels, pick), corner, lx, lz, yaw, Mathf.Lerp(0.7f, 1.4f, tall));
+            AddCover(data, PlantKind.Grass, Pick(ReedModels, pick), corner, lx, lz, yaw, Mathf.Lerp(0.7f, 1.4f, tall));
         }
     }
 }
