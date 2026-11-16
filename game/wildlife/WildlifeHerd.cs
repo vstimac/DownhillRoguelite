@@ -5,8 +5,10 @@ namespace DownhillRoguelite.Wildlife;
 
 /// <summary>
 /// What an animal knows of the carrier it watches (the nearest one standing, host-side): where it
-/// is, how fast it goes, whether it steers into the animal, sprints or falls, and how heavy its load
-/// is (louder footsteps). Velocity of a guest comes from its streamed feet.
+/// is, how fast it goes, whether it steers into the animal, sprints or falls, how heavy its load is
+/// (louder footsteps), whether it crouches (the brake key: quieter, harder to see), whether its
+/// torch is lit, and how much daylight there is (1 day, 0 night). Velocity of a guest comes from
+/// its streamed feet; a guest's crouch and load aren't streamed.
 /// </summary>
 public readonly record struct CarrierSense(
     Vector3 Position,
@@ -14,7 +16,10 @@ public readonly record struct CarrierSense(
     Vector3 Input,
     bool Sprinting,
     bool Falling,
-    float LoadMass)
+    float LoadMass,
+    bool Crouching = false,
+    bool TorchLit = false,
+    float Daylight = 1.0f)
 {
     public static CarrierSense Still(Vector3 position) => new(position, Vector3.Zero, Vector3.Zero, false, false, 0.0f);
 }

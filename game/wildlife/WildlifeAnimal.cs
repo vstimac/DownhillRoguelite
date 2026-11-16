@@ -7,23 +7,28 @@ namespace DownhillRoguelite.Wildlife;
 /// <summary>
 /// One animal living on the slope. Most of the time it grazes, walks to the next grazing spot along
 /// the slope (a herd follows its leader there, each to its own place, keeping its spacing), stands
-/// and looks round, or lies down; with water near (WaterNear) it goes to drink. It sees and hears
-/// the carrier by its species' ranges: a moving carrier is seen farther than a still one, a sprint,
-/// a fall or a heavy load is heard farther than a quiet walk. Noticing it, it gives a short alert
-/// beat (frozen, facing the carrier), then acts on its temperament: skittish ones bolt, the herd with
-/// them, away and downhill or along the slope; wary ones walk off and look back; curious ones come to
-/// look at a carrier standing still, then lose interest; bold ones hold their ground. Fleeing, it
-/// stops at a safe distance, looks back and goes back to grazing (uneasy for a while). Every step
-/// ahead is checked for ground it can stand on: no steep banks, no drops, no rocks; with nowhere to
-/// go it is cornered and a big one shoves. Pushed for long it gives way a little, then turns round
-/// and shoves the carrier into the air (GameEvents.RequestLaunch). A fall or a sword swing nearby
-/// scatters it (FleeFrom), a hard landing startles it (Startle).
+/// and looks round, or lies down; with water near (WaterNear) it goes to drink.
+/// It sees in a cone (its species' ViewAngle; nothing behind it), not through rocks, trees or
+/// ridges, less far at night without a torch, with its head down grazing, and when the carrier
+/// stands still or crouches (the brake key); it hears noise, which grows with the carrier's speed and
+/// load and shrinks when crouching. What it senses builds suspicion: suspicious, it lifts its head
+/// and freezes, facing the carrier; alerted, it acts on its temperament: skittish ones bolt, the herd
+/// with them, away and downhill or along the slope, zig-zagging; wary ones walk off and look back;
+/// curious ones come to look at a carrier standing still, then lose interest; bold ones hold their
+/// ground until struck, then fight back (charge and shove) with the bold ones of their herd and calm
+/// down later; aggressive ones attack on sight. Fleeing, it stops at a safe distance, looks back and
+/// goes back to grazing (uneasy for a while). So a carrier crouching up from behind gets close.
+/// Every step ahead is checked for ground it can stand on: no steep banks, no drops, no rocks; with
+/// nowhere to go it is cornered and a big one shoves. Pushed for long it gives way a little, then
+/// turns round and shoves the carrier into the air (GameEvents.RequestLaunch). A fall or a sword
+/// swing nearby scatters it (FleeFrom), a hard landing startles it (Startle). It has health: killed
+/// by sword or boot it drops its species' loot (hide, silk) through KillLoot and lies there a while.
 /// A physics body: a capsule sized to the species walks on the ground with gravity, slides on what's
 /// too steep and bumps into rocks, other animals and the carrier; its model leans to the slope
 /// underfoot so legs and head don't sink in. Flyers float at their height above the ground. The
 /// spawner drives it through Tick so all animals together can be timed; in co-op the host thinks and
-/// guests see position, clip and model pose (INetMob). The carrier's sword finds it (IMeleeTarget,
-/// on its bones): struck, it's knocked aside and bolts.
+/// guests see position, clip and model pose (INetMob), and read its awareness from them
+/// (Awareness, for the stealth eye). The carrier's sword finds it (IMeleeTarget, on its bones).
 /// </summary>
 public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
 {
@@ -31,8 +36,8 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     public int NetKind => 2;
     public string NetSpecies => Species?.ResourcePath ?? "";
     public bool NetPuppet => Puppet;
-    public float NetHealth => 1;
-    public bool NetDown => false;
+    public float NetHealth => _maxHealth > 0.0f ? Mathf.Clamp(_health / _maxHealth, 0.0f, 1.0f) : 1.0f;
+    public bool NetDown => State == Mode.Dead;
     public Transform3D NetVisual => _model?.Transform ?? Transform3D.Identity;
     public void NetShowVisual(Transform3D visual) { if (Puppet && _model != null) { _model.Transform = visual; } }
     public string NetClip => _clip;
@@ -42,6 +47,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     {
         if (!Puppet) { return; }
         CollisionLayer = 0; CollisionMask = 0;
+        _puppetDown = down;
         Play(clip, speed, -1);
         if (_animation != null && _animation.HasAnimation(clip)
             && Mathf.Abs((float)_animation.CurrentAnimationPosition - position) > 0.25f) { _animation.Seek(position, true); }
@@ -70,6 +76,20 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         LookBack,
         /// <summary>Drinking at water.</summary>
         Drink,
+        /// <summary>Angry (struck, or aggressive): charging the carrier, shoving or biting.</summary>
+        Fight,
+        /// <summary>Killed: lies there a while, then is removed.</summary>
+        Dead,
+    }
+
+    /// <summary>What an animal knows of the carrier, for the stealth eye.</summary>
+    public enum Awareness
+    {
+        Unaware,
+        /// <summary>Senses something: head up, frozen.</summary>
+        Suspicious,
+        /// <summary>Knows the carrier is there (fleeing, walking off, coming to look, fighting).</summary>
+        Alerted,
     }
 
     /// <summary>
@@ -90,6 +110,37 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     public int Approaches { get; private set; }
     public int LookBacks { get; private set; }
     public int Cornered { get; private set; }
+    public int Bites { get; private set; }
+    /// <summary>0 unaware, 1 alerted (up to 1.5 while it keeps sensing the carrier).</summary>
+    public float Suspicion => _suspicion;
+    /// <summary>Health left, in points.</summary>
+    public float Health => _health;
+    /// <summary>Dead long enough to be removed.</summary>
+    public bool Gone => State == Mode.Dead && _deadTimer <= 0.0f;
+    /// <summary>What it knows of the carrier: from its own state on the host, from the clip it shows on a guest.</summary>
+    public Awareness Aware
+    {
+        get
+        {
+            if (Puppet)
+            {
+                return PuppetAwareness();
+            }
+            if (State == Mode.Dead)
+            {
+                return Awareness.Unaware;
+            }
+            if (State is Mode.Flee or Mode.Retreat or Mode.Approach or Mode.Fight or Mode.Shove || _suspicion >= 1.0f)
+            {
+                return Awareness.Alerted;
+            }
+            if (State is Mode.Alert or Mode.LookBack || (_table != null && _suspicion >= _table.SuspiciousLevel))
+            {
+                return Awareness.Suspicious;
+            }
+            return Awareness.Unaware;
+        }
+    }
     public long TargetPeer { get; set; }
     /// <summary>A knock dies away at this rate (m/s per s).</summary>
     [Export] public float KnockDecay { get; set; } = 8.0f;
@@ -101,6 +152,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     public Vector3 HerdSlot { get; set; }
     /// <summary>Calm: grazing, walking, standing, lying or drinking (far calm animals are updated less often).</summary>
     public bool IsCalm => State is Mode.Idle or Mode.Walk or Mode.Graze or Mode.Rest or Mode.Drink;
+    public bool IsDead => State == Mode.Dead || _puppetDown;
     /// <summary>The way it faces, flat.</summary>
     public Vector3 Facing => new Vector3(-GlobalBasis.Z.X, 0.0f, -GlobalBasis.Z.Z).Normalized();
     /// <summary>How steep the ground under it is, in degrees (as of its last step).</summary>
@@ -141,8 +193,21 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     private Vector3 _drift;
     private Vector3 _fallLine;
     private float _sink;
+    private float _suspicion;
+    private float _losTimer;
+    private bool _losClear;
+    private float _health;
+    private float _maxHealth;
+    private float _anger;
+    private float _attackCooldown;
+    private float _deadTimer;
+    private float _deathTip;
+    private bool _puppetDown;
+    private float _zigPhase;
+    private float _zigAmplitude;
     private PhysicsRayQueryParameters3D? _ray;
     private PhysicsRayQueryParameters3D? _probe;
+    private PhysicsRayQueryParameters3D? _sight;
     private Node3D? _model;
     private Transform3D _modelBase;
     private Quaternion _tilt = Quaternion.Identity;
@@ -151,30 +216,62 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     private Skeleton3D? _skeleton;
 
     /// <summary>What the animal makes of the carrier this tick.</summary>
-    private readonly record struct Perception(bool Aware, bool Moving, bool Fast, float Flight);
+    /// <summary>What the animal makes of the carrier this tick: alerted (knows it's there), suspicious, how it moves, how close it may come.</summary>
+    private readonly record struct Perception(bool Aware, bool Suspicious, bool Moving, bool Fast, float Flight);
 
     // --- IMeleeTarget: the carrier's sword ---
 
     public Vector3 HitBase => GlobalPosition;
     public float HitHeight => Species?.BodySize.Y ?? 1.0f;
     public float HitRadius => Radius;
-    public bool CanBeHit => Species != null;
+    public bool CanBeHit => Species != null && !IsDead;
     public Skeleton3D? HitSkeleton => _skeleton;
     public bool Lockable => false;
 
-    /// <summary>Animals have no health: a wound only leaves a trail of blood (environment/Bleeding).</summary>
+    /// <summary>An open wound (environment/Bleeding) wears its health down quietly; false once it is dead.</summary>
     public bool Bleed(float damage)
     {
-        return true;
+        if (Puppet || IsDead)
+        {
+            return !IsDead;
+        }
+        _health -= damage;
+        if (_health <= 0.0f)
+        {
+            Die(GlobalPosition);
+        }
+        return !IsDead;
     }
 
-    /// <summary>Struck: knocked the way of the blow, and it bolts away from the carrier (its herd with it).</summary>
+    /// <summary>
+    /// Struck: knocked the way of the blow and hurt. Killed, it drops its loot; otherwise a bold or
+    /// aggressive one turns and fights (its bold herd-mates with it), the others bolt with their herd.
+    /// </summary>
     public void TakeHit(float damage, Vector3 push, string source)
     {
         if (Puppet) { GameEvents.PublishNetMobHit(this, damage, push, source); return; }
+        if (Species == null || _table == null || IsDead)
+        {
+            return;
+        }
         Struck++;
         _knock = new Vector3(push.X, 0.0f, push.Z);
-        FleeFrom(GlobalPosition - _knock);
+        Vector3 from = GlobalPosition - _knock;
+        _health -= damage;
+        if (_health <= 0.0f)
+        {
+            Die(from);
+            return;
+        }
+        _suspicion = 1.5f;
+        if (Species.Temperament is Temperament.Bold or Temperament.Aggressive)
+        {
+            StartFight(from, true);
+        }
+        else
+        {
+            FleeFrom(from);
+        }
     }
 
     public void Setup(WildlifeSpecies species, WildlifeTable table, ulong seed)
@@ -217,7 +314,11 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             }
         }
         AddToGroup(IMeleeTarget.Group);
+        AddToGroup(StealthEye.AnimalGroup);
         Rotation = new Vector3(0.0f, _random.RandfRange(0.0f, Mathf.Tau), 0.0f);
+        _maxHealth = species.Health > 0.0f ? species.Health : Mathf.Max(6.0f, 45.0f * species.BodySize.Y);
+        _health = _maxHealth;
+        _zigPhase = _random.RandfRange(0.0f, 10.0f);
         // Placed mid-meal: animals in view don't all start or stop together.
         State = Mode.Graze;
         _timer = _random.RandfRange(0.0f, table.WanderInterval.Y);
@@ -245,6 +346,13 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         {
             return;
         }
+        if (State == Mode.Dead)
+        {
+            _deadTimer -= dt;
+            Step(Vector3.Zero, dt, space);
+            LeanToGround(dt);
+            return;
+        }
         Vector3 toCarrier = carrier.Position - GlobalPosition;
         toCarrier.Y = 0.0f;
         float distance = toCarrier.Length();
@@ -254,6 +362,8 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         _uneasy -= dt;
         _probeTimer -= dt;
         _escapeTimer -= dt;
+        _attackCooldown -= dt;
+        _losTimer -= dt;
         _stateTime += dt;
         if (IsOnFloor())
         {
@@ -272,7 +382,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         Vector3 walk = Vector3.Zero;
         if (State != Mode.Shove)
         {
-            Perception sense = Perceive(carrier, distance);
+            Perception sense = Perceive(dt, carrier, toCarrier, distance, space);
             walk = State switch
             {
                 Mode.Alert => AlertStep(dt, carrier, toCarrier, distance, sense, space),
@@ -280,6 +390,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
                 Mode.Retreat => RetreatStep(dt, carrier, toCarrier, distance, sense, space),
                 Mode.Approach => ApproachStep(dt, carrier, toCarrier, distance, sense, space),
                 Mode.LookBack => LookBackStep(dt, carrier, toCarrier, distance, sense, space),
+                Mode.Fight => FightStep(dt, toCarrier, distance, space),
                 _ => CalmStep(dt, carrier, distance, sense, space),
             };
         }
@@ -295,8 +406,12 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
 
     // --- Senses ---
 
-    /// <summary>Whether it sees or hears the carrier, how alarming the carrier is, and how close it may come.</summary>
-    private Perception Perceive(in CarrierSense carrier, float distance)
+    /// <summary>
+    /// Sight (a cone, not through cover, shorter in the dark, with its head down, for a still or
+    /// crouching carrier) and hearing (noise from speed, load and crouching) build or let fade its
+    /// suspicion; a carrier sprinting or falling close by alerts it at once.
+    /// </summary>
+    private Perception Perceive(float dt, in CarrierSense carrier, Vector3 toCarrier, float distance, PhysicsDirectSpaceState3D space)
     {
         WildlifeTable table = _table!;
         WildlifeSpecies species = Species!;
@@ -304,13 +419,89 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         bool fast = carrier.Sprinting || carrier.Falling || speed > table.FastSpeed;
         bool moving = fast || speed > table.MovingSpeed;
         float wake = _uneasy > 0.0f ? table.UneasyFactor : 1.0f;
-        float noise = fast ? 1.0f : moving ? table.WalkNoise : table.StillNoise;
+        float flight = (fast ? species.SprintFleeDistance : moving ? species.FleeDistance : species.FleeDistance * table.StillSight) * wake;
+
+        float noise = table.StillNoise;
+        if (fast)
+        {
+            noise = 1.0f;
+        }
+        else if (moving)
+        {
+            float pace = Mathf.Clamp((speed - table.MovingSpeed) / Mathf.Max(table.FastSpeed - table.MovingSpeed, 0.1f), 0.0f, 1.0f);
+            noise = Mathf.Lerp(table.WalkNoise * 0.6f, 1.0f, pace);
+        }
+        if (carrier.Crouching && !fast)
+        {
+            noise *= table.CrouchNoise;
+        }
         noise *= 1.0f + table.LoadNoise * Mathf.Clamp(carrier.LoadMass / Mathf.Max(table.HeavyLoad, 1.0f), 0.0f, 1.0f);
-        float sight = species.SightRange * (moving ? 1.0f : table.StillSight) * wake;
         float hearing = species.HearingRange * noise * wake;
-        bool aware = distance < sight || distance < hearing;
-        float flight = fast ? species.SprintFleeDistance : moving ? species.FleeDistance : species.FleeDistance * table.StillSight;
-        return new Perception(aware, moving, fast, flight * wake);
+
+        float visibility = (moving ? 1.0f : table.StillSight) * (carrier.Crouching && !fast ? table.CrouchSight : 1.0f) * wake;
+        if (!carrier.TorchLit)
+        {
+            visibility *= Mathf.Lerp(table.NightSight, 1.0f, Mathf.Clamp(carrier.Daylight, 0.0f, 1.0f));
+        }
+        if (State is Mode.Graze or Mode.Drink or Mode.Rest)
+        {
+            visibility *= table.GrazeSight;
+        }
+        float sightRange = species.SightRange * visibility;
+        bool seen = false;
+        if (distance < sightRange)
+        {
+            float cone = Mathf.Cos(Mathf.DegToRad(Mathf.Clamp(species.ViewAngle, 0.0f, 360.0f) * 0.5f));
+            bool inCone = distance < 0.5f || Facing.Dot(toCarrier / distance) >= cone;
+            seen = inCone && LineOfSight(carrier.Position, space);
+        }
+        bool heard = distance < hearing;
+        float strength = 0.0f;
+        if (seen)
+        {
+            strength = 0.3f + 0.7f * (1.0f - distance / Mathf.Max(sightRange, 0.1f));
+        }
+        if (heard)
+        {
+            strength = Mathf.Max(strength, 0.3f + 0.7f * (1.0f - distance / Mathf.Max(hearing, 0.1f)));
+        }
+        if (strength > 0.0f)
+        {
+            float rate = table.SuspicionRate * strength;
+            // Used to the carrier for now: only something alarming makes it suspicious again.
+            if (_alertCooldown > 0.0f && distance > flight * 1.3f && species.Temperament != Temperament.Aggressive)
+            {
+                rate *= 0.25f;
+            }
+            _suspicion = Mathf.Min(1.5f, _suspicion + rate * dt);
+        }
+        else
+        {
+            _suspicion = Mathf.Max(0.0f, _suspicion - table.SuspicionDecay * dt);
+        }
+        if (heard && fast && distance < flight)
+        {
+            _suspicion = Mathf.Max(_suspicion, 1.0f);
+        }
+        return new Perception(_suspicion >= 1.0f, _suspicion >= table.SuspiciousLevel, moving, fast, flight);
+    }
+
+    /// <summary>Nothing solid between its eyes and the carrier (checked a few times a second).</summary>
+    private bool LineOfSight(Vector3 carrier, PhysicsDirectSpaceState3D space)
+    {
+        if (_losTimer > 0.0f)
+        {
+            return _losClear;
+        }
+        _losTimer = 0.25f + _random.Randf() * 0.1f;
+        _sight ??= new PhysicsRayQueryParameters3D { CollisionMask = _table!.GroundMask };
+        Vector3 target = carrier + Vector3.Up * 1.2f;
+        _sight.From = GlobalPosition + Vector3.Up * Mathf.Max(0.3f, Species!.BodySize.Y * 0.9f);
+        _sight.To = target;
+        Godot.Collections.Dictionary hit = space.IntersectRay(_sight);
+        // The carrier's own body is on the world layer: a hit right at it is the carrier.
+        _losClear = hit.Count == 0 || ((Vector3)hit["position"]).DistanceTo(target) < 1.0f;
+        return _losClear;
     }
 
     /// <summary>What its temperament makes it do about the carrier now (Idle: nothing but watch).</summary>
@@ -346,8 +537,10 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
                     return Mode.Approach;
                 }
                 return Mode.Idle;
+            case Temperament.Aggressive:
+                return distance < species.SightRange ? Mode.Fight : Mode.Idle;
             default:
-                // Bold: holds its ground (it shoves when pushed).
+                // Bold: holds its ground (it fights when struck, shoves when pushed).
                 return Mode.Idle;
         }
     }
@@ -357,10 +550,10 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     /// <summary>Grazing, walking, standing, lying or drinking; noticing the carrier lifts its head.</summary>
     private Vector3 CalmStep(float dt, in CarrierSense carrier, float distance, Perception sense, PhysicsDirectSpaceState3D space)
     {
-        if (sense.Aware)
+        if (sense.Suspicious)
         {
             Mode reaction = Reaction(sense, distance);
-            if (reaction is Mode.Flee or Mode.Retreat)
+            if (reaction is Mode.Flee or Mode.Retreat or Mode.Fight)
             {
                 // Close already: a short beat, then it acts.
                 EnterAlert(carrier.Position, _table!.MinAlertBeat + 0.2f, true);
@@ -434,13 +627,18 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             Turn(look.Normalized(), dt * 2.0f);
         }
         Mode reaction = Reaction(sense, distance);
-        if (reaction is Mode.Flee or Mode.Retreat && _stateTime >= _table!.MinAlertBeat)
+        if (reaction is Mode.Flee or Mode.Retreat or Mode.Fight && _stateTime >= _table!.MinAlertBeat)
         {
             Act(reaction, carrier.Position);
             return Vector3.Zero;
         }
         _timer -= dt;
         if (_timer > 0.0f)
+        {
+            return Vector3.Zero;
+        }
+        // Not sure yet: it keeps still and watching while the suspicion holds, but not for ever.
+        if (!sense.Aware && sense.Suspicious && _stateTime < Species!.AlertSeconds * 2.5f)
         {
             return Vector3.Zero;
         }
@@ -480,24 +678,39 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
                 return Corner(distance, carrier.Position);
             }
             _fleeDirection = escape;
+            _zigAmplitude = table.ZigZag;
             if (Herd != null)
             {
                 Herd.FleeDirection = Herd.FleeDirection.IsZeroApprox() ? escape : (Herd.FleeDirection + escape).Normalized();
             }
         }
-        else if (_probeTimer <= 0.0f)
+        // Prey zig-zag while the way is clear, which makes them hard to run down.
+        float zig = species.Temperament == Temperament.Skittish
+            ? _zigAmplitude * Mathf.Sin((_stateTime + _zigPhase) * Mathf.Tau / Mathf.Max(table.ZigZagPeriod, 0.1f))
+            : 0.0f;
+        Vector3 run = _fleeDirection.Rotated(Vector3.Up, zig);
+        if (_escapeTimer > 0.0f && _probeTimer <= 0.0f)
         {
             _probeTimer = table.ProbeInterval;
-            if (!Safe(_fleeDirection, Lookahead(species.FleeSpeed), space))
+            if (!Safe(run, Lookahead(species.FleeSpeed), space))
             {
-                // Something ahead: pick a new way next tick, slowing meanwhile.
-                _escapeTimer = 0.0f;
-                return Vector3.Zero;
+                if (_zigAmplitude > 0.0f && Safe(_fleeDirection, Lookahead(species.FleeSpeed), space))
+                {
+                    // Straight on along the edge, no zig-zag here.
+                    _zigAmplitude = 0.0f;
+                    run = _fleeDirection;
+                }
+                else
+                {
+                    // Something ahead: pick a new way next tick, slowing meanwhile.
+                    _escapeTimer = 0.0f;
+                    return Vector3.Zero;
+                }
             }
         }
         // Easing off as the distance grows.
         float speed = species.FleeSpeed * (fromThreat > species.SafeDistance * 0.75f ? 0.65f : 1.0f);
-        return Move(Steer(_fleeDirection, 0.6f), speed, dt);
+        return Move(Steer(run, 0.6f), speed, dt);
     }
 
     /// <summary>Wary: walks away briskly, stopping now and then to look back, until far enough.</summary>
@@ -615,7 +828,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             Turn(look.Normalized(), dt * 1.5f);
         }
         Mode reaction = Reaction(sense, distance);
-        if (reaction is Mode.Flee or Mode.Retreat && _stateTime > 0.5f)
+        if (reaction is Mode.Flee or Mode.Retreat or Mode.Fight && _stateTime > 0.5f)
         {
             Act(reaction, carrier.Position);
             return Vector3.Zero;
@@ -631,6 +844,157 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             StartGraze();
         }
         return Vector3.Zero;
+    }
+
+    /// <summary>Angry: charges the carrier and shoves it (big ones) or bites (small ones), until its anger is spent.</summary>
+    private Vector3 FightStep(float dt, Vector3 toCarrier, float distance, PhysicsDirectSpaceState3D space)
+    {
+        WildlifeSpecies species = Species!;
+        WildlifeTable table = _table!;
+        _anger -= dt;
+        if (_anger <= 0.0f || distance > species.SightRange * 1.2f)
+        {
+            _uneasy = table.UneasySeconds;
+            StartLookBack();
+            return Vector3.Zero;
+        }
+        Vector3 toward = distance > 0.01f ? toCarrier / distance : Facing;
+        Turn(toward, dt * 2.0f);
+        float reach = Radius + table.CarrierRadius + table.PushContactMargin + 0.3f;
+        if (distance <= reach)
+        {
+            if (species.BodySize.Y >= table.MinShoverHeight)
+            {
+                if (_shoveCooldown <= 0.0f)
+                {
+                    BeginShove();
+                }
+            }
+            else if (_attackCooldown <= 0.0f && species.AttackDamage > 0.0f)
+            {
+                Bite(toward);
+            }
+            return Vector3.Zero;
+        }
+        if (_probeTimer <= 0.0f)
+        {
+            _probeTimer = table.ProbeInterval;
+            if (!Safe(toward, Mathf.Min(Lookahead(species.FleeSpeed), distance), space))
+            {
+                // It won't follow over a drop or up a bank: it waits there.
+                return Vector3.Zero;
+            }
+        }
+        return toward * species.FleeSpeed * 0.85f;
+    }
+
+    /// <summary>A bite or a sting: a little damage to the carrier it fights.</summary>
+    private void Bite(Vector3 toward)
+    {
+        _attackCooldown = _table!.AttackCooldown;
+        Bites++;
+        if (TargetPeer == 0)
+        {
+            GameEvents.RequestDamage(Species!.AttackDamage, Species.DisplayName);
+        }
+        else
+        {
+            GameEvents.PublishNetStrike(new NetStrike(TargetPeer, Species!.AttackDamage, toward, 1.0f, false, 0, 0, Species.DisplayName));
+        }
+    }
+
+    /// <summary>Turns to fight; bold herd-mates near join in, the others bolt.</summary>
+    private void StartFight(Vector3 from, bool spread)
+    {
+        WildlifeTable table = _table!;
+        State = Mode.Fight;
+        _stateTime = 0.0f;
+        _probeTimer = 0.0f;
+        _toWater = false;
+        _anger = _random.RandfRange(table.AngerSeconds.X, table.AngerSeconds.Y);
+        _suspicion = 1.5f;
+        _threat = from;
+        _threatIsCarrier = true;
+        PlayMove(Species!.WalkClip.Length > 0 ? 1.6f : 1.0f);
+        if (Species.WalkClip.Length > 0)
+        {
+            Play(Species.FleeClip, Species.FleeClipSpeed, -1.0f);
+        }
+        if (!spread || Herd == null)
+        {
+            return;
+        }
+        foreach (WildlifeAnimal member in Herd.Members)
+        {
+            if (member == this || !WildlifeHerd.Alive(member) || member.IsDead || !Near(member))
+            {
+                continue;
+            }
+            if (member.Species!.Temperament is Temperament.Bold or Temperament.Aggressive)
+            {
+                if (member.State != Mode.Fight)
+                {
+                    member.StartFight(from, false);
+                }
+            }
+            else if (member.State is not (Mode.Flee or Mode.Shove))
+            {
+                member.StartFlee(from, true, false);
+            }
+        }
+    }
+
+    /// <summary>Killed: falls (its death clip, or onto its side), drops its loot and scares its herd off.</summary>
+    private void Die(Vector3 from)
+    {
+        WildlifeSpecies species = Species!;
+        WildlifeHerd? herd = Herd;
+        herd?.Leave(this);
+        if (herd != null)
+        {
+            foreach (WildlifeAnimal member in herd.Members)
+            {
+                if (WildlifeHerd.Alive(member) && !member.IsDead && Near(member))
+                {
+                    if (member.Species!.Temperament is Temperament.Bold or Temperament.Aggressive)
+                    {
+                        member.StartFight(from, false);
+                    }
+                    else
+                    {
+                        member.StartFlee(from, true, false);
+                    }
+                }
+            }
+        }
+        State = Mode.Dead;
+        _stateTime = 0.0f;
+        _health = 0.0f;
+        _deadTimer = _table!.DeadSeconds;
+        CollisionLayer = 0;
+        // A flyer drops to the ground.
+        MotionMode = MotionModeEnum.Grounded;
+        PushTime = 0.0f;
+        bool clip = species.DeathClip.Length > 0 && _animation != null && _animation.HasAnimation(species.DeathClip);
+        if (clip)
+        {
+            Play(species.DeathClip, 1.0f, 0.0f);
+        }
+        else if (_animation != null)
+        {
+            _animation.SpeedScale = 0.0f;
+        }
+        if (species.Loot.Length > 0)
+        {
+            KillLoot loot = new()
+            {
+                Common = species.Loot,
+                CommonCount = species.LootCount,
+                RareChance = 0.0f,
+                GroundMask = _table.GroundMask,
+            };
+            loot.Scatter(this, GlobalPosition, species.DisplayName);
+        }
     }
 
     /// <summary>Nowhere safe to go: a big animal close to the carrier turns on it, others stand frozen.</summary>
@@ -658,6 +1022,10 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         else if (reaction == Mode.Retreat)
         {
             StartRetreat(carrier, true);
+        }
+        else if (reaction == Mode.Fight)
+        {
+            StartFight(carrier, true);
         }
     }
 
@@ -1172,6 +1540,13 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         PushTime = 0.0f;
         _shoveCooldown = _table.ShoveCooldown;
         _alertCooldown = _random.RandfRange(_table.AlertCooldown.X, _table.AlertCooldown.Y);
+        if (_anger > 0.0f)
+        {
+            State = Mode.Fight;
+            _stateTime = 0.0f;
+            Play(Species!.FleeClip, Species.FleeClipSpeed, -1.0f);
+            return;
+        }
         StartIdle();
     }
 
@@ -1180,20 +1555,22 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     /// <summary>Bolts away from a point (a fall, a sword swing, a blow); its herd runs with it.</summary>
     public void FleeFrom(Vector3 point)
     {
-        if (Species == null || _table == null || State == Mode.Shove)
+        if (Species == null || _table == null || State is Mode.Shove or Mode.Fight || IsDead)
         {
             return;
         }
+        _suspicion = 1.5f;
         StartFlee(point, false, true);
     }
 
     /// <summary>A loud noise at a point (a hard landing): skittish and wary animals bolt, the others look up, uneasy.</summary>
     public void Startle(Vector3 point)
     {
-        if (Species == null || _table == null || State is Mode.Shove or Mode.Flee)
+        if (Species == null || _table == null || State is Mode.Shove or Mode.Flee or Mode.Fight || IsDead)
         {
             return;
         }
+        _suspicion = Mathf.Max(_suspicion, 1.0f);
         if (Species.Temperament is Temperament.Skittish or Temperament.Wary)
         {
             StartFlee(point, false, true);
@@ -1216,7 +1593,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     private void Step(Vector3 walk, float dt, PhysicsDirectSpaceState3D space)
     {
         float vertical = Velocity.Y;
-        if (Species!.HoverHeight > 0.0f)
+        if (Species!.HoverHeight > 0.0f && State != Mode.Dead)
         {
             float ground = GroundBelow(space, out bool found);
             HasGround = found;
@@ -1261,7 +1638,15 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         _tilt = _tilt.Normalized().Slerp(target, Mathf.Clamp(_table!.TiltSpeed * dt, 0.0f, 1.0f)).Normalized();
         float sink = State == Mode.Rest && Species.RestClip.Length == 0 ? Species.RestSink * Species.BodySize.Y : 0.0f;
         _sink = Mathf.MoveToward(_sink, sink, dt * 0.6f);
-        _model.Transform = new Transform3D(new Basis(_tilt), Vector3.Down * _sink) * _modelBase;
+        Basis basis = new(_tilt);
+        bool deathClip = Species.DeathClip.Length > 0 && _animation != null && _animation.HasAnimation(Species.DeathClip);
+        if (State == Mode.Dead && !deathClip)
+        {
+            // No death clip in its pack: it keels over onto its side.
+            _deathTip = Mathf.MoveToward(_deathTip, 1.0f, dt * 2.5f);
+            basis *= new Basis(Vector3.Back, _deathTip * Mathf.Pi * 0.5f);
+        }
+        _model.Transform = new Transform3D(basis, Vector3.Down * _sink) * _modelBase;
     }
 
     /// <summary>Turns toward a horizontal direction (the model faces -Z).</summary>
@@ -1289,6 +1674,26 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             return GlobalPosition.Y;
         }
         return ((Vector3)hit["position"]).Y;
+    }
+
+    /// <summary>A guest reads awareness from what the host streams: running or a brisk walk is alerted, a frozen idle suspicious.</summary>
+    private Awareness PuppetAwareness()
+    {
+        if (Species == null || _animation == null || _puppetDown)
+        {
+            return Awareness.Unaware;
+        }
+        float speed = Mathf.Abs(_animation.SpeedScale);
+        if ((_clip == Species.FleeClip && _clip != Species.WalkClip && speed >= Species.FleeClipSpeed * 0.9f)
+            || (_clip == Species.WalkClip && speed >= 1.25f))
+        {
+            return Awareness.Alerted;
+        }
+        if (_clip == Species.IdleClip && speed <= 0.2f)
+        {
+            return Awareness.Suspicious;
+        }
+        return Awareness.Unaware;
     }
 
     /// <summary>Walking: its walk clip, or its flee clip slowed to a hop for the packs without one.</summary>
@@ -1323,7 +1728,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         }
         _clip = clip;
         Animation animation = _animation.GetAnimation(clip);
-        animation.LoopMode = Animation.LoopModeEnum.Linear;
+        animation.LoopMode = Species != null && clip == Species.DeathClip ? Animation.LoopModeEnum.None : Animation.LoopModeEnum.Linear;
         _animation.Play(clip, 0.25f);
         if (startFraction >= 0.0f)
         {

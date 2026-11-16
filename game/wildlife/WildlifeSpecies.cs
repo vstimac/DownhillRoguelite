@@ -11,8 +11,10 @@ public enum Temperament
     Wary,
     /// <summary>Comes a few metres toward a carrier who stands still, then loses interest (cows, llamas, cats).</summary>
     Curious,
-    /// <summary>Holds its ground and pushes back when pushed (pigs, polar bears).</summary>
+    /// <summary>Neutral: holds its ground until struck, then fights back with the bold ones of its herd (pigs, polar bears).</summary>
     Bold,
+    /// <summary>Attacks a carrier it notices (wasps).</summary>
+    Aggressive,
 }
 
 /// <summary>
@@ -62,6 +64,8 @@ public partial class WildlifeSpecies : Resource
     [Export] public Temperament Temperament { get; set; } = Temperament.Wary;
     /// <summary>Sees a moving carrier this far, in m (a still one at about half: WildlifeTable.StillSight).</summary>
     [Export] public float SightRange { get; set; } = 30.0f;
+    /// <summary>Width of its field of view, in degrees (360 = all round; prey see wide, nothing sees straight behind).</summary>
+    [Export] public float ViewAngle { get; set; } = 200.0f;
     /// <summary>Hears a sprinting carrier this far, in m (walking, standing and heavy loads scale it: WildlifeTable).</summary>
     [Export] public float HearingRange { get; set; } = 25.0f;
     /// <summary>Seconds of the alert beat (head up, frozen, facing the carrier) on first noticing it.</summary>
@@ -84,6 +88,17 @@ public partial class WildlifeSpecies : Resource
     [Export] public float GroupSpread { get; set; } = 6.0f;
     /// <summary>Herd members keep at least this far apart, in m.</summary>
     [Export] public float HerdSpacing { get; set; } = 2.0f;
+
+    [ExportGroup("Hunting")]
+    /// <summary>Health in points (the sword does 22 to 38 a blow, more on the head); 0 = from its size.</summary>
+    [Export] public float Health { get; set; }
+    /// <summary>A bite or sting, for those too small to shove, in health points (0 = it doesn't bite).</summary>
+    [Export] public float AttackDamage { get; set; }
+    /// <summary>Clip played once when killed; empty means it keels over onto its side.</summary>
+    [Export] public string DeathClip { get; set; } = "";
+    /// <summary>Item ids it drops when killed (repeats allowed), and how many of them.</summary>
+    [Export] public string[] Loot { get; set; } = System.Array.Empty<string>();
+    [Export] public Vector2I LootCount { get; set; } = new(1, 2);
     /// <summary>Relative chance among the species that fit a spot.</summary>
     [Export] public float Weight { get; set; } = 1.0f;
     /// <summary>0-based circles it lives in (Limbo 0, Treachery 8, 9 = beyond the ninth).</summary>

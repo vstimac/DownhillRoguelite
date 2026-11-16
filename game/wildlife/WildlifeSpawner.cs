@@ -11,8 +11,10 @@ namespace DownhillRoguelite.Wildlife;
 /// surface and slope (a group of two or more is a herd: WildlifeHerd); animals far away or well
 /// behind are removed, so the cost stays flat as the carrier descends. Each animal watches the
 /// nearest carrier standing (CarrierSense: where, how fast, sprinting, falling, how loaded; a
-/// guest's speed comes from its streamed feet). A fall (DownedChanged, a guest's fall) or a sword
-/// swing scatters every animal nearby, a hard landing startles them; a new run clears them.
+/// guest's speed comes from its streamed feet; crouching is the brake key held; daylight from the
+/// WorldClock). A fall (DownedChanged, a guest's fall) or a sword swing scatters every animal nearby,
+/// a hard landing startles them; killed animals are removed after a while; a new run clears them.
+/// Adds the stealth eye (StealthEye) to the screen.
 /// Reads LocomotionUpdated, VitalsUpdated (sprinting), LoadChanged, Landed, MeleeSwung and
 /// RunState (circle). Times itself (AverageMilliseconds) so tests can hold it under budget.
 /// </summary>
@@ -23,6 +25,9 @@ public partial class WildlifeSpawner : Node3D
     [Export] public bool Spawning { get; set; } = true;
     /// <summary>Forces the circle (tests, debugging); -1 follows the run's depth.</summary>
     [Export] public int CircleOverride { get; set; } = -1;
+
+    /// <summary>The input that crouches the carrier (braking crouches it while walking; held standing still, it crouches too).</summary>
+    public const string CrouchAction = "player_brake";
 
     public IReadOnlyList<WildlifeAnimal> Animals => _animals;
     /// <summary>Smoothed cost of all wildlife per physics frame, in ms.</summary>
@@ -45,6 +50,8 @@ public partial class WildlifeSpawner : Node3D
     private Vector3 _carrierVelocity;
     private Vector3 _carrierInput;
     private bool _carrierFalling;
+    private bool _crouching;
+    private WorldClock? _clock;
     private float _loadMass;
     private bool _hasCarrier;
     /// <summary>Guests' feet last frame and their smoothed velocity, for their CarrierSense.</summary>
@@ -56,6 +63,8 @@ public partial class WildlifeSpawner : Node3D
     public override void _Ready()
     {
         _run = GetNodeOrNull<RunState>("/root/RunState");
+        _clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
+        AddChild(new StealthEye { Name = "StealthEye" });
         _random.Randomize();
         Table ??= new WildlifeTable();
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
@@ -110,7 +119,7 @@ public partial class WildlifeSpawner : Node3D
             Vector3 offset = animal.GlobalPosition - nearestCarrier;
             float horizontal = new Vector2(offset.X, offset.Z).Length();
             // The route runs toward -Z: +Z is uphill, behind the carrier.
-            if (horizontal > Table.DespawnDistance || offset.Z > Table.BehindDistance)
+            if (horizontal > Table.DespawnDistance || offset.Z > Table.BehindDistance || animal.Gone)
             {
                 animal.Herd?.Leave(animal);
                 animal.QueueFree();
@@ -155,7 +164,9 @@ public partial class WildlifeSpawner : Node3D
     /// <summary>Ticks an animal against the nearest carrier standing (the host's own, or a guest's).</summary>
     private void TickAnimal(WildlifeAnimal animal, float dt, PhysicsDirectSpaceState3D space)
     {
-        CarrierSense sense = new(_carrier, _carrierVelocity, _carrierInput, _sprinting, _carrierFalling, _loadMass);
+        float daylight = _clock?.Daylight ?? 1.0f;
+        CarrierSense sense = new(_carrier, _carrierVelocity, _carrierInput, _sprinting, _carrierFalling, _loadMass,
+            _crouching, GameEvents.CarrierTorchLit, daylight);
         animal.TargetPeer = 0;
         float nearest = animal.GlobalPosition.DistanceSquaredTo(_carrier);
         if (GameEvents.SharedWorldHost)
@@ -163,7 +174,7 @@ public partial class WildlifeSpawner : Node3D
             if (GameEvents.IsDowned || GameEvents.CarrierBleeding)
             {
                 nearest = float.MaxValue;
-                sense = sense with { Velocity = Vector3.Zero, Input = Vector3.Zero, Sprinting = false, Falling = false };
+                sense = sense with { Velocity = Vector3.Zero, Input = Vector3.Zero, Sprinting = false, Falling = false, Crouching = false };
             }
             foreach (NetCarrier other in GameEvents.OtherCarriers)
             {
@@ -172,8 +183,10 @@ public partial class WildlifeSpawner : Node3D
                 {
                     nearest = distance;
                     Vector3 velocity = _guests.TryGetValue(other.Peer, out var guest) ? guest.Velocity : Vector3.Zero;
-                    // A guest's load isn't streamed: it counts as unloaded.
-                    sense = new CarrierSense(other.Feet, velocity, other.InputDirection, other.Sprinting, false, 0.0f);
+                    // A guest's load and crouch aren't streamed: it counts as unloaded and upright
+                    // (a slow crouching walk is still quiet, as noise follows its speed).
+                    sense = new CarrierSense(other.Feet, velocity, other.InputDirection, other.Sprinting, false, 0.0f,
+                        false, other.TorchLit, daylight);
                     animal.TargetPeer = other.Peer;
                 }
             }
@@ -217,7 +230,7 @@ public partial class WildlifeSpawner : Node3D
         foreach (WildlifeAnimal animal in _animals)
         {
             Vector3 offset = animal.GlobalPosition - point;
-            if (new Vector2(offset.X, offset.Z).Length() <= radius)
+            if (!animal.IsDead && new Vector2(offset.X, offset.Z).Length() <= radius)
             {
                 animal.FleeFrom(point);
                 scattered++;
@@ -233,7 +246,7 @@ public partial class WildlifeSpawner : Node3D
         foreach (WildlifeAnimal animal in _animals)
         {
             Vector3 offset = animal.GlobalPosition - point;
-            if (new Vector2(offset.X, offset.Z).Length() <= radius)
+            if (!animal.IsDead && new Vector2(offset.X, offset.Z).Length() <= radius)
             {
                 animal.Startle(point);
                 startled++;
@@ -382,6 +395,8 @@ public partial class WildlifeSpawner : Node3D
         _carrierVelocity = snapshot.Velocity;
         _carrierInput = snapshot.InputDirection;
         _carrierFalling = snapshot.State == LocomotionState.Airborne && snapshot.Velocity.Y < -(Table?.FastSpeed ?? 4.5f);
+        _crouching = snapshot.State == LocomotionState.Braking
+            || (snapshot.State == LocomotionState.Idle && Input.IsActionPressed(CrouchAction));
         _hasCarrier = true;
     }
 

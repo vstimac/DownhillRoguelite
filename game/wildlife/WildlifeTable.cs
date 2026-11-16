@@ -75,6 +75,29 @@ public partial class WildlifeTable : Resource
     [Export] public Vector2 SniffSeconds { get; set; } = new(3.0f, 6.0f);
     /// <summary>A herd follows its members' alarm within this distance, in m.</summary>
     [Export] public float HerdAlarmRadius { get; set; } = 25.0f;
+    /// <summary>Crouching (the brake key) makes the carrier's noise this much (and its figure that much) of a walk's.</summary>
+    [Export] public float CrouchNoise { get; set; } = 0.4f;
+    [Export] public float CrouchSight { get; set; } = 0.55f;
+    /// <summary>At night, without a torch, animals see this share of their range.</summary>
+    [Export] public float NightSight { get; set; } = 0.45f;
+    /// <summary>Head down grazing, drinking or lying, an animal sees this share of its range.</summary>
+    [Export] public float GrazeSight { get; set; } = 0.75f;
+    /// <summary>Suspicion builds this fast at full strength (1 = alerted), per s, and fades this fast with nothing sensed.</summary>
+    [Export] public float SuspicionRate { get; set; } = 2.0f;
+    [Export] public float SuspicionDecay { get; set; } = 0.2f;
+    /// <summary>From this much suspicion an animal lifts its head and freezes (the stealth eye half opens).</summary>
+    [Export] public float SuspiciousLevel { get; set; } = 0.3f;
+    /// <summary>Fleeing prey weave this far off their line, in radians, over this period, in s.</summary>
+    [Export] public float ZigZag { get; set; } = 0.3f;
+    [Export] public float ZigZagPeriod { get; set; } = 1.3f;
+
+    [ExportGroup("Fighting and hunting")]
+    /// <summary>A struck bold animal stays angry this long (s, random in range).</summary>
+    [Export] public Vector2 AngerSeconds { get; set; } = new(12.0f, 18.0f);
+    /// <summary>Seconds between bites or stings.</summary>
+    [Export] public float AttackCooldown { get; set; } = 1.5f;
+    /// <summary>A killed animal lies this long before it is removed, in s.</summary>
+    [Export] public float DeadSeconds { get; set; } = 90.0f;
 
     [ExportGroup("Pushing and shoving")]
     /// <summary>The carrier's body radius, in m (touching = this plus the animal's radius).</summary>

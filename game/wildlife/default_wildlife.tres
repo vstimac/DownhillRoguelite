@@ -50,6 +50,11 @@ HearingRange = 22.0
 AlertSeconds = 2.2
 SafeDistance = 22.0
 HerdSpacing = 2.5
+ViewAngle = 220.0
+Health = 110.0
+DeathClip = "Armature|Death"
+Loot = PackedStringArray("leather_patch")
+LootCount = Vector2i(1, 2)
 CuriousRange = 14.0
 ApproachStop = 3.0
 RestSink = 0.25
@@ -82,6 +87,11 @@ HearingRange = 35.0
 AlertSeconds = 1.6
 SafeDistance = 35.0
 HerdSpacing = 3.0
+ViewAngle = 240.0
+Health = 100.0
+DeathClip = "Armature|Death"
+Loot = PackedStringArray("leather_patch")
+LootCount = Vector2i(1, 2)
 RestSink = 0.22
 
 [sub_resource type="Resource" id="WildlifeSpecies_zebra"]
@@ -112,6 +122,11 @@ HearingRange = 35.0
 AlertSeconds = 1.2
 SafeDistance = 40.0
 HerdSpacing = 2.8
+ViewAngle = 260.0
+Health = 90.0
+DeathClip = "Armature|Death"
+Loot = PackedStringArray("leather_patch")
+LootCount = Vector2i(1, 2)
 RestSink = 0.22
 
 [sub_resource type="Resource" id="WildlifeSpecies_sheep"]
@@ -142,6 +157,9 @@ HearingRange = 25.0
 AlertSeconds = 1.4
 SafeDistance = 26.0
 HerdSpacing = 1.6
+ViewAngle = 260.0
+Loot = PackedStringArray("leather_patch")
+LootCount = Vector2i(1, 1)
 RestSink = 0.25
 
 [sub_resource type="Resource" id="WildlifeSpecies_llama"]
@@ -172,6 +190,10 @@ HearingRange = 30.0
 AlertSeconds = 2.5
 SafeDistance = 25.0
 HerdSpacing = 2.2
+ViewAngle = 240.0
+Health = 70.0
+Loot = PackedStringArray("leather_patch")
+LootCount = Vector2i(1, 1)
 CuriousRange = 16.0
 ApproachStop = 3.0
 RestSink = 0.25
@@ -204,6 +226,10 @@ HearingRange = 18.0
 AlertSeconds = 1.5
 SafeDistance = 12.0
 HerdSpacing = 1.8
+ViewAngle = 160.0
+Health = 70.0
+Loot = PackedStringArray("leather_patch")
+LootCount = Vector2i(1, 1)
 RestSink = 0.3
 
 [sub_resource type="Resource" id="WildlifeSpecies_rat"]
@@ -234,6 +260,8 @@ HearingRange = 16.0
 AlertSeconds = 0.6
 SafeDistance = 15.0
 HerdSpacing = 0.8
+ViewAngle = 200.0
+DeathClip = "RatArmature|Rat_Death"
 
 [sub_resource type="Resource" id="WildlifeSpecies_frog"]
 script = ExtResource("0_species")
@@ -263,6 +291,8 @@ HearingRange = 10.0
 AlertSeconds = 0.5
 SafeDistance = 8.0
 HerdSpacing = 0.8
+ViewAngle = 220.0
+DeathClip = "FrogArmature|Frog_Death"
 
 [sub_resource type="Resource" id="WildlifeSpecies_snake"]
 script = ExtResource("0_species")
@@ -292,6 +322,7 @@ HearingRange = 10.0
 AlertSeconds = 1.0
 SafeDistance = 9.0
 HerdSpacing = 1.0
+ViewAngle = 180.0
 
 [sub_resource type="Resource" id="WildlifeSpecies_spider"]
 script = ExtResource("0_species")
@@ -321,6 +352,10 @@ HearingRange = 12.0
 AlertSeconds = 0.8
 SafeDistance = 12.0
 HerdSpacing = 1.2
+ViewAngle = 200.0
+DeathClip = "SpiderArmature|Spider_Death"
+Loot = PackedStringArray("spider_silk")
+LootCount = Vector2i(1, 1)
 
 [sub_resource type="Resource" id="WildlifeSpecies_wasp"]
 script = ExtResource("0_species")
@@ -344,12 +379,15 @@ Weight = 1.5
 Circles = PackedInt32Array(6)
 Surfaces = PackedStringArray()
 MaxSlope = 60.0
-Temperament = 2
+Temperament = 4
 SightRange = 10.0
 HearingRange = 8.0
 AlertSeconds = 0.6
 SafeDistance = 10.0
 HerdSpacing = 1.0
+ViewAngle = 240.0
+DeathClip = "WaspArmature|Wasp_Death"
+AttackDamage = 4.0
 CuriousRange = 8.0
 ApproachStop = 1.5
 
@@ -381,6 +419,10 @@ HearingRange = 35.0
 AlertSeconds = 1.5
 SafeDistance = 32.0
 HerdSpacing = 2.0
+ViewAngle = 280.0
+Health = 60.0
+Loot = PackedStringArray("leather_patch")
+LootCount = Vector2i(1, 1)
 GrazeClip = "eat"
 
 [sub_resource type="Resource" id="WildlifeSpecies_fox"]
@@ -411,6 +453,7 @@ HearingRange = 30.0
 AlertSeconds = 1.2
 SafeDistance = 22.0
 HerdSpacing = 1.5
+ViewAngle = 220.0
 GrazeClip = "eat"
 
 [sub_resource type="Resource" id="WildlifeSpecies_bunny"]
@@ -441,6 +484,7 @@ HearingRange = 22.0
 AlertSeconds = 0.8
 SafeDistance = 18.0
 HerdSpacing = 1.0
+ViewAngle = 300.0
 GrazeClip = "eat"
 
 [sub_resource type="Resource" id="WildlifeSpecies_penguin"]
@@ -471,6 +515,7 @@ HearingRange = 15.0
 AlertSeconds = 2.0
 SafeDistance = 14.0
 HerdSpacing = 1.0
+ViewAngle = 200.0
 CuriousRange = 12.0
 ApproachStop = 2.5
 GrazeClip = "eat"
@@ -503,6 +548,10 @@ HearingRange = 25.0
 AlertSeconds = 1.5
 SafeDistance = 15.0
 HerdSpacing = 2.5
+ViewAngle = 160.0
+Health = 120.0
+Loot = PackedStringArray("leather_patch")
+LootCount = Vector2i(1, 2)
 GrazeClip = "eat"
 
 [sub_resource type="Resource" id="WildlifeSpecies_cat"]
@@ -533,6 +582,7 @@ HearingRange = 18.0
 AlertSeconds = 1.5
 SafeDistance = 14.0
 HerdSpacing = 1.2
+ViewAngle = 220.0
 CuriousRange = 12.0
 ApproachStop = 2.0
 GrazeClip = "eat"
@@ -565,6 +615,7 @@ HearingRange = 25.0
 AlertSeconds = 1.2
 SafeDistance = 14.0
 HerdSpacing = 1.5
+ViewAngle = 220.0
 CuriousRange = 14.0
 ApproachStop = 2.5
 GrazeClip = "eat"
@@ -597,6 +648,7 @@ HearingRange = 12.0
 AlertSeconds = 0.6
 SafeDistance = 12.0
 HerdSpacing = 0.6
+ViewAngle = 300.0
 GrazeClip = "eat"
 
 [resource]
