@@ -17,6 +17,8 @@ public partial class RemotePlayerPose : SkeletonModifier3D
     public bool PhysicalFall { get; private set; }
     public int Flags { get; private set; }
     public int LastReceivedFlags { get; private set; }
+    /// <summary>Each pose taken in (sequence, flags), as it arrives (tests follow the stream with it).</summary>
+    public event Action<int, int>? Arrived;
     public float[] CurrentPose { get; } = new float[NetPoseCodec.Size];
     public Node3D? SwordVisual => _sword;
     public Node3D? ShieldVisual => _shield;
@@ -52,6 +54,7 @@ public partial class RemotePlayerPose : SkeletonModifier3D
         LastSequence = sequence;
         LastReceivedFlags = flags;
         Received++;
+        Arrived?.Invoke(sequence, flags);
         return true;
     }
 
