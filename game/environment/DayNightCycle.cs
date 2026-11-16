@@ -63,12 +63,13 @@ public partial class DayNightCycle : Node
     /// </summary>
     [Export] public float FarFogDistance { get; set; } = 220.0f;
     /// <summary>
-    /// The fourth round: by day the distance fog never grows past about this density, however thick
-    /// the weather (a soft limit, so thicker weather is still a little thicker). Fog and rain stay
+    /// The fourth round: by day the weather adds at most about this much to the distance fog's
+    /// density, however thick it is (a soft limit, so thicker weather is still a little thicker; a
+    /// clear day is untouched). Fog and rain stay
     /// misty close by, but ridges and spines 60 to 120 m off still show through instead of a white
     /// wall at 30 m. The night's fog is left as it is. 0 turns the limit off.
     /// </summary>
-    [Export] public float DayFogLimit { get; set; } = 0.024f;
+    [Export] public float DayFogLimit { get; set; } = 0.02f;
     /// <summary>
     /// Mist lying in the low ground: below the carrier's own height by ValleyMistDrop m the air
     /// thickens by this much per metre, more so in bad weather, so the valley below fills with mist
@@ -219,11 +220,12 @@ public partial class DayNightCycle : Node
         {
             float ambient = _dayAmbient * (1.0f - OvercastAmbientDimming * Overcast);
             environment.AmbientLightEnergy = Mathf.Lerp(ambient, ambient * Mathf.Lerp(NightAmbient.X, NightAmbient.Y, mild), Darkness);
-            float dayFog = _dayFogDensity + weatherFog;
+            float limitedWeatherFog = weatherFog;
             if (DayFogLimit > 0.0f)
             {
-                dayFog = DayFogLimit * (1.0f - Mathf.Exp(-dayFog / DayFogLimit));
+                limitedWeatherFog = DayFogLimit * (1.0f - Mathf.Exp(-weatherFog / DayFogLimit));
             }
+            float dayFog = _dayFogDensity + limitedWeatherFog;
             float nightFog = Mathf.Lerp(NightFogDensity.X, NightFogDensity.Y, mild) + weatherFog * 0.5f;
             environment.FogDensity = Mathf.Lerp(dayFog, nightFog, Darkness) * MenuFogScale;
             Camera3D? eye = GetViewport()?.GetCamera3D();
