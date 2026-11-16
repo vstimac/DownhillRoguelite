@@ -20,7 +20,8 @@ public partial class WildlifePhysicsTests : Node3D
             DisplayName = "Support test animal",
             BodySize = new Vector3(0.4f, 0.8f, 0.4f),
             FleeDistance = 0.0f,
-            WatchDistance = 0.0f,
+            SightRange = 0.0f,
+            HearingRange = 0.0f,
         };
         WildlifeTable table = new() { WanderInterval = new Vector2(1000.0f, 1000.0f) };
         _animal = new WildlifeAnimal();

@@ -24,6 +24,10 @@ public partial class ItemDefinition : Resource
     [Export] public ItemCategory Category { get; set; } = ItemCategory.Supply;
     /// <summary>Hunger restored when eaten (Food), out of 100.</summary>
     [Export] public float Nutrition { get; set; }
+    /// <summary>Cooked at a station's fire into this item (an item id; empty: it isn't cooked).</summary>
+    [Export] public string CooksInto { get; set; } = "";
+    /// <summary>Whether it can be cooked at a station's fire.</summary>
+    public bool Cookable => CooksInto.Length > 0;
     /// <summary>Thirst restored when drunk (Water), out of 100.</summary>
     [Export] public float Hydration { get; set; }
     /// <summary>Stamina it gives back when used (0: none).</summary>

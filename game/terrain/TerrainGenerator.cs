@@ -22,7 +22,7 @@ namespace DownhillRoguelite.Terrain;
 /// Summit (M12): the run starts on the mountain's highest point. Nothing near the start rises above
 /// a plane falling gently from the summit, and behind it a cliff drops into the abyss.
 /// </summary>
-public sealed class TerrainGenerator
+public sealed partial class TerrainGenerator
 {
     // Salts that give each noise layer its own seed.
     private const ulong BaseSalt = 1;
@@ -54,6 +54,9 @@ public sealed class TerrainGenerator
     private const ulong ClusterSalt = 22;
     // The fourth round's tree lines on the flanks.
     private const ulong FlankTreeSalt = 23;
+    // The fifth round: shrubs in the flanks' gullies, and hedgerows and walls round the fields.
+    private const ulong GullySalt = 24;
+    private const ulong HedgeSalt = 25;
     // 1D noise is read along a line off the lattice (noise is 0 on lattice points).
     private const float LineOffset = 0.5f;
     // Step for slope by finite differences, in m.
@@ -118,6 +121,7 @@ public sealed class TerrainGenerator
         _crags = new GradientNoise(SplitMix64.Mix(seed, CragSalt));
         _valley = new GradientNoise(SplitMix64.Mix(seed, ValleySalt));
         _bare = new GradientNoise(SplitMix64.Mix(seed, BareSalt));
+        _fields = new GradientNoise(SplitMix64.Mix(seed, HedgeSalt));
         _gradeTangent = Mathf.Tan(Mathf.DegToRad(settings.Grade));
         _clearingSlopeTangent = Mathf.Tan(Mathf.DegToRad(settings.ClearingSlope));
         _summitCliffTangent = Mathf.Tan(Mathf.DegToRad(settings.SummitCliffSlope));
@@ -610,7 +614,7 @@ public sealed class TerrainGenerator
         {
             return threshold;
         }
-        return threshold - _settings.SummitSnow * high * (0.3f + 0.7f * FlankRiseAt(x, z));
+        return threshold - _settings.SummitSnow * high * (0.5f + 0.5f * FlankRiseAt(x, z));
     }
 
     /// <summary>
@@ -656,7 +660,8 @@ public sealed class TerrainGenerator
                 continue;
             }
             float wooded = Mathf.Clamp(biome.TreeDensity / 4.0f, 0.45f, 1.2f);
-            if (keep >= grove * wooded * Mathf.Min(rise * 1.5f, 1.0f))
+            float alpine = AlpineAt(z);
+            if (keep >= grove * wooded * Mathf.Min(rise * 1.5f, 1.0f) * (1.0f - _settings.AlpineTreeThin * alpine))
             {
                 continue;
             }
@@ -671,9 +676,9 @@ public sealed class TerrainGenerator
                 continue;
             }
             string model = biome.TreeModels[Mathf.Min((int)(pick * biome.TreeModels.Length), biome.TreeModels.Length - 1)];
-            float height = Mathf.Lerp(biome.TreeHeight.X, biome.TreeHeight.Y, tall);
+            float height = Mathf.Lerp(biome.TreeHeight.X, biome.TreeHeight.Y, tall) * Mathf.Lerp(1.0f, _settings.AlpineTreeHeight, alpine);
             data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground - height * _settings.TreeSink, z), yaw, height,
-                lean * Mathf.DegToRad(biome.TreeLean), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
+                WindLean(lean, biome.TreeLean, alpine), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
             if (biome.ShrubModels.Length > 0 && shrubRoll < 0.5f)
             {
                 float reach = 1.2f + shrubRoll * 3.0f;
@@ -723,7 +728,7 @@ public sealed class TerrainGenerator
         float patches = _bare.Fractal(x / wave, z / wave, 3) * 0.5f + 0.5f;
         float stony = StoninessAt(depth);
         float steep = Mathf.SmoothStep(12.0f, 34.0f, slope);
-        float level = patches + _settings.BareShare * (0.55f + 0.7f * stony) + steep * 0.45f - 0.95f;
+        float level = patches + _settings.BareShare * (0.55f + 0.7f * stony) + steep * 0.45f - 0.95f + _settings.AlpineBare * AlpineAt(z);
         float bare = Mathf.SmoothStep(0.0f, 0.18f, level);
         // Thins out towards the path's edge so the worn band keeps its own clear shape.
         return bare * (1.0f - Mathf.SmoothStep(0.55f, 0.9f, pathWeight));
@@ -737,10 +742,14 @@ public sealed class TerrainGenerator
         return Mathf.RadToDeg(Mathf.Atan(Mathf.Sqrt(dx * dx + dz * dz)));
     }
 
+    /// <summary>
+    /// The ground underfoot (footsteps, grip, prints): Classify's kind, refined by what the ground
+    /// shows there (worn earth, bare patches and gravel; see Footing).
+    /// </summary>
     public TerrainSurface SurfaceAt(float x, float z)
     {
         float weight = PathWeight(x, z, out RouteKind kind);
-        return Classify(x, z, SlopeDegrees(x, z), weight, kind);
+        return Footing(x, z, SlopeDegrees(x, z), weight, kind);
     }
 
     public TerrainSurface Classify(float x, float z, float slope, float spineWeight)
@@ -772,11 +781,12 @@ public sealed class TerrainGenerator
         }
         if (!onPath)
         {
-            if (slope >= _settings.RockSlope)
+            float drop = _settings.AlpineRockDrop * AlpineAt(z);
+            if (slope >= _settings.RockSlope - drop)
             {
                 return TerrainSurface.Rock;
             }
-            if (slope >= _settings.ScreeSlope)
+            if (slope >= _settings.ScreeSlope - drop)
             {
                 if (_scree.Sample(x * scale, z * scale) > -0.1f)
                 {
@@ -784,9 +794,13 @@ public sealed class TerrainGenerator
                 }
                 return TerrainSurface.Rock;
             }
-            if (slope <= _settings.MudMaxSlope && _mud.Sample(x * scale, z * scale) > _settings.MudThreshold)
+            if (slope <= _settings.MudMaxSlope && _mud.Sample(x * scale, z * scale) > _settings.MudThreshold - _settings.WetHollowDrop * BiomeValueAt(z, BiomeWetness))
             {
                 return TerrainSurface.Mud;
+            }
+            if (InScreeFan(x, z, slope))
+            {
+                return TerrainSurface.Scree;
             }
         }
         if (_snow.Sample(x * scale, z * scale) > snowThreshold)
@@ -1004,7 +1018,7 @@ public sealed class TerrainGenerator
         }
         float depth = DepthAt(centre.Y);
         Color tint = Colors.White.Lerp(BiomeTint(depth), 0.6f);
-        float wear = Mathf.SmoothStep(0.9f, 0.99f, pathWeight) * _settings.PathWear;
+        float wear = PathWearAt(pathWeight);
         if (wear > 0.0f)
         {
             float scale = 1.0f / Mathf.Max(_settings.BareWavelength * 0.3f, 1.0f);
@@ -1012,18 +1026,17 @@ public sealed class TerrainGenerator
             Color trodden = new(_settings.PathColour.R * tint.R * mottle, _settings.PathColour.G * tint.G * mottle, _settings.PathColour.B * tint.B * mottle);
             color = color.Lerp(trodden, wear);
             worn.Y = wear;
-            // Gravel shows through the trodden earth in high, stony circles.
-            worn.X = wear * 0.55f * StoninessAt(depth);
         }
         bare = Bareness(centre.X, centre.Z, slope, pathWeight, depth);
         if (bare > 0.0f)
         {
-            float stony = Mathf.Clamp(StoninessAt(depth) + (slope - 20.0f) / 40.0f, 0.0f, 1.0f);
+            float stony = GravelShare(depth, slope);
             Color ground = _settings.BareEarthColour.Lerp(_settings.GravelColour, stony);
             ground = new Color(ground.R * tint.R, ground.G * tint.G, ground.B * tint.B);
             color = color.Lerp(ground, bare * 0.85f);
-            worn.X = Mathf.Max(worn.X, bare * stony);
         }
+        // The stone channel: gravel through a stony path's trodden earth, and gravel patches (Footing reads the same).
+        worn.X = GrassyStone(wear, bare, GravelShare(depth, slope), depth, pathWeight, kind);
         return color;
     }
 
@@ -1043,10 +1056,7 @@ public sealed class TerrainGenerator
         {
             return color;
         }
-        float scale = 1.0f / _settings.SurfaceNoiseWavelength;
-        float snow = _snow.Sample(centre.X * scale, centre.Z * scale);
-        float band = Mathf.Max(_settings.SnowEdgeBand, 0.001f);
-        snowCover = Mathf.Clamp((snow - SnowThresholdAt(centre.X, centre.Z, pathWeight)) / (2.0f * band) + 0.5f, 0.0f, 1.0f);
+        snowCover = SnowCoverAt(centre.X, centre.Z, pathWeight);
         if (surface == TerrainSurface.Snow)
         {
             color = SurfaceColor(beneath, centre.Y, surfaceColors);
@@ -1081,6 +1091,16 @@ public sealed class TerrainGenerator
     /// </summary>
     private void WriteCarpet(byte[] mask, int at, float x, float z, Color ground, float slope, TerrainSurface surface, float pathWeight, float snowCover, float bare)
     {
+        float density = CarpetDensity(x, z, slope, surface, pathWeight, snowCover, bare);
+        mask[at] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.R * 255.0f), 0, 255);
+        mask[at + 1] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.G * 255.0f), 0, 255);
+        mask[at + 2] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.B * 255.0f), 0, 255);
+        mask[at + 3] = (byte)Mathf.Clamp(Mathf.RoundToInt(density * 255.0f), 0, 255);
+    }
+
+    /// <summary>How thick the grass carpet grows at a point (0 none, 1 full); see WriteCarpet.</summary>
+    private float CarpetDensity(float x, float z, float slope, TerrainSurface surface, float pathWeight, float snowCover, float bare)
+    {
         float density = 0.0f;
         if (surface == TerrainSurface.Grass)
         {
@@ -1104,10 +1124,7 @@ public sealed class TerrainGenerator
         {
             density = 0.0f;
         }
-        mask[at] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.R * 255.0f), 0, 255);
-        mask[at + 1] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.G * 255.0f), 0, 255);
-        mask[at + 2] = (byte)Mathf.Clamp(Mathf.RoundToInt(ground.B * 255.0f), 0, 255);
-        mask[at + 3] = (byte)Mathf.Clamp(Mathf.RoundToInt(density * 255.0f), 0, 255);
+        return density;
     }
 
     /// <summary>
@@ -1223,7 +1240,11 @@ public sealed class TerrainGenerator
             int count = low + random.NextInt(Mathf.Max(_settings.ClusterBoulders.Y - low + 1, 1));
             float heroRadius = Mathf.Max(hero.X, hero.Z) * 0.5f;
             bool spire = hero.Y > Mathf.Max(hero.X, hero.Z) * 1.5f;
-            if (TooCloseToPath(x, z, heroRadius + 1.5f) || OnSummitPad(x, z, heroRadius + 2.0f) || NearStation(x, z, _settings.ClearingRadius + heroRadius + 6.0f))
+            // The start stays open: no group within SpawnClearance of where a run begins (the fifth round
+            // set the groups nearer the path, and one beside the start was in a fresh carrier's way).
+            float fromSpawn = new Vector2(x - SpineX(_settings.SpawnZ), z - _settings.SpawnZ).Length();
+            if (TooCloseToPath(x, z, heroRadius + 1.5f) || OnSummitPad(x, z, heroRadius + 2.0f) || NearStation(x, z, _settings.ClearingRadius + heroRadius + 6.0f)
+                || fromSpawn < _settings.SpawnClearance + heroRadius)
             {
                 continue;
             }
@@ -1400,23 +1421,33 @@ public sealed class TerrainGenerator
                 float wave = Mathf.Max(_settings.ForestClusterWavelength, 1);
                 densityFactor = Mathf.Clamp(0.55f + _forestPatches.Sample(x / wave, z / wave) * 1.8f, 0.1f, 1);
             }
-            if (keep * maxTrees >= biome.TreeDensity * densityFactor) { continue; }
-            if (TooCloseToPath(x, z, 2.0f) || NearStation(x, z, _settings.ClearingRadius + _settings.TreeStationGap) || OnSummitPad(x, z, 3.0f) || SlopeDegrees(x, z) > _settings.TreeMaxSlope)
+            float alpine = AlpineAt(z);
+            if (keep * maxTrees >= biome.TreeDensity * densityFactor * (1.0f - _settings.AlpineTreeThin * alpine)) { continue; }
+            if (TooCloseToPath(x, z, 2.0f + _settings.AlpinePathGap * alpine) || NearStation(x, z, _settings.ClearingRadius + _settings.TreeStationGap) || OnSummitPad(x, z, 3.0f) || SlopeDegrees(x, z) > _settings.TreeMaxSlope)
             {
                 continue;
             }
             string model = biome.TreeModels[Mathf.Min((int)(pick * biome.TreeModels.Length), biome.TreeModels.Length - 1)];
             float height = Mathf.Lerp(biome.TreeHeight.X, biome.TreeHeight.Y, tall);
-            if (biome.SaplingShare > 0 && tall < biome.SaplingShare)
+            // The high ground has more young, stunted trees among the old ones.
+            float saplings = biome.SaplingShare > 0 ? Mathf.Min(biome.SaplingShare * (1.0f + _settings.AlpineSaplings * alpine), 0.9f) : 0.0f;
+            if (saplings > 0 && tall < saplings)
             {
-                height = Mathf.Lerp(biome.SaplingHeight.X, biome.SaplingHeight.Y, tall / biome.SaplingShare);
+                height = Mathf.Lerp(biome.SaplingHeight.X, biome.SaplingHeight.Y, tall / saplings);
+            }
+            else
+            {
+                height *= Mathf.Lerp(1.0f, _settings.AlpineTreeHeight, alpine);
             }
             // The trunk sinks a share of its height into the ground, so no root hangs in the air on a slope.
             data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground - height * _settings.TreeSink, z), yaw, height,
-                lean * Mathf.DegToRad(biome.TreeLean), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
+                WindLean(lean, biome.TreeLean, alpine), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
         }
 
         PlaceFlankTrees(data, coord, corner, maxTrees);
+        PlaceGullyShrubs(data, coord, corner);
+        PlaceHedgerows(data, coord, corner);
+        PlaceReeds(data, coord, corner);
 
         // Grass and flowers: a jittered grid at the densest rate, thinned per biome; heights from the grid.
         float density = maxGrass + maxFlowers;
@@ -1919,8 +1950,10 @@ public sealed class TerrainGenerator
         SplitMix64 random = new(SplitMix64.Mix(SplitMix64.Mix(Seed, RoadsideSalt ^ 0x4F55544FUL), ChunkSalt(coord)));
         float size = _settings.ChunkSize;
         float area = size * size / 1000.0f;
-        int tries = Mathf.RoundToInt(_settings.OutcropDensity * area);
-        float slopeLow = _settings.OutcropSlope.X;
+        // The high ground is rockier: more outcrops, on gentler ground too (the fifth round).
+        float alpine = AlpineAt(corner.Z + size * 0.5f);
+        int tries = Mathf.RoundToInt(_settings.OutcropDensity * area * (1.0f + _settings.AlpineOutcrops * alpine));
+        float slopeLow = _settings.OutcropSlope.X * (1.0f - 0.5f * alpine);
         float slopeHigh = _settings.OutcropSlope.Y;
         int stoneLow = Mathf.Max(_settings.OutcropStones.X, 0);
         int stoneHigh = Mathf.Max(_settings.OutcropStones.Y, stoneLow);

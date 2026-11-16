@@ -1049,9 +1049,10 @@ public partial class NetSession : Node
         {
             if (IsInstanceValid(remote) && remote.States > 0)
             {
-                Vector3 input = Vector3.Zero; bool sprinting = false;
-                if (remote.Pose?.Received > 0) { input = NetPoseCodec.Vector(remote.Pose.CurrentPose, 3); sprinting = remote.Pose.CurrentPose[6] > 0.5f; }
-                carriers.Add(new NetCarrier(remote.PeerId, remote.GlobalPosition, remote.Dead || remote.Bleeding || remote.Pose?.PhysicalFall == true, remote.TorchLit, input, sprinting));
+                Vector3 input = Vector3.Zero; bool sprinting = false; int flags = 0;
+                if (remote.Pose?.Received > 0) { input = NetPoseCodec.Vector(remote.Pose.CurrentPose, 3); sprinting = remote.Pose.CurrentPose[6] > 0.5f; flags = remote.Pose.Flags; }
+                carriers.Add(new NetCarrier(remote.PeerId, remote.GlobalPosition, remote.Dead || remote.Bleeding || remote.Pose?.PhysicalFall == true, remote.TorchLit, input, sprinting,
+                    (flags & NetPoseCodec.Crouching) != 0, NetPoseCodec.LoadMass(flags)));
             }
         }
         GameEvents.PublishOtherCarriers(carriers.ToArray());

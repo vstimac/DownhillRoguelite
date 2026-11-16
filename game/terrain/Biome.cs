@@ -47,6 +47,10 @@ public partial class Biome : Resource
     [Export] public float Relief { get; set; } = 1.0f;
     /// <summary>How much bare stone shows instead of grass (0 a green circle, 1 a stony one).</summary>
     [Export(PropertyHint.Range, "0,1")] public float Stoniness { get; set; } = 0.5f;
+    /// <summary>How much of the open ground is split by hedgerows and old field walls (0 none, 1 a farmed valley; the fifth round).</summary>
+    [Export(PropertyHint.Range, "0,1")] public float Hedgerows { get; set; }
+    /// <summary>How wet the low ground is: more boggy hollows with reeds round them (0 as any circle, 1 a wet valley; the fifth round).</summary>
+    [Export(PropertyHint.Range, "0,1")] public float Wetness { get; set; }
 
     [ExportGroup("Ground cover")]
     /// <summary>Bushes and dwarf trees (no collision), per 1000 m², grown in thickets.</summary>

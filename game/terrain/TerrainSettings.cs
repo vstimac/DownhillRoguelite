@@ -138,6 +138,7 @@ public partial class TerrainSettings : Resource
     [Export(PropertyHint.File, "*.tres")] public string GrassPath { get; set; } = "res://terrain/surfaces/grass.tres";
     [Export(PropertyHint.File, "*.tres")] public string SnowPath { get; set; } = "res://terrain/surfaces/snow.tres";
     [Export(PropertyHint.File, "*.tres")] public string MudPath { get; set; } = "res://terrain/surfaces/mud.tres";
+    [Export(PropertyHint.File, "*.tres")] public string DirtPath { get; set; } = "res://terrain/surfaces/dirt.tres";
 
     [ExportGroup("Obstacles")]
     /// <summary>Boulders per 1000 m² of chunk (off the spine).</summary>
@@ -285,20 +286,22 @@ public partial class TerrainSettings : Resource
     [Export] public Color BareEarthColour { get; set; } = new(0.42f, 0.33f, 0.23f);
     [Export] public Color GravelColour { get; set; } = new(0.47f, 0.46f, 0.44f);
     /// <summary>Boulder groups round one big "hero" rock, per 1000 m² (times the circle's Relief).</summary>
-    [Export] public float BoulderClusterDensity { get; set; } = 0.75f;
+    [Export] public float BoulderClusterDensity { get; set; } = 0.8f;
     /// <summary>The hero rock's size range, in m, and the smaller rocks round it (most and least).</summary>
     [Export] public Vector2 HeroBoulderSize { get; set; } = new(3.5f, 7.0f);
     [Export] public Vector2I ClusterBoulders { get; set; } = new(3, 6);
     /// <summary>Share of the groups (and the lone trees) set within sight of the main path, this far from its centre, in m.</summary>
-    [Export(PropertyHint.Range, "0,1")] public float GroupNearPathShare { get; set; } = 0.6f;
-    [Export] public Vector2 GroupSightDistance { get; set; } = new(11.0f, 42.0f);
+    [Export(PropertyHint.Range, "0,1")] public float GroupNearPathShare { get; set; } = 0.75f;
+    /// <summary>No boulder group stands within this many m of where a run begins.</summary>
+    [Export] public float SpawnClearance { get; set; } = 25.0f;
+    [Export] public Vector2 GroupSightDistance { get; set; } = new(11.0f, 30.0f);
     /// <summary>Share of hero rocks that are tall standing spires instead, and their height in m.</summary>
     [Export(PropertyHint.Range, "0,1")] public float SpireShare { get; set; } = 0.3f;
     [Export] public Vector2 SpireHeight { get; set; } = new(6.0f, 11.0f);
     /// <summary>Share of the scattered boulders kept alongside the groups (the rest gather into them).</summary>
     [Export(PropertyHint.Range, "0,1")] public float ScatteredBoulderShare { get; set; } = 0.55f;
     /// <summary>A lone dead tree on open ground, chance per chunk, and its height range in m.</summary>
-    [Export(PropertyHint.Range, "0,1")] public float LoneTreeChance { get; set; } = 0.6f;
+    [Export(PropertyHint.Range, "0,1")] public float LoneTreeChance { get; set; } = 0.8f;
     [Export] public Vector2 LoneTreeHeight { get; set; } = new(9.0f, 14.0f);
 
     [ExportGroup("Flank trees and summit snow (fourth round)")]
@@ -312,6 +315,38 @@ public partial class TerrainSettings : Resource
     [Export] public float SummitSnow { get; set; } = 0.45f;
     /// <summary>Summit snow at full strength above the first depth, gone below the second, in m.</summary>
     [Export] public Vector2 SummitSnowDepth { get; set; } = new(250.0f, 1000.0f);
+
+    [ExportGroup("Landscape character (fifth round)")]
+    /// <summary>The summit's alpine character at full strength above the first depth, gone below the second, in m.</summary>
+    [Export] public Vector2 AlpineDepth { get; set; } = new(200.0f, 800.0f);
+    /// <summary>Share of the trees the high ground loses at full strength (it is sparser up there).</summary>
+    [Export(PropertyHint.Range, "0,1")] public float AlpineTreeThin { get; set; } = 0.5f;
+    /// <summary>Grown trees on the high ground are this much of their usual height (wind-stunted).</summary>
+    [Export(PropertyHint.Range, "0.3,1")] public float AlpineTreeHeight { get; set; } = 0.6f;
+    /// <summary>How far the high ground's trees lean away from the wind, in degrees, and the prevailing wind's direction (x, z; FoliageWind starts from the same).</summary>
+    [Export] public float AlpineTreeLean { get; set; } = 9.0f;
+    [Export] public Vector2 WindDirection { get; set; } = new(0.8f, 0.6f);
+    /// <summary>Extra room the high ground's trees leave either side of the path, in m, so the view down the valley opens.</summary>
+    [Export] public float AlpinePathGap { get; set; } = 7.0f;
+    /// <summary>On the high ground, bare rock and scree begin this many degrees gentler off the paths (exposed rock bands).</summary>
+    [Export] public float AlpineRockDrop { get; set; } = 9.0f;
+    /// <summary>Extra bareness of the high ground's grass (gravel and stones between the tufts).</summary>
+    [Export(PropertyHint.Range, "0,1")] public float AlpineBare { get; set; } = 0.35f;
+    /// <summary>How many more of the high ground's trees are young (1: twice the circle's share).</summary>
+    [Export] public float AlpineSaplings { get; set; } = 1.0f;
+    /// <summary>How many more rock outcrops the high ground has at full strength (1: twice as many).</summary>
+    [Export] public float AlpineOutcrops { get; set; } = 1.5f;
+    /// <summary>Scree fans at the foot of the flanks: how much of the foot they cover (0 none), and their length and width, in m.</summary>
+    [Export(PropertyHint.Range, "0,1")] public float ScreeFanShare { get; set; } = 0.3f;
+    [Export] public Vector2 ScreeFanSize { get; set; } = new(20.0f, 6.0f);
+    /// <summary>Shrub tries per 1000 m² in the gullies between the flanks' ridges.</summary>
+    [Export] public float GullyShrubDensity { get; set; } = 14.0f;
+    /// <summary>Hedgerows and old walls: the size of the fields they enclose, in m, the gap between shrubs along a hedge, and the share that is wall.</summary>
+    [Export] public float FieldWavelength { get; set; } = 52.0f;
+    [Export] public float HedgeSpacing { get; set; } = 2.4f;
+    [Export(PropertyHint.Range, "0,1")] public float WallShare { get; set; } = 0.35f;
+    /// <summary>How much more of the gentle ground turns to bog in a wet circle (on the mud noise's -1..1 scale).</summary>
+    [Export] public float WetHollowDrop { get; set; } = 0.3f;
 
     public static Biome[] DefaultBiomes()
     {
@@ -401,9 +436,9 @@ public partial class TerrainSettings : Resource
         switch (biome.Name)
         {
             case "Limbo": biome.Relief = 1.25f; biome.Stoniness = 0.8f; break;
-            case "Lust": biome.Relief = 1.0f; biome.Stoniness = 0.5f; break;
-            case "Gluttony": biome.Relief = 0.8f; biome.Stoniness = 0.25f; break;
-            case "Greed": biome.Relief = 0.95f; biome.Stoniness = 0.45f; break;
+            case "Lust": biome.Relief = 1.0f; biome.Stoniness = 0.5f; biome.Hedgerows = 0.4f; biome.Wetness = 0.3f; break;
+            case "Gluttony": biome.Relief = 0.8f; biome.Stoniness = 0.25f; biome.Hedgerows = 1.0f; biome.Wetness = 1.0f; break;
+            case "Greed": biome.Relief = 0.95f; biome.Stoniness = 0.45f; biome.Hedgerows = 0.4f; break;
             case "Wrath":
                 biome.Relief = 1.15f; biome.Stoniness = 0.6f;
                 biome.TreeDensity = 4.0f;

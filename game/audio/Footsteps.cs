@@ -7,7 +7,7 @@ namespace DownhillRoguelite.Audio;
 /// <summary>
 /// A footstep each time a foot plants (FootPlacementUpdated), picked by the surface underfoot
 /// (LocomotionUpdated) from audio/footsteps/&lt;surface&gt;_&lt;n&gt;.wav: grass, rock, scree, snow,
-/// mud, wood. Falling snow makes every step crunch like snow (except on wood). Louder with speed,
+/// mud, wood, dirt (bare earth and worn paths). Falling snow makes every step crunch like snow (except on wood). Louder with speed,
 /// a little random in pitch. Sounds come from audio/tools/generate_foley.py.
 /// </summary>
 public partial class Footsteps : Node
@@ -29,7 +29,7 @@ public partial class Footsteps : Node
     /// <summary>Falling snow above this makes steps crunch like snow.</summary>
     [Export] public float SnowCover { get; set; } = 0.5f;
 
-    private static readonly string[] Surfaces = { "grass", "rock", "scree", "snow", "mud", "wood" };
+    private static readonly string[] Surfaces = { "grass", "rock", "scree", "snow", "mud", "wood", "dirt" };
 
     private readonly Dictionary<string, AudioStream[]> _sounds = new();
     private readonly AudioStreamPlayer[] _players = new AudioStreamPlayer[3];

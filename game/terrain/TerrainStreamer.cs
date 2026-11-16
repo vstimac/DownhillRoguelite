@@ -76,10 +76,14 @@ public partial class TerrainStreamer : Node3D
     /// <summary>Small bumps that catch the light.</summary>
     [Export] public float BumpScale { get; set; } = 0.35f;
     [Export] public float BumpStrength { get; set; } = 0.9f;
-    /// <summary>Steep ground turns rocky (from slope RockStart to RockEnd, as 1 - normal.y) and darker.</summary>
+    /// <summary>
+    /// Steep ground turns rocky (from slope RockStart to RockEnd, as 1 - normal.y) and darker. Set so
+    /// the rock look begins at TerrainSettings.ScreeSlope (28°) and is half way at RockSlope (38°):
+    /// what looks like rock is what sounds and grips like rock (TerrainTests checks they agree).
+    /// </summary>
     [Export] public Color RockColor { get; set; } = new(0.27f, 0.26f, 0.25f);
-    [Export] public float RockStart { get; set; } = 0.14f;
-    [Export] public float RockEnd { get; set; } = 0.38f;
+    [Export] public float RockStart { get; set; } = 0.117f;
+    [Export] public float RockEnd { get; set; } = 0.307f;
     [Export] public float RockAmount { get; set; } = 0.85f;
     [Export] public float SlopeDarkening { get; set; } = 0.36f;
     [Export] public int NoiseSize { get; set; } = 256;
@@ -488,6 +492,7 @@ public partial class TerrainStreamer : Node3D
         _surfaces[(int)TerrainSurface.Grass] = LoadSurface(Settings.GrassPath);
         _surfaces[(int)TerrainSurface.Snow] = LoadSurface(Settings.SnowPath);
         _surfaces[(int)TerrainSurface.Mud] = LoadSurface(Settings.MudPath);
+        _surfaces[(int)TerrainSurface.Dirt] = LoadSurface(Settings.DirtPath);
         _boulderSurface = LoadSurface(Settings.BoulderSurfacePath);
         _trunkSurface = LoadSurface(Settings.TrunkSurfacePath);
 

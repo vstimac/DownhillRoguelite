@@ -10,7 +10,7 @@ namespace DownhillRoguelite.Debug;
 /// <summary>
 /// Headless checks for M5: the same seed gives the same mountain, the spine stays walkable and
 /// clear of obstacles for 2 km, collision matches the generated heights, terrain reports its
-/// surfaces, and a scripted walk follows the spine 300 m down while chunk streaming stays bounded.
+/// surfaces (and they match the ground's look), and a scripted walk follows the spine 300 m down while chunk streaming stays bounded.
 /// Run: godot --headless --path . --fixed-fps 60 res://debug/tests/TerrainTests.tscn
 /// </summary>
 public partial class TerrainTests : Node3D
@@ -55,6 +55,7 @@ public partial class TerrainTests : Node3D
         TestDeterminism(Streamer.Settings);
         TestSpine(Streamer.Generator);
         TestObstacleClearance(Streamer.Generator);
+        TestFootingMatchesLook(Streamer.Generator, Streamer);
 
         PlayerBody.Teleport(Streamer.SpawnPoint + Vector3.Up * 0.1f, 0.0f);
         PlayerBody.Health?.Refill();
@@ -104,6 +105,132 @@ public partial class TerrainTests : Node3D
             sameObstacles = first.Obstacles[i] == second.Obstacles[i];
         }
         Check("same seed, same obstacles", sameObstacles && first.Obstacles.Count > 0, $"{first.Obstacles.Count} obstacles in the sample chunk");
+    }
+
+    /// <summary>
+    /// What the player hears and grips is what they see. In every circle, builds chunks across the
+    /// valley (the path and both flanks) and, at each grid point, reads what the ground shader draws
+    /// from the chunk's own vertex data: snow (colour alpha), stone (the stone channel UV.x and the
+    /// slope's rock look), the grass carpet (its mask), or bare soil. The footing there must agree:
+    /// Snow, Rock or Scree, Grass, Dirt or Mud. Also checks the shader's rock look starts at
+    /// ScreeSlope and is half way at RockSlope, and that SurfaceAt (which measures the slope its own
+    /// way) mostly agrees. Guests compute the same footing from the same seed (see TestDeterminism).
+    /// </summary>
+    private void TestFootingMatchesLook(TerrainGenerator generator, TerrainStreamer streamer)
+    {
+        TerrainSettings settings = generator.Settings;
+        float screeSteep = 1.0f - Mathf.Cos(Mathf.DegToRad(settings.ScreeSlope));
+        float rockSteep = 1.0f - Mathf.Cos(Mathf.DegToRad(settings.RockSlope));
+        float middle = (streamer.RockStart + streamer.RockEnd) * 0.5f;
+        Check("the rock look starts at ScreeSlope and is half way at RockSlope",
+            Mathf.Abs(streamer.RockStart - screeSteep) < 0.005f && Mathf.Abs(middle - rockSteep) < 0.005f,
+            $"rock look {streamer.RockStart:0.000}..{streamer.RockEnd:0.000}, scree from {screeSteep:0.000}, rock from {rockSteep:0.000} (as 1 - normal.y)");
+
+        Color[] palette = new Color[System.Enum.GetValues<TerrainSurface>().Length];
+        System.Array.Fill(palette, new Color(0.5f, 0.5f, 0.5f));
+        string[] names = { "snow", "stone", "grass", "soil" };
+        int[] seen = new int[names.Length];
+        int[] footings = new int[palette.Length];
+        Dictionary<string, int> mismatches = new();
+        int worstCircle = -1;
+        float worstShare = 2.0f;
+        int total = 0;
+        int agreed = 0;
+        int surfaceAgreed = 0;
+        string detail = "";
+        float z = settings.SpawnZ - 20.0f;
+        for (int circle = 0; circle < settings.Biomes.Length; circle++)
+        {
+            float depth = settings.Biomes[circle].FromDepth + 300.0f;
+            while (generator.DepthAt(generator.Height(generator.SpineX(z), z)) < depth && z > -80000.0f)
+            {
+                z -= 10.0f;
+            }
+            Vector2I centre = generator.ChunkAt(generator.SpineX(z), z);
+            int circleTotal = 0;
+            int circleAgreed = 0;
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                TerrainChunkData data = generator.BuildChunk(centre + new Vector2I(dx, 0), palette, 0);
+                if (data.Wear.Length != data.Vertices.Length || data.CarpetMask.Length != data.Vertices.Length * 4)
+                {
+                    Check("footing matches the ground's look", false, "chunks are not smooth-shaded, so their vertex data can't be read");
+                    return;
+                }
+                Vector3 corner = generator.ChunkCorner(data.Coord);
+                for (int i = 0; i < data.Vertices.Length; i++)
+                {
+                    float x = corner.X + data.Vertices[i].X;
+                    float pz = corner.Z + data.Vertices[i].Z;
+                    Vector3 normal = data.Normals[i];
+                    float slope = Mathf.RadToDeg(normal.AngleTo(Vector3.Up));
+                    float steep = 1.0f - Mathf.Clamp(normal.Y, 0.0f, 1.0f);
+                    // Stone: the stone texture past half (UV.x), or the slope's rock look past half way.
+                    bool stoneLook = Mathf.SmoothStep(streamer.RockStart, streamer.RockEnd, steep) >= 0.5f
+                        || Mathf.Clamp(data.Wear[i].X, 0.0f, 1.0f) * TerrainGenerator.StoneShow >= 0.5f;
+                    int look = 1.0f - data.Colors[i].A >= 0.5f ? 0 : stoneLook ? 1 : data.CarpetMask[i * 4 + 3] >= 128 ? 2 : 3;
+                    float pathWeight = generator.PathWeight(x, pz, out RouteKind kind);
+                    TerrainSurface footing = generator.Footing(x, pz, slope, pathWeight, kind);
+                    bool match = look switch
+                    {
+                        0 => footing == TerrainSurface.Snow,
+                        1 => footing == TerrainSurface.Rock || footing == TerrainSurface.Scree,
+                        2 => footing == TerrainSurface.Grass,
+                        _ => footing == TerrainSurface.Dirt || footing == TerrainSurface.Mud,
+                    };
+                    seen[look]++;
+                    footings[(int)footing]++;
+                    circleTotal++;
+                    if (match)
+                    {
+                        circleAgreed++;
+                    }
+                    else
+                    {
+                        string key = $"{names[look]} as {footing} ({settings.Biomes[circle].Name})";
+                        mismatches[key] = mismatches.GetValueOrDefault(key) + 1;
+                    }
+                    if (generator.SurfaceAt(x, pz) == footing)
+                    {
+                        surfaceAgreed++;
+                    }
+                }
+            }
+            total += circleTotal;
+            agreed += circleAgreed;
+            float share = circleTotal > 0 ? (float)circleAgreed / circleTotal : 0.0f;
+            if (share < worstShare)
+            {
+                worstShare = share;
+                worstCircle = circle;
+            }
+        }
+        for (int k = 0; k < names.Length; k++)
+        {
+            detail += $"{names[k]} {seen[k]}, ";
+        }
+        string footingText = "";
+        foreach (TerrainSurface surface in System.Enum.GetValues<TerrainSurface>())
+        {
+            footingText += $"{surface} {footings[(int)surface]}, ";
+        }
+        string missed = "";
+        foreach (KeyValuePair<string, int> pair in mismatches)
+        {
+            if (pair.Value * 50 >= total - agreed)
+            {
+                missed += $"{pair.Key} {pair.Value}, ";
+            }
+        }
+        if (missed.Length > 0)
+        {
+            detail = "mismatched: " + missed + detail;
+        }
+        string worstName = worstCircle >= 0 ? settings.Biomes[worstCircle].Name : "none";
+        Check("footing matches the ground's look in every circle", total > 0 && worstShare >= 0.995f && footings[(int)TerrainSurface.Dirt] > 0,
+            $"{agreed} of {total} points agree, worst {worstName} {worstShare * 100.0f:0.0}%; looks: {detail}footing: {footingText.TrimEnd(',', ' ')}");
+        float surfaceShare = total > 0 ? (float)surfaceAgreed / total : 0.0f;
+        Check("SurfaceAt (its own slope) mostly agrees with the footing", surfaceShare >= 0.9f, $"{surfaceShare * 100.0f:0.0}% of {total} points");
     }
 
     /// <summary>Walks the spine for SpineCheckLength: its ground slope and its tilt across the path stay walkable.</summary>
