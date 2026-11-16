@@ -27,6 +27,8 @@ public partial class EnvironmentShots : Node3D
     [Export] public int TimedFrames { get; set; } = 150;
 
     private SubViewport? _view;
+    /// <summary>Key, button and stick events that reached the game during a spot (they must not move the carrier).</summary>
+    private int _inputEvents;
 
     public override async void _Ready()
     {
@@ -56,6 +58,12 @@ public partial class EnvironmentShots : Node3D
         RunState run = GetNode<RunState>("/root/RunState");
         WorldClock? clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
         await Seconds(2.0f);
+        // Nobody plays during the shots: no key, stick or button may move, lean or throw the carrier.
+        player.InputEnabled = false;
+        foreach (Node node in player.FindChildren("*", "", true, false))
+        {
+            if (node is DownhillRoguelite.Balance.BalanceController balance) { balance.InputEnabled = false; }
+        }
         HideOverlays(GetTree().Root);
         DebugDraw3D.SetEnabled(false);
         // The shot camera renders the same world through a viewport of its own, so no HUD or debug
@@ -110,13 +118,16 @@ public partial class EnvironmentShots : Node3D
             }
             TerrainStreamer.Loading = false;
             await Seconds(SettleSeconds);
+            Vector3 standing = player.GlobalPosition;
+            _inputEvents = 0;
             Vector3 ahead = route.RoutePoint(z - 30.0f);
             Vector3 eye = route.RoutePoint(z + 6.0f) + Vector3.Up * 2.2f;
             await Shoot(camera, eye, ahead + Vector3.Up * 0.8f, Path.Combine(directory, $"{index:D2}_depth{depth:0}_path.png"));
             Vector3 side = new(at.X + 30.0f, generator.Height(at.X + 30.0f, z - 12.0f) + 0.5f, z - 12.0f);
             Vector3 sideEye = new(at.X - 6.0f, at.Y + 2.4f, z + 4.0f);
             await Shoot(camera, sideEye, side, Path.Combine(directory, $"{index:D2}_depth{depth:0}_side.png"));
-            GD.Print($"SHOT depth {depth:0} at {at}, loaded {streamer.LoadedCount}, waited {waited:0.0}s, biome {generator.BiomeAt(at.X, at.Z, depth)?.Name}");
+            float moved = (player.GlobalPosition - standing).Length();
+            GD.Print($"SHOT depth {depth:0} at {at}, loaded {streamer.LoadedCount}, waited {waited:0.0}s, biome {generator.BiomeAt(at.X, at.Z, depth)?.Name}, carrier moved {moved:0.00} m{(GameEvents.IsDowned ? ", DOWN" : "")} ({_inputEvents} input events ignored)");
             foreach (Node node in GetTree().Root.FindChildren("*", "Node3D", true, false))
             {
                 if (node is DownhillRoguelite.Environment.Fog.GroundFog fog) { GD.Print("FOG depth " + depth.ToString("0", CultureInfo.InvariantCulture) + ": " + fog.Stats().Replace('\n', '|')); }
@@ -133,6 +144,11 @@ public partial class EnvironmentShots : Node3D
         }
         GD.Print("PASS  environment shots saved in " + directory);
         GetTree().Quit(0);
+    }
+
+    public override void _Input(InputEvent @event)
+    {
+        if (@event is not InputEventMouseMotion) { _inputEvents++; }
     }
 
     /// <summary>Average frame time over TimedFrames, uncapped, in ms.</summary>

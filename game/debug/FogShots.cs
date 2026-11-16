@@ -43,6 +43,12 @@ public partial class FogShots : Node3D
         RunState run = GetNode<RunState>("/root/RunState");
         WorldClock? clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
         await Seconds(2.0f);
+        // Nobody plays during the shots: no key, stick or button may move, lean or throw the carrier.
+        player.InputEnabled = false;
+        foreach (Node node in player.FindChildren("*", "", true, false))
+        {
+            if (node is DownhillRoguelite.Balance.BalanceController balance) { balance.InputEnabled = false; }
+        }
         HideOverlays(GetTree().Root);
         Camera3D camera = new() { Name = "ShotCamera", Fov = 70.0f, Far = 1000.0f };
         AddChild(camera);
