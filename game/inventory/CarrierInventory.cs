@@ -904,11 +904,25 @@ public partial class CarrierInventory : Node
 
     /// <summary>Said instead of using up medicine when the carrier isn't hurt.</summary>
     [Export] public string UnhurtHint { get; set; } = "You aren't hurt: it stays in the pack.";
+    /// <summary>Said instead of using up medicine while down and bleeding out in co-op (it couldn't stop the bleeding).</summary>
+    [Export] public string BleedingHint { get; set; } = "You're down: a friend has to help you up before medicine can help.";
 
-    /// <summary>False (with a hint) for medicine an unhurt carrier would only waste; true for everything else.</summary>
+    /// <summary>
+    /// False (with a hint) for medicine an unhurt carrier would only waste, or one down and bleeding
+    /// out in co-op (only a friend's help stops that; the kit would be used up for nothing); true for everything else.
+    /// </summary>
     private bool WorthUsing(ItemDefinition item)
     {
-        if (!item.OnlyHeals || GameEvents.HealthMissing > 0.0f)
+        if (!item.OnlyHeals)
+        {
+            return true;
+        }
+        if (GameEvents.CarrierBleeding)
+        {
+            GameEvents.PublishHint(BleedingHint);
+            return false;
+        }
+        if (GameEvents.HealthMissing > 0.0f)
         {
             return true;
         }
