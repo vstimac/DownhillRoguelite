@@ -40,7 +40,7 @@ public partial class ExpeditionCard : CanvasLayer
     public override void _Process(double delta)
     {
         if (_card == null || _title == null || _body == null || _progress == null || _distance == null) { return; }
-        _card.Visible = _note != null && !GetTree().Paused && !GameEvents.IsScreenOpen && !GameEvents.IsMapOpen && !GameEvents.IsPacking;
+        _card.Visible = _note != null && !GetTree().Paused && !GameEvents.MenuOpen && !GameEvents.IsScreenOpen && !GameEvents.IsMapOpen && !GameEvents.IsPacking;
         if (!_card.Visible || _note is not ExpeditionNote note) { return; }
         Vector2 screen = GetViewport().GetVisibleRect().Size;
         float scale = Mathf.Clamp(GameOptions.UiScale, 0.75f, 1.5f);

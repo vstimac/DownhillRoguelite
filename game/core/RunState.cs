@@ -362,7 +362,7 @@ public partial class RunState : Node
 
     public bool TryUseCharacterAbility()
     {
-        if (RunOver || GetTree().Paused || GameEvents.IsDowned || GameEvents.IsPacking || GameEvents.IsConversing || !Character.Activate()) { return false; }
+        if (RunOver || GetTree().Paused || GameEvents.MenuOpen || GameEvents.IsDowned || GameEvents.IsPacking || GameEvents.IsConversing || !Character.Activate()) { return false; }
         CharacterAbilityActivated?.Invoke(Character.Stats);
         // A stamina ability says how much it gave back itself (player/CharacterAbility).
         if (Character.Stats.RestoreStaminaFraction <= 0) { GameEvents.PublishHint(Character.Stats.AbilityName + " activated."); }

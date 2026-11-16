@@ -302,7 +302,7 @@ public partial class EnemyDirector : Node3D
         {
             return;
         }
-        if (GetTree().Paused || (GameEvents.IsScreenOpen && !Ui.UiLayoutEditor.OnlyAltEditing) || GameEvents.IsConversing || Species.Length == 0 || !_hasCarrier)
+        if (GetTree().Paused || GameEvents.MenuOpen || (GameEvents.IsScreenOpen && !Ui.UiLayoutEditor.OnlyAltEditing) || GameEvents.IsConversing || Species.Length == 0 || !_hasCarrier)
         {
             return;
         }

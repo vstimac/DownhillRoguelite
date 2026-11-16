@@ -157,7 +157,7 @@ public partial class NetRevive : Node
     {
         RemoteCarrier? target = null;
         PlayerController? player = Session!.LocalPlayer();
-        if (player != null && !Session.LocalDead && _downPeers.Count > 0 && Input.IsActionPressed(ActionInteract))
+        if (player != null && !Session.LocalDead && !Session.ControlsLocked && _downPeers.Count > 0 && Input.IsActionPressed(ActionInteract))
         {
             float best = Reach;
             foreach (long peer in _downPeers)

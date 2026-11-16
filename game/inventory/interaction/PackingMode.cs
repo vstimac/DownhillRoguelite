@@ -79,7 +79,7 @@ public partial class PackingMode : Node3D
     }
 
     /// <summary>True while the pause menu or title screen holds the game (not the pages' own freeze).</summary>
-    private bool MenuPaused => GetTree().Paused && !GameEvents.PagesFrozen;
+    private bool MenuPaused => (GetTree().Paused && !GameEvents.PagesFrozen) || GameEvents.MenuOpen;
 
     public override void _Input(InputEvent @event)
     {

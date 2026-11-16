@@ -155,7 +155,7 @@ public partial class Dive : Node3D
         {
             _offGround += dt;
         }
-        if (Input.IsActionJustPressed(ActionDive))
+        if (Body.InputEnabled && Input.IsActionJustPressed(ActionDive))
         {
             _pressed = PressBuffer;
         }

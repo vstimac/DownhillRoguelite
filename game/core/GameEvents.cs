@@ -360,6 +360,14 @@ public static partial class GameEvents
 
     public static void PublishPagesFrozen(bool frozen) => PagesFrozen = frozen;
 
+    /// <summary>
+    /// True while the pause menu is up. In single player the world is stopped then too; in co-op it
+    /// keeps running (the others play on), so everything that waits for the menu checks this, not only a stopped tree.
+    /// </summary>
+    public static bool MenuOpen { get; private set; }
+
+    public static void PublishMenuOpen(bool open) => MenuOpen = open;
+
     /// <summary>Asks for the run to be saved now (quitting from the pause menu).</summary>
     public static event Action? SaveRequested;
 
@@ -507,6 +515,7 @@ public static partial class GameEvents
     public static void ForgetSceneState()
     {
         Focused = null;
+        MenuOpen = false;
         IsPacking = false;
         IsDowned = false;
         InShelter = false;

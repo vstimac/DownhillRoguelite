@@ -1513,6 +1513,9 @@ public partial class NetSession : Node
     /// Stops (or frees) the local carrier's walking and leaning for a reason (the chat line, being
     /// down); it moves again only when no reason is left.
     /// </summary>
+    /// <summary>Something holds the carrier's controls (the chat, being down, the pause menu in co-op).</summary>
+    public bool ControlsLocked => _controlLocks.Count > 0;
+
     public void LockControls(string reason, bool locked)
     {
         if (locked)

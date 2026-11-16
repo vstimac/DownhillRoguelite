@@ -10,6 +10,11 @@ namespace DownhillRoguelite.WorldUi;
 /// during a run: Resume, Options (the same tabbed sheet as the main menu: volumes, video, controls
 /// reference and the rest) and Quit, styled like the start screen. It exists only while the run is
 /// stopped, so the "no flat UI during runs" rule holds.
+///
+/// Co-op (GameEvents.SharedWorldActive) can't stop the world: the others play on in it, and a stopped
+/// host would freeze its creatures and its carrier for everyone. There the menu opens over the running
+/// world, the carrier stands still with its controls locked (as while chatting), and the game's keys
+/// (hotbar, pack, map, chat...) are held back until the menu closes (GameEvents.MenuOpen).
 /// </summary>
 public partial class PauseMenu : CanvasLayer
 {
@@ -39,6 +44,9 @@ public partial class PauseMenu : CanvasLayer
     private AudioStreamPlayer? _click;
     private AudioStream? _openSound;
     private AudioStream? _closeSound;
+    /// <summary>Opened in co-op: the world runs on and the carrier's controls are locked instead.</summary>
+    private bool _heldInCoop;
+    private const string ControlLock = "menu";
 
     public override void _Ready()
     {
@@ -86,6 +94,22 @@ public partial class PauseMenu : CanvasLayer
         }
     }
 
+    /// <summary>
+    /// Co-op, menu open: the keys the menu didn't use (after its buttons and fields had them) stop here,
+    /// so the hotbar, the pack, the map or the chat don't act behind it. Esc and Back go on to close it.
+    /// </summary>
+    public override void _ShortcutInput(InputEvent @event)
+    {
+        if (!Visible || !_heldInCoop || @event.IsAction(ActionPause) || @event.IsAction("ui_cancel"))
+        {
+            return;
+        }
+        if (@event is InputEventKey || @event is InputEventJoypadButton)
+        {
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
     public void Toggle()
     {
         if (Visible)
@@ -118,6 +142,7 @@ public partial class PauseMenu : CanvasLayer
 
     public override void _ExitTree()
     {
+        Release();
         if (_click != null)
         {
             _click.Stop();
@@ -135,7 +160,20 @@ public partial class PauseMenu : CanvasLayer
     {
         Sound(_openSound);
         Visible = true;
-        GetTree().Paused = true;
+        if (GameEvents.SharedWorldActive)
+        {
+            // Co-op: the world runs on; the carrier stands still.
+            if (!_heldInCoop)
+            {
+                _heldInCoop = true;
+                Network.NetSession.Instance?.LockControls(ControlLock, true);
+            }
+        }
+        else
+        {
+            GetTree().Paused = true;
+        }
+        GameEvents.PublishMenuOpen(true);
         Input.MouseMode = Input.MouseModeEnum.Visible;
         ShowMenu();
         if (_root != null)
@@ -153,6 +191,7 @@ public partial class PauseMenu : CanvasLayer
         _options?.SetOpenNow(false);
         _achievements?.SetOpenNow(false);
         GetViewport().GuiReleaseFocus();
+        Release();
         GetTree().Paused = false;
         if (!GameEvents.IsPacking)
         {
@@ -160,7 +199,17 @@ public partial class PauseMenu : CanvasLayer
         }
     }
 
-    /// <summary>The menu's first page: the entries, Resume focused.</summary>
+    /// <summary>The co-op hold ends: the carrier's controls come back (whatever else holds them stays).</summary>
+    private void Release()
+    {
+        if (_heldInCoop)
+        {
+            _heldInCoop = false;
+            Network.NetSession.Instance?.LockControls(ControlLock, false);
+        }
+        GameEvents.PublishMenuOpen(false);
+    }
+
     /// <summary>
     /// Saves the run and goes back to the title screen without closing the game: the scene is loaded
     /// afresh (the title screen is part of it), and the run waits under Continue and Saved runs.
@@ -168,6 +217,8 @@ public partial class PauseMenu : CanvasLayer
     public void ReturnToMenu()
     {
         GameEvents.RequestSave();
+        // The co-op hold goes before the session does (its lock would otherwise outlive this run).
+        Release();
         Network.NetSession.Instance?.Leave();
         StartScreen.ReturnedFromRun = true;
         GD.Print("PauseMenu: back to the main menu (run saved: " + RunSave.Exists + ")");
@@ -176,6 +227,7 @@ public partial class PauseMenu : CanvasLayer
         GetTree().ReloadCurrentScene();
     }
 
+    /// <summary>The menu's first page: the entries, Resume focused.</summary>
     public void ShowMenu()
     {
         if (_options != null)
@@ -272,6 +324,8 @@ public partial class PauseMenu : CanvasLayer
         AddItem("Save and quit", () =>
         {
             GameEvents.RequestSave();
+            Release();
+            Network.NetSession.Instance?.Leave();
             GetTree().Quit();
         });
         _tips = UiStyle.MakeLabel(TipsText, UiStyle.SmallSize, false, UiStyle.PaperDark);
