@@ -9,7 +9,8 @@ namespace DownhillRoguelite.Terrain;
 /// earth on a path, to bare earth or gravel in patches, and the grass carpet thins. Footing reads
 /// the same numbers the look is built from, so footsteps, grip and prints follow what is shown:
 /// grass where the carpet grows, gravel (Scree) where the stone texture shows, bare earth (Dirt)
-/// elsewhere. Snow, mud, scree and rock are as Classify says. A firm path never turns to gravel.
+/// elsewhere. Snow, mud, scree and rock are as Classify says, except that a path's band steeper than
+/// RockSlope (where the ground shader's rock look is past half way) is rock. A firm path never turns to gravel.
 /// </summary>
 public sealed partial class TerrainGenerator
 {
@@ -25,7 +26,16 @@ public sealed partial class TerrainGenerator
     public TerrainSurface Footing(float x, float z, float slope, float pathWeight, RouteKind kind)
     {
         TerrainSurface surface = Classify(x, z, slope, pathWeight, kind);
-        if (surface != TerrainSurface.Grass)
+        if (surface != TerrainSurface.Grass && surface != TerrainSurface.Mud)
+        {
+            return surface;
+        }
+        // A path's band (Classify keeps paths soft at any slope) this steep shows bare rock.
+        if (slope >= _settings.RockSlope)
+        {
+            return TerrainSurface.Rock;
+        }
+        if (surface == TerrainSurface.Mud)
         {
             return surface;
         }

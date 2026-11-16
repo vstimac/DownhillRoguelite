@@ -29,9 +29,9 @@ public partial class EnvironmentCounts : Node
         // The fifth round's features off, and its nearer rare things back as the fourth round had them.
         TerrainSettings before = new()
         {
-            AlpineTreeThin = 0.0f, AlpineTreeHeight = 1.0f, AlpineTreeLean = 0.0f, AlpinePathGap = 0.0f, AlpineRockDrop = 0.0f, AlpineBare = 0.0f, AlpineOutcrops = 0.0f,
+            AlpineTreeThin = 0.0f, AlpineTreeHeight = 1.0f, AlpineTreeLean = 0.0f, AlpinePathGap = 0.0f, AlpineRockDrop = 0.0f, AlpineBare = 0.0f, AlpineSaplings = 0.0f, AlpineOutcrops = 0.0f,
             ScreeFanShare = 0.0f, GullyShrubDensity = 0.0f, FieldWavelength = 0.0f, WetHollowDrop = 0.0f,
-            GroupNearPathShare = 0.6f, GroupSightDistance = new Vector2(11.0f, 42.0f), LoneTreeChance = 0.6f,
+            GroupNearPathShare = 0.6f, GroupSightDistance = new Vector2(11.0f, 42.0f), LoneTreeChance = 0.6f, BoulderClusterDensity = 0.75f,
         };
         TerrainGenerator withRound = new(now, seed);
         TerrainGenerator withoutRound = new(before, seed);
@@ -80,7 +80,7 @@ public partial class EnvironmentCounts : Node
                 {
                     if (obstacle.Kind == ObstacleKind.Boulder) { boulders++; } else { trunks++; }
                     if (obstacle.Kind == ObstacleKind.Boulder && Mathf.Max(obstacle.Size.X, obstacle.Size.Y) >= 3.5f
-                        && generator.NearestPathDistance(obstacle.Position.X, obstacle.Position.Z) < 40.0f) { heroesNear++; }
+                        && generator.NearestPathDistance(obstacle.Position.X, obstacle.Position.Z) < 25.0f) { heroesNear++; }
                 }
             }
         }
@@ -102,6 +102,6 @@ public partial class EnvironmentCounts : Node
         }
         float share = flank > 0 ? 100.0f / flank : 0.0f;
         return string.Create(CultureInfo.InvariantCulture,
-            $"trees {trees} ({flankTrees} on the flanks, mean {(trees > 0 ? treeHeight / trees : 0):0.0} m), shrubs {shrubs}, rocks {rocks}, walls {walls}, boulders {boulders} ({heroesNear} big within 40 m of a path), logs {trunks}, high flanks {snowy * share:0}% snow {rocky * share:0}% rock/scree, flank foot {(foot > 0 ? 100.0f * footScree / foot : 0):0}% scree, valley floor {(open > 0 ? 100.0f * boggy / open : 0):0}% bog, slowest chunk {worst:0.0} ms");
+            $"trees {trees} ({flankTrees} on the flanks, mean {(trees > 0 ? treeHeight / trees : 0):0.0} m), shrubs {shrubs}, rocks {rocks}, walls {walls}, boulders {boulders} ({heroesNear} big within 25 m of a path), logs {trunks}, high flanks {snowy * share:0}% snow {rocky * share:0}% rock/scree, flank foot {(foot > 0 ? 100.0f * footScree / foot : 0):0}% scree, valley floor {(open > 0 ? 100.0f * boggy / open : 0):0}% bog, slowest chunk {worst:0.0} ms");
     }
 }

@@ -137,7 +137,7 @@ public partial class ForestTerrainTests : Node3D
         }
         Check("every selected plant and detail model loads", assets && loaded.Count >= 6, loaded.Count + " shared meshes");
         Check("trees, grass and pebbles fit explicit metre ranges and roots stay on the ground", fits && trees > saplings && saplings > 0 && grass > 0 && stones > 0,
-            trees + " trees, " + grass + " grass tufts, " + stones + " stones");
+            trees + " trees (" + saplings + " young), " + grass + " grass tufts, " + stones + " stones" + (fits ? "" : ", a plant out of its range"));
         Check("ground detail count is bounded independently of world length", stones <= 4096 && data.Plants.Count < 5000);
     }
 

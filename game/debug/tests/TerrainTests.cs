@@ -131,8 +131,9 @@ public partial class TerrainTests : Node3D
         string[] names = { "snow", "stone", "grass", "soil" };
         int[] seen = new int[names.Length];
         int[] footings = new int[palette.Length];
+        Dictionary<string, int> mismatches = new();
         int worstCircle = -1;
-        float worstShare = 1.0f;
+        float worstShare = 2.0f;
         int total = 0;
         int agreed = 0;
         int surfaceAgreed = 0;
@@ -164,9 +165,10 @@ public partial class TerrainTests : Node3D
                     Vector3 normal = data.Normals[i];
                     float slope = Mathf.RadToDeg(normal.AngleTo(Vector3.Up));
                     float steep = 1.0f - Mathf.Clamp(normal.Y, 0.0f, 1.0f);
-                    float stoneLook = Mathf.Max(Mathf.SmoothStep(streamer.RockStart, streamer.RockEnd, steep) * streamer.RockAmount,
-                        Mathf.Clamp(data.Wear[i].X, 0.0f, 1.0f) * TerrainGenerator.StoneShow);
-                    int look = 1.0f - data.Colors[i].A >= 0.5f ? 0 : stoneLook >= 0.5f ? 1 : data.CarpetMask[i * 4 + 3] >= 128 ? 2 : 3;
+                    // Stone: the stone texture past half (UV.x), or the slope's rock look past half way.
+                    bool stoneLook = Mathf.SmoothStep(streamer.RockStart, streamer.RockEnd, steep) >= 0.5f
+                        || Mathf.Clamp(data.Wear[i].X, 0.0f, 1.0f) * TerrainGenerator.StoneShow >= 0.5f;
+                    int look = 1.0f - data.Colors[i].A >= 0.5f ? 0 : stoneLook ? 1 : data.CarpetMask[i * 4 + 3] >= 128 ? 2 : 3;
                     float pathWeight = generator.PathWeight(x, pz, out RouteKind kind);
                     TerrainSurface footing = generator.Footing(x, pz, slope, pathWeight, kind);
                     bool match = look switch
@@ -182,6 +184,11 @@ public partial class TerrainTests : Node3D
                     if (match)
                     {
                         circleAgreed++;
+                    }
+                    else
+                    {
+                        string key = $"{names[look]} as {footing} ({settings.Biomes[circle].Name})";
+                        mismatches[key] = mismatches.GetValueOrDefault(key) + 1;
                     }
                     if (generator.SurfaceAt(x, pz) == footing)
                     {
@@ -206,6 +213,18 @@ public partial class TerrainTests : Node3D
         foreach (TerrainSurface surface in System.Enum.GetValues<TerrainSurface>())
         {
             footingText += $"{surface} {footings[(int)surface]}, ";
+        }
+        string missed = "";
+        foreach (KeyValuePair<string, int> pair in mismatches)
+        {
+            if (pair.Value * 50 >= total - agreed)
+            {
+                missed += $"{pair.Key} {pair.Value}, ";
+            }
+        }
+        if (missed.Length > 0)
+        {
+            detail = "mismatched: " + missed + detail;
         }
         string worstName = worstCircle >= 0 ? settings.Biomes[worstCircle].Name : "none";
         Check("footing matches the ground's look in every circle", total > 0 && worstShare >= 0.995f && footings[(int)TerrainSurface.Dirt] > 0,

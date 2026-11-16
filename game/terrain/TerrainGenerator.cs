@@ -1425,9 +1425,11 @@ public sealed partial class TerrainGenerator
             }
             string model = biome.TreeModels[Mathf.Min((int)(pick * biome.TreeModels.Length), biome.TreeModels.Length - 1)];
             float height = Mathf.Lerp(biome.TreeHeight.X, biome.TreeHeight.Y, tall);
-            if (biome.SaplingShare > 0 && tall < biome.SaplingShare)
+            // The high ground has more young, stunted trees among the old ones.
+            float saplings = biome.SaplingShare > 0 ? Mathf.Min(biome.SaplingShare * (1.0f + _settings.AlpineSaplings * alpine), 0.9f) : 0.0f;
+            if (saplings > 0 && tall < saplings)
             {
-                height = Mathf.Lerp(biome.SaplingHeight.X, biome.SaplingHeight.Y, tall / biome.SaplingShare);
+                height = Mathf.Lerp(biome.SaplingHeight.X, biome.SaplingHeight.Y, tall / saplings);
             }
             else
             {
