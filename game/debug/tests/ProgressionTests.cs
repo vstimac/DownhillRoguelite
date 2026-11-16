@@ -183,10 +183,16 @@ public partial class ProgressionTests : Node3D
         // Tuntun Sahur's hard mode is an extra stone beside the hand cart, not one of the offerings.
         int hardmodeLaid = offerings.HardmodeStones.Count;
         bool hardmodeApart = true;
+        bool hardmodeLabels = true;
+        string hardmodeStack = "";
         float hardmodeGap = float.MaxValue;
         foreach (BoonStone extra in offerings.HardmodeStones)
         {
             hardmodeApart = hardmodeApart && extra.Boon?.TuntunHardmode == true && !System.Linq.Enumerable.Contains(offerings.Stones, extra);
+            // Its labels read like an offering's: the name on one line, the rule under it, nothing below the stone.
+            (float nameBottom, float effectTop, float effectBottom, float lowest) = extra.LabelStack();
+            hardmodeLabels = hardmodeLabels && extra.NameOnOneLine && effectTop < nameBottom && effectBottom < effectTop && lowest <= effectBottom && lowest > 0.0f;
+            hardmodeStack = $"[{nameBottom:0.00}/{effectTop:0.00}-{effectBottom:0.00}/{lowest:0.00}, name on one line {extra.NameOnOneLine}]";
             foreach (BoonStone stone in offerings.Stones)
             {
                 hardmodeApart = hardmodeApart && stone.Boon?.TuntunHardmode != true;
@@ -230,9 +236,9 @@ public partial class ProgressionTests : Node3D
         Check("reaching a station lays out its offerings; choosing one keeps it and takes the rest away",
             laid == offerings.OfferCount && farthest < 8.0f && chosen && offerings.Stones.Count == 0 && _run!.Boons.Contains(name),
             $"{laid} offerings within {farthest:0.0} m of the fire, chose {name}: {chosen}, left {offerings.Stones.Count}, boons [{string.Join(", ", _run!.Boons)}]");
-        Check("the hard-mode stone stands apart from the three offerings, and choosing a boon leaves it there",
-            hardmodeLaid == 1 && hardmodeApart && hardmodeGap > BoonStone.LabelWidthMetres && offerings.HardmodeStones.Count == 1 && !_run.TuntunHardmode,
-            $"{laid} offerings and {hardmodeLaid} hard-mode stone (apart {hardmodeApart}, {hardmodeGap:0.00} m from the nearest offering); after the choice {offerings.HardmodeStones.Count} left, hard mode {_run.TuntunHardmode}");
+        Check("the hard-mode stone stands apart from the three offerings, its labels stacked like theirs, and choosing a boon leaves it there",
+            hardmodeLaid == 1 && hardmodeApart && hardmodeLabels && hardmodeGap > BoonStone.LabelWidthMetres && offerings.HardmodeStones.Count == 1 && !_run.TuntunHardmode,
+            $"{laid} offerings and {hardmodeLaid} hard-mode stone (apart {hardmodeApart}, {hardmodeGap:0.00} m from the nearest offering, labels {hardmodeStack}); after the choice {offerings.HardmodeStones.Count} left, hard mode {_run.TuntunHardmode}");
     }
 
     /// <summary>

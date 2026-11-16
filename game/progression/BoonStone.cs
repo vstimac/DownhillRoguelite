@@ -33,6 +33,8 @@ public partial class BoonStone : Node3D, ISharedWorldPickup, IDescribed
     /// <summary>The line the name stands on, and the gap between stacked labels, in m.</summary>
     private const float NameLine = 1.3f;
     private const float Gap = 0.05f;
+    private const int NameFontSize = 44;
+    private const int LabelOutline = 8;
 
     public Vector3 InteractionPoint => GlobalPosition + Vector3.Up * 0.5f;
 
@@ -61,8 +63,9 @@ public partial class BoonStone : Node3D, ISharedWorldPickup, IDescribed
             MaterialOverride = new StandardMaterial3D { AlbedoColor = glow, EmissionEnabled = true, Emission = glow, EmissionEnergyMultiplier = 1.5f },
         });
         AddChild(new OmniLight3D { LightColor = glow, LightEnergy = 0.8f, OmniRange = 3.0f, Position = new Vector3(0.0f, 0.6f, 0.0f) });
-        // The name on its line; what it does hangs under it, the price under that.
-        _name = Label(Boon?.DisplayName ?? "", 44, NameLine, VerticalAlignment.Bottom);
+        // The name on one line (a long name gets smaller letters); what it does hangs under it, the price under that.
+        string title = Boon?.DisplayName ?? "";
+        _name = Label(title, NameSize(title), NameLine, VerticalAlignment.Bottom);
         _name.Modulate = glow.Lightened(0.3f);
         float y = NameLine - Gap;
         _effect = Label(EffectText(), 32, y, VerticalAlignment.Top);
@@ -73,10 +76,31 @@ public partial class BoonStone : Node3D, ISharedWorldPickup, IDescribed
             _price = Label("Price: " + Boon.Costs(), 30, y, VerticalAlignment.Top);
             _price.Modulate = PriceColour;
         }
-        // The flavour line, when looked at, sits above the name.
-        _description = Label(Boon?.Description ?? "", 26, NameLine + Height(_name) + Gap, VerticalAlignment.Bottom);
-        _description.Visible = false;
+        // The flavour line, when looked at, sits above the name. Hard mode has none in the world (its rule says it
+        // all; the flavour shows in the panel when looked at), so nothing crowds its name.
+        if (Boon == null || !Boon.TuntunHardmode)
+        {
+            _description = Label(Boon?.Description ?? "", 26, NameLine + Height(_name) + Gap, VerticalAlignment.Bottom);
+            _description.Visible = false;
+        }
     }
+
+    /// <summary>The name's letter size: 44 px, smaller (down to 30) when that would wrap the name onto a second line.</summary>
+    private static int NameSize(string name)
+    {
+        int size = NameFontSize;
+        while (size > 30 && !FitsOneLine(name, size)) { size -= 2; }
+        return size;
+    }
+
+    private static bool FitsOneLine(string text, int size)
+    {
+        Font font = ThemeDB.FallbackFont;
+        return font.GetStringSize(text, HorizontalAlignment.Left, -1, size).X <= LabelWidth - 2.0f * LabelOutline;
+    }
+
+    /// <summary>The name stands on one line (tests check it).</summary>
+    public bool NameOnOneLine => _name != null && FitsOneLine(_name.Text, _name.FontSize);
 
     /// <summary>What it gives; a boon that only works sometimes says when on a line of its own.</summary>
     private string EffectText()
@@ -87,7 +111,7 @@ public partial class BoonStone : Node3D, ISharedWorldPickup, IDescribed
         }
         if (Boon.TuntunHardmode)
         {
-            return "Tuntun Sahurs come after you: 3 now, +1 at each station";
+            return "3 Tuntun Sahurs hunt you, +1 at each station";
         }
         string gifts = string.Join(" · ", Boon.Parts(true));
         if (Boon.IsConditional && gifts.Length > 0)
@@ -113,7 +137,7 @@ public partial class BoonStone : Node3D, ISharedWorldPickup, IDescribed
             FontSize = size,
             PixelSize = PixelSize,
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
-            OutlineSize = 8,
+            OutlineSize = LabelOutline,
             Position = Vector3.Up * height,
             VerticalAlignment = anchor,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
@@ -123,7 +147,7 @@ public partial class BoonStone : Node3D, ISharedWorldPickup, IDescribed
         return label;
     }
 
-    /// <summary>The top of the name and the bottom of the lowest label above the stone, in m (tests check the stacking).</summary>
+    /// <summary>The bottom of the name, the top and bottom of the effect and the bottom of the lowest label (the price), in m (tests check the stacking).</summary>
     public (float NameBottom, float EffectTop, float EffectBottom, float LowestBottom) LabelStack()
     {
         float nameBottom = _name?.Position.Y ?? 0.0f;
