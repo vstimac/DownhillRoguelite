@@ -655,7 +655,7 @@ public sealed class TerrainGenerator
             {
                 continue;
             }
-            float wooded = Mathf.Clamp(biome.TreeDensity / 4.0f, 0.3f, 1.2f);
+            float wooded = Mathf.Clamp(biome.TreeDensity / 4.0f, 0.45f, 1.2f);
             if (keep >= grove * wooded * Mathf.Min(rise * 1.5f, 1.0f))
             {
                 continue;

@@ -77,7 +77,7 @@ public partial class DayNightCycle : Node
     [Export] public float ValleyMistDensity { get; set; } = 0.035f;
     [Export] public float ValleyMistDrop { get; set; } = 9.0f;
     /// <summary>Share of the valley mist on a clear day (bad weather brings all of it).</summary>
-    [Export(PropertyHint.Range, "0,1")] public float ClearValleyMist { get; set; } = 0.3f;
+    [Export(PropertyHint.Range, "0,1")] public float ClearValleyMist { get; set; } = 0.2f;
     /// <summary>How much a full overcast dims the sun.</summary>
     [Export] public float OvercastDimming { get; set; } = 0.6f;
     /// <summary>How much a full overcast dims ambient light.</summary>

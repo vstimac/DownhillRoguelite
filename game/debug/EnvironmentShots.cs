@@ -40,6 +40,15 @@ public partial class EnvironmentShots : Node3D
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
             if (arg == "--frame-times") { frameTimes = true; }
+            if (arg.StartsWith("--depths=", StringComparison.Ordinal))
+            {
+                List<float> picked = new();
+                foreach (string part in arg["--depths=".Length..].Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    picked.Add(float.Parse(part, CultureInfo.InvariantCulture));
+                }
+                Depths = picked.ToArray();
+            }
         }
         Directory.CreateDirectory(directory);
         PlayerController player = GetNode<PlayerController>("World/Player");
@@ -160,6 +169,8 @@ public partial class EnvironmentShots : Node3D
     private static void HideOverlays(Node node)
     {
         if (node is CanvasLayer layer) { layer.Visible = false; }
+        // A stray Escape reaching the window must not open the pause menu mid-shoot.
+        if (node.GetType().Name == "PauseMenu") { node.ProcessMode = ProcessModeEnum.Disabled; }
         // The circle's name floats in the world as a 3D label: keep it out of the comparison.
         if (node is DownhillRoguelite.WorldUi.CircleTitle title) { title.Visible = false; title.ProcessMode = ProcessModeEnum.Disabled; }
         foreach (Node child in node.GetChildren()) { HideOverlays(child); }

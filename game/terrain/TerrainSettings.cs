@@ -303,9 +303,9 @@ public partial class TerrainSettings : Resource
 
     [ExportGroup("Flank trees and summit snow (fourth round)")]
     /// <summary>Tree tries per 1000 m² on the valley's flanks (kept by the circle's own tree density, in groves).</summary>
-    [Export] public float FlankTreeDensity { get; set; } = 9.0f;
+    [Export] public float FlankTreeDensity { get; set; } = 12.0f;
     /// <summary>Flank trees grow only up to this slope, in degrees (the gentler parts and the crests).</summary>
-    [Export] public float FlankTreeMaxSlope { get; set; } = 27.0f;
+    [Export] public float FlankTreeMaxSlope { get; set; } = 31.0f;
     /// <summary>Size of the groves along the flanks, in m.</summary>
     [Export] public float FlankGroveWavelength { get; set; } = 34.0f;
     /// <summary>How much lower the snow line lies on the flanks near the summit (on the snow noise's -1..1 scale; 0 none).</summary>
