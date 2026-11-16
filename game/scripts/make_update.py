@@ -162,12 +162,16 @@ ALLOWED_SETTINGS = {
 # has read them by then).
 OVERRIDE_SETTINGS = {
     "physics": ("jolt_physics_3d/simulation/velocity_steps", "jolt_physics_3d/simulation/position_steps"),
+    # Read when the input server starts, so like the solver steps it must come from a file at startup.
+    "input_devices": ("joypads/ignore_joypad_on_unfocused_application",),
 }
 OVERRIDE_FILE = "override.cfg"
 
 
 def carried_by_override(line):
-    """Whether a project.godot line sets one of OVERRIDE_SETTINGS."""
+    """Whether a project.godot line sets one of OVERRIDE_SETTINGS (or opens one of their sections)."""
+    if line.strip() in (f"[{section}]" for section in OVERRIDE_SETTINGS):
+        return True
     key = line.split("=", 1)[0].strip()
     return any(key in keys for keys in OVERRIDE_SETTINGS.values())
 
