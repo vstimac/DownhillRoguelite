@@ -40,10 +40,11 @@ public partial class RouteSign : Node3D
         StandardMaterial3D wood = new() { AlbedoColor = WoodColor, Roughness = 1.0f };
         foreach (float x in new[] { -BoardSize.X * 0.42f, BoardSize.X * 0.42f })
         {
+            // The posts stand behind the board's face: in front of it they hid the ends of the longest path lines.
             AddChild(new MeshInstance3D
             {
                 Mesh = new BoxMesh { Size = new Vector3(0.1f, BoardHeight + 0.4f, 0.1f) },
-                Position = new Vector3(x, (BoardHeight + 0.4f) * 0.5f, 0.0f),
+                Position = new Vector3(x, (BoardHeight + 0.4f) * 0.5f, -0.1f),
                 MaterialOverride = wood,
             });
         }
