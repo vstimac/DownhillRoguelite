@@ -340,8 +340,14 @@ public partial class DiveTests : Node3D
             await Frame();
             seconds += 1.0f / Engine.PhysicsTicksPerSecond;
         }
-        Check(player.Jumps == jumps + 1 && downed && !ragdoll.Downed && seconds < 4.0f,
-            $"Space throws him up as a ragdoll and he is up again {seconds:0.0} s later",
+        // Landing on his belly he first rolls onto his back (about a second more), then gets up.
+        float allowed = 4.0f;
+        if (ragdoll.TurnedOver)
+        {
+            allowed = 5.5f;
+        }
+        Check(player.Jumps == jumps + 1 && downed && !ragdoll.Downed && seconds < allowed,
+            $"Space throws him up as a ragdoll and he is up again {seconds:0.0} s later (rolled over first: {ragdoll.TurnedOver})",
             $"jumps {player.Jumps - jumps}, downed {downed}, still down {ragdoll.Downed}, {seconds:0.0} s");
 
         // The same throw with the roll timed right: the ragdoll lets go in the air and the landing is a roll.
