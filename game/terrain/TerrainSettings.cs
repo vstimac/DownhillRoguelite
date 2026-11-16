@@ -286,15 +286,15 @@ public partial class TerrainSettings : Resource
     [Export] public Color BareEarthColour { get; set; } = new(0.42f, 0.33f, 0.23f);
     [Export] public Color GravelColour { get; set; } = new(0.47f, 0.46f, 0.44f);
     /// <summary>Boulder groups round one big "hero" rock, per 1000 m² (times the circle's Relief).</summary>
-    [Export] public float BoulderClusterDensity { get; set; } = 0.9f;
+    [Export] public float BoulderClusterDensity { get; set; } = 0.8f;
     /// <summary>The hero rock's size range, in m, and the smaller rocks round it (most and least).</summary>
     [Export] public Vector2 HeroBoulderSize { get; set; } = new(3.5f, 7.0f);
     [Export] public Vector2I ClusterBoulders { get; set; } = new(3, 6);
     /// <summary>Share of the groups (and the lone trees) set within sight of the main path, this far from its centre, in m.</summary>
-    [Export(PropertyHint.Range, "0,1")] public float GroupNearPathShare { get; set; } = 0.8f;
+    [Export(PropertyHint.Range, "0,1")] public float GroupNearPathShare { get; set; } = 0.75f;
     /// <summary>No boulder group stands within this many m of where a run begins.</summary>
     [Export] public float SpawnClearance { get; set; } = 25.0f;
-    [Export] public Vector2 GroupSightDistance { get; set; } = new(12.0f, 26.0f);
+    [Export] public Vector2 GroupSightDistance { get; set; } = new(11.0f, 30.0f);
     /// <summary>Share of hero rocks that are tall standing spires instead, and their height in m.</summary>
     [Export(PropertyHint.Range, "0,1")] public float SpireShare { get; set; } = 0.3f;
     [Export] public Vector2 SpireHeight { get; set; } = new(6.0f, 11.0f);
