@@ -73,3 +73,13 @@ measures the procedural rise.
 
 - Whether to keep the clip as a permanent fallback once the controller passes.
 - Whether the face-down rise may use a kneel stage before standing (a stance change to approve).
+
+## Smoke test (2026-11-16)
+
+`bash .claude/skills/smoke-test/smoke.sh`: build passes (0 warnings, 0 errors), but the script
+reports **RESULT: FAIL** on two scenes, both outside this change:
+- WildlifeTests: "all wildlife costs under the frame budget" at 1,530 ms per frame (budget 1 ms),
+  and the missing `nobodywho` extension.
+- WoundTests: exits 0 but is marked FAIL because of the missing `nobodywho` extension messages.
+Neither scene is touched by this branch. I have not checked them against a clean base here, so that
+comparison is still open.
