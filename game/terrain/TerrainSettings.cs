@@ -301,6 +301,18 @@ public partial class TerrainSettings : Resource
     [Export(PropertyHint.Range, "0,1")] public float LoneTreeChance { get; set; } = 0.6f;
     [Export] public Vector2 LoneTreeHeight { get; set; } = new(9.0f, 14.0f);
 
+    [ExportGroup("Flank trees and summit snow (fourth round)")]
+    /// <summary>Tree tries per 1000 m² on the valley's flanks (kept by the circle's own tree density, in groves).</summary>
+    [Export] public float FlankTreeDensity { get; set; } = 9.0f;
+    /// <summary>Flank trees grow only up to this slope, in degrees (the gentler parts and the crests).</summary>
+    [Export] public float FlankTreeMaxSlope { get; set; } = 27.0f;
+    /// <summary>Size of the groves along the flanks, in m.</summary>
+    [Export] public float FlankGroveWavelength { get; set; } = 34.0f;
+    /// <summary>How much lower the snow line lies on the flanks near the summit (on the snow noise's -1..1 scale; 0 none).</summary>
+    [Export] public float SummitSnow { get; set; } = 0.45f;
+    /// <summary>Summit snow at full strength above the first depth, gone below the second, in m.</summary>
+    [Export] public Vector2 SummitSnowDepth { get; set; } = new(250.0f, 1000.0f);
+
     public static Biome[] DefaultBiomes()
     {
         Biome[] biomes = new[]

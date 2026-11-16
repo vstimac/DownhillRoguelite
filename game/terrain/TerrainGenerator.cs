@@ -52,6 +52,8 @@ public sealed class TerrainGenerator
     private const ulong ValleySalt = 20;
     private const ulong BareSalt = 21;
     private const ulong ClusterSalt = 22;
+    // The fourth round's tree lines on the flanks.
+    private const ulong FlankTreeSalt = 23;
     // 1D noise is read along a line off the lattice (noise is 0 on lattice points).
     private const float LineOffset = 0.5f;
     // Step for slope by finite differences, in m.
@@ -571,6 +573,121 @@ public sealed class TerrainGenerator
         return relief * rise * (_settings.FlankHeight * open * (0.35f + 0.85f * crest) + _settings.CragAmplitude * crag * crag);
     }
 
+    /// <summary>Distance from a point to the centre of the nearest path (spine or a branch in its zone), in m.</summary>
+    public float NearestPathDistance(float x, float z)
+    {
+        float nearest = Mathf.Abs(x - SpineX(z));
+        foreach (RouteBranch branch in BranchesAt(z))
+        {
+            if (z <= branch.SplitZ && z >= branch.JoinZ)
+            {
+                nearest = Mathf.Min(nearest, Mathf.Abs(x - BranchX(branch, z)));
+            }
+        }
+        return nearest;
+    }
+
+    /// <summary>How far up the valley's flank a point is (0 by the path, 1 where the flank is full height).</summary>
+    public float FlankRiseAt(float x, float z)
+    {
+        return Mathf.SmoothStep(_settings.FlankStart, _settings.FlankStart + Mathf.Max(_settings.FlankRise, 1.0f), NearestPathDistance(x, z));
+    }
+
+    /// <summary>
+    /// The snow line off the paths: near the summit the flanks are snowier the higher up them, so the
+    /// first circle reads as high mountain (the fourth round). Paths keep the plain threshold.
+    /// </summary>
+    private float SnowThresholdAt(float x, float z, float pathWeight)
+    {
+        float threshold = _settings.SnowThreshold;
+        if (_settings.SummitSnow <= 0.0f || pathWeight > 0.5f)
+        {
+            return threshold;
+        }
+        float depth = Mathf.Max(0.0f, _startHeight - Descent(z));
+        float high = 1.0f - Mathf.SmoothStep(_settings.SummitSnowDepth.X, _settings.SummitSnowDepth.Y, depth);
+        if (high <= 0.0f)
+        {
+            return threshold;
+        }
+        return threshold - _settings.SummitSnow * high * (0.3f + 0.7f * FlankRiseAt(x, z));
+    }
+
+    /// <summary>
+    /// Tree lines on the valley's flanks (the fourth round): groves of the circle's own trees on the
+    /// gentler parts of the slopes and along the crests, with a bush or two at their feet, so a ridge
+    /// has trees on its skyline instead of bare ground. Their own stream; the circle's tree density
+    /// decides how wooded its flanks are.
+    /// </summary>
+    private void PlaceFlankTrees(TerrainChunkData data, Vector2I coord, Vector3 corner, float maxTrees)
+    {
+        if (_settings.FlankTreeDensity <= 0.0f || maxTrees <= 0.0f || _settings.FlankHeight <= 0.0f)
+        {
+            return;
+        }
+        SplitMix64 random = new(SplitMix64.Mix(SplitMix64.Mix(Seed, FlankTreeSalt), ChunkSalt(coord)));
+        float size = _settings.ChunkSize;
+        int tries = Mathf.RoundToInt(_settings.FlankTreeDensity * size * size / 1000.0f);
+        float wave = Mathf.Max(_settings.FlankGroveWavelength, 1.0f);
+        for (int n = 0; n < tries; n++)
+        {
+            float lx = random.Range(0.0f, size);
+            float lz = random.Range(0.0f, size);
+            float keep = random.NextFloat();
+            float yaw = random.Range(-Mathf.Pi, Mathf.Pi);
+            float pick = random.NextFloat();
+            float tall = random.NextFloat();
+            Vector2 lean = new(random.Range(-1.0f, 1.0f), random.Range(-1.0f, 1.0f));
+            float shrubRoll = random.NextFloat();
+            float shrubAngle = random.Range(-Mathf.Pi, Mathf.Pi);
+            float shrubPick = random.NextFloat();
+            float x = corner.X + lx;
+            float z = corner.Z + lz;
+            float rise = FlankRiseAt(x, z);
+            if (rise < 0.15f)
+            {
+                continue;
+            }
+            float grove = Mathf.Clamp(0.45f + _forestPatches.Sample(x / wave + 7.1f, z / wave - 3.3f) * 1.6f, 0.0f, 1.0f);
+            float ground = GridHeight(data, lx, lz);
+            Biome? biome = BiomeAt(x, z, DepthAt(ground));
+            if (biome == null || biome.TreeModels.Length == 0)
+            {
+                continue;
+            }
+            float wooded = Mathf.Clamp(biome.TreeDensity / 4.0f, 0.3f, 1.2f);
+            if (keep >= grove * wooded * Mathf.Min(rise * 1.5f, 1.0f))
+            {
+                continue;
+            }
+            float slope = GridSlope(data, lx, lz);
+            if (slope > _settings.FlankTreeMaxSlope || NearStation(x, z, _settings.ClearingRadius + _settings.TreeStationGap) || OnSummitPad(x, z, 3.0f))
+            {
+                continue;
+            }
+            float surfaceWeight = PathWeight(x, z, out RouteKind kind);
+            if (Classify(x, z, slope, surfaceWeight, kind) == TerrainSurface.Snow && biome.TreeModels[0].Contains("broadleaf"))
+            {
+                continue;
+            }
+            string model = biome.TreeModels[Mathf.Min((int)(pick * biome.TreeModels.Length), biome.TreeModels.Length - 1)];
+            float height = Mathf.Lerp(biome.TreeHeight.X, biome.TreeHeight.Y, tall);
+            data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground - height * _settings.TreeSink, z), yaw, height,
+                lean * Mathf.DegToRad(biome.TreeLean), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
+            if (biome.ShrubModels.Length > 0 && shrubRoll < 0.5f)
+            {
+                float reach = 1.2f + shrubRoll * 3.0f;
+                float sx = lx + Mathf.Cos(shrubAngle) * reach;
+                float sz = lz + Mathf.Sin(shrubAngle) * reach;
+                if (sx >= 0.0f && sz >= 0.0f && sx < size && sz < size)
+                {
+                    AddCover(data, PlantKind.Shrub, Pick(biome.ShrubModels, shrubPick), corner, sx, sz, shrubAngle,
+                        Mathf.Lerp(biome.ShrubHeight.X, biome.ShrubHeight.Y, shrubPick));
+                }
+            }
+        }
+    }
+
     /// <summary>The circles' Relief at a point of the descent, blended between circles.</summary>
     public float ReliefAt(float z)
     {
@@ -640,6 +757,7 @@ public sealed class TerrainGenerator
     {
         float scale = 1.0f / _settings.SurfaceNoiseWavelength;
         bool onPath = pathWeight > 0.5f;
+        float snowThreshold = SnowThresholdAt(x, z, pathWeight);
         if (onPath && kind == RouteKind.Hazardous)
         {
             if (_snow.Sample(x * scale, z * scale) > _settings.SnowThreshold)
@@ -671,7 +789,7 @@ public sealed class TerrainGenerator
                 return TerrainSurface.Mud;
             }
         }
-        if (_snow.Sample(x * scale, z * scale) > _settings.SnowThreshold)
+        if (_snow.Sample(x * scale, z * scale) > snowThreshold)
         {
             return TerrainSurface.Snow;
         }
@@ -928,7 +1046,7 @@ public sealed class TerrainGenerator
         float scale = 1.0f / _settings.SurfaceNoiseWavelength;
         float snow = _snow.Sample(centre.X * scale, centre.Z * scale);
         float band = Mathf.Max(_settings.SnowEdgeBand, 0.001f);
-        snowCover = Mathf.Clamp((snow - _settings.SnowThreshold) / (2.0f * band) + 0.5f, 0.0f, 1.0f);
+        snowCover = Mathf.Clamp((snow - SnowThresholdAt(centre.X, centre.Z, pathWeight)) / (2.0f * band) + 0.5f, 0.0f, 1.0f);
         if (surface == TerrainSurface.Snow)
         {
             color = SurfaceColor(beneath, centre.Y, surfaceColors);
@@ -1297,6 +1415,8 @@ public sealed class TerrainGenerator
             data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground - height * _settings.TreeSink, z), yaw, height,
                 lean * Mathf.DegToRad(biome.TreeLean), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
         }
+
+        PlaceFlankTrees(data, coord, corner, maxTrees);
 
         // Grass and flowers: a jittered grid at the densest rate, thinned per biome; heights from the grid.
         float density = maxGrass + maxFlowers;

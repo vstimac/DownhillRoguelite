@@ -62,6 +62,22 @@ public partial class DayNightCycle : Node
     /// at the horizon and below it is fogged as much as they are, so they fade into it.
     /// </summary>
     [Export] public float FarFogDistance { get; set; } = 220.0f;
+    /// <summary>
+    /// The fourth round: by day the distance fog never grows past about this density, however thick
+    /// the weather (a soft limit, so thicker weather is still a little thicker). Fog and rain stay
+    /// misty close by, but ridges and spines 60 to 120 m off still show through instead of a white
+    /// wall at 30 m. The night's fog is left as it is. 0 turns the limit off.
+    /// </summary>
+    [Export] public float DayFogLimit { get; set; } = 0.024f;
+    /// <summary>
+    /// Mist lying in the low ground: below the carrier's own height by ValleyMistDrop m the air
+    /// thickens by this much per metre, more so in bad weather, so the valley below fills with mist
+    /// and the ridges stand up out of it. 0 turns it off.
+    /// </summary>
+    [Export] public float ValleyMistDensity { get; set; } = 0.035f;
+    [Export] public float ValleyMistDrop { get; set; } = 9.0f;
+    /// <summary>Share of the valley mist on a clear day (bad weather brings all of it).</summary>
+    [Export(PropertyHint.Range, "0,1")] public float ClearValleyMist { get; set; } = 0.3f;
     /// <summary>How much a full overcast dims the sun.</summary>
     [Export] public float OvercastDimming { get; set; } = 0.6f;
     /// <summary>How much a full overcast dims ambient light.</summary>
@@ -204,8 +220,22 @@ public partial class DayNightCycle : Node
             float ambient = _dayAmbient * (1.0f - OvercastAmbientDimming * Overcast);
             environment.AmbientLightEnergy = Mathf.Lerp(ambient, ambient * Mathf.Lerp(NightAmbient.X, NightAmbient.Y, mild), Darkness);
             float dayFog = _dayFogDensity + weatherFog;
+            if (DayFogLimit > 0.0f)
+            {
+                dayFog = DayFogLimit * (1.0f - Mathf.Exp(-dayFog / DayFogLimit));
+            }
             float nightFog = Mathf.Lerp(NightFogDensity.X, NightFogDensity.Y, mild) + weatherFog * 0.5f;
             environment.FogDensity = Mathf.Lerp(dayFog, nightFog, Darkness) * MenuFogScale;
+            Camera3D? eye = GetViewport()?.GetCamera3D();
+            if (ValleyMistDensity > 0.0f && eye != null)
+            {
+                environment.FogHeight = eye.GlobalPosition.Y - ValleyMistDrop;
+                environment.FogHeightDensity = ValleyMistDensity * Mathf.Lerp(ClearValleyMist, 1.0f, Overcast) * MenuFogScale;
+            }
+            else
+            {
+                environment.FogHeightDensity = 0.0f;
+            }
             if (_skyShader != null)
             {
                 // One colour for the fog and for the haze of the sky, and the sky shader lays the fog
