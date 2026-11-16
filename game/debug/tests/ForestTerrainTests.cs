@@ -128,7 +128,8 @@ public partial class ForestTerrainTests : Node3D
                 trees++;
                 bool young = plant.Scale >= 2.5f && plant.Scale <= 5;
                 if (young) { saplings++; }
-                fits &= (young || (plant.Scale >= 10 && plant.Scale <= 18)) && plant.TrunkRadius >= 0.035f && plant.TrunkRadius < 0.3f;
+                // Grown pines are 10 to 18 m, stunted to AlpineTreeHeight of that near the summit (the fifth round).
+                fits &= (young || (plant.Scale >= 10 * new TerrainSettings().AlpineTreeHeight - 0.001f && plant.Scale <= 18)) && plant.TrunkRadius >= 0.035f && plant.TrunkRadius < 0.3f;
                 fits &= Mathf.Abs(bounds.GetCenter().X - plant.Position.X) < 0.001f;
             }
             else if (plant.Kind == PlantKind.Grass) { grass++; fits &= plant.Scale >= 0.12f && plant.Scale <= 0.4f; }

@@ -22,7 +22,7 @@ namespace DownhillRoguelite.Terrain;
 /// Summit (M12): the run starts on the mountain's highest point. Nothing near the start rises above
 /// a plane falling gently from the summit, and behind it a cliff drops into the abyss.
 /// </summary>
-public sealed class TerrainGenerator
+public sealed partial class TerrainGenerator
 {
     // Salts that give each noise layer its own seed.
     private const ulong BaseSalt = 1;
@@ -54,6 +54,9 @@ public sealed class TerrainGenerator
     private const ulong ClusterSalt = 22;
     // The fourth round's tree lines on the flanks.
     private const ulong FlankTreeSalt = 23;
+    // The fifth round: shrubs in the flanks' gullies, and hedgerows and walls round the fields.
+    private const ulong GullySalt = 24;
+    private const ulong HedgeSalt = 25;
     // 1D noise is read along a line off the lattice (noise is 0 on lattice points).
     private const float LineOffset = 0.5f;
     // Step for slope by finite differences, in m.
@@ -118,6 +121,7 @@ public sealed class TerrainGenerator
         _crags = new GradientNoise(SplitMix64.Mix(seed, CragSalt));
         _valley = new GradientNoise(SplitMix64.Mix(seed, ValleySalt));
         _bare = new GradientNoise(SplitMix64.Mix(seed, BareSalt));
+        _fields = new GradientNoise(SplitMix64.Mix(seed, HedgeSalt));
         _gradeTangent = Mathf.Tan(Mathf.DegToRad(settings.Grade));
         _clearingSlopeTangent = Mathf.Tan(Mathf.DegToRad(settings.ClearingSlope));
         _summitCliffTangent = Mathf.Tan(Mathf.DegToRad(settings.SummitCliffSlope));
@@ -610,7 +614,7 @@ public sealed class TerrainGenerator
         {
             return threshold;
         }
-        return threshold - _settings.SummitSnow * high * (0.3f + 0.7f * FlankRiseAt(x, z));
+        return threshold - _settings.SummitSnow * high * (0.5f + 0.5f * FlankRiseAt(x, z));
     }
 
     /// <summary>
@@ -656,7 +660,8 @@ public sealed class TerrainGenerator
                 continue;
             }
             float wooded = Mathf.Clamp(biome.TreeDensity / 4.0f, 0.45f, 1.2f);
-            if (keep >= grove * wooded * Mathf.Min(rise * 1.5f, 1.0f))
+            float alpine = AlpineAt(z);
+            if (keep >= grove * wooded * Mathf.Min(rise * 1.5f, 1.0f) * (1.0f - _settings.AlpineTreeThin * alpine))
             {
                 continue;
             }
@@ -671,9 +676,9 @@ public sealed class TerrainGenerator
                 continue;
             }
             string model = biome.TreeModels[Mathf.Min((int)(pick * biome.TreeModels.Length), biome.TreeModels.Length - 1)];
-            float height = Mathf.Lerp(biome.TreeHeight.X, biome.TreeHeight.Y, tall);
+            float height = Mathf.Lerp(biome.TreeHeight.X, biome.TreeHeight.Y, tall) * Mathf.Lerp(1.0f, _settings.AlpineTreeHeight, alpine);
             data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground - height * _settings.TreeSink, z), yaw, height,
-                lean * Mathf.DegToRad(biome.TreeLean), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
+                WindLean(lean, biome.TreeLean, alpine), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
             if (biome.ShrubModels.Length > 0 && shrubRoll < 0.5f)
             {
                 float reach = 1.2f + shrubRoll * 3.0f;
@@ -723,7 +728,7 @@ public sealed class TerrainGenerator
         float patches = _bare.Fractal(x / wave, z / wave, 3) * 0.5f + 0.5f;
         float stony = StoninessAt(depth);
         float steep = Mathf.SmoothStep(12.0f, 34.0f, slope);
-        float level = patches + _settings.BareShare * (0.55f + 0.7f * stony) + steep * 0.45f - 0.95f;
+        float level = patches + _settings.BareShare * (0.55f + 0.7f * stony) + steep * 0.45f - 0.95f + _settings.AlpineBare * AlpineAt(z);
         float bare = Mathf.SmoothStep(0.0f, 0.18f, level);
         // Thins out towards the path's edge so the worn band keeps its own clear shape.
         return bare * (1.0f - Mathf.SmoothStep(0.55f, 0.9f, pathWeight));
@@ -772,11 +777,12 @@ public sealed class TerrainGenerator
         }
         if (!onPath)
         {
-            if (slope >= _settings.RockSlope)
+            float drop = _settings.AlpineRockDrop * AlpineAt(z);
+            if (slope >= _settings.RockSlope - drop)
             {
                 return TerrainSurface.Rock;
             }
-            if (slope >= _settings.ScreeSlope)
+            if (slope >= _settings.ScreeSlope - drop)
             {
                 if (_scree.Sample(x * scale, z * scale) > -0.1f)
                 {
@@ -784,9 +790,13 @@ public sealed class TerrainGenerator
                 }
                 return TerrainSurface.Rock;
             }
-            if (slope <= _settings.MudMaxSlope && _mud.Sample(x * scale, z * scale) > _settings.MudThreshold)
+            if (slope <= _settings.MudMaxSlope && _mud.Sample(x * scale, z * scale) > _settings.MudThreshold - _settings.WetHollowDrop * BiomeValueAt(z, BiomeWetness))
             {
                 return TerrainSurface.Mud;
+            }
+            if (InScreeFan(x, z, slope))
+            {
+                return TerrainSurface.Scree;
             }
         }
         if (_snow.Sample(x * scale, z * scale) > snowThreshold)
@@ -1400,8 +1410,9 @@ public sealed class TerrainGenerator
                 float wave = Mathf.Max(_settings.ForestClusterWavelength, 1);
                 densityFactor = Mathf.Clamp(0.55f + _forestPatches.Sample(x / wave, z / wave) * 1.8f, 0.1f, 1);
             }
-            if (keep * maxTrees >= biome.TreeDensity * densityFactor) { continue; }
-            if (TooCloseToPath(x, z, 2.0f) || NearStation(x, z, _settings.ClearingRadius + _settings.TreeStationGap) || OnSummitPad(x, z, 3.0f) || SlopeDegrees(x, z) > _settings.TreeMaxSlope)
+            float alpine = AlpineAt(z);
+            if (keep * maxTrees >= biome.TreeDensity * densityFactor * (1.0f - _settings.AlpineTreeThin * alpine)) { continue; }
+            if (TooCloseToPath(x, z, 2.0f + _settings.AlpinePathGap * alpine) || NearStation(x, z, _settings.ClearingRadius + _settings.TreeStationGap) || OnSummitPad(x, z, 3.0f) || SlopeDegrees(x, z) > _settings.TreeMaxSlope)
             {
                 continue;
             }
@@ -1411,12 +1422,19 @@ public sealed class TerrainGenerator
             {
                 height = Mathf.Lerp(biome.SaplingHeight.X, biome.SaplingHeight.Y, tall / biome.SaplingShare);
             }
+            else
+            {
+                height *= Mathf.Lerp(1.0f, _settings.AlpineTreeHeight, alpine);
+            }
             // The trunk sinks a share of its height into the ground, so no root hangs in the air on a slope.
             data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground - height * _settings.TreeSink, z), yaw, height,
-                lean * Mathf.DegToRad(biome.TreeLean), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
+                WindLean(lean, biome.TreeLean, alpine), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
         }
 
         PlaceFlankTrees(data, coord, corner, maxTrees);
+        PlaceGullyShrubs(data, coord, corner);
+        PlaceHedgerows(data, coord, corner);
+        PlaceReeds(data, coord, corner);
 
         // Grass and flowers: a jittered grid at the densest rate, thinned per biome; heights from the grid.
         float density = maxGrass + maxFlowers;
