@@ -63,6 +63,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         arrays[(int)Mesh.ArrayType.Vertex] = data.Vertices;
         arrays[(int)Mesh.ArrayType.Normal] = data.Normals;
         arrays[(int)Mesh.ArrayType.Color] = data.Colors;
+        if (data.Wear.Length == data.Vertices.Length && data.Wear.Length > 0) { arrays[(int)Mesh.ArrayType.TexUV] = data.Wear; }
         if (data.Indices.Length > 0) { arrays[(int)Mesh.ArrayType.Index] = data.Indices; }
         ArrayMesh mesh = new();
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);

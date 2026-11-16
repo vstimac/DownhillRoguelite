@@ -26,6 +26,9 @@ uniform sampler2D stone_normal : hint_normal, filter_linear_mipmap, repeat_enabl
 uniform float forest_metres = 3.2;
 uniform float stone_metres = 1.5;
 uniform float texture_strength = 0.0;
+/// How much the vertex colour (grass, trodden earth, bare earth, gravel, the circle's tint) colours
+/// the ground textures: 0 the textures as they are, 1 fully tinted.
+uniform float base_tint = 0.45;
 /// Snow lies where the vertex colour's alpha says (1 - alpha: 0 none, 1 deep), laid on here so a
 /// patch's edge is ragged at a finer scale than the ground's grid, with a dark wet rim round it.
 /// The colour is used as the vertex colours are (no sRGB conversion), so it matches the other surfaces.
@@ -66,12 +69,12 @@ void fragment() {
 		snow = max(snow, lying);
 	}
 	if (texture_strength > 0.001) {
-		float stony_surface = 1.0 - smoothstep(0.01, 0.12, base.g - base.r);
-		float stone_blend = max(rock, stony_surface * 0.65);
+		// UV.x says how stony the ground is (rock, scree, gravel patches); the rest takes the soil texture.
+		float stone_blend = max(rock, clamp(UV.x, 0.0, 1.0) * 0.85);
 		vec3 soil = texture(forest_colour, world_pos.xz / forest_metres).rgb;
 		vec3 stone = texture(stone_colour, world_pos.xz / stone_metres).rgb;
 		vec3 detailed = mix(soil, stone, stone_blend);
-		detailed *= mix(vec3(1.0), base * 1.7, 0.15);
+		detailed *= mix(vec3(1.0), base * 1.9, base_tint);
 		colour = mix(colour, detailed, texture_strength * (1.0 - snow));
 		detailed_normal = mix(texture(forest_normal, world_pos.xz / forest_metres).rgb,
 			texture(stone_normal, world_pos.xz / stone_metres).rgb, stone_blend) * 2.0 - 1.0;

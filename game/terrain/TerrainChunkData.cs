@@ -30,6 +30,11 @@ public sealed class TerrainChunkData
     public int[] Indices { get; set; } = System.Array.Empty<int>();
     public Color[] Colors { get; set; } = System.Array.Empty<Color>();
     /// <summary>
+    /// Per vertex (smooth shading only): x how stony the ground is (the ground shader's stone
+    /// texture instead of soil), y how trodden (a path's worn band). Empty for flat shading.
+    /// </summary>
+    public Vector2[] Wear { get; set; } = System.Array.Empty<Vector2>();
+    /// <summary>
     /// The grass carpet per grid point (RGBA8, same order as Heights): ground colour and how thick
     /// the carpet grows there. Empty when the chunk has no carpet (flat shading).
     /// </summary>

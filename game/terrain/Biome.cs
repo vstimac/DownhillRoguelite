@@ -43,6 +43,11 @@ public partial class Biome : Resource
     /// <summary>How many fireflies come out on dry nights (0 none, 1 a meadow full; environment/Fireflies).</summary>
     [Export(PropertyHint.Range, "0,1")] public float Fireflies { get; set; }
 
+    /// <summary>How mountainous the circle is: scales the flanking ridges, the boulder groups and the bare ground (1 as set in TerrainSettings).</summary>
+    [Export] public float Relief { get; set; } = 1.0f;
+    /// <summary>How much bare stone shows instead of grass (0 a green circle, 1 a stony one).</summary>
+    [Export(PropertyHint.Range, "0,1")] public float Stoniness { get; set; } = 0.5f;
+
     [ExportGroup("Ground cover")]
     /// <summary>Bushes and dwarf trees (no collision), per 1000 m², grown in thickets.</summary>
     [Export] public string[] ShrubModels { get; set; } = System.Array.Empty<string>();
