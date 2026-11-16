@@ -393,6 +393,7 @@ public partial class PlayerRagdoll : Node
         _rollingOut = false;
         _rollCueShown = false;
         _gettingUp = false;
+        _procedural = null;
         _downTime = 0.0f;
         _settledTime = 0.0f;
         FallDamage = 0.0f;
@@ -441,6 +442,21 @@ public partial class PlayerRagdoll : Node
         if (!_gettingUp && !_rollPrimed)
         {
             ApplyImpacts(dt);
+        }
+        if (_procedural != null)
+        {
+            // Procedural rise: the ragdoll keeps simulating; the torques do the lifting. When it has
+            // stood, the normal blend-out to the animation takes over.
+            _procedural.Step(dt);
+            FollowHips();
+            if (_procedural.Finished)
+            {
+                ProceduralStood = _procedural.StoodUp;
+                _procedural = null;
+                _gettingUp = true;
+                _blend = 0.0f;
+            }
+            return;
         }
         FollowHips();
         if (!_gettingUp)
@@ -495,6 +511,12 @@ public partial class PlayerRagdoll : Node
         bool settled = _downTime >= minDown && _settledTime >= settleNeeded;
         if (!dead && (settled || _downTime >= MaxDownTime))
         {
+            if (ProceduralGetUp && _bones.Count > 0)
+            {
+                _procedural = BuildProceduralRise();
+                _procedural.Begin();
+                return;
+            }
             _gettingUp = true;
             _blend = 0.0f;
             BeginRise();
@@ -520,8 +542,17 @@ public partial class PlayerRagdoll : Node
     /// <summary>How long the rise from the crouch to standing takes (s).</summary>
     [Export] public float GetUpRise { get; set; } = 0.45f;
 
+    /// <summary>
+    /// Rise with the procedural controller (RagdollRise): physical torques only, no clip. Off keeps the
+    /// clip path. Set on the scene or by a test before a fall.
+    /// </summary>
+    [Export] public bool ProceduralGetUp { get; set; } = false;
+    private RagdollRise? _procedural;
+    /// <summary>The last procedural rise ended with him upright (not on its timeout). Tests read it.</summary>
+    public bool ProceduralStood { get; private set; }
+
     /// <summary>He is gathering himself or rising after a fall (tests read it).</summary>
-    public bool Rising => _rise != RisePhase.None;
+    public bool Rising => _rise != RisePhase.None || _procedural != null || _gettingUp;
     /// <summary>The clip the current rise plays (tests read it).</summary>
     public StringName RiseClip => _riseClip;
 
@@ -571,6 +602,12 @@ public partial class PlayerRagdoll : Node
     {
         bool back = LyingFaceUp() && animator.Animations?.HasAnimation(GetUpClipBack) == true;
         return back ? GetUpClipBack : GetUpClip;
+    }
+
+    /// <summary>The procedural rise for this rig, built from its rest pose (names root first).</summary>
+    private RagdollRise BuildProceduralRise()
+    {
+        return new RagdollRise(Skeleton!, BoneNames, BodyOf);
     }
 
     /// <summary>The get-up begins: the clip plays under the fading ragdoll.</summary>
