@@ -361,7 +361,7 @@ public partial class SurvivalTests : Node3D
         {
             sample ??= item;
             Vector3 p = item.GlobalPosition;
-            Godot.Collections.Dictionary hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(p + Vector3.Up * 5.0f, p + Vector3.Down * 5.0f, 1));
+            Godot.Collections.Dictionary hit = SupplySpawner.GroundHit(space, p + Vector3.Up * 5.0f, p + Vector3.Down * 5.0f, 1);
             if (hit.Count > 0)
             {
                 worstGap = Mathf.Max(worstGap, Mathf.Abs(hit["position"].AsVector3().Y - p.Y));
