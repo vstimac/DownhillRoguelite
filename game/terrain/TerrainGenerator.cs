@@ -1937,8 +1937,10 @@ public sealed partial class TerrainGenerator
         SplitMix64 random = new(SplitMix64.Mix(SplitMix64.Mix(Seed, RoadsideSalt ^ 0x4F55544FUL), ChunkSalt(coord)));
         float size = _settings.ChunkSize;
         float area = size * size / 1000.0f;
-        int tries = Mathf.RoundToInt(_settings.OutcropDensity * area);
-        float slopeLow = _settings.OutcropSlope.X;
+        // The high ground is rockier: more outcrops, on gentler ground too (the fifth round).
+        float alpine = AlpineAt(corner.Z + size * 0.5f);
+        int tries = Mathf.RoundToInt(_settings.OutcropDensity * area * (1.0f + _settings.AlpineOutcrops * alpine));
+        float slopeLow = _settings.OutcropSlope.X * (1.0f - 0.5f * alpine);
         float slopeHigh = _settings.OutcropSlope.Y;
         int stoneLow = Mathf.Max(_settings.OutcropStones.X, 0);
         int stoneHigh = Mathf.Max(_settings.OutcropStones.Y, stoneLow);

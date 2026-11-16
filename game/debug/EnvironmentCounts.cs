@@ -29,7 +29,7 @@ public partial class EnvironmentCounts : Node
         // The fifth round's features off, and its nearer rare things back as the fourth round had them.
         TerrainSettings before = new()
         {
-            AlpineTreeThin = 0.0f, AlpineTreeHeight = 1.0f, AlpineTreeLean = 0.0f, AlpinePathGap = 0.0f, AlpineRockDrop = 0.0f, AlpineBare = 0.0f,
+            AlpineTreeThin = 0.0f, AlpineTreeHeight = 1.0f, AlpineTreeLean = 0.0f, AlpinePathGap = 0.0f, AlpineRockDrop = 0.0f, AlpineBare = 0.0f, AlpineOutcrops = 0.0f,
             ScreeFanShare = 0.0f, GullyShrubDensity = 0.0f, FieldWavelength = 0.0f, WetHollowDrop = 0.0f,
             GroupNearPathShare = 0.6f, GroupSightDistance = new Vector2(11.0f, 42.0f), LoneTreeChance = 0.6f,
         };

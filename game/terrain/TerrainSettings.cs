@@ -320,15 +320,17 @@ public partial class TerrainSettings : Resource
     [Export(PropertyHint.Range, "0,1")] public float AlpineTreeThin { get; set; } = 0.5f;
     /// <summary>Grown trees on the high ground are this much of their usual height (wind-stunted).</summary>
     [Export(PropertyHint.Range, "0.3,1")] public float AlpineTreeHeight { get; set; } = 0.6f;
-    /// <summary>How far the high ground's trees lean away from the wind, in degrees, and the wind's direction (x, z).</summary>
+    /// <summary>How far the high ground's trees lean away from the wind, in degrees, and the prevailing wind's direction (x, z; FoliageWind starts from the same).</summary>
     [Export] public float AlpineTreeLean { get; set; } = 9.0f;
-    [Export] public Vector2 WindDirection { get; set; } = new(0.8f, -0.6f);
+    [Export] public Vector2 WindDirection { get; set; } = new(0.8f, 0.6f);
     /// <summary>Extra room the high ground's trees leave either side of the path, in m, so the view down the valley opens.</summary>
     [Export] public float AlpinePathGap { get; set; } = 7.0f;
     /// <summary>On the high ground, bare rock and scree begin this many degrees gentler off the paths (exposed rock bands).</summary>
     [Export] public float AlpineRockDrop { get; set; } = 9.0f;
     /// <summary>Extra bareness of the high ground's grass (gravel and stones between the tufts).</summary>
     [Export(PropertyHint.Range, "0,1")] public float AlpineBare { get; set; } = 0.35f;
+    /// <summary>How many more rock outcrops the high ground has at full strength (1: twice as many).</summary>
+    [Export] public float AlpineOutcrops { get; set; } = 1.5f;
     /// <summary>Scree fans at the foot of the flanks: how much of the foot they cover (0 none), and their length and width, in m.</summary>
     [Export(PropertyHint.Range, "0,1")] public float ScreeFanShare { get; set; } = 0.3f;
     [Export] public Vector2 ScreeFanSize { get; set; } = new(20.0f, 6.0f);
