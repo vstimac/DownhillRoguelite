@@ -18,6 +18,8 @@ public partial class NetPoseTests : Node3D
     private int _samples;
     private bool _fell;
     private float _weaponError;
+    /// <summary>The owner's stream stops (as if nothing arrived), to see what this machine does alone.</summary>
+    private bool _streamPaused;
     public override async void _Ready()
     {
         try { await Run(); }
@@ -51,10 +53,11 @@ public partial class NetPoseTests : Node3D
         Vector3[] positions = new Vector3[indices.Length];
         void Capture()
         {
-            if (!NetPoseCodec.Capture(source, model, melee, indices, data)) { return; }
+            if (_streamPaused || !NetPoseCodec.Capture(source, model, melee, indices, data)) { return; }
             for (int i = 0; i < indices.Length; i++) { positions[i] = source.GetBoneGlobalPose(indices[i]).Origin; }
             int flags = NetPoseCodec.SwordVisible | NetPoseCodec.ShieldVisible;
             if (ragdoll.Downed) { flags |= NetPoseCodec.Falling; }
+            if (look is CarrierModel carrier && carrier.PackSetDown?.Off == true) { flags |= NetPoseCodec.PackOff; }
             pose.Receive(++_sequence, flags, data);
         }
         void Compare()
@@ -96,10 +99,11 @@ public partial class NetPoseTests : Node3D
         Check("observer sees the actual physical fall", _fell && _rotationError < 0.002f && _positionError < 0.025f, Error());
         Reset(); await Frames(420);
         Check("observer follows recovery to standing", !ragdoll.Downed && !pose.PhysicalFall && _rotationError < 0.002f && _positionError < 0.025f, Error());
+        await PackSetDown(look as CarrierModel, remote);
         source.SkeletonUpdated -= Capture; target.SkeletonUpdated -= Compare;
         float[] valid = (float[])data.Clone();
         Check("old and duplicate poses are rejected", !pose.Receive(_sequence, 0, data) && !pose.Receive(_sequence - 1, 0, data));
-        Check("truncated poses and unknown flags are rejected", !pose.Receive(++_sequence, 0, new float[2]) && !pose.Receive(++_sequence, 8, data));
+        Check("truncated poses and unknown flags are rejected", !pose.Receive(++_sequence, 0, new float[2]) && !pose.Receive(++_sequence, NetPoseCodec.AllFlags + 1, data));
         data[0] = float.NaN;
         Check("nonfinite poses cannot reach the skeleton", !pose.Receive(++_sequence, 0, data));
         data[0] = 500;
@@ -110,6 +114,41 @@ public partial class NetPoseTests : Node3D
         limited.QueueFree();
         world.QueueFree(); await Frames(2);
     }
+    /// <summary>
+    /// The pack set down to be repacked: the owner's pack comes off on their screen and, through the
+    /// pose stream, on the observer's; the observer's own packing never moves the remote carrier's pack.
+    /// </summary>
+    private async Task PackSetDown(CarrierModel? local, RemoteCarrier remote)
+    {
+        PackSetDown? mine = local?.PackSetDown;
+        PackSetDown? theirs = remote.Look?.PackSetDown;
+        Check("both carriers have a pack that can be set down", mine != null && theirs != null && theirs.Remote && mine != null && !mine.Remote,
+            $"local {mine != null}, remote {theirs != null}");
+        if (mine == null || theirs == null)
+        {
+            return;
+        }
+        // With nothing arriving from the owner, this machine's own packing leaves their pack on their back.
+        _streamPaused = true;
+        GameEvents.PublishPackingMode(true);
+        GameEvents.PublishPackOpen(true);
+        await Frames(30);
+        bool remoteStillWorn = mine.Off && !theirs.Off;
+        _streamPaused = false;
+        await Frames(60);
+        BackpackAttachment? mount = remote.Look?.Clothing?.BackpackMount;
+        Check("the owner's pack set down shows on the observer's screen, standing on the ground",
+            mine.Off && theirs.Off && theirs.Way >= 0.99f && theirs.Copy != null && mount != null && !mount.Visible
+                && Mathf.Abs(theirs.Copy.GlobalPosition.Y - mine.Copy!.GlobalPosition.Y) < 0.3f,
+            $"local off {mine.Off}, remote off {theirs.Off} way {theirs.Way:0.00}, remote copy y {theirs.Copy?.GlobalPosition.Y:0.00} vs local {mine.Copy?.GlobalPosition.Y:0.00}");
+        Check("the pack moves only from the owner's stream, not from this machine's own packing", remoteStillWorn);
+        GameEvents.PublishPackOpen(false);
+        GameEvents.PublishPackingMode(false);
+        await Frames(60);
+        Check("shouldered again, the pack is back on the observer's copy of them too",
+            !mine.Off && !theirs.Off && theirs.Copy == null && mount != null && mount.Visible, $"remote off {theirs.Off}, way {theirs.Way:0.00}");
+    }
+
     private void Reset() { _rotationError = 0; _positionError = 0; _weaponError = 0; _samples = 0; }
     private string Error() => $"samples {_samples}, angle {_rotationError:0.000000}, position {_positionError:0.000000}";
     private async Task Frames(int n) { for (int i = 0; i < n; i++) { await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame); } }

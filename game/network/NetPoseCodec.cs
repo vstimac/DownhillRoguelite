@@ -22,6 +22,10 @@ public static class NetPoseCodec
     public const int Falling = 1;
     public const int SwordVisible = 2;
     public const int ShieldVisible = 4;
+    /// <summary>The pack is off their back (set down to be repacked): others show it standing on the ground.</summary>
+    public const int PackOff = 8;
+    /// <summary>Every flag together; anything above is refused.</summary>
+    public const int AllFlags = Falling | SwordVisible | ShieldVisible | PackOff;
 
     public static int[] Bind(Skeleton3D skeleton)
     {

@@ -122,6 +122,8 @@ public partial class CarrierModel : Node3D
 
     /// <summary>The worn-gear layer of the shown character (null with the mannequin).</summary>
     public CarrierWornGear? Worn => _worn;
+    /// <summary>The pack shown coming off the back and standing on the ground (null before a character is shown).</summary>
+    public PackSetDown? PackSetDown { get; private set; }
 
     private void OnOptions()
     {
@@ -231,9 +233,10 @@ public partial class CarrierModel : Node3D
                 Clothing.ShowColours(shirt, pack);
             }
             ShowRemoteGear(_remoteGear);
+            AddPackSetDown();
             return;
         }
-        AddChild(new PackSetDown { Name = "PackSetDown", Clothing = Clothing });
+        AddPackSetDown();
         OnGear(GameEvents.CurrentGear);
     }
 
@@ -242,7 +245,28 @@ public partial class CarrierModel : Node3D
         if (Driver == null) { return; }
         Clothing = new ClothingVisualController { Name = "ClothingVisuals", ListenToGear = !Remote, Skeleton = Driver, CharacterId = "mannequin" };
         AddChild(Clothing);
-        AddChild(new PackSetDown { Name = "PackSetDown", Clothing = Clothing });
+        AddPackSetDown();
+    }
+
+    /// <summary>
+    /// The pack that comes off the back while it is repacked. Another player's carrier gets one too,
+    /// moved by their pose stream (Remote) rather than by this machine's packing.
+    /// </summary>
+    private void AddPackSetDown()
+    {
+        RemovePackSetDown();
+        PackSetDown = new PackSetDown { Name = "PackSetDown", Clothing = Clothing, Remote = Remote };
+        AddChild(PackSetDown);
+    }
+
+    private void RemovePackSetDown()
+    {
+        if (PackSetDown != null && IsInstanceValid(PackSetDown))
+        {
+            RemoveChild(PackSetDown);
+            PackSetDown.QueueFree();
+        }
+        PackSetDown = null;
     }
 
     private static MeshInstance3D? Piece(Skeleton3D skeleton, string name)
@@ -257,6 +281,7 @@ public partial class CarrierModel : Node3D
     /// <summary>Removes the shown character and brings the mannequin's own meshes back.</summary>
     private void Unload()
     {
+        RemovePackSetDown();
         if (Clothing != null)
         {
             RemoveChild(Clothing);

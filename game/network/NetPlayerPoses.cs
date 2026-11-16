@@ -61,6 +61,7 @@ public partial class NetPlayerPoses : Node
         if (_ragdoll?.Downed == true) { flags |= NetPoseCodec.Falling; }
         if (_melee?.Sword?.IsVisibleInTree() == true) { flags |= NetPoseCodec.SwordVisible; }
         if (_melee?.Shield?.IsVisibleInTree() == true) { flags |= NetPoseCodec.ShieldVisible; }
+        if (_body?.GetNodeOrNull<CarrierModel>("CarrierModel")?.PackSetDown?.Off == true) { flags |= NetPoseCodec.PackOff; }
         if (Session!.Mode == NetSession.Role.Host)
         {
             foreach (long peer in Session.Peers.Keys) { RpcId(peer, MethodName.PeerPose, 1L, _sequence, flags, _data); }
