@@ -286,6 +286,11 @@ public static partial class GameEvents
 
     public static void RequestMend(string materialId) => MendRequested?.Invoke(materialId);
 
+    /// <summary>Asks to cook a carried item (by id) at a station's fire (raw meat into cooked).</summary>
+    public static event Action<string>? CookRequested;
+
+    public static void RequestCook(string itemId) => CookRequested?.Invoke(itemId);
+
     /// <summary>Raised when something is mended (what, how much) or a mend can't be done (reason in what, amount 0).</summary>
     public static event Action<string, float>? Mended;
 

@@ -104,6 +104,12 @@ public partial class NetPoseTests : Node3D
         float[] valid = (float[])data.Clone();
         Check("old and duplicate poses are rejected", !pose.Receive(_sequence, 0, data) && !pose.Receive(_sequence - 1, 0, data));
         Check("truncated poses and unknown flags are rejected", !pose.Receive(++_sequence, 0, new float[2]) && !pose.Receive(++_sequence, NetPoseCodec.AllFlags + 1, data));
+        int sneaking = NetPoseCodec.Crouching | NetPoseCodec.LoadFlags(43.0f);
+        bool sneakArrives = pose.Receive(++_sequence, sneaking, valid) && pose.LastReceivedFlags == sneaking;
+        Check("a guest's crouch and load arrive in the pose flags (for the host's animals)",
+            sneakArrives && NetPoseCodec.LoadMass(sneaking) == 40.0f && NetPoseCodec.LoadMass(NetPoseCodec.LoadFlags(500.0f)) == 60.0f
+                && NetPoseCodec.LoadMass(NetPoseCodec.LoadFlags(0.0f)) == 0.0f,
+            $"arrived {sneakArrives}, 43 kg sent as {NetPoseCodec.LoadMass(sneaking)} kg");
         data[0] = float.NaN;
         Check("nonfinite poses cannot reach the skeleton", !pose.Receive(++_sequence, 0, data));
         data[0] = 500;

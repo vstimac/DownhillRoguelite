@@ -20,6 +20,7 @@ namespace DownhillRoguelite.Network;
 /// the guest each fall and get up (backwards and forwards) and the other sees the fall and the
 /// get-up; everyone early uses a med kit; the host sets its pack down to repack it (the world keeps
 /// going, and the guest and a late joiner see the pack standing on the ground, then shouldered again);
+/// the guest crouches with a loaded pack and swings its sword, and the host's animals learn of all three;
 /// and every machine prints one digest of the set pieces, rocks, bushes, grass carpet and route signs
 /// near station 1, which must be the same everywhere.
 /// </summary>
@@ -52,8 +53,21 @@ public partial class NetWorldProbe : Node
     private int _hostPosesDuring = -1;
     private double _joinedAt = -1.0;
     private double _posesFrom;
-    public override void _Ready() { GameEvents.SupplyPickedUp += Picked; }
-    public override void _ExitTree() { GameEvents.SupplyPickedUp -= Picked; }
+    private bool _guestCrouchSeen;
+    private float _guestLoadSeen = -1.0f;
+    private int _swingsHeard;
+    private float _ownLoad;
+    private bool _swung;
+    public override void _Ready()
+    {
+        GameEvents.SupplyPickedUp += Picked; GameEvents.SharedCarrierSwung += HeardSwing; GameEvents.LoadChanged += OwnLoad;
+    }
+    public override void _ExitTree()
+    {
+        GameEvents.SupplyPickedUp -= Picked; GameEvents.SharedCarrierSwung -= HeardSwing; GameEvents.LoadChanged -= OwnLoad;
+    }
+    private void HeardSwing(Vector3 at) { _swingsHeard++; }
+    private void OwnLoad(LoadSnapshot load) { _ownLoad = load.Mass; }
     private void Picked(string key) { _got.Add(key); }
     private T? Find<T>() where T : Node
     { return GetTree().CurrentScene.FindChildren("*", "", true, false).OfType<T>().FirstOrDefault(); }
@@ -185,6 +199,34 @@ public partial class NetWorldProbe : Node
                 _hostPosesDuring = (hostCarrier.Pose?.Received ?? 0) - _hostPosesBefore;
             }
         }
+        if (!host && early && Once(19, 22, time))
+        {
+            // Sneaking for the host's animals: crouch (the brake key, standing still) with a loaded pack, and swing.
+            CarrierInventory? inventory = player.GetNodeOrNull<CarrierInventory>("Inventory");
+            inventory?.TryAdd(ItemText.AtPath("res://inventory/items/relic_counterweight.tres")!);
+            inventory?.TryAdd(ItemText.AtPath("res://inventory/items/historic_banner.tres")!);
+            Input.ActionPress(WildlifeSpawner.CrouchAction);
+        }
+        if (!host && early && Once(20, 23, time))
+        {
+            MeleeCombat? melee = player.GetNodeOrNull<MeleeCombat>("MeleeCombat");
+            melee?.SetDrawnNow(true);
+            _swung = melee?.Attack() == true;
+            GD.Print($"[WorldProbe] guest_sneak load={_ownLoad:0.0} swung={_swung} sent={Session.Poses?.SwingsSent}");
+        }
+        if (host && time >= 23.5 && time < 27.0)
+        {
+            foreach (NetCarrier other in GameEvents.OtherCarriers)
+            {
+                _guestCrouchSeen |= other.Crouching;
+                _guestLoadSeen = Mathf.Max(_guestLoadSeen, other.LoadMass);
+            }
+        }
+        if (!host && early && Once(21, 27, time))
+        {
+            Input.ActionRelease(WildlifeSpawner.CrouchAction);
+            player.GetNodeOrNull<MeleeCombat>("MeleeCombat")?.SetDrawnNow(false);
+        }
         if (Once(9, 28, time))
         {
             // Host reservation history must also prevent streamed/re-created pickups.
@@ -212,6 +254,7 @@ public partial class NetWorldProbe : Node
             Check("unclaimed loot survives late joining", loot.Count(i => i.SlotKey == "L1.1") == 1 && loot.Select(i => i.SlotKey).Distinct().Count() == loot.Length);
             if (host) { Check("second NPC participant refused", _npcDenied); Check("actual remote fall observed", _sawFall); }
             else { Check("NPC presentation arrives", Session.WorldActors?.Received > 0); }
+            if (!host && early) { Check("this guest swung and told the host", _swung && Session.Poses?.SwingsSent >= 1); }
             string taken = string.Join(",", Session.TakenSupplies.OrderBy(x => x, StringComparer.Ordinal));
             GD.Print($"[WorldProbe] digest={Session.Mobs?.StateDigest()} taken={taken}");
             GD.Print($"[WorldProbe] result name={Session.LocalName} failures={_errors} got={string.Join(',', _got)}");
@@ -270,6 +313,9 @@ public partial class NetWorldProbe : Node
         if (host)
         {
             Check("the guest's fall and get-up are seen", _falls.Values.Any(w => w.Fell) && _falls.Values.Where(w => w.Fell).All(w => w.Up));
+            GD.Print($"[WorldProbe] guest_seen crouching={_guestCrouchSeen} load={_guestLoadSeen:0} swings={_swingsHeard}");
+            Check("the guest's crouch and load reach the host's animals", _guestCrouchSeen && _guestLoadSeen >= NetPoseCodec.LoadStep);
+            Check("the guest's sword swing reaches the host's animals", _swingsHeard >= 1);
             Check("the pack comes off to be repacked (real packing flow)", _packOpened && _ownPackOff);
             Check("co-op keeps the world running while the pack is open", _runningWhilePacking);
             Check("the pack is back on after shouldering", player.GetNodeOrNull<CarrierModel>("CarrierModel")?.PackSetDown?.Off == false);

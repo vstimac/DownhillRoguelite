@@ -54,6 +54,7 @@ ViewAngle = 220.0
 Health = 110.0
 DeathClip = "Armature|Death"
 Loot = PackedStringArray("leather_patch")
+AlwaysLoot = PackedStringArray("raw_meat", "raw_meat")
 LootCount = Vector2i(1, 2)
 CuriousRange = 14.0
 ApproachStop = 3.0
@@ -91,6 +92,7 @@ ViewAngle = 240.0
 Health = 100.0
 DeathClip = "Armature|Death"
 Loot = PackedStringArray("leather_patch")
+AlwaysLoot = PackedStringArray("raw_meat", "raw_meat")
 LootCount = Vector2i(1, 2)
 RestSink = 0.22
 
@@ -126,6 +128,7 @@ ViewAngle = 260.0
 Health = 90.0
 DeathClip = "Armature|Death"
 Loot = PackedStringArray("leather_patch")
+AlwaysLoot = PackedStringArray("raw_meat")
 LootCount = Vector2i(1, 2)
 RestSink = 0.22
 
@@ -159,6 +162,7 @@ SafeDistance = 26.0
 HerdSpacing = 1.6
 ViewAngle = 260.0
 Loot = PackedStringArray("leather_patch")
+AlwaysLoot = PackedStringArray("raw_meat")
 LootCount = Vector2i(1, 1)
 RestSink = 0.25
 
@@ -193,6 +197,7 @@ HerdSpacing = 2.2
 ViewAngle = 240.0
 Health = 70.0
 Loot = PackedStringArray("leather_patch")
+AlwaysLoot = PackedStringArray("raw_meat")
 LootCount = Vector2i(1, 1)
 CuriousRange = 16.0
 ApproachStop = 3.0
@@ -229,6 +234,7 @@ HerdSpacing = 1.8
 ViewAngle = 160.0
 Health = 70.0
 Loot = PackedStringArray("leather_patch")
+AlwaysLoot = PackedStringArray("raw_meat")
 LootCount = Vector2i(1, 1)
 RestSink = 0.3
 
@@ -388,6 +394,9 @@ HerdSpacing = 1.0
 ViewAngle = 240.0
 DeathClip = "WaspArmature|Wasp_Death"
 AttackDamage = 4.0
+AttackInterval = 2.5
+ChaseLeash = 15.0
+ChaseSeconds = 8.0
 CuriousRange = 8.0
 ApproachStop = 1.5
 
@@ -422,6 +431,7 @@ HerdSpacing = 2.0
 ViewAngle = 280.0
 Health = 60.0
 Loot = PackedStringArray("leather_patch")
+AlwaysLoot = PackedStringArray("raw_meat")
 LootCount = Vector2i(1, 1)
 GrazeClip = "eat"
 
@@ -551,6 +561,7 @@ HerdSpacing = 2.5
 ViewAngle = 160.0
 Health = 120.0
 Loot = PackedStringArray("leather_patch")
+AlwaysLoot = PackedStringArray("raw_meat", "raw_meat")
 LootCount = Vector2i(1, 2)
 GrazeClip = "eat"
 

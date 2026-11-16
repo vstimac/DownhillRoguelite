@@ -388,6 +388,18 @@ public partial class InventoryScreen : ParchmentPanel
         {
             _use.Text = "Wear";
         }
+        else if (item.Cookable)
+        {
+            // At a station's fire it is cooked; away from one, eaten raw (F eats it too).
+            if (GameEvents.InShelter)
+            {
+                _use.Text = "Cook";
+            }
+            else
+            {
+                _detailBody.Text += "\n(cook it at a station)";
+            }
+        }
         else if (item.Category == ItemCategory.Material)
         {
             _use.Text = "Mend";
@@ -496,6 +508,10 @@ public partial class InventoryScreen : ParchmentPanel
         if (ItemText.OpensMap(item))
         {
             ItemText.ToggleMap();
+        }
+        else if (item.Cookable && GameEvents.InShelter)
+        {
+            GameEvents.RequestCook(item.ItemId);
         }
         else if (item.Category == ItemCategory.Food || item.Category == ItemCategory.Water || item.UsableAlone)
         {

@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using DownhillRoguelite.Core;
+using DownhillRoguelite.Inventory;
 using DownhillRoguelite.Player;
 using DownhillRoguelite.Terrain;
 using DownhillRoguelite.Wildlife;
@@ -83,6 +85,7 @@ public partial class WildlifeTests : Node3D
         await TestWaryAndBold(table, Find(Spawner, "Horse"), Find(Spawner, "Pig"));
         await TestStealth(table, sheep);
         await TestHunting(table, sheep);
+        await TestCooking();
         await TestNeutralFightsBack(table, Find(Spawner, "Pig"));
         await TestAggressive(table, Find(Spawner, "Wasp"));
         await TestStealthEye(table, sheep);
@@ -739,6 +742,21 @@ public partial class WildlifeTests : Node3D
         bool downed = GameEvents.IsDowned;
         Check("a hard landing sends skittish animals off and makes others look up", !downed && sheep.State == WildlifeAnimal.Mode.Flee && cow.State == WildlifeAnimal.Mode.Alert,
             $"sheep {sheep.State}, cow {cow.State}, carrier downed {downed}");
+
+        // Co-op: a guest swings 20 m off; on the host its animals scatter, the host's own carrier being far.
+        spawner.Clear();
+        await WaitSeconds(0.2f);
+        Vector3 guest = player.GlobalPosition + Vector3.Back * 20.0f;
+        spawner.Ground(space, guest, out Vector3 guestGround, out string _, out float _);
+        WildlifeAnimal guestSheep = spawner.Spawn(Find(spawner, "Sheep"), guestGround + Vector3.Right * 6.0f);
+        WildlifeAnimal guestPig = spawner.Spawn(Find(spawner, "Pig"), guestGround + Vector3.Left * 5.0f);
+        await WaitSeconds(0.5f);
+        int sheepFlees = guestSheep.Flees, pigFlees = guestPig.Flees;
+        GameEvents.SetWorldAuthority(true, true);
+        GameEvents.PublishSharedCarrierSwung(guestGround);
+        GameEvents.SetWorldAuthority(false, false);
+        Check("a co-op guest's sword swing scatters the host's animals near it", guestSheep.Flees > sheepFlees && guestPig.Flees > pigFlees,
+            $"sheep bolted {guestSheep.Flees > sheepFlees}, pig bolted {guestPig.Flees > pigFlees}");
         spawner.Clear();
         await WaitSeconds(0.3f);
     }
@@ -826,7 +844,8 @@ public partial class WildlifeTests : Node3D
         herd.Join(mate);
         Vector3 carrier = Field(58.5f, 60.0f);
         await Live(new[] { prey, mate }, 0.3f, _ => CarrierSense.Still(carrier + Vector3.Back * 300.0f));
-        int lootBefore = CountLoot();
+        int lootBefore = CountLoot("leather_patch");
+        int meatBefore = CountLoot("raw_meat");
         int blows = 0;
         while (!prey.IsDead && blows < 10)
         {
@@ -834,10 +853,11 @@ public partial class WildlifeTests : Node3D
             blows++;
         }
         await Live(new[] { prey, mate }, 1.0f, _ => CarrierSense.Still(carrier));
-        int loot = CountLoot() - lootBefore;
-        Check("an animal can be hunted: killed by the sword it drops a hide and lies dead; its herd bolts",
-            prey.IsDead && prey.NetDown && !prey.CanBeHit && loot >= 1 && blows <= 3 && mate.State == WildlifeAnimal.Mode.Flee && mate.Herd == herd && prey.Herd == null,
-            $"dead {prey.IsDead} after {blows} blows, shown down {prey.NetDown}, can be hit {prey.CanBeHit}, {loot} loot dropped, mate {mate.State}");
+        int loot = CountLoot("leather_patch") - lootBefore;
+        int meat = CountLoot("raw_meat") - meatBefore;
+        Check("an animal can be hunted: killed by the sword it drops a hide and raw meat and lies dead; its herd bolts",
+            prey.IsDead && prey.NetDown && !prey.CanBeHit && loot >= 1 && meat >= 1 && blows <= 3 && mate.State == WildlifeAnimal.Mode.Flee && mate.Herd == herd && prey.Herd == null,
+            $"dead {prey.IsDead} after {blows} blows, shown down {prey.NetDown}, can be hit {prey.CanBeHit}, {loot} hide and {meat} raw meat dropped, mate {mate.State}");
         Free(new[] { prey, mate });
         foreach (Node node in GetTree().CurrentScene.GetChildren())
         {
@@ -848,17 +868,60 @@ public partial class WildlifeTests : Node3D
         }
     }
 
-    private int CountLoot()
+    private int CountLoot(string itemId)
     {
         int count = 0;
         foreach (Node node in GetTree().CurrentScene.GetChildren())
         {
-            if (node.Name.ToString().StartsWith("Loot_leather_patch", System.StringComparison.Ordinal))
+            if (node.Name.ToString().StartsWith("Loot_" + itemId, System.StringComparison.Ordinal))
             {
                 count++;
             }
         }
         return count;
+    }
+
+    /// <summary>
+    /// Raw meat is cooked at a station's fire (in its shelter) into cooked meat, which fills much more;
+    /// away from a fire it stays raw (it can still be eaten, for less).
+    /// </summary>
+    private async Task TestCooking()
+    {
+        // The test carrier has no pack of its own: a pack for this check only.
+        CarrierInventory inventory = new()
+        {
+            Name = "CookingPack",
+            Backpack = GD.Load<BackpackDefinition>("res://inventory/default_backpack.tres"),
+            StartingItemPaths = System.Array.Empty<string>(),
+            AutoPackOnStart = false,
+        };
+        AddChild(inventory);
+        await WaitSeconds(0.1f);
+        ItemDefinition? raw = ItemText.Find("raw_meat");
+        ItemDefinition? cooked = ItemText.Find("cooked_meat");
+        if (inventory.Grid == null || raw == null || cooked == null)
+        {
+            Check("raw meat cooks at a station's fire", false, $"pack {inventory.Grid != null}, raw {raw != null}, cooked {cooked != null}");
+            inventory.QueueFree();
+            return;
+        }
+        int Count(string id) => inventory.AllItems.Count(item => item.ItemId == id);
+        int rawBefore = Count("raw_meat");
+        int cookedBefore = Count("cooked_meat");
+        bool added = inventory.TryAdd(raw, -1.0f, false);
+        bool wasSheltered = GameEvents.InShelter;
+        GameEvents.PublishShelter(false, 0);
+        bool cookedOutside = inventory.Cook("raw_meat");
+        GameEvents.PublishShelter(true, 0);
+        bool cookedAtFire = inventory.Cook("raw_meat");
+        GameEvents.PublishShelter(wasSheltered, 0);
+        bool swapped = Count("raw_meat") == rawBefore && Count("cooked_meat") == cookedBefore + 1;
+        Check("raw meat cooks at a station's fire (not away from one), and cooked it fills much more",
+            added && !cookedOutside && cookedAtFire && swapped && cooked.Nutrition >= raw.Nutrition * 3.0f
+                && raw.Category == ItemCategory.Food && cooked.MassKg <= raw.MassKg,
+            $"packed {added}, cooked away from a fire {cookedOutside}, at a fire {cookedAtFire}, swapped {swapped}; food +{raw.Nutrition:0} raw, +{cooked.Nutrition:0} cooked");
+        inventory.QueueFree();
+        await WaitSeconds(0.1f);
     }
 
     /// <summary>A neutral pig struck by the sword turns and fights with its herd-mate, shoves the carrier and calms down later.</summary>
@@ -898,27 +961,55 @@ public partial class WildlifeTests : Node3D
         Free(new[] { struck, mate });
     }
 
-    /// <summary>An aggressive wasp that notices a carrier comes at it and stings.</summary>
+    /// <summary>
+    /// An aggressive wasp that notices a carrier near its nest comes at it and stings, about once every
+    /// 2.5 s; it gives up after a short chase (8 s, or 15 m from its nest) and flies back.
+    /// </summary>
     private async Task TestAggressive(WildlifeTable table, WildlifeSpecies wasp)
     {
-        WildlifeAnimal animal = Standalone(wasp, table, Field(30.0f, 80.0f) + Vector3.Up * wasp.HoverHeight, 91);
-        Vector3 carrier = Field(25.0f, 80.0f);
-        Face(animal, Vector3.Left);
-        animal.TargetPeer = StandInPeer;
         int stings = 0;
-        void OnDamage(NetStrike strike)
+        void OnDamage(float amount, string cause)
         {
-            if (strike.Peer == StandInPeer && strike.Damage > 0.0f && strike.Cause == wasp.DisplayName)
+            if (cause == wasp.DisplayName)
             {
                 stings++;
             }
         }
-        GameEvents.NetCarrierStruck += OnDamage;
+        GameEvents.DamageRequested += OnDamage;
+        WildlifeAnimal animal = Standalone(wasp, table, Field(30.0f, 80.0f) + Vector3.Up * wasp.HoverHeight, 91);
+        Vector3 carrier = Field(25.0f, 80.0f);
+        Face(animal, Vector3.Left);
         await Live(new[] { animal }, 10.0f, _ => new CarrierSense(carrier, new Vector3(0.0f, 0.0f, 1.3f), Vector3.Zero, false, false, 0.0f));
-        GameEvents.NetCarrierStruck -= OnDamage;
-        Check("an aggressive animal attacks a carrier it notices", animal.Bites >= 1 && stings == animal.Bites,
-            $"stung {animal.Bites}x ({stings} damage requests), now {animal.State}");
+        int standing = stings;
+        int bites = animal.Bites;
+        int gaveUp = animal.GiveUps;
         Free(new[] { animal });
+
+        // Running off: it follows, but not past its leash, then heads back to its nest.
+        Vector3 nest = Field(30.0f, 50.0f) + Vector3.Up * wasp.HoverHeight;
+        WildlifeAnimal chaser = Standalone(wasp, table, nest, 92);
+        Face(chaser, Vector3.Left);
+        Vector3 start = Field(26.0f, 50.0f);
+        Vector3 run = Vector3.Left * 3.0f;
+        float farthest = 0.0f;
+        float end = 0.0f;
+        await Live(new[] { chaser }, 18.0f, time => time < 12.0f
+                ? new CarrierSense(start + run * time, run, Vector3.Left, false, false, 0.0f)
+                : CarrierSense.Still(start + run * 12.0f),
+            (time, sense) =>
+            {
+                end = Flat(chaser.GlobalPosition, nest);
+                farthest = Mathf.Max(farthest, end);
+            });
+        GameEvents.DamageRequested -= OnDamage;
+        PlayerBody?.Health?.Refill();
+        Check("an aggressive animal stings a carrier near its nest about every 2.5 s, and gives up a chase after 8 s",
+            bites >= 2 && bites <= 4 && standing == bites && gaveUp >= 1,
+            $"stung {bites}x in 10 s ({standing} damage requests, {bites * wasp.AttackDamage:0} hp), gave up {gaveUp}x");
+        Check("a chasing wasp turns back at its leash and flies home",
+            chaser.GiveUps >= 1 && farthest >= 8.0f && farthest <= wasp.ChaseLeash + 1.5f && end < farthest - 4.0f,
+            $"stung the runner {chaser.Bites}x, went at most {farthest:0.0} m from its nest (leash {wasp.ChaseLeash:0}), {end:0.0} m at the end");
+        Free(new[] { chaser });
     }
 
     /// <summary>

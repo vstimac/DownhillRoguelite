@@ -72,6 +72,7 @@ public partial class CarrierInventory : Node
         GameEvents.DropRequested += OnDropRequested;
         GameEvents.ThrowRequested += OnThrowRequested;
         GameEvents.UseItemRequested += OnUseItemRequested;
+        GameEvents.CookRequested += OnCookRequested;
         GameEvents.CargoGrantRequested += OnCargoGrantRequested;
         GameEvents.CargoHandOverRequested += OnCargoHandOverRequested;
         GameEvents.PackPlaceRequested += OnPackPlaceRequested;
@@ -114,6 +115,7 @@ public partial class CarrierInventory : Node
         GameEvents.DropRequested -= OnDropRequested;
         GameEvents.ThrowRequested -= OnThrowRequested;
         GameEvents.UseItemRequested -= OnUseItemRequested;
+        GameEvents.CookRequested -= OnCookRequested;
         GameEvents.CargoGrantRequested -= OnCargoGrantRequested;
         GameEvents.CargoHandOverRequested -= OnCargoHandOverRequested;
         GameEvents.PackPlaceRequested -= OnPackPlaceRequested;
@@ -469,6 +471,77 @@ public partial class CarrierInventory : Node
             }
         }
         return covering ?? biggest;
+    }
+
+    /// <summary>Said when cooking away from a station's fire.</summary>
+    [Export] public string CookNeedsFireHint { get; set; } = "Cooking needs a station's fire.";
+    /// <summary>Said when something is cooked ({0} what it was, {1} what it is now).</summary>
+    [Export] public string CookedHint { get; set; } = "{0} cooked over the fire: {1}.";
+    /// <summary>Said when the cooked food finds no room (the raw one goes back).</summary>
+    [Export] public string CookNoRoomHint { get; set; } = "No room in the pack for it cooked.";
+
+    private void OnCookRequested(string itemId)
+    {
+        Cook(itemId);
+    }
+
+    /// <summary>
+    /// Cooks one carried item (from the pack or a pocket) into what it cooks into, at a station's fire
+    /// (inside its shelter, as mending); false away from a fire, if there is none, or no room.
+    /// </summary>
+    public bool Cook(string itemId)
+    {
+        ItemDefinition? raw = ItemText.Find(itemId);
+        ItemDefinition? cooked = raw is { Cookable: true } ? ItemText.Find(raw.CooksInto) : null;
+        if (Grid == null || raw == null || cooked == null)
+        {
+            return false;
+        }
+        if (!GameEvents.InShelter)
+        {
+            GameEvents.PublishHint(CookNeedsFireHint);
+            return false;
+        }
+        PackedItem? packed = null;
+        foreach (PackedItem item in Grid.Items)
+        {
+            if (item.Definition.ItemId == itemId)
+            {
+                packed = item;
+                break;
+            }
+        }
+        if (packed != null)
+        {
+            Consume(packed);
+        }
+        else
+        {
+            ItemDefinition? pocketed = null;
+            if (Equipment != null)
+            {
+                foreach (ItemDefinition candidate in Equipment.PocketItems)
+                {
+                    if (candidate.ItemId == itemId)
+                    {
+                        pocketed = candidate;
+                        break;
+                    }
+                }
+            }
+            if (pocketed == null || !RemovePocketItem(pocketed))
+            {
+                return false;
+            }
+        }
+        if (!TryAdd(cooked, -1.0f, false))
+        {
+            TryAdd(raw, -1.0f, false);
+            GameEvents.PublishHint(CookNoRoomHint);
+            return false;
+        }
+        GameEvents.PublishHint(string.Format(CookedHint, raw.DisplayName, cooked.DisplayName.ToLowerInvariant()));
+        return true;
     }
 
     /// <summary>Removes a packed item for good (eaten, drunk, used up).</summary>

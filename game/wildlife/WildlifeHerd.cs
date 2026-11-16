@@ -8,7 +8,7 @@ namespace DownhillRoguelite.Wildlife;
 /// is, how fast it goes, whether it steers into the animal, sprints or falls, how heavy its load is
 /// (louder footsteps), whether it crouches (the brake key: quieter, harder to see), whether its
 /// torch is lit, and how much daylight there is (1 day, 0 night). Velocity of a guest comes from
-/// its streamed feet; a guest's crouch and load aren't streamed.
+/// its streamed feet; its crouch and load come in its pose flags.
 /// </summary>
 public readonly record struct CarrierSense(
     Vector3 Position,

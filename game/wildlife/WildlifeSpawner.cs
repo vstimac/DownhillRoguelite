@@ -72,6 +72,7 @@ public partial class WildlifeSpawner : Node3D
         GameEvents.DownedChanged += OnDownedChanged;
         GameEvents.RespawnRequested += Clear;
         GameEvents.SharedCarrierFell += OnSharedFall;
+        GameEvents.SharedCarrierSwung += OnSharedSwing;
         GameEvents.LoadChanged += OnLoadChanged;
         GameEvents.Landed += OnLanded;
         GameEvents.MeleeSwung += OnMeleeSwung;
@@ -84,6 +85,7 @@ public partial class WildlifeSpawner : Node3D
         GameEvents.DownedChanged -= OnDownedChanged;
         GameEvents.RespawnRequested -= Clear;
         GameEvents.SharedCarrierFell -= OnSharedFall;
+        GameEvents.SharedCarrierSwung -= OnSharedSwing;
         GameEvents.LoadChanged -= OnLoadChanged;
         GameEvents.Landed -= OnLanded;
         GameEvents.MeleeSwung -= OnMeleeSwung;
@@ -91,6 +93,7 @@ public partial class WildlifeSpawner : Node3D
 
     private int _tick;
     private void OnSharedFall(Vector3 at) { if (GameEvents.SharedWorldHost) { ScatterAt(at); } }
+    private void OnSharedSwing(Vector3 at) { if (GameEvents.SharedWorldHost && Table != null) { ScatterAt(at, Table.SwingScatterRadius); } }
 
     public override void _PhysicsProcess(double delta)
     {
@@ -183,10 +186,9 @@ public partial class WildlifeSpawner : Node3D
                 {
                     nearest = distance;
                     Vector3 velocity = _guests.TryGetValue(other.Peer, out var guest) ? guest.Velocity : Vector3.Zero;
-                    // A guest's load and crouch aren't streamed: it counts as unloaded and upright
-                    // (a slow crouching walk is still quiet, as noise follows its speed).
-                    sense = new CarrierSense(other.Feet, velocity, other.InputDirection, other.Sprinting, false, 0.0f,
-                        false, other.TorchLit, daylight);
+                    // A guest's crouch and load come in its pose flags (load in 20 kg steps).
+                    sense = new CarrierSense(other.Feet, velocity, other.InputDirection, other.Sprinting, false, other.LoadMass,
+                        other.Crouching, other.TorchLit, daylight);
                     animal.TargetPeer = other.Peer;
                 }
             }
@@ -395,9 +397,15 @@ public partial class WildlifeSpawner : Node3D
         _carrierVelocity = snapshot.Velocity;
         _carrierInput = snapshot.InputDirection;
         _carrierFalling = snapshot.State == LocomotionState.Airborne && snapshot.Velocity.Y < -(Table?.FastSpeed ?? 4.5f);
-        _crouching = snapshot.State == LocomotionState.Braking
-            || (snapshot.State == LocomotionState.Idle && Input.IsActionPressed(CrouchAction));
+        _crouching = IsCrouching(snapshot);
         _hasCarrier = true;
+    }
+
+    /// <summary>Crouching: braking, or standing still with the brake key held.</summary>
+    public static bool IsCrouching(LocomotionSnapshot snapshot)
+    {
+        return snapshot.State == LocomotionState.Braking
+            || (snapshot.State == LocomotionState.Idle && Input.IsActionPressed(CrouchAction));
     }
 
     private void OnLoadChanged(LoadSnapshot load)
