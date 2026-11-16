@@ -505,8 +505,16 @@ public partial class PlayerRagdoll : Node
     /// <summary>
     /// The pose he gathers himself into from the ground before standing (a low crouch): the ragdoll
     /// blends into it, he holds it a moment and then rises, instead of snapping upright.
+    /// Godot names imported loop clips without their _Loop suffix, so this is "Crouch_Idle"; the old
+    /// "Crouch_Idle_Loop" matched no clip and the crouch was silently skipped.
     /// </summary>
-    [Export] public StringName GetUpClip { get; set; } = "Crouch_Idle_Loop";
+    [Export] public StringName GetUpClip { get; set; } = "Crouch_Idle";
+    /// <summary>
+    /// The get-up from lying on his back (face up), KinemIQ's CC0 "Move_get_up_from_the_ground" retargeted
+    /// onto this rig (art/characters/quaternius_ual/UAL_Mannequin.glb). It plays once, from lying to standing,
+    /// instead of the crouch. Missing from the animations, every fall uses the crouch.
+    /// </summary>
+    [Export] public StringName GetUpClipBack { get; set; } = "GetUp_Back";
     /// <summary>How long he stays gathered in the crouch once the ragdoll has let go (s).</summary>
     [Export] public float GetUpHold { get; set; } = 0.25f;
     /// <summary>How long the rise from the crouch to standing takes (s).</summary>
@@ -514,32 +522,80 @@ public partial class PlayerRagdoll : Node
 
     /// <summary>He is gathering himself or rising after a fall (tests read it).</summary>
     public bool Rising => _rise != RisePhase.None;
+    /// <summary>The clip the current rise plays (tests read it).</summary>
+    public StringName RiseClip => _riseClip;
 
     private enum RisePhase { None, Gather, Hold, Stand }
 
     private RisePhase _rise = RisePhase.None;
     private float _riseTime;
     private float _fadeBefore = -1.0f;
+    private StringName _riseClip = "";
+    private bool _riseOnce;
 
     private CharacterAnimator? RiseAnimator()
     {
         return Body?.GetNodeOrNull<Dive>("Dive")?.Animator;
     }
 
-    /// <summary>The get-up begins: the crouch plays under the fading ragdoll.</summary>
+    private static float ClipLength(CharacterAnimator animator, StringName clip)
+    {
+        return animator.Animations?.HasAnimation(clip) == true
+            ? (float)animator.Animations.GetAnimation(clip).Length
+            : 0.0f;
+    }
+
+    /// <summary>
+    /// True when he lies face up: the body's front (the skeleton's front, FrontOf) points up. It is the
+    /// hips' rotation since the rest pose that carries it, so the check holds wherever the fall left him.
+    /// </summary>
+    public bool LyingFaceUp()
+    {
+        if (Skeleton == null || _bones.Count == 0)
+        {
+            return false;
+        }
+        int hips = Skeleton.FindBone(_bones[0].Name);
+        if (hips < 0)
+        {
+            return false;
+        }
+        Basis restBasis = (Skeleton.GlobalTransform * Skeleton.GetBoneGlobalRest(hips)).Basis.Orthonormalized();
+        Basis nowBasis = _bones[0].Body.GlobalTransform.Basis.Orthonormalized();
+        Vector3 front = nowBasis * restBasis.Inverse() * FrontOf(Skeleton);
+        return front.Y > 0.0f;
+    }
+
+    /// <summary>The get-up clip for the pose he is in: the back get-up when he lies face up, else the crouch.</summary>
+    public StringName GetUpClipFor(CharacterAnimator animator)
+    {
+        bool back = LyingFaceUp() && animator.Animations?.HasAnimation(GetUpClipBack) == true;
+        return back ? GetUpClipBack : GetUpClip;
+    }
+
+    /// <summary>The get-up begins: the clip plays under the fading ragdoll.</summary>
     private void BeginRise()
     {
         CharacterAnimator? animator = RiseAnimator();
-        if (animator == null || !animator.PlayAction(GetUpClip, 0.0f, 1.0f, true))
+        if (animator == null)
         {
             _rise = RisePhase.None;
             return;
         }
+        StringName clip = GetUpClipFor(animator);
+        bool once = clip != GetUpClip;
+        if (!animator.PlayAction(clip, 0.0f, 1.0f, !once))
+        {
+            _rise = RisePhase.None;
+            return;
+        }
+        _riseClip = clip;
+        _riseOnce = once;
         _rise = RisePhase.Gather;
         _riseTime = 0.0f;
     }
 
-    /// <summary>After the ragdoll has let go: hold the crouch, then let the normal animation take over slowly.</summary>
+    /// <summary>After the ragdoll has let go: hold the pose, then let the normal animation take over slowly.</summary>
     private void UpdateRise(float dt)
     {
         if (_rise == RisePhase.None || _rise == RisePhase.Gather)
@@ -553,7 +609,9 @@ public partial class PlayerRagdoll : Node
             return;
         }
         _riseTime += dt;
-        if (_rise == RisePhase.Hold && _riseTime >= GetUpHold)
+        // A one-shot get-up holds its last frame (standing) until the whole clip has played.
+        bool clipDone = !_riseOnce || animator.ActionTime >= ClipLength(animator, _riseClip) - 0.001f;
+        if (_rise == RisePhase.Hold && _riseTime >= GetUpHold && clipDone)
         {
             _fadeBefore = animator.ActionFadeTime;
             animator.ActionFadeTime = GetUpRise;
