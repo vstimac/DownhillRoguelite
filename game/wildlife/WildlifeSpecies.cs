@@ -2,10 +2,24 @@ using Godot;
 
 namespace DownhillRoguelite.Wildlife;
 
+/// <summary>How an animal takes the carrier: bolts early, walks off, comes to look, or holds its ground.</summary>
+public enum Temperament
+{
+    /// <summary>Bolts early and runs, the whole herd with it (sheep, zebras, rats, deer).</summary>
+    Skittish,
+    /// <summary>Walks away and keeps an eye on the carrier; runs only from a sprinter (horses, snakes, foxes).</summary>
+    Wary,
+    /// <summary>Comes a few metres toward a carrier who stands still, then loses interest (cows, llamas, cats).</summary>
+    Curious,
+    /// <summary>Holds its ground and pushes back when pushed (pigs, polar bears).</summary>
+    Bold,
+}
+
 /// <summary>
-/// One kind of animal: its model and how to show it (scale, rotation, which clip means idle, walk
-/// and flee), how it moves, how shy it is, how many come together and where it lives (circles,
-/// surfaces, slopes). Hides the packs' different clip names and axes. See docs/survival-loop.md (M9).
+/// One kind of animal: its model and how to show it (scale, rotation, which clip means idle, graze,
+/// walk and flee), how it moves, how it senses and takes the carrier (temperament, sight, hearing,
+/// flight distances), how many come together and where it lives (circles, surfaces, slopes). Hides
+/// the packs' different clip names and axes. See docs/survival-loop.md (M9).
 /// </summary>
 [GlobalClass]
 public partial class WildlifeSpecies : Resource
@@ -19,7 +33,13 @@ public partial class WildlifeSpecies : Resource
 
     [ExportGroup("Clips")]
     [Export] public string IdleClip { get; set; } = "";
-    /// <summary>Walking clip; empty means the animal doesn't wander (it grazes in place).</summary>
+    /// <summary>Grazing clip (head down); empty or missing means the idle clip.</summary>
+    [Export] public string GrazeClip { get; set; } = "";
+    /// <summary>Lying-down clip; empty means the idle clip, slowed, with the model lowered by RestSink.</summary>
+    [Export] public string RestClip { get; set; } = "";
+    /// <summary>How far the model sinks while lying down, as a share of its body height (0 = never lies down).</summary>
+    [Export] public float RestSink { get; set; }
+    /// <summary>Walking clip; empty means the flee clip, slowed (a hop). No walk and no flee clip: it grazes in place.</summary>
     [Export] public string WalkClip { get; set; } = "";
     /// <summary>Fleeing clip (a run, or a hop for animals without one).</summary>
     [Export] public string FleeClip { get; set; } = "";
@@ -38,19 +58,32 @@ public partial class WildlifeSpecies : Resource
     /// <summary>Flies at this height above the ground (0 = walks).</summary>
     [Export] public float HoverHeight { get; set; }
 
-    [ExportGroup("Shyness")]
-    /// <summary>Bolts when the carrier comes this close, in m.</summary>
+    [ExportGroup("Senses and temperament")]
+    [Export] public Temperament Temperament { get; set; } = Temperament.Wary;
+    /// <summary>Sees a moving carrier this far, in m (a still one at about half: WildlifeTable.StillSight).</summary>
+    [Export] public float SightRange { get; set; } = 30.0f;
+    /// <summary>Hears a sprinting carrier this far, in m (walking, standing and heavy loads scale it: WildlifeTable).</summary>
+    [Export] public float HearingRange { get; set; } = 25.0f;
+    /// <summary>Seconds of the alert beat (head up, frozen, facing the carrier) on first noticing it.</summary>
+    [Export] public float AlertSeconds { get; set; } = 1.5f;
+    /// <summary>Reacts (bolts if skittish, walks off if wary or curious) when a walking carrier comes this close, in m.</summary>
     [Export] public float FleeDistance { get; set; } = 10.0f;
-    /// <summary>Bolts from this far when the carrier sprints, in m.</summary>
+    /// <summary>The same for a sprinting, falling or fast-sliding carrier, in m.</summary>
     [Export] public float SprintFleeDistance { get; set; } = 18.0f;
-    /// <summary>Turns to watch the carrier within this distance, in m.</summary>
-    [Export] public float WatchDistance { get; set; } = 25.0f;
+    /// <summary>Stops fleeing once this far from what scared it, in m.</summary>
+    [Export] public float SafeDistance { get; set; } = 25.0f;
+    /// <summary>A curious animal comes to look at a carrier standing still within this distance, in m.</summary>
+    [Export] public float CuriousRange { get; set; } = 14.0f;
+    /// <summary>...and stops this far from it, in m.</summary>
+    [Export] public float ApproachStop { get; set; } = 3.0f;
 
     [ExportGroup("Groups and habitat")]
     /// <summary>Smallest and largest group.</summary>
     [Export] public Vector2I GroupSize { get; set; } = new(1, 3);
     /// <summary>Group members spawn within this radius of each other, in m.</summary>
     [Export] public float GroupSpread { get; set; } = 6.0f;
+    /// <summary>Herd members keep at least this far apart, in m.</summary>
+    [Export] public float HerdSpacing { get; set; } = 2.0f;
     /// <summary>Relative chance among the species that fit a spot.</summary>
     [Export] public float Weight { get; set; } = 1.0f;
     /// <summary>0-based circles it lives in (Limbo 0, Treachery 8, 9 = beyond the ninth).</summary>

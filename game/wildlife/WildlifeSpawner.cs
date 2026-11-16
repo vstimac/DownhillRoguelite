@@ -8,10 +8,13 @@ namespace DownhillRoguelite.Wildlife;
 /// <summary>
 /// Keeps a small population of animals around the carrier: groups are placed in a ring, mostly
 /// ahead downhill, on ground found by a ray, as species that live in the current circle on that
-/// surface and slope; animals far away or well behind are removed, so the cost stays flat as the
-/// carrier descends. A fall (DownedChanged) scatters every animal nearby; a new run clears them.
-/// Reads LocomotionUpdated (where the carrier is), VitalsUpdated (sprinting) and RunState
-/// (circle). Times itself (AverageMilliseconds) so tests can hold it under budget.
+/// surface and slope (a group of two or more is a herd: WildlifeHerd); animals far away or well
+/// behind are removed, so the cost stays flat as the carrier descends. Each animal watches the
+/// nearest carrier standing (CarrierSense: where, how fast, sprinting, falling, how loaded; a
+/// guest's speed comes from its streamed feet). A fall (DownedChanged, a guest's fall) or a sword
+/// swing scatters every animal nearby, a hard landing startles them; a new run clears them.
+/// Reads LocomotionUpdated, VitalsUpdated (sprinting), LoadChanged, Landed, MeleeSwung and
+/// RunState (circle). Times itself (AverageMilliseconds) so tests can hold it under budget.
 /// </summary>
 public partial class WildlifeSpawner : Node3D
 {
@@ -41,7 +44,11 @@ public partial class WildlifeSpawner : Node3D
     private Vector3 _carrier;
     private Vector3 _carrierVelocity;
     private Vector3 _carrierInput;
+    private bool _carrierFalling;
+    private float _loadMass;
     private bool _hasCarrier;
+    /// <summary>Guests' feet last frame and their smoothed velocity, for their CarrierSense.</summary>
+    private readonly Dictionary<long, (Vector3 Feet, Vector3 Velocity)> _guests = new();
     private bool _sprinting;
     private float _spawnTimer;
     private ulong _serial;
@@ -56,6 +63,9 @@ public partial class WildlifeSpawner : Node3D
         GameEvents.DownedChanged += OnDownedChanged;
         GameEvents.RespawnRequested += Clear;
         GameEvents.SharedCarrierFell += OnSharedFall;
+        GameEvents.LoadChanged += OnLoadChanged;
+        GameEvents.Landed += OnLanded;
+        GameEvents.MeleeSwung += OnMeleeSwung;
     }
 
     public override void _ExitTree()
@@ -65,6 +75,9 @@ public partial class WildlifeSpawner : Node3D
         GameEvents.DownedChanged -= OnDownedChanged;
         GameEvents.RespawnRequested -= Clear;
         GameEvents.SharedCarrierFell -= OnSharedFall;
+        GameEvents.LoadChanged -= OnLoadChanged;
+        GameEvents.Landed -= OnLanded;
+        GameEvents.MeleeSwung -= OnMeleeSwung;
     }
 
     private int _tick;
@@ -88,6 +101,7 @@ public partial class WildlifeSpawner : Node3D
         {
             Circle = _run.Circles.CircleAt(_run.Depth);
         }
+        TrackGuests(dt);
 
         for (int i = _animals.Count - 1; i >= 0; i--)
         {
@@ -98,12 +112,13 @@ public partial class WildlifeSpawner : Node3D
             // The route runs toward -Z: +Z is uphill, behind the carrier.
             if (horizontal > Table.DespawnDistance || offset.Z > Table.BehindDistance)
             {
+                animal.Herd?.Leave(animal);
                 animal.QueueFree();
                 _animals.RemoveAt(i);
                 continue;
             }
             // Far, calm animals step less often: nobody sees a grazing sheep 100 m off at 60 Hz.
-            bool calm = animal.State == WildlifeAnimal.Mode.Idle || animal.State == WildlifeAnimal.Mode.Walk;
+            bool calm = animal.IsCalm;
             int every = Mathf.Max(Table.FarTickEvery, 1);
             if (calm && every > 1 && horizontal > Table.FarDistance)
             {
@@ -137,36 +152,72 @@ public partial class WildlifeSpawner : Node3D
         AverageMilliseconds = Mathf.Lerp(AverageMilliseconds, ms, 0.05f);
     }
 
-    /// <summary>Every animal within the scatter radius of a point (measured flat, as slopes are steep) bolts away from it.</summary>
+    /// <summary>Ticks an animal against the nearest carrier standing (the host's own, or a guest's).</summary>
     private void TickAnimal(WildlifeAnimal animal, float dt, PhysicsDirectSpaceState3D space)
     {
-        Vector3 target = _carrier; Vector3 input = _carrierInput; bool sprinting = _sprinting;
+        CarrierSense sense = new(_carrier, _carrierVelocity, _carrierInput, _sprinting, _carrierFalling, _loadMass);
         animal.TargetPeer = 0;
         float nearest = animal.GlobalPosition.DistanceSquaredTo(_carrier);
         if (GameEvents.SharedWorldHost)
         {
-            if (GameEvents.IsDowned || GameEvents.CarrierBleeding) { nearest = float.MaxValue; input = Vector3.Zero; sprinting = false; }
+            if (GameEvents.IsDowned || GameEvents.CarrierBleeding)
+            {
+                nearest = float.MaxValue;
+                sense = sense with { Velocity = Vector3.Zero, Input = Vector3.Zero, Sprinting = false, Falling = false };
+            }
             foreach (NetCarrier other in GameEvents.OtherCarriers)
             {
                 float distance = animal.GlobalPosition.DistanceSquaredTo(other.Feet);
                 if (!other.Down && distance < nearest)
-                { nearest = distance; target = other.Feet; input = other.InputDirection; sprinting = other.Sprinting; animal.TargetPeer = other.Peer; }
+                {
+                    nearest = distance;
+                    Vector3 velocity = _guests.TryGetValue(other.Peer, out var guest) ? guest.Velocity : Vector3.Zero;
+                    // A guest's load isn't streamed: it counts as unloaded.
+                    sense = new CarrierSense(other.Feet, velocity, other.InputDirection, other.Sprinting, false, 0.0f);
+                    animal.TargetPeer = other.Peer;
+                }
             }
         }
-        animal.Tick(dt, target, input, sprinting, space);
+        animal.Tick(dt, sense, space);
     }
 
+    /// <summary>Guests' speed from their streamed feet (a jump of metres in a frame is a teleport, not speed).</summary>
+    private void TrackGuests(float dt)
+    {
+        if (!GameEvents.SharedWorldHost)
+        {
+            if (_guests.Count > 0)
+            {
+                _guests.Clear();
+            }
+            return;
+        }
+        foreach (NetCarrier other in GameEvents.OtherCarriers)
+        {
+            Vector3 velocity = Vector3.Zero;
+            if (_guests.TryGetValue(other.Peer, out var last) && dt > 0.0f)
+            {
+                Vector3 moved = other.Feet - last.Feet;
+                velocity = moved.Length() > 8.0f ? Vector3.Zero : last.Velocity.Lerp(moved / dt, 0.3f);
+            }
+            _guests[other.Peer] = (other.Feet, velocity);
+        }
+    }
+
+    /// <summary>Every animal within the scatter radius of a point (measured flat, as slopes are steep) bolts away from it.</summary>
     public int ScatterAt(Vector3 point)
     {
-        if (Table == null)
-        {
-            return 0;
-        }
+        return Table == null ? 0 : ScatterAt(point, Table.ScatterRadius);
+    }
+
+    /// <summary>Every animal within a radius of a point bolts away from it (a fall, a sword swing).</summary>
+    public int ScatterAt(Vector3 point, float radius)
+    {
         int scattered = 0;
         foreach (WildlifeAnimal animal in _animals)
         {
             Vector3 offset = animal.GlobalPosition - point;
-            if (new Vector2(offset.X, offset.Z).Length() <= Table.ScatterRadius)
+            if (new Vector2(offset.X, offset.Z).Length() <= radius)
             {
                 animal.FleeFrom(point);
                 scattered++;
@@ -175,11 +226,28 @@ public partial class WildlifeSpawner : Node3D
         return scattered;
     }
 
+    /// <summary>A loud noise at a point: animals within the radius startle by temperament (WildlifeAnimal.Startle).</summary>
+    public int StartleAt(Vector3 point, float radius)
+    {
+        int startled = 0;
+        foreach (WildlifeAnimal animal in _animals)
+        {
+            Vector3 offset = animal.GlobalPosition - point;
+            if (new Vector2(offset.X, offset.Z).Length() <= radius)
+            {
+                animal.Startle(point);
+                startled++;
+            }
+        }
+        return startled;
+    }
+
     /// <summary>Removes every animal.</summary>
     public void Clear()
     {
         foreach (WildlifeAnimal animal in _animals)
         {
+            animal.Herd?.Leave(animal);
             animal.QueueFree();
         }
         _animals.Clear();
@@ -234,6 +302,7 @@ public partial class WildlifeSpawner : Node3D
         float spotSlope = slope;
         int size = _random.RandiRange(species.GroupSize.X, Mathf.Max(species.GroupSize.X, species.GroupSize.Y));
         size = Mathf.Min(size, Table.MaxAnimals - _animals.Count);
+        WildlifeHerd? herd = size > 1 ? new WildlifeHerd() : null;
         for (int i = 0; i < size; i++)
         {
             Vector3 spot = point;
@@ -246,7 +315,8 @@ public partial class WildlifeSpawner : Node3D
                     continue;
                 }
             }
-            Spawn(species, spot, spotSurface, spotSlope);
+            WildlifeAnimal animal = Spawn(species, spot, spotSurface, spotSlope);
+            herd?.Join(animal);
         }
         return true;
     }
@@ -311,7 +381,33 @@ public partial class WildlifeSpawner : Node3D
         _carrier = snapshot.Position;
         _carrierVelocity = snapshot.Velocity;
         _carrierInput = snapshot.InputDirection;
+        _carrierFalling = snapshot.State == LocomotionState.Airborne && snapshot.Velocity.Y < -(Table?.FastSpeed ?? 4.5f);
         _hasCarrier = true;
+    }
+
+    private void OnLoadChanged(LoadSnapshot load)
+    {
+        _loadMass = load.Mass;
+    }
+
+    /// <summary>A hard landing is heard around: the harder, the farther.</summary>
+    private void OnLanded(float downwardSpeed)
+    {
+        if (Table == null || !GameEvents.MaySimulateWorld || downwardSpeed < Table.HardLandingSpeed)
+        {
+            return;
+        }
+        StartleAt(_carrier, Mathf.Min(downwardSpeed * Table.LandingNoisePerSpeed, Table.ScatterRadius));
+    }
+
+    /// <summary>A sword swung nearby scatters every animal around, bold ones too.</summary>
+    private void OnMeleeSwung(Vector3 feet, Vector3 facing, string kind)
+    {
+        if (Table == null || !GameEvents.MaySimulateWorld)
+        {
+            return;
+        }
+        ScatterAt(feet, Table.SwingScatterRadius);
     }
 
     private void OnVitalsUpdated(VitalsSnapshot vitals)
