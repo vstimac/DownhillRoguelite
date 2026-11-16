@@ -69,9 +69,10 @@ public partial class RouteSign : Node3D
             {
                 FontSize = size,
                 PixelSize = PixelSize,
-                Billboard = BaseMaterial3D.BillboardModeEnum.FixedY,
+                // Flat on the board's face: a billboard turns each line about its centre and swings half of it behind the board.
+                Billboard = BaseMaterial3D.BillboardModeEnum.Disabled,
                 OutlineSize = 10,
-                Position = new Vector3(0.0f, y, 0.08f),
+                Position = new Vector3(0.0f, y, 0.04f),
                 Visible = false,
             };
             AddChild(WorldLabel.Readable(_lines[i], ReadRange));
