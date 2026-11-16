@@ -40,10 +40,11 @@ public partial class RouteSign : Node3D
         StandardMaterial3D wood = new() { AlbedoColor = WoodColor, Roughness = 1.0f };
         foreach (float x in new[] { -BoardSize.X * 0.42f, BoardSize.X * 0.42f })
         {
+            // The posts stand behind the board's face: in front of it they hid the ends of the longest path lines.
             AddChild(new MeshInstance3D
             {
                 Mesh = new BoxMesh { Size = new Vector3(0.1f, BoardHeight + 0.4f, 0.1f) },
-                Position = new Vector3(x, (BoardHeight + 0.4f) * 0.5f, 0.0f),
+                Position = new Vector3(x, (BoardHeight + 0.4f) * 0.5f, -0.1f),
                 MaterialOverride = wood,
             });
         }
@@ -61,16 +62,18 @@ public partial class RouteSign : Node3D
             float y = top - 0.08f - i * LineSpacing;
             if (i == 0)
             {
+                // The heading sits inside the board's top edge, not on it.
                 size = FontSize + 8;
-                y = top;
+                y = top - 0.12f;
             }
             _lines[i] = new Label3D
             {
                 FontSize = size,
                 PixelSize = PixelSize,
-                Billboard = BaseMaterial3D.BillboardModeEnum.FixedY,
+                // Flat on the board's face: a billboard turns each line about its centre and swings half of it behind the board.
+                Billboard = BaseMaterial3D.BillboardModeEnum.Disabled,
                 OutlineSize = 10,
-                Position = new Vector3(0.0f, y, 0.08f),
+                Position = new Vector3(0.0f, y, 0.04f),
                 Visible = false,
             };
             AddChild(WorldLabel.Readable(_lines[i], ReadRange));

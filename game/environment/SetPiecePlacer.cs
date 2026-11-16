@@ -18,12 +18,12 @@ public partial class SetPiecePlacer : Node3D
     public const string Folder = "res://environment/set_pieces";
 
     /// <summary>Wayside pieces tried per stage (inclusive range).</summary>
-    [Export] public Vector2I WaysidePerStage { get; set; } = new(6, 10);
+    [Export] public Vector2I WaysidePerStage { get; set; } = new(9, 13);
     [Export] public float LandmarkChance { get; set; } = 0.8f;
     /// <summary>A wayside piece's near edge keeps this far from the centre of every path, in m.</summary>
-    [Export] public float PathClearance { get; set; } = 6.5f;
+    [Export] public float PathClearance { get; set; } = 5.0f;
     /// <summary>...and its centre stands up to this much further out, in m.</summary>
-    [Export] public float WaysideSpread { get; set; } = 6.0f;
+    [Export] public float WaysideSpread { get; set; } = 4.5f;
     /// <summary>A landmark stands this far from the main path (range), in m.</summary>
     [Export] public Vector2 LandmarkDistance { get; set; } = new(45.0f, 85.0f);
     /// <summary>...and keeps at least this far from every path, in m.</summary>

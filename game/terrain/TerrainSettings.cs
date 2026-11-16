@@ -188,6 +188,8 @@ public partial class TerrainSettings : Resource
     [Export] public float TreeStationGap { get; set; } = 6.0f;
     /// <summary>Trees don't grow on ground steeper than this, in degrees.</summary>
     [Export] public float TreeMaxSlope { get; set; } = 32.0f;
+    /// <summary>How far a tree's trunk sinks into the ground, as a share of its height (0.10 = a tenth).</summary>
+    [Export] public float TreeSink { get; set; } = 0.10f;
 
     [ExportGroup("Forest detail")]
     [Export] public float PlantBatchSize { get; set; } = 16.0f;
@@ -242,6 +244,22 @@ public partial class TerrainSettings : Resource
     [Export] public float CarpetViewDistance { get; set; } = 30.0f;
     /// <summary>Fallen-log length range, in m (solid, vaultable, like the obstacles' trunks).</summary>
     [Export] public Vector2 FallenLogLength { get; set; } = new(2.5f, 5.5f);
+
+    [ExportGroup("Roadside and outcrops (second round)")]
+    /// <summary>Bushes beside the paths' edges: this many times the biome's ShrubDensity, over the band below (0: none).</summary>
+    [Export] public float RoadsideShrubScatter { get; set; } = 2.5f;
+    /// <summary>Loose stones beside the paths' edges: this many times the biome's RockDensity, over the band below (0: none).</summary>
+    [Export] public float RoadsideRockScatter { get; set; } = 2.0f;
+    /// <summary>How far from the path's edge the roadside cover reaches, in m (range: nearest and furthest).</summary>
+    [Export] public Vector2 RoadsideReach { get; set; } = new(0.8f, 7.0f);
+    /// <summary>Rock outcrops tried per 1000 m² of ground; a try only lands where the slope is inside OutcropSlope.</summary>
+    [Export] public float OutcropDensity { get; set; } = 4.0f;
+    /// <summary>Ground slope, in degrees, where outcrops may stand (range).</summary>
+    [Export] public Vector2 OutcropSlope { get; set; } = new(14.0f, 38.0f);
+    /// <summary>Height of an outcrop's main rock, in m (range; a few are knee-high to waist-high).</summary>
+    [Export] public Vector2 OutcropHeight { get; set; } = new(0.8f, 1.8f);
+    /// <summary>Smaller stones lying round an outcrop's foot (most and least).</summary>
+    [Export] public Vector2I OutcropStones { get; set; } = new(2, 4);
 
     public static Biome[] DefaultBiomes()
     {

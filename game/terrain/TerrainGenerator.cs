@@ -43,6 +43,8 @@ public sealed class TerrainGenerator
     // own streams, so adding it moved nothing that was placed before it.
     private const ulong GroundCoverSalt = 15;
     private const ulong ThicketSalt = 16;
+    // The second round's roadside cover and outcrops draw from their own stream as well.
+    private const ulong RoadsideSalt = 17;
     // 1D noise is read along a line off the lattice (noise is 0 on lattice points).
     private const float LineOffset = 0.5f;
     // Step for slope by finite differences, in m.
@@ -1043,7 +1045,8 @@ public sealed class TerrainGenerator
             {
                 height = Mathf.Lerp(biome.SaplingHeight.X, biome.SaplingHeight.Y, tall / biome.SaplingShare);
             }
-            data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground, z), yaw, height,
+            // The trunk sinks a share of its height into the ground, so no root hangs in the air on a slope.
+            data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(x, ground - height * _settings.TreeSink, z), yaw, height,
                 lean * Mathf.DegToRad(biome.TreeLean), true, Mathf.Clamp(height * biome.TrunkRadiusPerMetre, 0.035f, 0.4f)));
         }
 
@@ -1399,6 +1402,196 @@ public sealed class TerrainGenerator
             Basis rotation = new Basis(Vector3.Up, yaw) * new Basis(Vector3.Back, Mathf.Pi * 0.5f - pitch);
             Vector3 centre = new(x, (highY + lowY) * 0.5f + radius * 0.6f, z);
             data.Obstacles.Add(new ObstacleData(ObstacleKind.Trunk, centre, new Vector3(radius * 2.0f, length, radius * 2.0f), rotation));
+        }
+
+        PlaceRoadside(data, coord, corner);
+        PlaceOutcrops(data, coord, corner);
+    }
+
+    /// <summary>
+    /// Denser cover beside the paths (the second round): bushes and loose stones in a band just off
+    /// each path's edge, the band RoadsideReach wide. Same rules as the rest of the ground cover:
+    /// nothing on a path's band, a station's terrace or the summit pad, and the biome's density decides.
+    /// Each path's band is walked over the chunk's length, both sides.
+    /// </summary>
+    private void PlaceRoadside(TerrainChunkData data, Vector2I coord, Vector3 corner)
+    {
+        if (_settings.Biomes.Length == 0)
+        {
+            return;
+        }
+        float shrubScatter = Mathf.Max(_settings.RoadsideShrubScatter, 0.0f);
+        float rockScatter = Mathf.Max(_settings.RoadsideRockScatter, 0.0f);
+        if (shrubScatter <= 0.0f && rockScatter <= 0.0f)
+        {
+            return;
+        }
+        SplitMix64 random = new(SplitMix64.Mix(SplitMix64.Mix(Seed, RoadsideSalt), ChunkSalt(coord)));
+        float size = _settings.ChunkSize;
+        float maxShrubs = 0.0f;
+        float maxRocks = 0.0f;
+        foreach (Biome biome in _settings.Biomes)
+        {
+            maxShrubs = Mathf.Max(maxShrubs, biome.ShrubDensity);
+            maxRocks = Mathf.Max(maxRocks, biome.RockDensity);
+        }
+        float reachNear = Mathf.Max(_settings.RoadsideReach.X, 0.0f);
+        float reachFar = Mathf.Max(_settings.RoadsideReach.Y, reachNear);
+        // Band area per path and chunk, in units of 1000 m² (two sides, the band's width each).
+        float bandUnits = size * (reachFar - reachNear) * 2.0f / 1000.0f;
+        int shrubTries = Mathf.RoundToInt(maxShrubs * shrubScatter * bandUnits);
+        int rockTries = Mathf.RoundToInt(maxRocks * rockScatter * bandUnits);
+        if (shrubTries <= 0 && rockTries <= 0)
+        {
+            return;
+        }
+        RouteBranch[] branches = BranchesAt(corner.Z + size * 0.5f);
+        for (int path = 0; path <= branches.Length; path++)
+        {
+            for (int n = 0; n < shrubTries + rockTries; n++)
+            {
+                bool shrub = n < shrubTries;
+                float z = corner.Z + random.Range(0.0f, size);
+                float keep = random.NextFloat();
+                float side = random.NextFloat() < 0.5f ? -1.0f : 1.0f;
+                float outward = random.Range(reachNear, reachFar);
+                float tall = random.NextFloat();
+                float yaw = random.Range(-Mathf.Pi, Mathf.Pi);
+                float pick = random.NextFloat();
+                float centreX;
+                float half;
+                if (path == 0)
+                {
+                    centreX = SpineX(z);
+                    half = _settings.SpineHalfWidth;
+                }
+                else
+                {
+                    RouteBranch branch = branches[path - 1];
+                    if (z > branch.SplitZ || z < branch.JoinZ)
+                    {
+                        continue;
+                    }
+                    centreX = BranchX(branch, z);
+                    half = HalfWidth(branch.Kind);
+                }
+                float x = centreX + side * (half + _settings.SpineClearance + outward);
+                float lx = x - corner.X;
+                float lz = z - corner.Z;
+                if (lx < 0.0f || lx >= size)
+                {
+                    continue;
+                }
+                Biome? biome = BiomeAt(x, z, DepthAt(GridHeight(data, lx, lz)));
+                if (biome == null)
+                {
+                    continue;
+                }
+                if (shrub)
+                {
+                    if (biome.ShrubModels.Length == 0 || keep * maxShrubs >= biome.ShrubDensity * shrubScatter)
+                    {
+                        continue;
+                    }
+                    if (TooCloseToPath(x, z, 0.2f) || !CoverFits(data, lx, lz, 0.0f, 32.0f, out TerrainSurface surface, out _)
+                        || (surface != TerrainSurface.Grass && surface != TerrainSurface.Mud))
+                    {
+                        continue;
+                    }
+                    // A bush, or a pair of them, growing at the path's edge.
+                    int group = 1 + (pick < 0.35f ? 1 : 0);
+                    for (int k = 0; k < group; k++)
+                    {
+                        float gx = lx;
+                        float gz = lz;
+                        if (k > 0)
+                        {
+                            gx += random.Range(-0.8f, 0.8f);
+                            gz += random.Range(-0.8f, 0.8f);
+                        }
+                        bool groupFits = CoverFits(data, gx, gz, 0.0f, 32.0f, out TerrainSurface groupSurface, out _);
+                        if (!groupFits || (groupSurface != TerrainSurface.Grass && groupSurface != TerrainSurface.Mud))
+                        {
+                            continue;
+                        }
+                        string model = Pick(biome.ShrubModels, random.NextFloat());
+                        float height = Mathf.Lerp(biome.ShrubHeight.X, biome.ShrubHeight.Y, tall * tall) * (k > 0 ? 0.75f : 1.0f);
+                        AddCover(data, PlantKind.Shrub, model, corner, gx, gz, yaw, height);
+                    }
+                }
+                else
+                {
+                    if (_settings.RockModels.Length == 0 || keep * maxRocks >= biome.RockDensity * rockScatter)
+                    {
+                        continue;
+                    }
+                    if (!CoverFits(data, lx, lz, 0.4f, 45.0f, out TerrainSurface surface, out float pathWeight) || pathWeight > 0.3f || surface == TerrainSurface.Snow)
+                    {
+                        continue;
+                    }
+                    float height = Mathf.Lerp(_settings.RockHeight.X, _settings.RockHeight.Y, tall * tall);
+                    AddCover(data, PlantKind.Rock, Pick(_settings.RockModels, pick), corner, lx, lz, yaw, height);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rock outcrops on slopes (the second round): a main rock with a few smaller stones round its
+    /// foot, where the ground's slope is inside OutcropSlope and the spot is off the paths.
+    /// </summary>
+    private void PlaceOutcrops(TerrainChunkData data, Vector2I coord, Vector3 corner)
+    {
+        if (_settings.RockModels.Length == 0 || _settings.OutcropDensity <= 0.0f || _settings.Biomes.Length == 0)
+        {
+            return;
+        }
+        SplitMix64 random = new(SplitMix64.Mix(SplitMix64.Mix(Seed, RoadsideSalt ^ 0x4F55544FUL), ChunkSalt(coord)));
+        float size = _settings.ChunkSize;
+        float area = size * size / 1000.0f;
+        int tries = Mathf.RoundToInt(_settings.OutcropDensity * area);
+        float slopeLow = _settings.OutcropSlope.X;
+        float slopeHigh = _settings.OutcropSlope.Y;
+        int stoneLow = Mathf.Max(_settings.OutcropStones.X, 0);
+        int stoneHigh = Mathf.Max(_settings.OutcropStones.Y, stoneLow);
+        for (int n = 0; n < tries; n++)
+        {
+            float lx = random.Range(0.0f, size);
+            float lz = random.Range(0.0f, size);
+            float big = random.NextFloat();
+            float yaw = random.Range(-Mathf.Pi, Mathf.Pi);
+            float pick = random.NextFloat();
+            int stones = stoneLow + random.NextInt(stoneHigh - stoneLow + 1);
+            float slope = GridSlope(data, lx, lz);
+            if (slope < slopeLow || slope > slopeHigh)
+            {
+                continue;
+            }
+            float x = corner.X + lx;
+            float z = corner.Z + lz;
+            Biome? biome = BiomeAt(x, z, DepthAt(GridHeight(data, lx, lz)));
+            if (biome == null || !CoverFits(data, lx, lz, 4.0f, slopeHigh + 6.0f, out TerrainSurface surface, out float pathWeight)
+                || surface == TerrainSurface.Snow || pathWeight > 0.2f)
+            {
+                continue;
+            }
+            float mainHeight = Mathf.Lerp(_settings.OutcropHeight.X, _settings.OutcropHeight.Y, big * big);
+            AddCover(data, PlantKind.Rock, Pick(_settings.RockModels, pick), corner, lx, lz, yaw, mainHeight);
+            for (int k = 0; k < stones; k++)
+            {
+                float angle = random.Range(-Mathf.Pi, Mathf.Pi);
+                float reach = random.Range(0.5f, 1.4f);
+                float gx = lx + Mathf.Cos(angle) * reach;
+                float gz = lz + Mathf.Sin(angle) * reach;
+                float stoneYaw = random.Range(-Mathf.Pi, Mathf.Pi);
+                float stoneHeight = mainHeight * random.Range(0.35f, 0.7f);
+                string model = Pick(_settings.RockModels, random.NextFloat());
+                if (!CoverFits(data, gx, gz, 0.4f, slopeHigh + 10.0f, out _, out _))
+                {
+                    continue;
+                }
+                AddCover(data, PlantKind.Rock, model, corner, gx, gz, stoneYaw, stoneHeight);
+            }
         }
     }
 
