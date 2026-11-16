@@ -62,6 +62,7 @@ public partial class RouteTests : Node3D
         await TestSign(PlayerBody, route, stage);
         await TestJunction(PlayerBody, route, stage);
         await TestChoice(PlayerBody, route, stage);
+        await TestNewMountain(PlayerBody, stage);
 
         GameEvents.RouteOptionsUpdated -= OnOptions;
         GameEvents.RouteChosen -= OnChosen;
@@ -505,6 +506,41 @@ public partial class RouteTests : Node3D
             }
         }
         Check("a signpost at the split points each path's arm at its path, named as the route signs name it and fitting its board", ok, $"stage {stage}, {paths} paths: {detail}");
+    }
+
+    /// <summary>
+    /// Another mountain while the carrier stands where it is (a guest joining co-op gets the host's
+    /// mountain after its own): the station and route signs around it are built again where the new
+    /// route puts them, none left standing from the old one.
+    /// </summary>
+    private async Task TestNewMountain(PlayerController player, int stage)
+    {
+        IRouteQuery before = _run!.Route!;
+        Vector3 spot = before.Station(stage) + new Vector3(0.0f, 0.0f, 2.0f);
+        await Place(player, spot, 1.0f);
+        bool hadBefore = Stations!.Stations.ContainsKey(stage) && Stations.Signs.ContainsKey(stage);
+        ulong seed = _run.Seed;
+        _run.StartNewRun(seed + 7919);
+        IRouteQuery after = _run.Route!;
+        // Back where it stood: what streams in is the new mountain's, here.
+        await Place(player, new Vector3(spot.X, after.GroundHeight(spot.X, spot.Z), spot.Z), 1.0f);
+        float worst = 0.0f;
+        int checkedCount = 0;
+        foreach ((int index, StationSite site) in Stations.Stations)
+        {
+            worst = Mathf.Max(worst, site.GlobalPosition.DistanceTo(after.Station(index)));
+            checkedCount++;
+        }
+        foreach ((int signStage, RouteSign sign) in Stations.Signs)
+        {
+            float top = signStage > 0 ? after.Station(signStage).Z : after.StartZ;
+            float z = top - Stations.SignDistance;
+            float x = after.RoutePoint(z).X - Stations.SignSideOffset;
+            worst = Mathf.Max(worst, sign.GlobalPosition.DistanceTo(new Vector3(x, after.GroundHeight(x, z) - Stations.GroundSink, z)));
+            checkedCount++;
+        }
+        Check("a new mountain under the carrier rebuilds the stations and signs where its route puts them", hadBefore && checkedCount > 0 && worst < 0.05f,
+            $"seed {seed} -> {_run.Seed}, {checkedCount} stations and signs, farthest off {worst:0.00} m");
     }
 
     private async Task Place(PlayerController player, Vector3 position, float settle)
