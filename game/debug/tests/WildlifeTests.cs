@@ -22,6 +22,7 @@ namespace DownhillRoguelite.Debug;
 /// back, an aggressive one stinging, the stealth eye, and bolting along cliff edges, off steep banks
 /// and round rocks.
 /// Run: godot --headless --path . --fixed-fps 60 res://debug/tests/WildlifeTests.tscn
+/// (add "-- --predators-only" for only the wolves' checks, WildlifeTests.Predators.cs).
 /// </summary>
 public partial class WildlifeTests : Node3D
 {
@@ -60,6 +61,16 @@ public partial class WildlifeTests : Node3D
         }
         GD.Print($"Wildlife population seed: {Spawner.PopulationSeed}");
         await Place(PlayerBody, Streamer.SpawnPoint, 1.0f);
+        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--predators-only") >= 0)
+        {
+            // Only the predator checks on the test field (quicker while tuning wolves).
+            Spawner.Spawning = false;
+            Spawner.Clear();
+            await BuildField(PlayerBody.GlobalPosition);
+            await TestPredators(Spawner.Table, Find(Spawner, "Wolf"));
+            Finish();
+            return;
+        }
 
         await TestPopulation(PlayerBody, Spawner);
         TestGround(Spawner);
@@ -90,11 +101,16 @@ public partial class WildlifeTests : Node3D
         await TestAggressive(table, Find(Spawner, "Wasp"));
         await TestStealthEye(table, sheep);
         await TestGroundAhead(table, sheep);
+        await TestPredators(table, Find(Spawner, "Wolf"));
         _field?.QueueFree();
         await Place(PlayerBody, home, 1.0f);
 
         await TestBeyond(Spawner);
+        Finish();
+    }
 
+    private void Finish()
+    {
         if (_failures.Count == 0)
         {
             GD.Print("WILDLIFE TESTS: PASS");

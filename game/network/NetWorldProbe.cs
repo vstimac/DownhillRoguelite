@@ -21,6 +21,7 @@ namespace DownhillRoguelite.Network;
 /// get-up; everyone early uses a med kit; the host sets its pack down to repack it (the world keeps
 /// going, and the guest and a late joiner see the pack standing on the ground, then shouldered again);
 /// the guest crouches with a loaded pack and swings its sword, and the host's animals learn of all three;
+/// a wolf of the host's hunts the guest (night rules), and the guest sees it stalk, crouch and bite it;
 /// and every machine prints one digest of the set pieces, rocks, bushes, grass carpet and route signs
 /// near station 1, which must be the same everywhere.
 /// </summary>
@@ -58,14 +59,25 @@ public partial class NetWorldProbe : Node
     private int _swingsHeard;
     private float _ownLoad;
     private bool _swung;
+    /// <summary>The host's wolf hunting the guest, and what the guest saw of it.</summary>
+    private WildlifeAnimal? _wolf;
+    private long _wolfPrey;
+    private bool _sawWolf;
+    private bool _sawWolfHunting;
+    private bool _sawWolfCrouch;
+    private int _wolfWindUpsSeen;
+    private int _wolfBitesTaken;
     public override void _Ready()
     {
         GameEvents.SupplyPickedUp += Picked; GameEvents.SharedCarrierSwung += HeardSwing; GameEvents.LoadChanged += OwnLoad;
+        GameEvents.DamageRequested += OwnDamage;
     }
     public override void _ExitTree()
     {
         GameEvents.SupplyPickedUp -= Picked; GameEvents.SharedCarrierSwung -= HeardSwing; GameEvents.LoadChanged -= OwnLoad;
+        GameEvents.DamageRequested -= OwnDamage;
     }
+    private void OwnDamage(float amount, string cause) { if (cause == "Wolf") { _wolfBitesTaken++; } }
     private void HeardSwing(Vector3 at) { _swingsHeard++; }
     private void OwnLoad(LoadSnapshot load) { _ownLoad = load.Mass; }
     private void Picked(string key) { _got.Add(key); }
@@ -222,6 +234,51 @@ public partial class NetWorldProbe : Node
                 _guestLoadSeen = Mathf.Max(_guestLoadSeen, other.LoadMass);
             }
         }
+        if (host && Once(22, 25, time) && GameEvents.OtherCarriers.Length > 0)
+        {
+            // A wolf of the host's goes for the early guest (its prey picked by hand: everyone stands by station 1's fire here).
+            NetCarrier prey = GameEvents.OtherCarriers[0];
+            WildlifeTable table = GD.Load<WildlifeTable>("res://wildlife/default_wildlife.tres");
+            WildlifeSpecies? wolf = table.Species.FirstOrDefault(s => s.Temperament == Temperament.Predator);
+            if (wolf != null)
+            {
+                _wolfPrey = prey.Peer;
+                _wolf = new WildlifeAnimal();
+                _wolf.Setup(wolf, table, 7);
+                GetTree().CurrentScene.AddChild(_wolf);
+                _wolf.GlobalPosition = prey.Feet + new Vector3(7.0f, 0.3f, 0.0f);
+                _wolf.TargetPeer = _wolfPrey;
+                PhysicsDirectSpaceState3D space = _wolf.GetWorld3D().DirectSpaceState;
+                // One look round at night first, so it hunts by the night's (bolder) rules.
+                _wolf.Tick(0.016f, CarrierSense.Still(prey.Feet + Vector3.Up * 500.0f) with { Daylight = 0.0f }, space);
+                _wolf.StartStalk(prey.Feet, false);
+            }
+        }
+        if (host && _wolf != null && IsInstanceValid(_wolf) && time > 25.0 && time < 37.5)
+        {
+            foreach (NetCarrier other in GameEvents.OtherCarriers)
+            {
+                if (other.Peer == _wolfPrey)
+                {
+                    CarrierSense prey = new(other.Feet, Vector3.Zero, Vector3.Zero, false, false, 0.0f, false, false, 0.0f);
+                    _wolf.Tick((float)GetProcessDeltaTime(), prey, _wolf.GetWorld3D().DirectSpaceState);
+                }
+            }
+        }
+        if (!host && early && time > 25.0)
+        {
+            foreach (WildlifeAnimal animal in GetTree().GetNodesInGroup(StealthEye.AnimalGroup).OfType<WildlifeAnimal>())
+            {
+                if (!animal.Puppet || !animal.IsPredator)
+                {
+                    continue;
+                }
+                _sawWolf = true;
+                _sawWolfHunting |= animal.Aware == WildlifeAnimal.Awareness.Alerted;
+                _sawWolfCrouch |= animal.WindingUp && animal.NetVisual.Origin.Y < -0.05f;
+                _wolfWindUpsSeen = Math.Max(_wolfWindUpsSeen, animal.PuppetWindUps);
+            }
+        }
         if (!host && early && Once(21, 27, time))
         {
             Input.ActionRelease(WildlifeSpawner.CrouchAction);
@@ -245,7 +302,7 @@ public partial class NetWorldProbe : Node
             Check("joined", Session.Joined && Session.Peers.Count == 2);
             Check("all remote poses arrive", Session.Remotes.Values.All(r => r.Pose?.Received > 0));
             Check("one simulation authority", host || Session.Mobs?.OwnedCount == 0);
-            Check("four shared actor kinds", Session.Mobs?.StateDigest().Split('|').Length == 4);
+            Check("five shared actors (the host's wolf too)", Session.Mobs?.StateDigest().Split('|').Length == 5);
             Check("boon reservation persists", Session.TakenSupplies.Contains("boon:1") && Find<BoonOfferings>()!.Stones.Count == 0);
             Check("relic reservation persists", Session.TakenSupplies.Contains("relic:coop-proof") && !GetTree().GetNodesInGroup(IInteractable.Group).OfType<WorldItem>().Any(i => i.SlotKey == "relic:coop-proof"));
             Check("contract reservation persists", Session.TakenSupplies.Contains("contract:1"));
@@ -319,10 +376,17 @@ public partial class NetWorldProbe : Node
             Check("the pack comes off to be repacked (real packing flow)", _packOpened && _ownPackOff);
             Check("co-op keeps the world running while the pack is open", _runningWhilePacking);
             Check("the pack is back on after shouldering", player.GetNodeOrNull<CarrierModel>("CarrierModel")?.PackSetDown?.Off == false);
+            GD.Print($"[WorldProbe] wolf_host prey={_wolfPrey} stalks={_wolf?.Stalks} windups={_wolf?.WindUps} lunges={_wolf?.Lunges} bites={_wolf?.Bites}");
+            Check("the host's wolf hunts a guest: it winds up and its bite goes to that guest", _wolf != null && _wolfPrey != 0 && _wolf.WindUps >= 1 && _wolf.Bites >= 1);
         }
         else
         {
             if (early) { Check("the host's fall and get-up are seen", _falls.TryGetValue(1, out FallWatch? seen) && seen.Fell && seen.Up); }
+            if (early)
+            {
+                GD.Print($"[WorldProbe] wolf_guest seen={_sawWolf} hunting={_sawWolfHunting} crouch={_sawWolfCrouch} windups={_wolfWindUpsSeen} bitten={_wolfBitesTaken}");
+                Check("the guest sees the host's wolf stalk it, crouch to spring and bite it", _sawWolf && _sawWolfHunting && _sawWolfCrouch && _wolfWindUpsSeen >= 1 && _wolfBitesTaken >= 1);
+            }
             if (_joinedAt < 32.0)
             {
                 Check("the host's pack is seen standing on the ground while it repacks", _sawHostPackOff && _hostPackOnGround);
