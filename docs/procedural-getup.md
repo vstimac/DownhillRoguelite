@@ -5,7 +5,10 @@ control only, with no clip driving the body.
 
 ## Status (2026-11-16)
 
-- **Default path unchanged:** the clip rise (`GetUp_Back` face up, `Crouch_Idle` face down).
+- **Default path:** the clip rise. Face up: `GetUp_Back`. Face down (since 2026-11-16, branch
+  `feature/belly-getup`): he first rolls onto his back physically (`PlayerRagdoll.TurnOverFromBelly`,
+  the ragdoll keeps simulating and is turned about his length), then goes straight into `GetUp_Back`.
+  If the roll gets stuck twice (no headway), the old `Crouch_Idle` rise is the fallback.
   `GetUpTests` default run: **6 of 6 pass**, exit 0.
 - **Procedural controller:** `game/player/RagdollRise.cs`, switched on by
   `PlayerRagdoll.ProceduralGetUp` (default **off**). It is **not working yet**: it does not stand him up.

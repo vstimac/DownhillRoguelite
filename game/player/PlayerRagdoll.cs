@@ -394,6 +394,12 @@ public partial class PlayerRagdoll : Node
         _rollCueShown = false;
         _gettingUp = false;
         _procedural = null;
+        _turning = false;
+        _turnTries = 0;
+        _turnStuckDirection = 0.0f;
+        TurnedOver = false;
+        _riseClip = "";
+        _hipsShift = 0.0f;
         _downTime = 0.0f;
         _settledTime = 0.0f;
         FallDamage = 0.0f;
@@ -459,7 +465,7 @@ public partial class PlayerRagdoll : Node
             return;
         }
         FollowHips();
-        if (!_gettingUp)
+        if (!_gettingUp && !_turning)
         {
             RollCue();
         }
@@ -477,6 +483,13 @@ public partial class PlayerRagdoll : Node
             {
                 StandUp();
             }
+            return;
+        }
+
+        AlignToBackClip(dt);
+        if (_turning)
+        {
+            TurnOverStep(dt);
             return;
         }
 
@@ -508,13 +521,25 @@ public partial class PlayerRagdoll : Node
             minDown = LaunchMinDownTime;
             settleNeeded = SettleTime * 0.5f;
         }
+        float maxDown = MaxDownTime;
+        if (_turnTries > 0)
+        {
+            // After a roll that got stuck: a short settle, then another try or the get-up.
+            settleNeeded = TurnOverSettleTime;
+            maxDown = _turnEndTime + TurnOverMaxSettle;
+        }
         bool settled = _downTime >= minDown && _settledTime >= settleNeeded;
-        if (!dead && (settled || _downTime >= MaxDownTime))
+        if (!dead && (settled || _downTime >= maxDown))
         {
             if (ProceduralGetUp && _bones.Count > 0)
             {
                 _procedural = BuildProceduralRise();
                 _procedural.Begin();
+                return;
+            }
+            if (ShouldTurnOver())
+            {
+                StartTurnOver();
                 return;
             }
             _gettingUp = true;
@@ -541,6 +566,82 @@ public partial class PlayerRagdoll : Node
     [Export] public float GetUpHold { get; set; } = 0.25f;
     /// <summary>How long the rise from the crouch to standing takes (s).</summary>
     [Export] public float GetUpRise { get; set; } = 0.45f;
+
+    /// <summary>
+    /// Lying on his belly, he first rolls over onto his back and then gets up through the back clip
+    /// (there is no face-down get-up clip). The roll is physical: the ragdoll keeps simulating and is
+    /// turned about its length. Off, or without the back clip, the belly keeps the crouch.
+    /// </summary>
+    [Export] public bool TurnOverFromBelly { get; set; } = true;
+    /// <summary>Top speed of the roll about his length (rad/s); half a turn takes about π over this.</summary>
+    [Export] public float TurnOverSpeed { get; set; } = 5.5f;
+    /// <summary>Time to reach the roll's top speed from lying still (s).</summary>
+    [Export] public float TurnOverRampTime { get; set; } = 0.25f;
+    /// <summary>Share of the gap to the roll's speed each body closes per physics step (0..1).</summary>
+    [Export] public float TurnOverGain { get; set; } = 0.35f;
+    /// <summary>
+    /// The roll stops driving once his front, seen along his length, is this close to straight up (the
+    /// cosine of what is left; 0.4 is about 66 degrees short, past his side) and he has stopped coming
+    /// round. Gravity and the get-up do the rest; an arm under him often props him at about 45 degrees,
+    /// so the drive doesn't wait for flat.
+    /// </summary>
+    [Export] public float TurnOverDoneUp { get; set; } = 0.4f;
+    /// <summary>How many rolls he tries in one fall: one that gets stuck gets another go the other way round, then he gets up from his belly.</summary>
+    [Export] public int TurnOverTries { get; set; } = 2;
+    /// <summary>Coming round slower than this (rad/s) counts as stopped...</summary>
+    [Export] public float TurnOverStillSpin { get; set; } = 0.5f;
+    /// <summary>...for this long past TurnOverDoneUp, and the roll is done (s): a moment's pause isn't the end of it.</summary>
+    [Export] public float TurnOverStillTime { get; set; } = 0.15f;
+    /// <summary>
+    /// A roll that hasn't come TurnOverStuckAngle (rad) closer to his back in its first TurnOverStuckTime (s),
+    /// or has stopped for that long short of TurnOverDoneUp, is stuck: it gives up (still face up, he gets up).
+    /// </summary>
+    [Export] public float TurnOverStuckTime { get; set; } = 0.8f;
+    [Export] public float TurnOverStuckAngle { get; set; } = 0.35f;
+    /// <summary>A roll that hasn't got him face up in this long gives up, and he gets up from his belly (s).</summary>
+    [Export] public float TurnOverMaxTime { get; set; } = 2.0f;
+    /// <summary>After a roll that didn't get him over, he lies still this long before what comes next (s).</summary>
+    [Export] public float TurnOverSettleTime { get; set; } = 0.3f;
+    /// <summary>...or this long at most, settled or not (s).</summary>
+    [Export] public float TurnOverMaxSettle { get; set; } = 1.0f;
+
+    /// <summary>
+    /// Where the back get-up's first frame lays his head, seen from his hips, in the skeleton's space
+    /// (measured from GetUp_Back: hips at z −0.17, head at z −0.82, feet at z +0.62).
+    /// </summary>
+    [Export] public Vector3 GetUpBackLyingHead { get; set; } = new(0.0f, 0.0f, -1.0f);
+    /// <summary>Where the back get-up's first frame puts his hips, in the skeleton's space (m).</summary>
+    [Export] public Vector3 GetUpBackLyingHips { get; set; } = new(0.0f, 0.0f, -0.17f);
+    /// <summary>
+    /// Lying flat (face up, or face down with a roll to come), his unseen body turns this fast to match
+    /// the way his head lies (rad/s), so the back get-up starts from the pose he is in instead of swinging
+    /// him round. Slow and early, so a co-op partner's copy, which gets his turn and his pose separately,
+    /// never sees them disagree by much.
+    /// </summary>
+    [Export] public float LyingTurnRate { get; set; } = 2.0f;
+    /// <summary>Time to slide his unseen body under the back get-up's lying hips while he lies there (s).</summary>
+    [Export] public float LyingShiftTime { get; set; } = 0.5f;
+
+    /// <summary>He is rolling from his belly onto his back right now (tests read it).</summary>
+    public bool TurningOver => _turning;
+    /// <summary>This fall rolled him from his belly onto his back before the get-up (tests read it).</summary>
+    public bool TurnedOver { get; private set; }
+
+    private bool _turning;
+    /// <summary>Rolls tried this fall.</summary>
+    private int _turnTries;
+    private float _turnTime;
+    private float _turnEndTime;
+    private float _turnDirection;
+    private float _turnStill;
+    /// <summary>The way round the last roll went when it got stuck (0 when it didn't): the next try goes the other way.</summary>
+    private float _turnStuckDirection;
+    private float _turnFirstLeft;
+    private float _turnLeastLeft;
+    private float _turnLastLeft;
+    private float _turnProgress;
+    /// <summary>How much of the back get-up's hip offset the body has taken (0..1).</summary>
+    private float _hipsShift;
 
     /// <summary>
     /// Rise with the procedural controller (RagdollRise): physical torques only, no clip. Off keeps the
@@ -582,19 +683,26 @@ public partial class PlayerRagdoll : Node
     /// </summary>
     public bool LyingFaceUp()
     {
+        return LyingFront().Y > 0.0f;
+    }
+
+    /// <summary>The front of his hips in the world (the rest pose's front, carried by the hips' rotation); zero without a rig.</summary>
+    public Vector3 LyingFront()
+    {
         if (Skeleton == null || _bones.Count == 0)
         {
-            return false;
+            return Vector3.Zero;
         }
         int hips = Skeleton.FindBone(_bones[0].Name);
         if (hips < 0)
         {
-            return false;
+            return Vector3.Zero;
         }
+        // The rest front and the hips' rest are both taken in the skeleton as it stands now, so turning
+        // the body (BeginRise does) doesn't change the answer.
         Basis restBasis = (Skeleton.GlobalTransform * Skeleton.GetBoneGlobalRest(hips)).Basis.Orthonormalized();
         Basis nowBasis = _bones[0].Body.GlobalTransform.Basis.Orthonormalized();
-        Vector3 front = nowBasis * restBasis.Inverse() * FrontOf(Skeleton);
-        return front.Y > 0.0f;
+        return nowBasis * restBasis.Inverse() * FrontOf(Skeleton);
     }
 
     /// <summary>The get-up clip for the pose he is in: the back get-up when he lies face up, else the crouch.</summary>
@@ -602,6 +710,242 @@ public partial class PlayerRagdoll : Node
     {
         bool back = LyingFaceUp() && animator.Animations?.HasAnimation(GetUpClipBack) == true;
         return back ? GetUpClipBack : GetUpClip;
+    }
+
+    /// <summary>Face down with a back get-up to use, and rolls left to try this fall.</summary>
+    private bool ShouldTurnOver()
+    {
+        if (!TurnOverFromBelly || _turnTries >= TurnOverTries || _bones.Count == 0 || LyingFaceUp())
+        {
+            return false;
+        }
+        CharacterAnimator? animator = RiseAnimator();
+        return animator?.Animations?.HasAnimation(GetUpClipBack) == true;
+    }
+
+    private void StartTurnOver()
+    {
+        _turning = true;
+        _turnTries++;
+        _turnTime = 0.0f;
+        _turnDirection = 0.0f;
+        _turnStill = 0.0f;
+    }
+
+    /// <summary>
+    /// How far (rad, about world up) the body must turn so the back get-up's lying head points the way
+    /// his ragdoll's head lies; zero when he isn't lying face up (or face down before a roll) or there is
+    /// no back clip.
+    /// </summary>
+    public float BackClipTurn()
+    {
+        PhysicalBone3D? head = BodyOf("DEF-head") ?? BodyOf(LoadBone);
+        if (!LyingForBackClip() || head == null || Skeleton == null)
+        {
+            return 0.0f;
+        }
+        Vector3 lying = head.GlobalPosition - _bones[0].Body.GlobalPosition;
+        Vector3 clip = Skeleton.GlobalBasis * GetUpBackLyingHead;
+        lying.Y = 0.0f;
+        clip.Y = 0.0f;
+        if (lying.LengthSquared() < 0.0001f || clip.LengthSquared() < 0.0001f)
+        {
+            return 0.0f;
+        }
+        return Mathf.Atan2(clip.Cross(lying).Y, clip.Dot(lying));
+    }
+
+    /// <summary>Lying where the back get-up will follow: face up, or face down with a roll to come (the roll keeps his head where it lies).</summary>
+    private bool LyingForBackClip()
+    {
+        if (Skeleton == null || Body == null || _bones.Count == 0)
+        {
+            return false;
+        }
+        float up = LyingFront().Y;
+        bool rollToCome = _turning || (TurnOverFromBelly && _turnTries < TurnOverTries && up < -0.3f);
+        if (up < 0.3f && !rollToCome)
+        {
+            return false;
+        }
+        return RiseAnimator()?.Animations?.HasAnimation(GetUpClipBack) == true;
+    }
+
+    /// <summary>
+    /// Lying where the back get-up will follow, turns the body toward the clip's heading (at most
+    /// LyingTurnRate) and slides it under the clip's lying hips (over LyingShiftTime); a negative
+    /// <paramref name="dt"/> finishes both at once. The ragdoll places the bones in the world, so
+    /// nothing seen moves; done gradually, the shown pose (a step behind the body) never jumps either.
+    /// </summary>
+    private void AlignToBackClip(float dt)
+    {
+        bool lying = LyingForBackClip();
+        float share = lying ? 1.0f : 0.0f;
+        if (dt >= 0.0f)
+        {
+            share = Mathf.MoveToward(_hipsShift, share, dt / Mathf.Max(LyingShiftTime, 0.01f));
+        }
+        else if (!lying)
+        {
+            share = _hipsShift;
+        }
+        _hipsShift = share;
+        float turn = BackClipTurn();
+        if (turn == 0.0f || Body == null)
+        {
+            return;
+        }
+        if (dt >= 0.0f)
+        {
+            float most = LyingTurnRate * dt;
+            turn = Mathf.Clamp(turn, -most, most);
+        }
+        Body.Rotation = new Vector3(0.0f, Body.Rotation.Y + turn, 0.0f);
+    }
+
+    /// <summary>
+    /// The line the roll turns about: hips to chest, his length as it lies (a slope or a bend at the
+    /// hips tips it); laid flat only when he lies too steeply for that to be a roll.
+    /// </summary>
+    private Vector3 TurnAxis()
+    {
+        Vector3 hips = _bones[0].Body.GlobalPosition;
+        PhysicalBone3D? chest = BodyOf(LoadBone);
+        Vector3 axis = Vector3.Zero;
+        if (chest != null)
+        {
+            axis = chest.GlobalPosition - hips;
+        }
+        if (axis.LengthSquared() > 0.0001f && Mathf.Abs(axis.Normalized().Y) < 0.8f)
+        {
+            return axis.Normalized();
+        }
+        axis.Y = 0.0f;
+        if (axis.LengthSquared() < 0.0001f)
+        {
+            // Hips and chest one above the other: his length is across his front instead.
+            Vector3 front = LyingFront();
+            axis = new Vector3(-front.Z, 0.0f, front.X);
+        }
+        if (axis.LengthSquared() < 0.0001f)
+        {
+            axis = Vector3.Forward;
+        }
+        return axis.Normalized();
+    }
+
+    /// <summary>
+    /// One physics step of the roll from belly to back: every body is nudged toward turning together
+    /// about his length (only the part of its speed along that turn, so gravity and the ground still
+    /// act). It takes the shorter way round (the other way on a second try after one that got stuck),
+    /// slows as his front comes up, and lets go once he lies still past his side. A roll that makes no
+    /// headway gives up early.
+    /// </summary>
+    private void TurnOverStep(float dt)
+    {
+        _turnTime += dt;
+        Vector3 axis = TurnAxis();
+        Vector3 front = LyingFront();
+        Vector3 across = front - axis * front.Dot(axis);
+        Vector3 up = Vector3.Up - axis * axis.Y;
+        up = up.LengthSquared() < 0.0001f ? Vector3.Up : up.Normalized();
+        // How far round he is, about his length only: his hips may also be tipped along it.
+        float round = across.LengthSquared() < 0.0001f ? 1.0f : across.Normalized().Dot(up);
+        // Signed angle from his front to the top, about his length; what is left the way he turns.
+        float angle = 0.0f;
+        if (across.LengthSquared() >= 0.0001f)
+        {
+            Vector3 dir = across.Normalized();
+            angle = Mathf.Atan2(axis.Dot(dir.Cross(up)), dir.Dot(up));
+        }
+        if (_turnDirection == 0.0f)
+        {
+            _turnDirection = angle >= 0.0f ? 1.0f : -1.0f;
+            if (_turnStuckDirection != 0.0f)
+            {
+                _turnDirection = -_turnStuckDirection;
+            }
+            _turnLeastLeft = Mathf.PosMod(_turnDirection * angle, Mathf.Tau);
+            _turnFirstLeft = _turnLeastLeft;
+            _turnLastLeft = _turnLeastLeft;
+            _turnProgress = 0.0f;
+        }
+        float left = Mathf.PosMod(_turnDirection * angle, Mathf.Tau);
+        if (left < Mathf.Pi * 1.5f)
+        {
+            // (Just past the top, the remainder wraps round to nearly a full turn: not progress lost.)
+            _turnLeastLeft = Mathf.Min(_turnLeastLeft, left);
+        }
+
+        // Past TurnOverDoneUp the drive holds on until he stops coming round (lying back, or propped on
+        // an arm), so he doesn't tip back onto his belly; nearly flat, it lets go at once. Progress is
+        // how fast what is left shrinks, smoothed over about a tenth of a second.
+        float progress = 0.0f;
+        if (_turnTime > dt && Mathf.Abs(_turnLastLeft - left) < Mathf.Pi)
+        {
+            progress = (_turnLastLeft - left) / Mathf.Max(dt, 0.001f);
+        }
+        _turnLastLeft = left;
+        _turnProgress = Mathf.Lerp(_turnProgress, progress, Mathf.Clamp(dt / 0.1f, 0.0f, 1.0f));
+        PhysicalBone3D? chest = BodyOf(LoadBone);
+        if (_turnProgress < TurnOverStillSpin && _turnTime > TurnOverRampTime)
+        {
+            _turnStill += dt;
+        }
+        else
+        {
+            _turnStill = 0.0f;
+        }
+        bool done = round >= 0.9f || (round >= TurnOverDoneUp && _turnStill >= TurnOverStillTime);
+        // No headway at the start, or none for a while later on (an arm or a slope holding him on his
+        // side): pushing on would only grind him against it.
+        bool stuck = (_turnTime >= TurnOverStuckTime && _turnFirstLeft - _turnLeastLeft < TurnOverStuckAngle)
+            || _turnStill >= TurnOverStuckTime;
+        if (done || stuck || _turnTime >= TurnOverMaxTime)
+        {
+            _turning = false;
+            _turnEndTime = _downTime;
+            _settledTime = 0.0f;
+            TurnedOver = LyingFaceUp();
+            _turnStuckDirection = done || TurnedOver ? 0.0f : _turnDirection;
+            if (TurnedOver && !(Health != null && Health.Dead))
+            {
+                // On his back: he goes straight on into the back get-up, as a person rolls over and
+                // sits up in one go (the roll's last moment, still, is the pause between the two).
+                _gettingUp = true;
+                _blend = 0.0f;
+                BeginRise();
+            }
+            return;
+        }
+        float speed = TurnOverSpeed * Mathf.Clamp(_turnTime / Mathf.Max(TurnOverRampTime, 0.01f), 0.0f, 1.0f);
+        speed = Mathf.Min(speed, Mathf.Max(TurnOverSpeed * 0.25f, 3.0f * left));
+        Vector3 spin = axis * (_turnDirection * speed);
+
+        // Turn about the line where his trunk touches the ground, as anything round rolls: the
+        // contact stays put instead of skidding against friction, and the trunk rolls along.
+        Vector3 centre = _bones[0].Body.GlobalPosition;
+        if (chest != null)
+        {
+            centre = (centre + chest.GlobalPosition) * 0.5f;
+        }
+        centre.Y = _bones[0].Body.GlobalPosition.Y - _hipsHeight;
+        float gain = Mathf.Clamp(TurnOverGain, 0.0f, 1.0f);
+        foreach (RagdollBone bone in _bones)
+        {
+            PhysicalBone3D body = bone.Body;
+            Vector3 arm = body.GlobalPosition - centre;
+            arm -= axis * arm.Dot(axis);
+            Vector3 wanted = spin.Cross(arm);
+            if (wanted.LengthSquared() > 0.000001f)
+            {
+                Vector3 along = wanted.Normalized();
+                float gap = wanted.Length() - body.LinearVelocity.Dot(along);
+                body.LinearVelocity += along * (gap * gain);
+            }
+            float spinGap = _turnDirection * speed - body.AngularVelocity.Dot(axis);
+            body.AngularVelocity += axis * (spinGap * gain);
+        }
     }
 
     /// <summary>The procedural rise for this rig, built from its rest pose (names root first).</summary>
@@ -620,6 +964,11 @@ public partial class PlayerRagdoll : Node
             return;
         }
         StringName clip = GetUpClipFor(animator);
+        if (clip == GetUpClipBack)
+        {
+            // Whatever the gradual turn hasn't covered yet (usually nothing).
+            AlignToBackClip(-1.0f);
+        }
         bool once = clip != GetUpClip;
         if (!animator.PlayAction(clip, 0.0f, 1.0f, !once))
         {
@@ -750,7 +1099,15 @@ public partial class PlayerRagdoll : Node
         {
             feet = Mathf.Max(ground, hips.Y - RecoverHipsHeight);
         }
-        Body.GlobalPosition = new Vector3(hips.X, feet, hips.Z);
+        Vector3 place = new(hips.X, feet, hips.Z);
+        if (!_rollingOut && _hipsShift > 0.0f && Skeleton != null)
+        {
+            // The back get-up's first frame has his hips off the body's origin: put that point under
+            // the ragdoll's hips (eased in while he lies there), so blending into the clip doesn't slide him.
+            Vector3 offset = Skeleton.GlobalBasis * GetUpBackLyingHips * _hipsShift;
+            place -= new Vector3(offset.X, 0.0f, offset.Z);
+        }
+        Body.GlobalPosition = place;
         _hipsHeight = hips.Y - ground;
     }
 
@@ -958,6 +1315,7 @@ public partial class PlayerRagdoll : Node
         }
         _bodyShape?.SetDeferred(CollisionShape3D.PropertyName.Disabled, false);
         _gettingUp = false;
+        _turning = false;
         Downed = false;
         GameEvents.PublishVaultCue(VaultCue.None);
         if (_rise == RisePhase.Gather)
