@@ -129,6 +129,8 @@ public partial class EnvironmentShots : Node3D
     /// <summary>Average frame time over TimedFrames, uncapped, in ms.</summary>
     private async Task<double> FrameMilliseconds()
     {
+        // Time the game's own view only: the shot viewport would draw the world a second time.
+        if (_view != null) { _view.RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled; }
         int cap = Engine.MaxFps;
         DisplayServer.VSyncMode sync = DisplayServer.WindowGetVsyncMode();
         Engine.MaxFps = 0;
@@ -145,6 +147,7 @@ public partial class EnvironmentShots : Node3D
         double average = (Time.GetTicksUsec() - start) / 1000.0 / TimedFrames;
         Engine.MaxFps = cap;
         DisplayServer.WindowSetVsyncMode(sync);
+        if (_view != null) { _view.RenderTargetUpdateMode = SubViewport.UpdateMode.Always; }
         return average;
     }
 

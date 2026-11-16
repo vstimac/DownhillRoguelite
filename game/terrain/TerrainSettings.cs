@@ -298,7 +298,7 @@ public partial class TerrainSettings : Resource
     /// <summary>Share of the scattered boulders kept alongside the groups (the rest gather into them).</summary>
     [Export(PropertyHint.Range, "0,1")] public float ScatteredBoulderShare { get; set; } = 0.55f;
     /// <summary>A lone dead tree on open ground, chance per chunk, and its height range in m.</summary>
-    [Export(PropertyHint.Range, "0,1")] public float LoneTreeChance { get; set; } = 0.45f;
+    [Export(PropertyHint.Range, "0,1")] public float LoneTreeChance { get; set; } = 0.6f;
     [Export] public Vector2 LoneTreeHeight { get; set; } = new(9.0f, 14.0f);
 
     public static Biome[] DefaultBiomes()
