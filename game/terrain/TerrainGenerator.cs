@@ -45,6 +45,13 @@ public sealed class TerrainGenerator
     private const ulong ThicketSalt = 16;
     // The second round's roadside cover and outcrops draw from their own stream as well.
     private const ulong RoadsideSalt = 17;
+    // The third round's relief (flanking ridges, crags, the valley opening and closing), bare
+    // ground, boulder groups and lone trees: their own streams again.
+    private const ulong RidgeSalt = 18;
+    private const ulong CragSalt = 19;
+    private const ulong ValleySalt = 20;
+    private const ulong BareSalt = 21;
+    private const ulong ClusterSalt = 22;
     // 1D noise is read along a line off the lattice (noise is 0 on lattice points).
     private const float LineOffset = 0.5f;
     // Step for slope by finite differences, in m.
@@ -63,6 +70,10 @@ public sealed class TerrainGenerator
     private readonly GradientNoise _biomeDither;
     private readonly GradientNoise _forestPatches;
     private readonly GradientNoise _thickets;
+    private readonly GradientNoise _ridges;
+    private readonly GradientNoise _crags;
+    private readonly GradientNoise _valley;
+    private readonly GradientNoise _bare;
     private readonly float _gradeTangent;
     private readonly float _clearingSlopeTangent;
     private readonly float _summitCliffTangent;
@@ -101,6 +112,10 @@ public sealed class TerrainGenerator
         _biomeDither = new GradientNoise(SplitMix64.Mix(seed, BiomeSalt));
         _forestPatches = new GradientNoise(SplitMix64.Mix(seed, DetailSalt));
         _thickets = new GradientNoise(SplitMix64.Mix(seed, ThicketSalt));
+        _ridges = new GradientNoise(SplitMix64.Mix(seed, RidgeSalt));
+        _crags = new GradientNoise(SplitMix64.Mix(seed, CragSalt));
+        _valley = new GradientNoise(SplitMix64.Mix(seed, ValleySalt));
+        _bare = new GradientNoise(SplitMix64.Mix(seed, BareSalt));
         _gradeTangent = Mathf.Tan(Mathf.DegToRad(settings.Grade));
         _clearingSlopeTangent = Mathf.Tan(Mathf.DegToRad(settings.ClearingSlope));
         _summitCliffTangent = Mathf.Tan(Mathf.DegToRad(settings.SummitCliffSlope));
@@ -508,8 +523,13 @@ public sealed class TerrainGenerator
         float weightSum = spine;
         float pathSum = spine * SpinePath(z);
         float strongest = spine;
+        float nearest = Mathf.Abs(x - SpineX(z));
         foreach (RouteBranch branch in BranchesAt(z))
         {
+            if (z <= branch.SplitZ && z >= branch.JoinZ)
+            {
+                nearest = Mathf.Min(nearest, Mathf.Abs(x - BranchX(branch, z)));
+            }
             float weight = BranchWeight(branch, x, z);
             if (weight <= 0.0f)
             {
@@ -524,7 +544,72 @@ public sealed class TerrainGenerator
         {
             path = pathSum / weightSum;
         }
+        wild += Flank(x, z, nearest);
         return Descent(z) + Mathf.Lerp(wild, path, strongest);
+    }
+
+    /// <summary>
+    /// The third round's relief: away from every path the ground climbs into flanking ridges, so a
+    /// path runs down a valley with crests, gullies and crags on either side instead of over open
+    /// lawn. The valley opens and closes along the descent (open stretches give the views), and the
+    /// circle's Relief scales it. Nothing changes within FlankStart of a path's centre.
+    /// </summary>
+    private float Flank(float x, float z, float nearest)
+    {
+        if (_settings.FlankHeight <= 0.0f || nearest <= _settings.FlankStart)
+        {
+            return 0.0f;
+        }
+        float rise = Mathf.SmoothStep(_settings.FlankStart, _settings.FlankStart + Mathf.Max(_settings.FlankRise, 1.0f), nearest);
+        float open = Mathf.Clamp(0.62f + 0.9f * _valley.Sample(z / Mathf.Max(_settings.ValleyWavelength, 1.0f), LineOffset), 0.15f, 1.25f);
+        float wave = Mathf.Max(_settings.RidgeWavelength, 1.0f);
+        float crest = 1.0f - Mathf.Abs(_ridges.Fractal(x / wave, z / wave, 2));
+        crest *= crest;
+        float cragWave = Mathf.Max(_settings.CragWavelength, 1.0f);
+        float crag = 1.0f - Mathf.Abs(_crags.Sample(x / cragWave, z / cragWave));
+        float relief = ReliefAt(z);
+        return relief * rise * (_settings.FlankHeight * open * (0.35f + 0.85f * crest) + _settings.CragAmplitude * crag * crag);
+    }
+
+    /// <summary>The circles' Relief at a point of the descent, blended between circles.</summary>
+    public float ReliefAt(float z)
+    {
+        if (_settings.Biomes.Length == 0)
+        {
+            return 1.0f;
+        }
+        BiomesAt(Mathf.Max(0.0f, _startHeight - Descent(z)), out int from, out int to, out float blend);
+        return Mathf.Lerp(_settings.Biomes[from].Relief, _settings.Biomes[to].Relief, blend);
+    }
+
+    private float StoninessAt(float depth)
+    {
+        if (_settings.Biomes.Length == 0)
+        {
+            return 0.5f;
+        }
+        BiomesAt(depth, out int from, out int to, out float blend);
+        return Mathf.Lerp(_settings.Biomes[from].Stoniness, _settings.Biomes[to].Stoniness, blend);
+    }
+
+    /// <summary>
+    /// How bare open grass is here (0 green, 1 bare earth or gravel): patches by noise, more of them
+    /// on steeper ground and in stony circles, none on a path's band (the path is worn its own way).
+    /// </summary>
+    public float Bareness(float x, float z, float slope, float pathWeight, float depth)
+    {
+        if (_settings.BareShare <= 0.0f || pathWeight > 0.9f)
+        {
+            return 0.0f;
+        }
+        float wave = Mathf.Max(_settings.BareWavelength, 1.0f);
+        float patches = _bare.Fractal(x / wave, z / wave, 3) * 0.5f + 0.5f;
+        float stony = StoninessAt(depth);
+        float steep = Mathf.SmoothStep(12.0f, 34.0f, slope);
+        float level = patches + _settings.BareShare * (0.55f + 0.7f * stony) + steep * 0.45f - 0.95f;
+        float bare = Mathf.SmoothStep(0.0f, 0.18f, level);
+        // Thins out towards the path's edge so the worn band keeps its own clear shape.
+        return bare * (1.0f - Mathf.SmoothStep(0.55f, 0.9f, pathWeight));
     }
 
     /// <summary>Steepness of the ground at a point, in degrees.</summary>
@@ -634,6 +719,8 @@ public sealed class TerrainGenerator
             data.Vertices = new Vector3[points * points];
             smoothNormals = new Vector3[points * points];
             smoothColors = new Color[points * points];
+            Vector2[] wear = new Vector2[points * points];
+            data.Wear = wear;
             data.CarpetMask = new byte[points * points * 4];
             for (int j = 0; j < points; j++)
             {
@@ -650,11 +737,12 @@ public sealed class TerrainGenerator
                     smoothNormals[i + j * points] = normal;
                     float slope = Mathf.RadToDeg(normal.AngleTo(Vector3.Up));
                     Color ground = GroundColor(new Vector3(x, data.Heights[i + j * points], z), slope, surfaceColors,
-                        out TerrainSurface surface, out float pathWeight, out float snowCover);
+                        out TerrainSurface surface, out float pathWeight, out float snowCover, out float bare, out Vector2 worn);
+                    wear[i + j * points] = worn;
                     // The ground beneath, with the snow lying on it in alpha (1: none): the ground shader
                     // lays the snow on with a ragged edge finer than this grid.
                     smoothColors[i + j * points] = new Color(ground.R, ground.G, ground.B, 1.0f - snowCover);
-                    WriteCarpet(data.CarpetMask, (i + j * points) * 4, x, z, ground, slope, surface, pathWeight, snowCover);
+                    WriteCarpet(data.CarpetMask, (i + j * points) * 4, x, z, ground, slope, surface, pathWeight, snowCover, bare);
                 }
             }
             data.Indices = SmoothIndices(cells);
@@ -773,7 +861,57 @@ public sealed class TerrainGenerator
     /// </summary>
     private Color GroundColor(Vector3 centre, float slope, Color[] surfaceColors, out TerrainSurface surface, out float pathWeight, out float snowCover)
     {
-        pathWeight = PathWeight(centre.X, centre.Z, out RouteKind kind);
+        return GroundColor(centre, slope, surfaceColors, out surface, out pathWeight, out snowCover, out _, out _);
+    }
+
+    /// <summary>
+    /// The ground colour with the third round's wear on it: a safe or supply path's band is trodden
+    /// earth with a clear edge, and open grass gives way to patches of bare earth (green circles) or
+    /// grey gravel (high, stony ones and steep ground). <paramref name="bare"/> says how bare it is.
+    /// </summary>
+    private Color GroundColor(Vector3 centre, float slope, Color[] surfaceColors, out TerrainSurface surface, out float pathWeight, out float snowCover, out float bare, out Vector2 worn)
+    {
+        Color color = BaseGroundColor(centre, slope, surfaceColors, out surface, out pathWeight, out snowCover, out RouteKind kind);
+        bare = 0.0f;
+        bool hazardPath = pathWeight > 0.5f && kind == RouteKind.Hazardous;
+        bool grassy = surface == TerrainSurface.Grass || (surface == TerrainSurface.Snow && !hazardPath);
+        worn = Vector2.Zero;
+        if (surface == TerrainSurface.Rock || surface == TerrainSurface.Scree || hazardPath)
+        {
+            worn.X = 1.0f;
+        }
+        if (!grassy)
+        {
+            return color;
+        }
+        float depth = DepthAt(centre.Y);
+        Color tint = Colors.White.Lerp(BiomeTint(depth), 0.6f);
+        float wear = Mathf.SmoothStep(0.9f, 0.99f, pathWeight) * _settings.PathWear;
+        if (wear > 0.0f)
+        {
+            float scale = 1.0f / Mathf.Max(_settings.BareWavelength * 0.3f, 1.0f);
+            float mottle = 0.88f + 0.24f * (_bare.Sample(centre.X * scale + 17.3f, centre.Z * scale) * 0.5f + 0.5f);
+            Color trodden = new(_settings.PathColour.R * tint.R * mottle, _settings.PathColour.G * tint.G * mottle, _settings.PathColour.B * tint.B * mottle);
+            color = color.Lerp(trodden, wear);
+            worn.Y = wear;
+            // Gravel shows through the trodden earth in high, stony circles.
+            worn.X = wear * 0.55f * StoninessAt(depth);
+        }
+        bare = Bareness(centre.X, centre.Z, slope, pathWeight, depth);
+        if (bare > 0.0f)
+        {
+            float stony = Mathf.Clamp(StoninessAt(depth) + (slope - 20.0f) / 40.0f, 0.0f, 1.0f);
+            Color ground = _settings.BareEarthColour.Lerp(_settings.GravelColour, stony);
+            ground = new Color(ground.R * tint.R, ground.G * tint.G, ground.B * tint.B);
+            color = color.Lerp(ground, bare * 0.85f);
+            worn.X = Mathf.Max(worn.X, bare * stony);
+        }
+        return color;
+    }
+
+    private Color BaseGroundColor(Vector3 centre, float slope, Color[] surfaceColors, out TerrainSurface surface, out float pathWeight, out float snowCover, out RouteKind kind)
+    {
+        pathWeight = PathWeight(centre.X, centre.Z, out kind);
         surface = Classify(centre.X, centre.Z, slope, pathWeight, kind);
         Color color = SurfaceColor(surface, centre.Y, surfaceColors);
         snowCover = 0.0f;
@@ -823,7 +961,7 @@ public sealed class TerrainGenerator
     /// grows (alpha). Full on grassy ground, thinning on mud and scree, none on rock, snow, the summit
     /// pad or a station's terrace, and stopping at a path's trodden band with a crisp edge.
     /// </summary>
-    private void WriteCarpet(byte[] mask, int at, float x, float z, Color ground, float slope, TerrainSurface surface, float pathWeight, float snowCover)
+    private void WriteCarpet(byte[] mask, int at, float x, float z, Color ground, float slope, TerrainSurface surface, float pathWeight, float snowCover, float bare)
     {
         float density = 0.0f;
         if (surface == TerrainSurface.Grass)
@@ -842,6 +980,8 @@ public sealed class TerrainGenerator
         density *= 1.0f - Mathf.SmoothStep(34.0f, 42.0f, slope);
         // The grass thins out before a snow patch's ragged edge, so only the odd blade stands in the snow.
         density *= 1.0f - Mathf.SmoothStep(0.22f, 0.46f, snowCover);
+        // Bare earth and gravel keep only the odd tuft.
+        density *= 1.0f - 0.92f * Mathf.SmoothStep(0.2f, 0.75f, bare);
         if (density > 0.0f && (OnSummitPad(x, z, 0.5f) || NearStation(x, z, _settings.ClearingRadius * 0.85f)))
         {
             density = 0.0f;
@@ -861,7 +1001,7 @@ public sealed class TerrainGenerator
         SplitMix64 random = new(SplitMix64.Mix(SplitMix64.Mix(Seed, ObstacleSalt), ChunkSalt(coord)));
         float size = _settings.ChunkSize;
         float area = size * size / 1000.0f;
-        int boulders = Mathf.RoundToInt(_settings.BoulderDensity * area);
+        int boulders = Mathf.RoundToInt(_settings.BoulderDensity * area * Mathf.Clamp(_settings.ScatteredBoulderShare, 0.0f, 1.0f));
         int trunks = Mathf.RoundToInt(_settings.TrunkDensity * area);
         float maxTilt = Mathf.DegToRad(_settings.BoulderMaxTilt);
 
@@ -909,6 +1049,114 @@ public sealed class TerrainGenerator
                 Vector3 centre = new(x, ground + _settings.TrunkRadius * 0.7f, z);
                 data.Obstacles.Add(new ObstacleData(ObstacleKind.Trunk, centre, shape, rotation));
             }
+        }
+        PlaceBoulderGroups(data, coord, corner);
+    }
+
+    /// <summary>
+    /// The third round's boulder groups: one big "hero" rock with smaller ones gathered round it
+    /// (instead of every boulder on its own), more of them in rugged circles, and now and then a lone
+    /// dead tree standing on open ground. Kept off paths, stations and the summit pad like the rest.
+    /// </summary>
+    private void PlaceBoulderGroups(TerrainChunkData data, Vector2I coord, Vector3 corner)
+    {
+        SplitMix64 random = new(SplitMix64.Mix(SplitMix64.Mix(Seed, ClusterSalt), ChunkSalt(coord)));
+        float size = _settings.ChunkSize;
+        float area = size * size / 1000.0f;
+        float relief = ReliefAt(corner.Z + size * 0.5f);
+        float expected = Mathf.Max(_settings.BoulderClusterDensity, 0.0f) * area * relief;
+        int groups = (int)expected;
+        if (random.NextFloat() < expected - groups)
+        {
+            groups++;
+        }
+        float maxTilt = Mathf.DegToRad(_settings.BoulderMaxTilt) * 0.5f;
+        for (int g = 0; g < groups; g++)
+        {
+            float x = corner.X + random.Range(0.0f, size);
+            float z = corner.Z + random.Range(0.0f, size);
+            float sightRoll = random.NextFloat();
+            float sightSide = random.NextFloat() < 0.5f ? -1.0f : 1.0f;
+            float sightReach = random.Range(_settings.GroupSightDistance.X, _settings.GroupSightDistance.Y);
+            float spireRoll = random.NextFloat();
+            Vector3 hero = new(
+                random.Range(_settings.HeroBoulderSize.X, _settings.HeroBoulderSize.Y),
+                random.Range(_settings.HeroBoulderSize.X, _settings.HeroBoulderSize.Y) * 0.8f,
+                random.Range(_settings.HeroBoulderSize.X, _settings.HeroBoulderSize.Y));
+            // Most groups stand within sight of the main path (beside it, not on it).
+            if (sightRoll < _settings.GroupNearPathShare)
+            {
+                x = SpineX(z) + sightSide * sightReach;
+                if (x < corner.X || x >= corner.X + size)
+                {
+                    continue;
+                }
+            }
+            // Now and then the hero is a tall standing spire: a tor that stands against the sky.
+            if (spireRoll < _settings.SpireShare)
+            {
+                float girth = Mathf.Min(hero.X, hero.Z) * 0.6f;
+                hero = new Vector3(girth, random.Range(_settings.SpireHeight.X, _settings.SpireHeight.Y), girth * 0.85f);
+            }
+            float yaw = random.Range(-Mathf.Pi, Mathf.Pi);
+            float tiltX = random.Range(-maxTilt, maxTilt);
+            float tiltZ = random.Range(-maxTilt, maxTilt);
+            int low = Mathf.Max(_settings.ClusterBoulders.X, 0);
+            int count = low + random.NextInt(Mathf.Max(_settings.ClusterBoulders.Y - low + 1, 1));
+            float heroRadius = Mathf.Max(hero.X, hero.Z) * 0.5f;
+            bool spire = hero.Y > Mathf.Max(hero.X, hero.Z) * 1.5f;
+            if (TooCloseToPath(x, z, heroRadius + 1.5f) || OnSummitPad(x, z, heroRadius + 2.0f) || NearStation(x, z, _settings.ClearingRadius + heroRadius + 6.0f))
+            {
+                continue;
+            }
+            float ground = Height(x, z);
+            // Sunk deeper than a lone boulder, so a big rock looks bedded into the hillside.
+            if (spire)
+            {
+                // Upright, barely leaning.
+                tiltX *= 0.25f;
+                tiltZ *= 0.25f;
+            }
+            data.Obstacles.Add(new ObstacleData(ObstacleKind.Boulder, new Vector3(x, ground + hero.Y * (spire ? 0.38f : 0.2f), z), hero,
+                Basis.FromEuler(new Vector3(tiltX, yaw, tiltZ))));
+            for (int k = 0; k < count; k++)
+            {
+                float angle = random.Range(-Mathf.Pi, Mathf.Pi);
+                float reach = heroRadius * random.Range(0.8f, 1.6f) + 0.6f;
+                float scale = random.Range(0.18f, 0.5f);
+                float heroLow = Mathf.Min(hero.Y, Mathf.Max(hero.X, hero.Z) * 1.2f);
+                Vector3 shape = new(
+                    Mathf.Max(Mathf.Max(hero.X, hero.Z) * scale * random.Range(0.8f, 1.2f), 0.6f),
+                    Mathf.Max(heroLow * scale * random.Range(0.7f, 1.1f), 0.5f),
+                    Mathf.Max(Mathf.Max(hero.X, hero.Z) * scale * random.Range(0.8f, 1.2f), 0.6f));
+                float stoneYaw = random.Range(-Mathf.Pi, Mathf.Pi);
+                float sx = x + Mathf.Cos(angle) * reach;
+                float sz = z + Mathf.Sin(angle) * reach;
+                if (TooCloseToPath(sx, sz, shape.Length() * 0.5f) || OnSummitPad(sx, sz, 2.0f))
+                {
+                    continue;
+                }
+                float stoneGround = Height(sx, sz);
+                data.Obstacles.Add(new ObstacleData(ObstacleKind.Boulder, new Vector3(sx, stoneGround + shape.Y * (0.5f - _settings.BoulderSink), sz), shape,
+                    Basis.FromEuler(new Vector3(random.Range(-maxTilt, maxTilt) * 2.0f, stoneYaw, random.Range(-maxTilt, maxTilt) * 2.0f))));
+            }
+        }
+
+        // A lone dead tree on open ground: something to steer by, standing against the sky.
+        float roll = random.NextFloat();
+        float tz = corner.Z + random.Range(0.0f, size);
+        float tx = SpineX(tz) + (random.NextFloat() < 0.5f ? -1.0f : 1.0f) * random.Range(_settings.GroupSightDistance.X, _settings.GroupSightDistance.Y);
+        float tall = random.NextFloat();
+        float treeYaw = random.Range(-Mathf.Pi, Mathf.Pi);
+        Vector2 lean = new(random.Range(-1.0f, 1.0f), random.Range(-1.0f, 1.0f));
+        string model = "res://art/environment/forest/snag_" + (random.NextFloat() < 0.5f ? "0" : "1") + ".tscn";
+        if (roll < _settings.LoneTreeChance && tx >= corner.X && tx < corner.X + size && !TooCloseToPath(tx, tz, 3.0f) && !NearStation(tx, tz, _settings.ClearingRadius + _settings.TreeStationGap)
+            && !OnSummitPad(tx, tz, 4.0f) && SlopeDegrees(tx, tz) < 30.0f)
+        {
+            float height = Mathf.Lerp(_settings.LoneTreeHeight.X, _settings.LoneTreeHeight.Y, tall);
+            float treeGround = Height(tx, tz);
+            data.Plants.Add(new PlantData(PlantKind.Tree, model, new Vector3(tx, treeGround - height * _settings.TreeSink, tz), treeYaw, height,
+                lean * Mathf.DegToRad(6.0f), true, Mathf.Clamp(height * 0.02f, 0.1f, 0.35f)));
         }
     }
 
@@ -1093,7 +1341,9 @@ public sealed class TerrainGenerator
                 }
                 float pathWeight = PathWeight(x, z, out RouteKind route);
                 // Grass grows up to the path's trodden middle, and only on grassy ground.
-                if (pathWeight > 0.85f || OnSummitPad(x, z, 0.5f) || Classify(x, z, GridSlope(data, lx, lz), 0.0f, route) != TerrainSurface.Grass)
+                float tuftSlope = GridSlope(data, lx, lz);
+                if (pathWeight > 0.85f || OnSummitPad(x, z, 0.5f) || Classify(x, z, tuftSlope, 0.0f, route) != TerrainSurface.Grass
+                    || Bareness(x, z, tuftSlope, pathWeight, DepthAt(ground)) > 0.45f)
                 {
                     continue;
                 }

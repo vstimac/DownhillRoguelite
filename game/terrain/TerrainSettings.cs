@@ -261,6 +261,46 @@ public partial class TerrainSettings : Resource
     /// <summary>Smaller stones lying round an outcrop's foot (most and least).</summary>
     [Export] public Vector2I OutcropStones { get; set; } = new(2, 4);
 
+    [ExportGroup("Mountain relief (third round)")]
+    /// <summary>How high the ground climbs away from the paths into flanking ridges, in m (times the circle's Relief).</summary>
+    [Export] public float FlankHeight { get; set; } = 34.0f;
+    /// <summary>The flanks start rising this far from the nearest path's centre, in m...</summary>
+    [Export] public float FlankStart { get; set; } = 15.0f;
+    /// <summary>...and reach their full height this much further out, in m.</summary>
+    [Export] public float FlankRise { get; set; } = 42.0f;
+    /// <summary>Spacing of the ridge crests and gullies along the flanks, in m.</summary>
+    [Export] public float RidgeWavelength { get; set; } = 75.0f;
+    /// <summary>Rough crags on the flanks (sharp small ridges), in m.</summary>
+    [Export] public float CragAmplitude { get; set; } = 4.0f;
+    [Export] public float CragWavelength { get; set; } = 16.0f;
+    /// <summary>Along the descent the valley opens and closes over this many metres (open stretches give views).</summary>
+    [Export] public float ValleyWavelength { get; set; } = 420.0f;
+    /// <summary>Bare earth and gravel patches: their size, in m, and how much of the open ground they take (0 none, 1 most).</summary>
+    [Export] public float BareWavelength { get; set; } = 22.0f;
+    [Export(PropertyHint.Range, "0,1")] public float BareShare { get; set; } = 0.5f;
+    /// <summary>A worn path: the colour of its trodden earth and how strongly it shows.</summary>
+    [Export] public Color PathColour { get; set; } = new(0.5f, 0.4f, 0.28f);
+    [Export(PropertyHint.Range, "0,1")] public float PathWear { get; set; } = 0.75f;
+    /// <summary>Bare earth (low, warm) and gravel (high, grey): the colours bare patches take.</summary>
+    [Export] public Color BareEarthColour { get; set; } = new(0.42f, 0.33f, 0.23f);
+    [Export] public Color GravelColour { get; set; } = new(0.47f, 0.46f, 0.44f);
+    /// <summary>Boulder groups round one big "hero" rock, per 1000 m² (times the circle's Relief).</summary>
+    [Export] public float BoulderClusterDensity { get; set; } = 0.75f;
+    /// <summary>The hero rock's size range, in m, and the smaller rocks round it (most and least).</summary>
+    [Export] public Vector2 HeroBoulderSize { get; set; } = new(3.5f, 7.0f);
+    [Export] public Vector2I ClusterBoulders { get; set; } = new(3, 6);
+    /// <summary>Share of the groups (and the lone trees) set within sight of the main path, this far from its centre, in m.</summary>
+    [Export(PropertyHint.Range, "0,1")] public float GroupNearPathShare { get; set; } = 0.6f;
+    [Export] public Vector2 GroupSightDistance { get; set; } = new(11.0f, 42.0f);
+    /// <summary>Share of hero rocks that are tall standing spires instead, and their height in m.</summary>
+    [Export(PropertyHint.Range, "0,1")] public float SpireShare { get; set; } = 0.3f;
+    [Export] public Vector2 SpireHeight { get; set; } = new(6.0f, 11.0f);
+    /// <summary>Share of the scattered boulders kept alongside the groups (the rest gather into them).</summary>
+    [Export(PropertyHint.Range, "0,1")] public float ScatteredBoulderShare { get; set; } = 0.55f;
+    /// <summary>A lone dead tree on open ground, chance per chunk, and its height range in m.</summary>
+    [Export(PropertyHint.Range, "0,1")] public float LoneTreeChance { get; set; } = 0.45f;
+    [Export] public Vector2 LoneTreeHeight { get; set; } = new(9.0f, 14.0f);
+
     public static Biome[] DefaultBiomes()
     {
         Biome[] biomes = new[]
@@ -314,6 +354,7 @@ public partial class TerrainSettings : Resource
                     break;
             }
             ApplyGroundCover(biome);
+            ApplyRelief(biome);
             // Every circle grows the generated grass tufts (they bend in the wind), keeping its own
             // leafy plants for variety; all ground plants are then fitted in metres.
             if (biome.GrassModels.Length > 0 && !biome.GroundPlantsInMetres)
@@ -337,6 +378,45 @@ public partial class TerrainSettings : Resource
             }
         }
         return biomes;
+    }
+
+    /// <summary>
+    /// How each circle's land is shaped (the third round): the high circles are alpine, rocky and
+    /// steep-flanked; the green ones gentler and grassier; the low ones darker, rougher and denser.
+    /// </summary>
+    private static void ApplyRelief(Biome biome)
+    {
+        switch (biome.Name)
+        {
+            case "Limbo": biome.Relief = 1.25f; biome.Stoniness = 0.8f; break;
+            case "Lust": biome.Relief = 1.0f; biome.Stoniness = 0.5f; break;
+            case "Gluttony": biome.Relief = 0.8f; biome.Stoniness = 0.25f; break;
+            case "Greed": biome.Relief = 0.95f; biome.Stoniness = 0.45f; break;
+            case "Wrath":
+                biome.Relief = 1.15f; biome.Stoniness = 0.6f;
+                biome.TreeDensity = 4.0f;
+                break;
+            case "Heresy":
+                biome.Relief = 1.05f; biome.Stoniness = 0.65f;
+                biome.GroundTint = new Color(0.86f, 0.72f, 0.6f);
+                biome.TreeDensity = 2.0f;
+                break;
+            case "Violence":
+                biome.Relief = 1.25f; biome.Stoniness = 0.8f;
+                biome.GroundTint = new Color(0.8f, 0.62f, 0.54f);
+                biome.TreeDensity = 1.6f;
+                break;
+            case "Fraud":
+                biome.Relief = 1.1f; biome.Stoniness = 0.55f;
+                biome.GroundTint = new Color(0.66f, 0.68f, 0.74f);
+                biome.TreeDensity = 4.0f;
+                break;
+            case "Treachery":
+                biome.Relief = 1.4f; biome.Stoniness = 0.9f;
+                biome.GroundTint = new Color(0.76f, 0.8f, 0.92f);
+                break;
+            case "Beyond": biome.Relief = 0.8f; biome.Stoniness = 0.4f; break;
+        }
     }
 
     /// <summary>

@@ -20,6 +20,10 @@ public partial class SetPiecePlacer : Node3D
     /// <summary>Wayside pieces tried per stage (inclusive range).</summary>
     [Export] public Vector2I WaysidePerStage { get; set; } = new(9, 13);
     [Export] public float LandmarkChance { get; set; } = 0.8f;
+    /// <summary>Landmarks tried per stage, each with LandmarkChance (the third round: two, so one is nearly always in sight).</summary>
+    [Export] public int LandmarksPerStage { get; set; } = 2;
+    /// <summary>Landmarks stand up on the valley's flanks: they may take this many times MaxRise, bedded into the slope.</summary>
+    [Export] public float LandmarkRiseFactor { get; set; } = 3.0f;
     /// <summary>A wayside piece's near edge keeps this far from the centre of every path, in m.</summary>
     [Export] public float PathClearance { get; set; } = 5.0f;
     /// <summary>...and its centre stands up to this much further out, in m.</summary>
@@ -225,9 +229,12 @@ public partial class SetPiecePlacer : Node3D
         {
             TryPlace(route, stage, top, bottom, SetPieceKind.Wayside, random, placed);
         }
-        if (random.NextFloat() < LandmarkChance)
+        for (int i = 0; i < Mathf.Max(LandmarksPerStage, 0); i++)
         {
-            TryPlace(route, stage, top, bottom, SetPieceKind.Landmark, random, placed);
+            if (random.NextFloat() < LandmarkChance)
+            {
+                TryPlace(route, stage, top, bottom, SetPieceKind.Landmark, random, placed);
+            }
         }
         return placed;
     }
@@ -271,9 +278,14 @@ public partial class SetPiecePlacer : Node3D
             float x = along.X + side * distance;
             Vector3 centre = new(x, route.GroundHeight(x, z), z);
             float yaw = random.NextFloat() * Mathf.Tau;
-            if (!Fits(route, piece, centre, clearance, placed))
+            if (!Fits(route, piece, centre, clearance, placed, kind, out float lowest))
             {
                 continue;
+            }
+            if (kind == SetPieceKind.Landmark)
+            {
+                // Bedded into the slope: nothing hangs over its downhill side.
+                centre.Y = Mathf.Min(centre.Y, lowest + 0.25f);
             }
             placed.Add(new Placement(piece, stage, centre, yaw));
             return;
@@ -281,8 +293,9 @@ public partial class SetPiecePlacer : Node3D
     }
 
     /// <summary>Clear of every path and station, of the other pieces, and on ground even enough.</summary>
-    private bool Fits(IRouteQuery route, SetPiece piece, Vector3 centre, float clearance, List<Placement> placed)
+    private bool Fits(IRouteQuery route, SetPiece piece, Vector3 centre, float clearance, List<Placement> placed, SetPieceKind kind, out float lowest)
     {
+        lowest = centre.Y;
         route.NearestPath(centre, out float fromPath);
         if (fromPath < clearance)
         {
@@ -312,7 +325,13 @@ public partial class SetPiecePlacer : Node3D
             low = Mathf.Min(low, height);
             high = Mathf.Max(high, height);
         }
-        return high - low <= MaxRise * Mathf.Max(1.0f, piece.Radius / 3.0f);
+        lowest = low;
+        float rise = MaxRise * Mathf.Max(1.0f, piece.Radius / 3.0f);
+        if (kind == SetPieceKind.Landmark)
+        {
+            rise *= Mathf.Max(LandmarkRiseFactor, 1.0f);
+        }
+        return high - low <= rise;
     }
 
     private SetPiece? Choose(SetPieceKind kind, int circle, SplitMix64 random)

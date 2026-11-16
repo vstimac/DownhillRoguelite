@@ -77,11 +77,11 @@ public partial class TerrainStreamer : Node3D
     [Export] public float BumpScale { get; set; } = 0.35f;
     [Export] public float BumpStrength { get; set; } = 0.9f;
     /// <summary>Steep ground turns rocky (from slope RockStart to RockEnd, as 1 - normal.y) and darker.</summary>
-    [Export] public Color RockColor { get; set; } = new(0.34f, 0.32f, 0.3f);
-    [Export] public float RockStart { get; set; } = 0.3f;
-    [Export] public float RockEnd { get; set; } = 0.62f;
-    [Export] public float RockAmount { get; set; } = 0.65f;
-    [Export] public float SlopeDarkening { get; set; } = 0.28f;
+    [Export] public Color RockColor { get; set; } = new(0.27f, 0.26f, 0.25f);
+    [Export] public float RockStart { get; set; } = 0.14f;
+    [Export] public float RockEnd { get; set; } = 0.38f;
+    [Export] public float RockAmount { get; set; } = 0.85f;
+    [Export] public float SlopeDarkening { get; set; } = 0.36f;
     [Export] public int NoiseSize { get; set; } = 256;
     [Export(PropertyHint.File, "*.gdshader")] public string GrassShader { get; set; } = "res://terrain/forest_grass.gdshader";
     /// <summary>The thick short-grass carpet near the camera (terrain/GrassCarpet); empty: none.</summary>

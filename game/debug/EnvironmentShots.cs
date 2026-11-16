@@ -26,8 +26,11 @@ public partial class EnvironmentShots : Node3D
     /// <summary>Frames timed per reading with `--frame-times` (vertical sync and the frame cap are off for it).</summary>
     [Export] public int TimedFrames { get; set; } = 150;
 
+    private SubViewport? _view;
+
     public override async void _Ready()
     {
+        ProcessMode = ProcessModeEnum.Always;
         string directory = ProjectSettings.GlobalizePath("res://../../environment-shots");
         foreach (string arg in OS.GetCmdlineUserArgs())
         {
@@ -45,8 +48,28 @@ public partial class EnvironmentShots : Node3D
         WorldClock? clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
         await Seconds(2.0f);
         HideOverlays(GetTree().Root);
+        DebugDraw3D.SetEnabled(false);
+        // The shot camera renders the same world through a viewport of its own, so no HUD or debug
+        // overlay (some re-show themselves every frame) ends up in the picture.
+        Viewport root = GetViewport();
+        SubViewport view = new()
+        {
+            Name = "ShotView",
+            Size = (Vector2I)root.GetVisibleRect().Size,
+            World3D = root.World3D,
+            RenderTargetUpdateMode = SubViewport.UpdateMode.Always,
+            Msaa3D = root.Msaa3D,
+            ScreenSpaceAA = root.ScreenSpaceAA,
+            UseTaa = root.UseTaa,
+            UseDebanding = root.UseDebanding,
+            Scaling3DMode = root.Scaling3DMode,
+            Scaling3DScale = root.Scaling3DScale,
+            PositionalShadowAtlasSize = 4096,
+        };
+        AddChild(view);
+        _view = view;
         Camera3D camera = new() { Name = "ShotCamera", Fov = 70.0f, Far = 400.0f };
-        AddChild(camera);
+        view.AddChild(camera);
         if (run.Route == null || streamer.Generator == null)
         {
             GD.Print("FAIL  environment shots: no route");
@@ -134,6 +157,8 @@ public partial class EnvironmentShots : Node3D
     private static void HideOverlays(Node node)
     {
         if (node is CanvasLayer layer) { layer.Visible = false; }
+        // The circle's name floats in the world as a 3D label: keep it out of the comparison.
+        if (node is DownhillRoguelite.WorldUi.CircleTitle title) { title.Visible = false; title.ProcessMode = ProcessModeEnum.Disabled; }
         foreach (Node child in node.GetChildren()) { HideOverlays(child); }
     }
 
@@ -145,7 +170,7 @@ public partial class EnvironmentShots : Node3D
         HideOverlays(GetTree().Root);
         await Seconds(0.4f);
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-        using Image image = GetViewport().GetTexture().GetImage();
+        using Image image = (_view ?? GetViewport()).GetTexture().GetImage();
         Error error = image.SavePng(file);
         GD.Print("Saved " + file + ": " + error.ToString().ToLower(CultureInfo.InvariantCulture));
     }
@@ -155,6 +180,8 @@ public partial class EnvironmentShots : Node3D
         float dt = 1.0f / Engine.PhysicsTicksPerSecond;
         for (float elapsed = 0.0f; elapsed < seconds; elapsed += dt)
         {
+            // A stray key (Escape) must not pause the world under the camera.
+            if (GetTree().Paused) { GetTree().Paused = false; }
             await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
         }
     }
