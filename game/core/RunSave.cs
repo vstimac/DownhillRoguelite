@@ -31,6 +31,9 @@ public sealed class RunSave
     public Dictionary<string, float> Modifiers { get; set; } = new();
     /// <summary>Resource paths of the conditional boons taken (Beta 3.3); older saves have none.</summary>
     public List<string> ConditionalBoons { get; set; } = new();
+    /// <summary>Tuntun Sahur hard mode (taken at a rest site); older saves have none.</summary>
+    public bool TuntunHardmode { get; set; }
+    public int TuntunHardmodeStations { get; set; }
     public int Day { get; set; } = 1;
     public float Hour { get; set; }
     public float[] Position { get; set; } = new float[3];

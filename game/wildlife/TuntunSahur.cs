@@ -56,6 +56,8 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget, INetMob
     [Export] public float LifeSeconds { get; set; } = 45.0f;
     /// <summary>He leaves when the carrier gets this far away, in m.</summary>
     [Export] public float GiveUpDistance { get; set; } = 120.0f;
+    /// <summary>Hard mode: he stays until he is beaten or the run ends (no time limit, never gives up).</summary>
+    public bool Persistent { get; set; }
 
     [ExportGroup("Swing")]
     /// <summary>He swings when the carrier's centre is this close, horizontally, in m.</summary>
@@ -211,7 +213,7 @@ public partial class TuntunSahur : CharacterBody3D, IMeleeTarget, INetMob
         Vector3 toCarrier = _carrier - GlobalPosition;
         toCarrier.Y = 0.0f;
         float distance = toCarrier.Length();
-        if (_age > LifeSeconds || (_carrierKnown && distance > GiveUpDistance))
+        if (!Persistent && (_age > LifeSeconds || (_carrierKnown && distance > GiveUpDistance)))
         {
             QueueFree();
             return;

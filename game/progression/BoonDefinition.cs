@@ -17,6 +17,11 @@ public partial class BoonDefinition : Resource
     [Export] public Color Glow { get; set; } = new(1.0f, 0.75f, 0.4f);
     /// <summary>When it works; anything but Always switches on and off with the situation.</summary>
     [Export] public BoonCondition Condition { get; set; } = BoonCondition.Always;
+    /// <summary>
+    /// Not a stat boon: taking it turns on Tuntun Sahur hard mode for the run (RunState.StartTuntunHardmode).
+    /// It has no effects of its own, so ApplyTo does nothing for it.
+    /// </summary>
+    [Export] public bool TuntunHardmode { get; set; }
 
     /// <summary>Works only in one situation (at night, carrying a job, in bad weather).</summary>
     public bool IsConditional => Condition != BoonCondition.Always;

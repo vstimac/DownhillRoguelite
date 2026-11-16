@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using DownhillRoguelite.Core;
+using DownhillRoguelite.Inventory;
 using Godot;
 
 namespace DownhillRoguelite.Progression;
@@ -33,6 +34,8 @@ public partial class BoonOfferings : Node3D
     private readonly List<BoonStone> _stones = new();
     private readonly HashSet<int> _offered = new();
     private readonly HashSet<int> _earned = new();
+    private readonly HashSet<int> _hardmodeOffered = new();
+    private const string HardmodePath = "res://progression/boons/tuntun_hardmode.tres";
     private RunState? _run;
 
     public override void _Ready()
@@ -83,6 +86,7 @@ public partial class BoonOfferings : Node3D
     /// <summary>Lays out a station's offerings (once per station per run).</summary>
     public void Offer(int station)
     {
+        OfferTuntunHardmode(station);
         if (GameEvents.WasSharedPickupTaken("boon:" + station)) { return; }
         if (station < 1 || (RequireCompletedWork && !_earned.Contains(station))) { return; }
         IRouteQuery? route = _run?.Route;
@@ -121,12 +125,76 @@ public partial class BoonOfferings : Node3D
         }
     }
 
+    /// <summary>
+    /// Tuntun Sahur hard mode (once per run): a stone beside the station's hand cart, offered at every
+    /// rest site until it is taken. It is not one of the station's three boons.
+    /// </summary>
+    private void OfferTuntunHardmode(int station)
+    {
+        if (station < 1 || _run == null || _run.TuntunHardmode || !_hardmodeOffered.Add(station)) { return; }
+        if (GameEvents.WasSharedPickupTaken("boon:tuntun:" + station)) { return; }
+        if (!ResourceLoader.Exists(HardmodePath) || ResourceLoader.Load(HardmodePath) is not BoonDefinition boon) { return; }
+        IRouteQuery? route = _run.Route;
+        if (route == null) { return; }
+        Vector3 centre = route.Station(station);
+        Vector3 at = centre + new Vector3(Distance, 0.0f, 0.0f);
+        HandCart? cart = NearestCart(centre);
+        if (cart != null)
+        {
+            at = cart.GlobalPosition + cart.GlobalBasis.X * 1.6f;
+        }
+        PhysicsDirectSpaceState3D space = GetWorld3D().DirectSpaceState;
+        Godot.Collections.Dictionary hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(at + Vector3.Up * 6.0f, at + Vector3.Down * 6.0f, GroundMask));
+        if (hit.Count > 0)
+        {
+            at = (Vector3)hit["position"];
+        }
+        BoonStone stone = new();
+        stone.Setup(boon, station, this);
+        AddChild(stone);
+        stone.GlobalPosition = at;
+        _stones.Add(stone);
+    }
+
+    /// <summary>The hand cart of the station nearest to <paramref name="centre"/>, if the scene has one.</summary>
+    private HandCart? NearestCart(Vector3 centre)
+    {
+        HandCart? best = null;
+        float bestDistance = float.MaxValue;
+        foreach (Node node in GetTree().CurrentScene.FindChildren("HandCart", "", true, false))
+        {
+            if (node is not HandCart cart) { continue; }
+            float distance = cart.GlobalPosition.DistanceSquaredTo(centre);
+            if (distance < bestDistance) { best = cart; bestDistance = distance; }
+        }
+        return best;
+    }
+
+    private void RemoveTuntunHardmodeStones()
+    {
+        for (int i = _stones.Count - 1; i >= 0; i--)
+        {
+            if (_stones[i].Boon?.TuntunHardmode != true) { continue; }
+            if (IsInstanceValid(_stones[i])) { _stones[i].QueueFree(); }
+            _stones.RemoveAt(i);
+        }
+    }
+
     /// <summary>Applies the stone's boon and takes away the station's other offerings.</summary>
     public bool Choose(BoonStone chosen)
     {
         if (_run == null || chosen.Boon == null || !_stones.Contains(chosen) || chosen.IsQueuedForDeletion())
         {
             return false;
+        }
+        if (chosen.Boon.TuntunHardmode)
+        {
+            // Hard mode is not a stat boon: it starts the run's Tuntun Sahurs and leaves the station's offerings alone.
+            _run.StartTuntunHardmode();
+            _run.Boons.Add(chosen.Boon.DisplayName);
+            RemoveTuntunHardmodeStones();
+            GameEvents.PublishBoonChosen($"{chosen.Boon.DisplayName} (Tuntun Sahurs: 3, +1 per station)");
+            return true;
         }
         if (chosen.Boon.IsConditional)
         {
@@ -181,5 +249,6 @@ public partial class BoonOfferings : Node3D
         _stones.Clear();
         _offered.Clear();
         _earned.Clear();
+        _hardmodeOffered.Clear();
     }
 }

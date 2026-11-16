@@ -13,7 +13,8 @@ namespace DownhillRoguelite.Progression;
 /// </summary>
 public partial class BoonStone : Node3D, ISharedWorldPickup, IDescribed
 {
-    public string SharedPickupKey => "boon:" + Station;
+    // Hard mode is its own pickup: taking it must not take the station's other offerings.
+    public string SharedPickupKey => (Boon != null && Boon.TuntunHardmode ? "boon:tuntun:" : "boon:") + Station;
     public BoonDefinition? Boon { get; private set; }
     public int Station { get; private set; }
 
@@ -83,6 +84,10 @@ public partial class BoonStone : Node3D, ISharedWorldPickup, IDescribed
         if (Boon == null)
         {
             return "";
+        }
+        if (Boon.TuntunHardmode)
+        {
+            return "Tuntun Sahurs come after you: 3 now, +1 at each station";
         }
         string gifts = string.Join(" · ", Boon.Parts(true));
         if (Boon.IsConditional && gifts.Length > 0)

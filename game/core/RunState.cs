@@ -39,6 +39,19 @@ public partial class RunState : Node
     public System.Collections.Generic.List<string> StartingKit { get; } = new();
     /// <summary>Names of the boons chosen this run, in order.</summary>
     public System.Collections.Generic.List<string> Boons { get; } = new();
+    /// <summary>Tuntun Sahur hard mode is on for this run (taken at a rest site).</summary>
+    public bool TuntunHardmode { get; private set; }
+    /// <summary>Stations reached since hard mode was taken: each one adds a Tuntun Sahur.</summary>
+    public int TuntunHardmodeStations { get; private set; }
+
+    /// <summary>Turns hard mode on for the rest of the run (once per run).</summary>
+    public void StartTuntunHardmode()
+    {
+        if (TuntunHardmode) { return; }
+        TuntunHardmode = true;
+        TuntunHardmodeStations = 0;
+        TuntunHardmodeStationAtStart = Stage;
+    }
     /// <summary>This run's contracts and cargo score (reset with every run).</summary>
     public RunTelemetry Telemetry { get; } = new();
     /// <summary>Boons taken this run that only work in one situation (Beta 3.3); they need a saved resource path.</summary>
@@ -212,6 +225,8 @@ public partial class RunState : Node
         save.Stage = Stage;
         save.Character = Character.Id;
         save.Boons = new System.Collections.Generic.List<string>(Boons);
+        save.TuntunHardmode = TuntunHardmode;
+        save.TuntunHardmodeStations = TuntunHardmodeStations;
         save.ConditionalBoons.Clear();
         foreach (Progression.BoonDefinition boon in ConditionalBoons)
         {
@@ -306,6 +321,9 @@ public partial class RunState : Node
         }
         Boons.Clear();
         Boons.AddRange(save.Boons);
+        TuntunHardmode = save.TuntunHardmode;
+        TuntunHardmodeStations = save.TuntunHardmodeStations;
+        TuntunHardmodeStationAtStart = Stage;
         ConditionalBoons.Clear();
         ActiveBoons.Clear();
         foreach (string path in save.ConditionalBoons)
@@ -450,7 +468,15 @@ public partial class RunState : Node
     private void OnStationReached(int station)
     {
         Stage = Mathf.Max(Stage, station);
+        if (TuntunHardmode && station > TuntunHardmodeStationAtStart)
+        {
+            TuntunHardmodeStations++;
+            TuntunHardmodeStationAtStart = station;
+        }
     }
+
+    /// <summary>The last station seen when hard mode was taken; only later stations count.</summary>
+    private int TuntunHardmodeStationAtStart;
 
     private void OnRespawnRequested()
     {
@@ -459,6 +485,9 @@ public partial class RunState : Node
         Modifiers.Reset();
         ConfigureCharacter(null, true);
         Boons.Clear();
+        TuntunHardmode = false;
+        TuntunHardmodeStations = 0;
+        TuntunHardmodeStationAtStart = 0;
         ConditionalBoons.Clear();
         ActiveBoons.Clear();
         Telemetry.Reset();
