@@ -292,6 +292,8 @@ public partial class TerrainSettings : Resource
     [Export] public Vector2I ClusterBoulders { get; set; } = new(3, 6);
     /// <summary>Share of the groups (and the lone trees) set within sight of the main path, this far from its centre, in m.</summary>
     [Export(PropertyHint.Range, "0,1")] public float GroupNearPathShare { get; set; } = 0.8f;
+    /// <summary>No boulder group stands within this many m of where a run begins.</summary>
+    [Export] public float SpawnClearance { get; set; } = 25.0f;
     [Export] public Vector2 GroupSightDistance { get; set; } = new(12.0f, 26.0f);
     /// <summary>Share of hero rocks that are tall standing spires instead, and their height in m.</summary>
     [Export(PropertyHint.Range, "0,1")] public float SpireShare { get; set; } = 0.3f;

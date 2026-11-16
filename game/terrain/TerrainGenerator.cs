@@ -1240,7 +1240,11 @@ public sealed partial class TerrainGenerator
             int count = low + random.NextInt(Mathf.Max(_settings.ClusterBoulders.Y - low + 1, 1));
             float heroRadius = Mathf.Max(hero.X, hero.Z) * 0.5f;
             bool spire = hero.Y > Mathf.Max(hero.X, hero.Z) * 1.5f;
-            if (TooCloseToPath(x, z, heroRadius + 1.5f) || OnSummitPad(x, z, heroRadius + 2.0f) || NearStation(x, z, _settings.ClearingRadius + heroRadius + 6.0f))
+            // The start stays open: no group within SpawnClearance of where a run begins (the fifth round
+            // set the groups nearer the path, and one beside the start was in a fresh carrier's way).
+            float fromSpawn = new Vector2(x - SpineX(_settings.SpawnZ), z - _settings.SpawnZ).Length();
+            if (TooCloseToPath(x, z, heroRadius + 1.5f) || OnSummitPad(x, z, heroRadius + 2.0f) || NearStation(x, z, _settings.ClearingRadius + heroRadius + 6.0f)
+                || fromSpawn < _settings.SpawnClearance + heroRadius)
             {
                 continue;
             }
