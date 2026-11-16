@@ -210,6 +210,8 @@ public partial class TuntunShots : Node3D
         foreach (Node child in node.GetChildren())
         {
             if (child is CanvasLayer layer) { layer.Visible = false; }
+            // The circle's name card floats in front of the camera; it is not part of the scene being photographed.
+            if (child is WorldUi.CircleTitle title) { title.Visible = false; }
             HideHud(child);
         }
     }
