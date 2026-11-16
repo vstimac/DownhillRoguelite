@@ -167,6 +167,7 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
         if (species.Model != null)
         {
             Node3D model = species.Model.Instantiate<Node3D>();
+            DownhillRoguelite.Environment.WorldStyle.RestyleCreature(model);
             model.Scale = Vector3.One * species.ModelScale;
             model.RotationDegrees = species.ModelRotationDegrees;
             AddChild(model);

@@ -543,9 +543,9 @@ public partial class HandCart : RigidBody3D, IInteractable, IPushable
     /// <summary>The cart from simple shapes: plank bed with low sides, two spoked wheels, two handles, a leg.</summary>
     private void Build()
     {
-        StandardMaterial3D wood = new() { AlbedoColor = WoodColor, Roughness = 1.0f };
-        StandardMaterial3D dark = new() { AlbedoColor = DarkWoodColor, Roughness = 1.0f };
-        StandardMaterial3D iron = new() { AlbedoColor = IronColor, Roughness = 0.6f, Metallic = 0.6f };
+        Material wood = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Wood, WoodColor);
+        Material dark = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Wood, DarkWoodColor);
+        Material iron = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Metal, IronColor);
         Vector3 half = BedSize * 0.5f;
         const float Plank = 0.06f;
 

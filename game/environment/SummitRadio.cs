@@ -162,7 +162,7 @@ public partial class SummitRadio : Node3D, IInteractable, IDescribed
             Node3D bench = BenchScene.Instantiate<Node3D>();
             bench.Scale = Vector3.One * BenchScale;
             _benchGroup.AddChild(bench);
-            StandardMaterial3D wood = new() { AlbedoColor = BenchColour, Roughness = 0.92f };
+            Material wood = WorldStyle.Tinted(Look.Wood, BenchColour);
             foreach (Node node in bench.FindChildren("*", "MeshInstance3D", true, false))
             {
                 ((MeshInstance3D)node).MaterialOverride = wood;

@@ -26,7 +26,7 @@ public partial class WaypointCairn : Node3D
 
     public override void _Ready()
     {
-        StandardMaterial3D stone = new() { AlbedoColor = StoneColor, Roughness = 1.0f };
+        Material stone = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Stone, StoneColor);
         float y = 0.0f;
         float[] sizes = { 0.7f, 0.55f, 0.4f, 0.28f };
         for (int i = 0; i < sizes.Length; i++)
@@ -41,6 +41,8 @@ public partial class WaypointCairn : Node3D
             });
             y += size * 0.6f;
         }
+        // About 1.2 m of stacked stone: the carrier bumps into it.
+        DownhillRoguelite.Environment.WorldStyle.Solid(this, new Vector3(0.6f, y, 0.6f), Vector3.Up * y * 0.5f);
         _label = new Label3D
         {
             FontSize = LabelFontSize,

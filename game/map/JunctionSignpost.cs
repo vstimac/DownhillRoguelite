@@ -32,12 +32,13 @@ public partial class JunctionSignpost : Node3D
     /// <summary>Each arm's pointing direction on the ground (x, z), top to bottom (tests).</summary>
     public Vector2[] Directions { get; private set; } = System.Array.Empty<Vector2>();
 
-    private StandardMaterial3D? _board;
+    private Material? _board;
 
     public override void _Ready()
     {
-        StandardMaterial3D wood = new() { AlbedoColor = WoodColor, Roughness = 1.0f };
-        _board = new StandardMaterial3D { AlbedoColor = BoardColor, Roughness = 0.95f };
+        Material wood = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Wood, WoodColor);
+        _board = DownhillRoguelite.Environment.WorldStyle.Tinted(DownhillRoguelite.Environment.Look.Wood, BoardColor);
+        DownhillRoguelite.Environment.WorldStyle.Solid(this, new Vector3(0.16f, PostHeight, 0.16f), new Vector3(0.0f, PostHeight * 0.5f, 0.0f));
         AddChild(new MeshInstance3D
         {
             Name = "Post",
