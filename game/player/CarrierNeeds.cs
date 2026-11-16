@@ -205,7 +205,7 @@ public partial class CarrierNeeds : Node
     private void Mend(float hours)
     {
         Mending = false;
-        if (Health == null || Health.Dead || GameEvents.IsDowned || WellFedHealPerHour <= 0.0f || hours <= 0.0f
+        if (Health == null || Health.Dead || GameEvents.IsDowned || GameEvents.CarrierBleeding || WellFedHealPerHour <= 0.0f || hours <= 0.0f
             || Health.Current >= Health.EffectiveMax || Hunger < WellFedThreshold || Thirst < WellFedThreshold)
         {
             return;

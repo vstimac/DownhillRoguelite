@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Host + participant + late joiner: actor identities/death, NPC arbitration and pickup history.
+# Host + participant + late joiner: actor identities/death, NPC arbitration and pickup history,
+# falls and get-ups seen both ways, a med kit, the host's pack set down and shouldered (seen by the
+# others, the world running meanwhile), and the same set pieces, rocks, grass and signs everywhere.
 set -u
 PORT="${1:-7940}"
 LOGS="${2:-$(mktemp -d)}"
@@ -20,10 +22,15 @@ grep -h '\[WorldProbe\]' "$LOGS"/*.log
 reports=$(grep -h '\[WorldProbe\] result' "$LOGS"/*.log | wc -l)
 digests=$(grep -h '\[WorldProbe\] digest=' "$LOGS"/*.log | sort -u | wc -l)
 npc_lines=$(grep -h '\[WorldProbe\] npc_line=' "$LOGS"/*.log | sort -u | wc -l)
+# The world each machine built from the shared seed (the sign text is shown, not checked: it names times).
+worlds=$(grep -h '\[WorldProbe\] world_digest' "$LOGS"/*.log | sed 's/ | .*//' | sort -u | wc -l)
+world_lines=$(grep -h '\[WorldProbe\] world_digest' "$LOGS"/*.log | wc -l)
+empty=$(grep -h '\[WorldProbe\] world_digest' "$LOGS"/*.log | grep -c 'pieces=0:\|ground=0/0/0:\|signs=0:')
 [ "$reports" -eq 3 ] || fail=1
 [ "$digests" -eq 1 ] || fail=1
 [ "$npc_lines" -eq 1 ] || fail=1
+[ "$world_lines" -eq 3 ] && [ "$worlds" -eq 1 ] && [ "$empty" -eq 0 ] || fail=1
 if grep -qE 'ERROR|Exception|\[WorldProbe\] FAIL' "$LOGS"/*.log; then fail=1; fi
-echo "Reports: $reports; distinct world digests: $digests; logs: $LOGS"
+echo "Reports: $reports; distinct actor digests: $digests; distinct worlds near station 1: $worlds of $world_lines ($empty empty); logs: $LOGS"
 if [ "$fail" -eq 0 ]; then echo 'COOP WORLD TESTS: PASS'; else echo 'COOP WORLD TESTS: FAIL'; fi
 exit "$fail"

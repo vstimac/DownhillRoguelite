@@ -41,7 +41,7 @@ public partial class RemotePlayerPose : SkeletonModifier3D
         ulong now = Time.GetTicksMsec();
         if (now - _rateWindow >= 1000) { _rateWindow = now; _rateCount = 0; }
         if (++_rateCount > MaxPacketsPerSecond) { return false; }
-        if (sequence <= LastSequence || flags < 0 || flags > 7 || !NetPoseCodec.Valid(data)) { return false; }
+        if (sequence <= LastSequence || flags < 0 || flags > NetPoseCodec.AllFlags || !NetPoseCodec.Valid(data)) { return false; }
         NetPoseFrame slot = _frames[_next];
         Array.Copy(data, slot.Data, data.Length);
         slot.Time = Time.GetTicksMsec() / 1000.0;

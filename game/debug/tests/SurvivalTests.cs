@@ -159,6 +159,22 @@ public partial class SurvivalTests : Node3D
         health.TakeDamage(60.0f, "test");
         await WaitSeconds(0.05f);
         float hurt = health.Current;
+
+        // Co-op: down and bleeding out, only a friend's help stops it; a kit used then would be lost for nothing,
+        // and a fed carrier doesn't mend either.
+        GameEvents.PublishBleeding(true);
+        GameEvents.RequestUseItem(kit.ItemId);
+        await WaitSeconds(0.05f);
+        clock.DebugTimeScale = FastClock;
+        await WaitSeconds(0.3f);
+        clock.DebugTimeScale = 1.0f;
+        bool keptWhileDown = inventory.AllItems.Contains(kit) && health.Current <= hurt + 0.01f && !needs.Mending;
+        GameEvents.PublishBleeding(false);
+        Check("down and bleeding out (co-op), the med kit stays in the pack and nothing mends", keptWhileDown,
+            $"kit kept {inventory.AllItems.Contains(kit)}, health {hurt:0} -> {health.Current:0}");
+        needs.Refill();
+        await WaitSeconds(0.05f);
+        hurt = health.Current;
         GameEvents.RequestUseItem(kit.ItemId);
         await WaitSeconds(0.05f);
         Check("a med kit heals a hurt carrier and is used up",

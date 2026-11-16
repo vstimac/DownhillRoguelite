@@ -240,6 +240,8 @@ public partial class RemoteCarrier : CharacterBody3D
 
     public override void _Process(double delta)
     {
+        // Their pack stands on the ground while they repack it, as on their own screen.
+        _look?.PackSetDown?.Hold(Pose != null && (Pose.Flags & NetPoseCodec.PackOff) != 0 && !Dead);
         if (_samples.Count == 0)
         {
             return;

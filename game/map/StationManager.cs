@@ -94,6 +94,7 @@ public partial class StationManager : Node3D
         GameEvents.LocomotionUpdated += OnLocomotionUpdated;
         GameEvents.RespawnRequested += OnRespawnRequested;
         GameEvents.RouteOptionsUpdated += OnRouteOptions;
+        GameEvents.NewMountain += OnNewMountain;
     }
 
     public override void _ExitTree()
@@ -101,6 +102,7 @@ public partial class StationManager : Node3D
         GameEvents.LocomotionUpdated -= OnLocomotionUpdated;
         GameEvents.RespawnRequested -= OnRespawnRequested;
         GameEvents.RouteOptionsUpdated -= OnRouteOptions;
+        GameEvents.NewMountain -= OnNewMountain;
         if (GameEvents.InShelter)
         {
             GameEvents.PublishShelter(false, 0);
@@ -514,6 +516,25 @@ public partial class StationManager : Node3D
             LabelledCairn = best;
         }
         LabelledCairn?.ShowEstimate(GameEvents.LatestEstimate, _clock);
+    }
+
+    /// <summary>
+    /// Another mountain (a new run, or the host's mountain when joining co-op): everything streamed for
+    /// the old one goes, and the stations, cairns and signs are built again where the new route puts
+    /// them. Otherwise the ones near the carrier would stay where the old mountain had them (a guest
+    /// saw the summit's route sign 11-14 m off, naming its own mountain's paths).
+    /// </summary>
+    private void OnNewMountain(ulong seed)
+    {
+        LabelledCairn?.HideEstimate();
+        LabelledCairn = null;
+        RemoveExcept(_stations, new List<int>());
+        RemoveExcept(_cairns, new List<int>());
+        RemoveExcept(_signs, new List<int>());
+        RemoveExcept(_markers, new List<int>());
+        RemoveExcept(_junctions, new List<int>());
+        _reached.Clear();
+        _chosenStage = -1;
     }
 
     private static void RemoveExcept<T>(Dictionary<int, T> loaded, List<int> wanted) where T : Node

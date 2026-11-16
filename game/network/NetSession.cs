@@ -39,7 +39,7 @@ public partial class NetSession : Node
     }
 
     /// <summary>Peers must speak the same protocol (a join from another version is turned away).</summary>
-    public const string ProtocolVersion = "downhill-coop-6";
+    public const string ProtocolVersion = "downhill-coop-7";
 
     [Export] public int DefaultPort { get; set; } = 7777;
     [Export] public int MaxPlayers { get; set; } = 4;

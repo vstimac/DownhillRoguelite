@@ -9,10 +9,17 @@ namespace DownhillRoguelite.Player;
 /// there while it is open, and goes back the same way when it is shouldered. Only a picture: the
 /// pack shown on the ground is a copy of the worn model, the worn one (and its straps) is hidden
 /// meanwhile, and nothing about the load changes.
+///
+/// On another player's carrier (Remote) it doesn't listen to this machine's packing at all: the
+/// owner's pose stream says whether their pack is off (Hold), and the swing is played here.
 /// </summary>
 public partial class PackSetDown : Node
 {
     public ClothingVisualController? Clothing { get; set; }
+    /// <summary>Another player's carrier: moved by Hold (from their pose stream), never by this machine's packing.</summary>
+    public bool Remote { get; set; }
+    /// <summary>How long the remote swing to the ground (or back) takes, in s.</summary>
+    [Export] public float RemoteSwingSeconds { get; set; } = 0.6f;
 
     /// <summary>How far in front of the carrier the pack is stood, in m.</summary>
     [Export] public float Distance { get; set; } = 0.55f;
@@ -49,6 +56,10 @@ public partial class PackSetDown : Node
             node = node.GetParent();
         }
         _body = node as CharacterBody3D;
+        if (Remote)
+        {
+            return;
+        }
         GameEvents.PackingModeChanged += OnPacking;
         GameEvents.PackingProgress += OnProgress;
         GameEvents.PackOpenChanged += OnOpen;
@@ -56,10 +67,33 @@ public partial class PackSetDown : Node
 
     public override void _ExitTree()
     {
-        GameEvents.PackingModeChanged -= OnPacking;
-        GameEvents.PackingProgress -= OnProgress;
-        GameEvents.PackOpenChanged -= OnOpen;
+        if (!Remote)
+        {
+            GameEvents.PackingModeChanged -= OnPacking;
+            GameEvents.PackingProgress -= OnProgress;
+            GameEvents.PackOpenChanged -= OnOpen;
+        }
         PutBack();
+        _held = false;
+    }
+
+    private bool _held;
+
+    /// <summary>
+    /// A remote carrier's pack: off (swung to the ground and left standing there) or worn, as the
+    /// owner's pose stream says. Called every frame; only a change starts a swing.
+    /// </summary>
+    public void Hold(bool off)
+    {
+        if (!Remote)
+        {
+            return;
+        }
+        if (off && _copy == null)
+        {
+            TakeOff();
+        }
+        _held = off && _copy != null;
     }
 
     private void OnPacking(bool packing)
@@ -101,6 +135,23 @@ public partial class PackSetDown : Node
 
     public override void _Process(double delta)
     {
+        if (Remote && _copy != null)
+        {
+            float step = (float)delta / Mathf.Max(RemoteSwingSeconds, 0.01f);
+            if (_held)
+            {
+                Way = Mathf.Min(Way + step, 1.0f);
+            }
+            else
+            {
+                Way = Mathf.Max(Way - step, 0.0f);
+                if (Way <= 0.0f)
+                {
+                    PutBack();
+                    return;
+                }
+            }
+        }
         if (_copy != null)
         {
             Place();
