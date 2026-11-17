@@ -29,7 +29,8 @@ public partial class PatchLoader : Node
         // small update can only carry in that file) can be told from one that has it.
         GD.Print("PatchLoader: physics solver steps " + ProjectSettings.GetSetting("physics/jolt_physics_3d/simulation/velocity_steps", 0).AsInt32()
             + " / " + ProjectSettings.GetSetting("physics/jolt_physics_3d/simulation/position_steps", 0).AsInt32()
-            + ", gamepad ignored in background " + ProjectSettings.GetSetting("input_devices/joypads/ignore_joypad_on_unfocused_application", false).AsBool());
+            + ", gamepad ignored in background " + ProjectSettings.GetSetting("input_devices/joypads/ignore_joypad_on_unfocused_application", false).AsBool()
+            + ", engine worker threads " + ProjectSettings.GetSettingWithOverride("threading/worker_pool/max_threads").AsInt32());
         string folder = OS.GetExecutablePath().GetBaseDir().PathJoin(FolderName);
         if (!DirAccess.DirExistsAbsolute(folder))
         {

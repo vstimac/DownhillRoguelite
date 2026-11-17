@@ -164,6 +164,11 @@ OVERRIDE_SETTINGS = {
     "physics": ("jolt_physics_3d/simulation/velocity_steps", "jolt_physics_3d/simulation/position_steps"),
     # Read when the input server starts, so like the solver steps it must come from a file at startup.
     "input_devices": ("joypads/ignore_joypad_on_unfocused_application",),
+    # One engine worker thread on Windows: read when the worker pool starts, before the renderer
+    # compiles its shaders on it. Several threads compiling at once crash the official Windows build
+    # (a double free in the C runtime's locale code under glslang) on about a third of the starts
+    # with an empty shader cache; see Backups/director-run-2026-11-16/startup-crash.md.
+    "threading": ("worker_pool/max_threads.windows",),
 }
 OVERRIDE_FILE = "override.cfg"
 
