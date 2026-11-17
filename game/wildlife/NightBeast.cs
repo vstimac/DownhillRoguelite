@@ -73,6 +73,68 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
     }
     public float NetClipSpeed => _animation?.SpeedScale ?? 1.0f;
 
+    /// <summary>
+    /// Puts a beast's model in the mountain's style and gives it its species' body: proportions
+    /// (stretch, in the beast's own frame, turned into the model's), coat, rosettes and mane.
+    /// </summary>
+    public static void Shape(Node3D model, BeastSpecies species)
+    {
+        DownhillRoguelite.Environment.WorldStyle.RestyleCreature(model);
+        model.RotationDegrees = species.ModelRotationDegrees;
+        // The model is turned before it is scaled: each of its own axes takes the stretch of the beast's
+        // axis it points along.
+        Basis turn = Basis.FromEuler(species.ModelRotationDegrees * (Mathf.Pi / 180.0f));
+        Vector3 stretch = species.ModelStretch;
+        Vector3 local = Vector3.Zero;
+        for (int axis = 0; axis < 3; axis++)
+        {
+            Vector3 along = turn * (axis == 0 ? Vector3.Right : axis == 1 ? Vector3.Up : Vector3.Back);
+            local[axis] = Mathf.Abs(along.X) * stretch.X + Mathf.Abs(along.Y) * stretch.Y + Mathf.Abs(along.Z) * stretch.Z;
+        }
+        model.Scale = local * species.ModelScale;
+        if (species.CoatColour.A > 0.0f)
+        {
+            foreach (Node node in model.FindChildren("*", "MeshInstance3D", true, false))
+            {
+                if (node is not MeshInstance3D mesh || mesh.Mesh == null) { continue; }
+                // Rosettes sized to the body (about twenty along it), in the mesh's own units.
+                Vector3 extent = mesh.Mesh.GetAabb().Size;
+                float tile = Mathf.Max(extent.X, Mathf.Max(extent.Y, extent.Z)) * 0.45f;
+                Material coat = DownhillRoguelite.Environment.WorldStyle.CoatOf(species.CoatColour, species.CoatSpots, species.CoatSpots ? tile : 0.0f);
+                for (int i = 0; i < mesh.Mesh.GetSurfaceCount(); i++) { mesh.SetSurfaceOverrideMaterial(i, coat); }
+            }
+        }
+        if (species.ManeSize > 0.0f && species.ManeBone.Length > 0
+            && model.FindChildren("*", "Skeleton3D", true, false) is { Count: > 0 } skeletons && skeletons[0] is Skeleton3D skeleton
+            && skeleton.FindBone(species.ManeBone) >= 0)
+        {
+            // The mane is drawn in the skeleton's space, which the model's import scales: undo that so the
+            // size is in metres of the finished beast.
+            Vector3 skeletonScale = Vector3.One;
+            for (Node? at = skeleton; at != null && at != model; at = at.GetParent())
+            {
+                if (at is Node3D step) { skeletonScale *= step.Scale; }
+            }
+            skeletonScale *= model.Scale;
+            float radius = species.ManeSize * 0.5f / Mathf.Max(skeletonScale.X, 0.0001f);
+            int bone = skeleton.FindBone(species.ManeBone);
+            BoneAttachment3D neck = new() { Name = "Mane", BoneName = species.ManeBone };
+            skeleton.AddChild(neck);
+            // Up the neck towards the head (the next bone along), so it rings the head rather than the
+            // shoulders; worked out from the rest pose, since imported bones don't all point down their length.
+            Transform3D rest = skeleton.GetBoneGlobalRest(bone);
+            Vector3 towards = rest.Origin;
+            foreach (int child in skeleton.GetBoneChildren(bone)) { towards = skeleton.GetBoneGlobalRest(child).Origin; break; }
+            neck.AddChild(new MeshInstance3D
+            {
+                Name = "ManeMass",
+                Position = rest.AffineInverse() * rest.Origin.Lerp(towards, 0.7f),
+                Mesh = DownhillRoguelite.Environment.WorldStyle.Lump(radius, 7),
+                MaterialOverride = DownhillRoguelite.Environment.WorldStyle.CoatOf(species.ManeColour, false),
+            });
+        }
+    }
+
     /// <summary>A puppet plays what its owner plays and runs off when it's beaten there.</summary>
     public void NetShow(string clip, float clipPosition, float clipSpeed, float health, bool down)
     {
@@ -167,8 +229,7 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
         if (species.Model != null)
         {
             Node3D model = species.Model.Instantiate<Node3D>();
-            model.Scale = Vector3.One * species.ModelScale;
-            model.RotationDegrees = species.ModelRotationDegrees;
+            Shape(model, species);
             AddChild(model);
             StandardMaterial3D shade = new()
             {

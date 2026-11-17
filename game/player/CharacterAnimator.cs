@@ -53,6 +53,13 @@ public partial class CharacterAnimator : Node
     [ExportGroup("Blend bands (m/s)")]
     /// <summary>Speed range over which idle blends into walk (x = start, y = end).</summary>
     [Export] public Vector2 IdleToWalk { get; set; } = new(0.05f, 0.4f);
+    /// <summary>
+    /// Narrow on purpose. The jog clip covers 5.5 m a cycle, so at the normal pace (3.5 m/s) it plays
+    /// at 0.6× speed and looks like a slow trot with long airborne steps. Mixing in more of the walk
+    /// raises the cadence, but the two clips plant their feet at different times, so the planted
+    /// foot skates (LocomotionTests' foot slip and contact error). A real fix needs a trot clip made
+    /// for 3–4 m/s.
+    /// </summary>
     [Export] public Vector2 WalkToJog { get; set; } = new(1.8f, 2.6f);
     [Export] public Vector2 JogToSprint { get; set; } = new(5.6f, 6.4f);
 
@@ -62,6 +69,13 @@ public partial class CharacterAnimator : Node
     [Export] public float MaxPlaybackRate { get; set; } = 1.6f;
     /// <summary>How much of the crouch-walk is mixed in at full brake (0 = none, 1 = full crouch).</summary>
     [Export] public float BrakeCrouchAmount { get; set; } = 0.35f;
+    /// <summary>How deep he crouches standing still with the crouch key (C) held (0–1).</summary>
+    [Export] public float CrouchAmount { get; set; } = 0.9f;
+    /// <summary>
+    /// How deep he crouches moving with C held. Shallower than standing: the deep crouch-walk bobs a
+    /// low, centred pack as hard as a badly packed one (PackingTests' descent).
+    /// </summary>
+    [Export] public float CrouchMoveAmount { get; set; } = 0.6f;
     /// <summary>How deep the carrier crouches over the pack while it is set down (0 standing, 1 the full crouch clip).</summary>
     [Export] public float PackingCrouchAmount { get; set; } = 0.9f;
     [Export] public float BrakeBlendSharpness { get; set; } = 8.0f;
@@ -101,6 +115,10 @@ public partial class CharacterAnimator : Node
     private static readonly StringName BrakeWalkRateParameter = new("parameters/" + BrakeWalkNode + RateSuffix + "/scale");
     private static readonly StringName TakeoffSeekParameter = new("parameters/" + TakeoffNode + "_seek/seek_request");
     private static readonly StringName LandingSeekParameter = new("parameters/" + LandingNode + "_seek/seek_request");
+    // The action slot's blend once went by its bare node name ("action_blend"), which isn't a tree
+    // parameter: the slot never showed, so rolls, the dive and the get-up clips were invisible.
+    private static readonly StringName ActionSeekParameter = new("parameters/" + ActionNode + "_seek/seek_request");
+    private static readonly StringName ActionBlendParameter = new("parameters/" + ActionNode + "_blend/blend_amount");
 
     private AnimationTree? _tree;
     public AnimationTree? Tree => _tree;
@@ -110,6 +128,7 @@ public partial class CharacterAnimator : Node
     public float LandingWeight { get; private set; }
     private float _speed;
     private float _brakeWeight;
+    private float _crouchWeight;
     private float _packWeight;
     private Vector3 _stepOffset;
     private Vector3 _visualHome;
@@ -179,6 +198,7 @@ public partial class CharacterAnimator : Node
         _speed = 0;
         _stepOffset = Vector3.Zero;
         _brakeWeight = 0;
+        _crouchWeight = 0;
         _airWeight = 0;
         _wasAirborne = false;
         _landingPending = false;
@@ -226,6 +246,12 @@ public partial class CharacterAnimator : Node
             targetBrake = 1.0f;
         }
         _brakeWeight = Mathf.Lerp(_brakeWeight, targetBrake, 1.0f - Mathf.Exp(-BrakeBlendSharpness * dt));
+        float targetCrouch = 0.0f;
+        if (Body.Crouching)
+        {
+            targetCrouch = 1.0f;
+        }
+        _crouchWeight = Mathf.Lerp(_crouchWeight, targetCrouch, 1.0f - Mathf.Exp(-BrakeBlendSharpness * dt));
 
         SetBlend(ToWalkParameter, Band(_speed, IdleToWalk));
         SetBlend(ToJogParameter, Band(_speed, WalkToJog));
@@ -238,7 +264,7 @@ public partial class CharacterAnimator : Node
             packTarget = 1.0f;
         }
         _packWeight = Mathf.Lerp(_packWeight, packTarget, 1.0f - Mathf.Exp(-BrakeBlendSharpness * dt));
-        SetBlend(BrakeParameter, Mathf.Max(_brakeWeight * BrakeCrouchAmount, _packWeight * PackingCrouchAmount));
+        SetBlend(BrakeParameter, CrouchBlend());
 
         UpdateCadence(targetSpeed);
         UpdateAirTransitions(dt);
@@ -299,8 +325,8 @@ public partial class CharacterAnimator : Node
         {
             _actionWeight = target;
         }
-        _tree!.Set($"parameters/{ActionNode}_seek/seek_request", _actionTime);
-        SetBlend(ActionNode + "_blend", Mathf.SmoothStep(0.0f, 1.0f, _actionWeight));
+        _tree!.Set(ActionSeekParameter, _actionTime);
+        SetBlend(ActionBlendParameter, Mathf.SmoothStep(0.0f, 1.0f, _actionWeight));
     }
 
     private float Length(StringName clip)
@@ -313,7 +339,7 @@ public partial class CharacterAnimator : Node
     {
         float jog = Band(_speed, WalkToJog);
         float sprint = Band(_speed, JogToSprint);
-        float brake = _brakeWeight * BrakeCrouchAmount;
+        float brake = CrouchBlend();
         float length = Mathf.Lerp(Mathf.Lerp(_walkLength, _jogLength, jog), _sprintLength, sprint);
         length = Mathf.Lerp(length, _brakeLength, brake);
         float stride = Mathf.Lerp(Mathf.Lerp(WalkClipSpeed * _walkLength, JogClipSpeed * _jogLength, jog), SprintClipSpeed * _sprintLength, sprint);
@@ -327,6 +353,12 @@ public partial class CharacterAnimator : Node
         SetCadence(JogRateParameter);
         SetCadence(SprintRateParameter);
         SetCadence(BrakeWalkRateParameter);
+    }
+
+    /// <summary>How much of the crouch clips shows: braking, the crouch key, or bent over the set-down pack.</summary>
+    private float CrouchBlend()
+    {
+        return Mathf.Max(Mathf.Max(_brakeWeight * BrakeCrouchAmount, _crouchWeight * Mathf.Lerp(CrouchAmount, CrouchMoveAmount, Band(_speed, IdleToWalk))), _packWeight * PackingCrouchAmount);
     }
 
     private void SetCadence(StringName parameter) { _tree!.Set(parameter, Cadence); }

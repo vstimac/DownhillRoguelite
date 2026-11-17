@@ -47,6 +47,11 @@ public partial class PlayerController : CharacterBody3D
 
     public LocomotionState State { get; private set; } = LocomotionState.Idle;
     public bool Sprinting { get; private set; }
+    /// <summary>
+    /// Crouching: the brake key (C) held on the ground, standing or moving. Animals hear and see him
+    /// less (WildlifeSpawner); the animator crouches him down (CharacterAnimator).
+    /// </summary>
+    public bool Crouching { get; private set; }
 
     /// <summary>
     /// Steering for tests and automation: a world-space direction used instead of player input
@@ -230,6 +235,7 @@ public partial class PlayerController : CharacterBody3D
             Velocity = Vector3.Zero;
             _externalVelocity = Vector3.Zero;
             Sprinting = false;
+            Crouching = false;
             State = LocomotionState.Fallen;
             Publish(Vector3.Zero, dt);
             return;
@@ -344,6 +350,7 @@ public partial class PlayerController : CharacterBody3D
 
         UpdateSurface();
         UpdateState(braking);
+        Crouching = braking && !held && IsOnFloor();
         UpdateFacing(input, dt);
         Publish(input, dt);
     }

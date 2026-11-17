@@ -127,6 +127,8 @@ public partial class NetSession : Node
     public event Action<ulong>? Welcomed;
 
     private ENetMultiplayerPeer? _peer;
+    /// <summary>ENet's own default; with no slowing down, it only sets how often the throttle is looked at.</summary>
+    private const int ThrottleIntervalMs = 5000;
     private readonly Dictionary<long, NetPeer> _peers = new();
     private readonly Dictionary<long, RemoteCarrier> _remotes = new();
     private readonly Dictionary<long, double> _waitingHello = new();
@@ -508,11 +510,27 @@ public partial class NetSession : Node
 
     private void OnPeerConnected(long id)
     {
+        KeepEveryUpdate(id);
         if (Mode == Role.Host)
         {
             _waitingHello[id] = _clock;
             Log($"peer {id} connected, waiting for hello");
         }
+    }
+
+    /// <summary>
+    /// ENet slows its unreliable sends to a peer whose round trip grows, by dropping a share of them
+    /// (up to every one) until the round trip settles. A game that stalls for a moment (a slow PC, a
+    /// join while the mountain is built) looks like a congested line, so the others' bodies and states
+    /// would arrive in fits for seconds afterwards. These streams are small and only the newest matters,
+    /// so that throttle is kept fully open; reliable messages were never throttled.
+    /// </summary>
+    private void KeepEveryUpdate(long id)
+    {
+        // A guest is connected to the host alone; the other guests reach it through the host.
+        if (Mode != Role.Host && id != 1) { return; }
+        ENetPacketPeer? connection = _peer?.GetPeer((int)id);
+        connection?.ThrottleConfigure(ThrottleIntervalMs, 2, 0);
     }
 
     private void OnPeerDisconnected(long id)
@@ -549,6 +567,7 @@ public partial class NetSession : Node
     private void OnConnected()
     {
         LocalId = Multiplayer.GetUniqueId();
+        KeepEveryUpdate(1);
         SetStatus("Connected. Waiting for the host to let you in...");
         Log($"connected as peer {LocalId}, saying hello");
         RpcId(1, MethodName.Hello, LocalName, LocalCharacter(), LocalWorn(), GameOptions.BaseShirtColour, GameOptions.BasePackColour, ProtocolVersion);
@@ -1052,7 +1071,7 @@ public partial class NetSession : Node
                 Vector3 input = Vector3.Zero; bool sprinting = false; int flags = 0;
                 if (remote.Pose?.Received > 0) { input = NetPoseCodec.Vector(remote.Pose.CurrentPose, 3); sprinting = remote.Pose.CurrentPose[6] > 0.5f; flags = remote.Pose.Flags; }
                 carriers.Add(new NetCarrier(remote.PeerId, remote.GlobalPosition, remote.Dead || remote.Bleeding || remote.Pose?.PhysicalFall == true, remote.TorchLit, input, sprinting,
-                    (flags & NetPoseCodec.Crouching) != 0, NetPoseCodec.LoadMass(flags)));
+                    (flags & NetPoseCodec.Crouching) != 0, NetPoseCodec.LoadMass(flags), remote.Dead || remote.Bleeding));
             }
         }
         GameEvents.PublishOtherCarriers(carriers.ToArray());

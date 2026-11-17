@@ -299,3 +299,8 @@ jolt_physics_3d/simulation/position_steps=32
 [audio]
 
 general/text_to_speech=true
+
+[threading]
+
+worker_pool/max_threads.editor_hint=-1
+worker_pool/max_threads.windows=1

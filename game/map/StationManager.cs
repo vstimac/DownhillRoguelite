@@ -255,8 +255,9 @@ public partial class StationManager : Node3D
                 Mesh = new BoxMesh { Size = new Vector3(0.9f, 1.4f, 0.5f) },
                 Position = new Vector3(0.0f, 0.6f, 0.0f),
                 RotationDegrees = new Vector3(0.0f, 15.0f, 4.0f),
-                MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.45f, 0.44f, 0.42f), Roughness = 1.0f },
+                MaterialOverride = DownhillRoguelite.Environment.WorldStyle.For(DownhillRoguelite.Environment.Look.Stone),
             });
+            DownhillRoguelite.Environment.WorldStyle.Solid(_summit, new Vector3(0.9f, 1.4f, 0.5f), new Vector3(0.0f, 0.6f, 0.0f), new Vector3(0.0f, 15.0f, 4.0f));
             _summitLabel = new Label3D
             {
                 FontSize = 30,

@@ -225,7 +225,7 @@ public partial class ForestTerrainTests : Node3D
             Mesh? mesh = ModelFit.FirstMesh(plant.Model, out Transform3D local);
             if (mesh == null) { continue; }
             Transform3D transform = TerrainChunk.FitPlant(plant, mesh.GetAabb(), local, origin);
-            var key = (mesh.GetInstanceId(), PositionKey(transform.Origin));
+            var key = (TerrainChunk.DrawnMesh(plant.Kind, plant.Model, mesh).GetInstanceId(), PositionKey(transform.Origin));
             if (!expected.TryGetValue(key, out List<Transform3D>? atPosition))
             { atPosition = new List<Transform3D>(); expected.Add(key, atPosition); }
             atPosition.Add(transform);

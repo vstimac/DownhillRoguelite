@@ -21,6 +21,7 @@ namespace DownhillRoguelite.Network;
 /// get-up; everyone early uses a med kit; the host sets its pack down to repack it (the world keeps
 /// going, and the guest and a late joiner see the pack standing on the ground, then shouldered again);
 /// the guest crouches with a loaded pack and swings its sword, and the host's animals learn of all three;
+/// a wolf of the host's hunts the guest (night rules), and the guest sees it stalk, crouch and bite it;
 /// and every machine prints one digest of the set pieces, rocks, bushes, grass carpet and route signs
 /// near station 1, which must be the same everywhere.
 /// </summary>
@@ -49,23 +50,64 @@ public partial class NetWorldProbe : Node
     private bool _sawHostPackOff;
     private bool _hostPackOnGround;
     private bool _otherPackMoved;
-    private int _hostPosesBefore = -1;
-    private int _hostPosesDuring = -1;
+    // The host's pose stream while its pack is off, as this machine takes it in: by the host's own
+    // numbering, so a slow frame here (which only delays what is waiting) does not count as a gap.
+    private RemotePlayerPose? _hostStream;
+    private int _packOffFirst = -1;
+    private int _packOffLast = -1;
+    private int _packOffPoses;
+    private int _packOffHole;
+    private int _packOffHoleAt;
+    private double _packOffHoleTime;
+    // Holes this machine's own stalls account for (it was not taking anything in): the longest left over counts.
+    private int _packOffOpenHole;
+    private double _lastFrameAt = -1.0;
+    private double _longestStall;
+    private int _sentAtOpen = -1;
+    private double _openedAt;
+    private float _sendRateWhilePacking = -1.0f;
     private double _joinedAt = -1.0;
-    private double _posesFrom;
     private bool _guestCrouchSeen;
     private float _guestLoadSeen = -1.0f;
     private int _swingsHeard;
     private float _ownLoad;
     private bool _swung;
+    /// <summary>The host's wolf hunting the guest, and what the guest saw of it.</summary>
+    private WildlifeAnimal? _wolf;
+    private long _wolfPrey;
+    private bool _sawWolf;
+    private bool _sawWolfHunting;
+    private bool _sawWolfCrouch;
+    private int _wolfWindUpsSeen;
+    private int _wolfBitesTaken;
+    /// <summary>When the host opens its pack and shoulders it again; the late joiner is in by about 27-34 s.</summary>
+    private const double PackOpenAt = 24.0;
+    private const double ShoulderAt = 38.0;
+    /// <summary>A joiner who comes in this long before shouldering must see the pack on the ground (it takes a moment to set down).</summary>
+    private const double SeeingTime = 4.0;
+    private const double ReportAt = 42.0;
+    /// <summary>
+    /// The host's body while it repacks: at least a second of its numbered poses, none of them a hole
+    /// of a second or more (15 in a row), and most of them here (a frozen or choked stream fails).
+    /// A hole counts unless this machine itself stood still for at least half of it (one long frame,
+    /// as when a late joiner builds the host's mountain): what arrives while a game is frozen can be
+    /// lost on the way in, and nobody sees it, as the screen is frozen too.
+    /// </summary>
+    private const int LongestHole = 15;
+    private const int ShortestSpan = 15;
+    private const float LeastShare = 0.6f;
     public override void _Ready()
     {
         GameEvents.SupplyPickedUp += Picked; GameEvents.SharedCarrierSwung += HeardSwing; GameEvents.LoadChanged += OwnLoad;
+        GameEvents.DamageRequested += OwnDamage;
     }
     public override void _ExitTree()
     {
+        FollowHostStream(null);
         GameEvents.SupplyPickedUp -= Picked; GameEvents.SharedCarrierSwung -= HeardSwing; GameEvents.LoadChanged -= OwnLoad;
+        GameEvents.DamageRequested -= OwnDamage;
     }
+    private void OwnDamage(float amount, string cause) { if (cause == "Wolf") { _wolfBitesTaken++; } }
     private void HeardSwing(Vector3 at) { _swingsHeard++; }
     private void OwnLoad(LoadSnapshot load) { _ownLoad = load.Mass; }
     private void Picked(string key) { _got.Add(key); }
@@ -82,6 +124,9 @@ public partial class NetWorldProbe : Node
     {
         if (Session?.Joined != true) { return; }
         double time = Time.GetUnixTimeFromSystem() - StartAtUnix;
+        double wall = Time.GetUnixTimeFromSystem();
+        if (_lastFrameAt >= 0.0) { _longestStall = Math.Max(_longestStall, wall - _lastFrameAt); }
+        _lastFrameAt = wall;
         PlayerController? player = Session.LocalPlayer();
         RunState run = GetNode<RunState>("/root/RunState");
         if (player == null || run.Route == null || time < 0) { return; }
@@ -178,26 +223,23 @@ public partial class NetWorldProbe : Node
                 _kitGone = !inventory.AllItems.Contains(kit);
             }
         }
-        if (host && Once(13, 24, time))
+        if (host && Once(13, PackOpenAt, time))
         {
             // The real packing flow (as holding the pack key would): the pack comes off and stands on the ground.
             if (Find<PackingMode>() is PackingMode packing) { packing.AllowAnywhere = true; _packOpened = packing.TryOpen(); }
+            _sentAtOpen = Session.Poses?.Sent ?? 0; _openedAt = time;
         }
         if (host && Once(14, 27, time))
         {
             _runningWhilePacking = !GetTree().Paused && Find<PackingMode>()?.Phase == PackingPhase.Open;
             _ownPackOff = player.GetNodeOrNull<CarrierModel>("CarrierModel")?.PackSetDown?.Off == true;
         }
-        // Shouldered at 36, so a late joiner (in by about 30 s) also finds it standing on the ground.
-        if (host && Once(15, 36, time)) { Find<PackingMode>()?.BeginPutOn(); }
-        if (!host && Session.Remotes.TryGetValue(1, out RemoteCarrier? hostCarrier))
+        // Shouldered late enough that the late joiner (in by about 34 s on a busy machine) also finds it standing on the ground.
+        if (host && Once(15, ShoulderAt, time))
         {
-            // Three seconds of the host's body while its pack is open (from 26 s, or from just after a late join).
-            if (time >= Math.Max(26.0, _joinedAt + 0.5) && Once(16, 0, time)) { _hostPosesBefore = hostCarrier.Pose?.Received ?? 0; _posesFrom = time; }
-            if (_hostPosesBefore >= 0 && time >= _posesFrom + 3.0 && time < 36.0 && Once(17, 0, time))
-            {
-                _hostPosesDuring = (hostCarrier.Pose?.Received ?? 0) - _hostPosesBefore;
-            }
+            // What the host itself sent of its body while the pack was off (its own frames set the pace).
+            if (_sentAtOpen >= 0 && time > _openedAt) { _sendRateWhilePacking = (float)(((Session.Poses?.Sent ?? 0) - _sentAtOpen) / (time - _openedAt)); }
+            Find<PackingMode>()?.BeginPutOn();
         }
         if (!host && early && Once(19, 22, time))
         {
@@ -222,6 +264,51 @@ public partial class NetWorldProbe : Node
                 _guestLoadSeen = Mathf.Max(_guestLoadSeen, other.LoadMass);
             }
         }
+        if (host && Once(22, 25, time) && GameEvents.OtherCarriers.Length > 0)
+        {
+            // A wolf of the host's goes for the early guest (its prey picked by hand: everyone stands by station 1's fire here).
+            NetCarrier prey = GameEvents.OtherCarriers[0];
+            WildlifeTable table = GD.Load<WildlifeTable>("res://wildlife/default_wildlife.tres");
+            WildlifeSpecies? wolf = table.Species.FirstOrDefault(s => s.Temperament == Temperament.Predator);
+            if (wolf != null)
+            {
+                _wolfPrey = prey.Peer;
+                _wolf = new WildlifeAnimal();
+                _wolf.Setup(wolf, table, 7);
+                GetTree().CurrentScene.AddChild(_wolf);
+                _wolf.GlobalPosition = prey.Feet + new Vector3(7.0f, 0.3f, 0.0f);
+                _wolf.TargetPeer = _wolfPrey;
+                PhysicsDirectSpaceState3D space = _wolf.GetWorld3D().DirectSpaceState;
+                // One look round at night first, so it hunts by the night's (bolder) rules.
+                _wolf.Tick(0.016f, CarrierSense.Still(prey.Feet + Vector3.Up * 500.0f) with { Daylight = 0.0f }, space);
+                _wolf.StartStalk(prey.Feet, false);
+            }
+        }
+        if (host && _wolf != null && IsInstanceValid(_wolf) && time > 25.0 && time < 37.5)
+        {
+            foreach (NetCarrier other in GameEvents.OtherCarriers)
+            {
+                if (other.Peer == _wolfPrey)
+                {
+                    CarrierSense prey = new(other.Feet, Vector3.Zero, Vector3.Zero, false, false, 0.0f, false, false, 0.0f);
+                    _wolf.Tick((float)GetProcessDeltaTime(), prey, _wolf.GetWorld3D().DirectSpaceState);
+                }
+            }
+        }
+        if (!host && early && time > 25.0)
+        {
+            foreach (WildlifeAnimal animal in GetTree().GetNodesInGroup(StealthEye.AnimalGroup).OfType<WildlifeAnimal>())
+            {
+                if (!animal.Puppet || !animal.IsPredator)
+                {
+                    continue;
+                }
+                _sawWolf = true;
+                _sawWolfHunting |= animal.Aware == WildlifeAnimal.Awareness.Alerted;
+                _sawWolfCrouch |= animal.WindingUp && animal.NetVisual.Origin.Y < -0.05f;
+                _wolfWindUpsSeen = Math.Max(_wolfWindUpsSeen, animal.PuppetWindUps);
+            }
+        }
         if (!host && early && Once(21, 27, time))
         {
             Input.ActionRelease(WildlifeSpawner.CrouchAction);
@@ -238,14 +325,14 @@ public partial class NetWorldProbe : Node
             string line = Find<PresidentDirector>()?.Npcs[1].Voice?.CurrentLine ?? "";
             GD.Print($"[WorldProbe] npc_line={line}");
         }
-        if (!_reported && time >= 40)
+        if (!_reported && time >= ReportAt)
         {
             _reported = true;
             Report(host, early, player);
             Check("joined", Session.Joined && Session.Peers.Count == 2);
             Check("all remote poses arrive", Session.Remotes.Values.All(r => r.Pose?.Received > 0));
             Check("one simulation authority", host || Session.Mobs?.OwnedCount == 0);
-            Check("four shared actor kinds", Session.Mobs?.StateDigest().Split('|').Length == 4);
+            Check("five shared actors (the host's wolf too)", Session.Mobs?.StateDigest().Split('|').Length == 5);
             Check("boon reservation persists", Session.TakenSupplies.Contains("boon:1") && Find<BoonOfferings>()!.Stones.Count == 0);
             Check("relic reservation persists", Session.TakenSupplies.Contains("relic:coop-proof") && !GetTree().GetNodesInGroup(IInteractable.Group).OfType<WorldItem>().Any(i => i.SlotKey == "relic:coop-proof"));
             Check("contract reservation persists", Session.TakenSupplies.Contains("contract:1"));
@@ -259,7 +346,7 @@ public partial class NetWorldProbe : Node
             GD.Print($"[WorldProbe] digest={Session.Mobs?.StateDigest()} taken={taken}");
             GD.Print($"[WorldProbe] result name={Session.LocalName} failures={_errors} got={string.Join(',', _got)}");
         }
-        if (_reported && time >= 43) { GetTree().Quit(Math.Min(_errors, 1)); }
+        if (_reported && time >= ReportAt + 3.0) { GetTree().Quit(Math.Min(_errors, 1)); }
     }
 
     /// <summary>Follows every other player's body and pack as this machine shows them.</summary>
@@ -281,6 +368,7 @@ public partial class NetWorldProbe : Node
             bool off = pack?.Off == true;
             if (remote.PeerId == 1 && !host)
             {
+                FollowHostStream(remote.Pose);
                 if (off && pack!.Way >= 0.99f && pack.Copy != null)
                 {
                     _sawHostPackOff = true;
@@ -293,6 +381,33 @@ public partial class NetWorldProbe : Node
                 _otherPackMoved = true;
             }
         }
+    }
+
+    private void FollowHostStream(RemotePlayerPose? stream)
+    {
+        if (stream == _hostStream) { return; }
+        if (_hostStream != null && IsInstanceValid(_hostStream)) { _hostStream.Arrived -= HostPose; }
+        _hostStream = stream;
+        if (_hostStream != null) { _hostStream.Arrived += HostPose; }
+    }
+
+    private void HostPose(int sequence, int flags)
+    {
+        if ((flags & NetPoseCodec.PackOff) == 0) { return; }
+        // Poses are taken in before this frame's _Process, so the stall that just ended is measured here.
+        double wall = Time.GetUnixTimeFromSystem();
+        double stall = _lastFrameAt >= 0.0 ? Math.Max(_longestStall, wall - _lastFrameAt) : 0.0;
+        if (_packOffFirst < 0) { _packOffFirst = sequence; }
+        else
+        {
+            int hole = sequence - _packOffLast - 1;
+            if (hole > _packOffHole) { _packOffHole = hole; _packOffHoleAt = sequence; _packOffHoleTime = wall - StartAtUnix; }
+            float rate = Mathf.Max(1.0f, Session?.Poses?.SendRate ?? 15.0f);
+            if (stall < 0.5 * hole / rate) { _packOffOpenHole = Math.Max(_packOffOpenHole, hole); }
+        }
+        _longestStall = 0.0;
+        _packOffLast = sequence;
+        _packOffPoses++;
     }
 
     /// <summary>How high the hips of their shown body are over their feet, in m (about 0.9 standing, low lying).</summary>
@@ -318,15 +433,27 @@ public partial class NetWorldProbe : Node
             Check("the guest's sword swing reaches the host's animals", _swingsHeard >= 1);
             Check("the pack comes off to be repacked (real packing flow)", _packOpened && _ownPackOff);
             Check("co-op keeps the world running while the pack is open", _runningWhilePacking);
+            GD.Print($"[WorldProbe] host_sent_while_packing={_sendRateWhilePacking:0.0}/s");
+            Check("the host keeps sending its body while it repacks", _sendRateWhilePacking >= 5.0f);
             Check("the pack is back on after shouldering", player.GetNodeOrNull<CarrierModel>("CarrierModel")?.PackSetDown?.Off == false);
+            GD.Print($"[WorldProbe] wolf_host prey={_wolfPrey} stalks={_wolf?.Stalks} windups={_wolf?.WindUps} lunges={_wolf?.Lunges} bites={_wolf?.Bites}");
+            Check("the host's wolf hunts a guest: it winds up and its bite goes to that guest", _wolf != null && _wolfPrey != 0 && _wolf.WindUps >= 1 && _wolf.Bites >= 1);
         }
         else
         {
             if (early) { Check("the host's fall and get-up are seen", _falls.TryGetValue(1, out FallWatch? seen) && seen.Fell && seen.Up); }
-            if (_joinedAt < 32.0)
+            if (early)
+            {
+                GD.Print($"[WorldProbe] wolf_guest seen={_sawWolf} hunting={_sawWolfHunting} crouch={_sawWolfCrouch} windups={_wolfWindUpsSeen} bitten={_wolfBitesTaken}");
+                Check("the guest sees the host's wolf stalk it, crouch to spring and bite it", _sawWolf && _sawWolfHunting && _sawWolfCrouch && _wolfWindUpsSeen >= 1 && _wolfBitesTaken >= 1);
+            }
+            int span = _packOffFirst < 0 ? 0 : _packOffLast - _packOffFirst + 1;
+            float share = span > 0 ? (float)_packOffPoses / span : 0.0f;
+            GD.Print($"[WorldProbe] host_poses_while_packing={_packOffPoses} of {span} (#{_packOffFirst}-#{_packOffLast}) share={share:0.00} longest_hole={_packOffHole} (before #{_packOffHoleAt}, at {_packOffHoleTime:0.0} s) longest_unexplained_hole={_packOffOpenHole}");
+            if (_joinedAt < ShoulderAt - SeeingTime)
             {
                 Check("the host's pack is seen standing on the ground while it repacks", _sawHostPackOff && _hostPackOnGround);
-                Check("the host's body keeps arriving while it repacks", _hostPosesDuring > 20);
+                Check("the host's body keeps arriving while it repacks", span >= ShortestSpan && _packOffOpenHole < LongestHole && share >= LeastShare);
             }
             else
             {
@@ -344,7 +471,7 @@ public partial class NetWorldProbe : Node
         }
         if (_selfFell) { Check("own fall ends standing", _selfUp); }
         CheckStationsAndSigns();
-        GD.Print($"[WorldProbe] joined_at={_joinedAt:0.0} host_poses_while_packing={_hostPosesDuring}");
+        GD.Print($"[WorldProbe] joined_at={_joinedAt:0.0}");
         GD.Print($"[WorldProbe] {WorldDigest()}");
     }
 

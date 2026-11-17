@@ -17,14 +17,23 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
     public const string VaultableGroup = "vaultable";
     /// <summary>The standing trees' trunk bodies (one per chunk, a cylinder per tree).</summary>
     public const string TreeGroup = "tree_trunks";
+    /// <summary>
+    /// Ground cover that looks solid and stands taller than a knee (outcrops, walls, big stones,
+    /// stumps and the lost carriers' gear) or a big bush: one body per chunk and material, a box per
+    /// piece, so the carrier no longer walks through it (environment/WorldStyle's thresholds).
+    /// </summary>
+    public const string CoverGroup = "solid_cover";
 
     private TerrainGenerator? _generator;
     private SurfaceType?[] _surfaces = System.Array.Empty<SurfaceType?>();
     private Material? _grassMaterial;
     private Material? _rockMaterial;
     private Material? _woodMaterial;
-    private static readonly System.Collections.Generic.Dictionary<Color, StandardMaterial3D> ShrubMaterials = new();
     private StaticBody3D? _treeBody;
+    private StaticBody3D? _rockCover;
+    private StaticBody3D? _woodCover;
+    private StaticBody3D? _bushCover;
+    private SurfaceType? _rockSurface;
     private Vector2[] _fogTrees = System.Array.Empty<Vector2>();
     private Vector3[] _fogRocks = System.Array.Empty<Vector3>();
 
@@ -55,6 +64,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         _grassMaterial = grassMaterial;
         _rockMaterial = boulderMaterial;
         _woodMaterial = trunkMaterial;
+        _rockSurface = boulderSurface;
         Name = $"Chunk_{data.Coord.X}_{data.Coord.Y}";
         Position = generator.ChunkCorner(data.Coord);
 
@@ -185,6 +195,10 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         _plantBuild = null;
         _pendingPlants = null;
         if (_treeBody != null && IsInstanceValid(_treeBody) && _treeBody.GetParent() == null) { _treeBody.Free(); }
+        foreach (StaticBody3D? cover in new[] { _rockCover, _woodCover, _bushCover })
+        {
+            if (cover != null && IsInstanceValid(cover) && cover.GetParent() == null) { cover.Free(); }
+        }
     }
 
     /// <summary>The slowest frame spent adding one chunk's plants, in ms (for the streaming test).</summary>
@@ -216,6 +230,14 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
                 AddTreeCollision(plant, trunkSurface);
                 yield return true;
             }
+            else if (IsGroundCover(plant.Kind) && ModelFit.FirstMesh(plant.Model, out Transform3D coverLocal) is Mesh coverMesh)
+            {
+                _plantPhase = "cover collision";
+                if (AddCoverCollision(plant, coverMesh.GetAabb(), coverLocal, chunkOrigin, trunkSurface))
+                {
+                    yield return true;
+                }
+            }
             float batchSize = Mathf.Max(_generator!.Settings.PlantBatchSize, 4);
             if (plant.Kind == PlantKind.Tree) { batchSize = _generator.Settings.ChunkSize; }
             else if (IsGroundCover(plant.Kind)) { batchSize = Mathf.Max(_generator.Settings.GroundCoverBatchSize, 4); }
@@ -235,6 +257,13 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         {
             _plantPhase = "compound trunk upload";
             AddChild(_treeBody, true);
+            yield return true;
+        }
+        foreach (StaticBody3D? cover in new[] { _rockCover, _woodCover, _bushCover })
+        {
+            if (cover == null) { continue; }
+            _plantPhase = "compound cover upload";
+            AddChild(cover, true);
             yield return true;
         }
         _plantPhase = "grass material setup";
@@ -263,12 +292,8 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
             {
                 continue;
             }
-            if (kind == PlantKind.Tree)
-            {
-                // Trees sway and their branches flutter in the wind (the grass has its own shared material).
-                _plantPhase = "tree wind material";
-                mesh = FoliageMaterials.WindReady(mesh);
-            }
+            _plantPhase = "batch mesh";
+            mesh = DrawnMesh(kind, model, mesh);
             _plantPhase = "multimesh allocation";
             MultiMesh batch = new() { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = plants.Count };
             yield return true;
@@ -307,8 +332,8 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
                 material = grassMaterial;
             }
             else if (kind == PlantKind.Pebble || kind == PlantKind.Rock) { material = _rockMaterial; }
-            else if (kind == PlantKind.Shrub) { material = ShrubMaterial(source[plants[0]].Position); }
             else if (kind == PlantKind.Debris && (model.Contains("/log") || model.Contains("/stump"))) { material = _woodMaterial; }
+
             float view = _generator!.Settings.GrassViewDistance;
             float cell = _generator.Settings.PlantBatchSize;
             GeometryInstance3D.ShadowCastingSetting shadows = GeometryInstance3D.ShadowCastingSetting.Off;
@@ -346,23 +371,27 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         }
     }
 
-    /// <summary>One shared material per circle's foliage colour, for the art pack's bushes and dwarf pines.</summary>
-    private Material? ShrubMaterial(Vector3 at)
+    /// <summary>Shrubs, loose rocks and debris: sparse ground cover, batched in larger cells and drawn further.</summary>
+    /// <summary>
+    /// The mesh a batch of this kind and model draws (cached, shared by every chunk): trees get the wind
+    /// data their branches flutter by (the grass has its own shared material); an art pack's flowers,
+    /// mushrooms and lost gear are put in the mountain's palette, while the generated bushes and dwarf
+    /// pines keep their own swaying material. Logs and stumps take the trunk material.
+    /// </summary>
+    public static Mesh DrawnMesh(PlantKind kind, string model, Mesh mesh)
     {
-        Biome? biome = _generator!.BiomeAt(at.X, at.Z, _generator.DepthAt(at.Y));
-        if (biome == null)
+        if (kind == PlantKind.Tree)
         {
-            return null;
+            return FoliageMaterials.WindReady(mesh);
         }
-        if (!ShrubMaterials.TryGetValue(biome.ShrubColour, out StandardMaterial3D? material))
+        if (kind == PlantKind.Shrub || kind == PlantKind.Flower
+            || (kind == PlantKind.Debris && !model.Contains("/log") && !model.Contains("/stump")))
         {
-            material = new StandardMaterial3D { AlbedoColor = biome.ShrubColour, Roughness = 1.0f, BacklightEnabled = true, Backlight = biome.ShrubColour * 0.4f };
-            ShrubMaterials[biome.ShrubColour] = material;
+            return DownhillRoguelite.Environment.WorldStyle.Styled(mesh, model);
         }
-        return material;
+        return mesh;
     }
 
-    /// <summary>Shrubs, loose rocks and debris: sparse ground cover, batched in larger cells and drawn further.</summary>
     public static bool IsGroundCover(PlantKind kind)
     {
         return kind == PlantKind.Shrub || kind == PlantKind.Rock || kind == PlantKind.Debris;
@@ -400,6 +429,74 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         Transform3D placement = new(lean * new Basis(Vector3.Up, plant.Yaw), plant.Position - chunkOrigin + Vector3.Down * GroundSink(plant));
         Transform3D fit = new(Basis.Identity.Scaled(Vector3.One * scale), -foot * scale);
         return placement * fit * local;
+    }
+
+    /// <summary>
+    /// Whether a piece of ground cover blocks the carrier: rocks, walls, stumps and gear standing
+    /// taller than a knee, and bushes as tall as a big bush. Grass, flowers, pebbles and small
+    /// shrubs never do.
+    /// </summary>
+    public static bool BlocksCarrier(PlantKind kind, float visibleHeight)
+    {
+        return kind switch
+        {
+            PlantKind.Rock or PlantKind.Debris => visibleHeight >= DownhillRoguelite.Environment.WorldStyle.KneeHeight,
+            PlantKind.Shrub => visibleHeight >= DownhillRoguelite.Environment.WorldStyle.BigBushHeight,
+            _ => false,
+        };
+    }
+
+    /// <summary>A box round a solid piece of cover (in the chunk's body for its material); false when it doesn't block.</summary>
+    private bool AddCoverCollision(PlantData plant, Aabb meshBounds, Transform3D local, Vector3 chunkOrigin, SurfaceType? trunkSurface)
+    {
+        Aabb bounds = local * meshBounds;
+        float scale = plant.Scale;
+        Vector3 foot = Vector3.Zero;
+        if (plant.HeightInMetres)
+        {
+            scale = plant.Scale / Mathf.Max(bounds.Size.Y, 0.01f);
+            foot = new Vector3(bounds.GetCenter().X, bounds.Position.Y, bounds.GetCenter().Z);
+        }
+        Vector3 size = bounds.Size * scale;
+        float visible = size.Y - GroundSink(plant);
+        if (!BlocksCarrier(plant.Kind, visible))
+        {
+            return false;
+        }
+        Basis turn = Basis.FromEuler(new Vector3(plant.Lean.X, 0.0f, plant.Lean.Y)) * new Basis(Vector3.Up, plant.Yaw);
+        Vector3 origin = plant.Position - chunkOrigin + Vector3.Down * GroundSink(plant);
+        Vector3 centre = origin + turn * ((bounds.GetCenter() - foot) * scale);
+        // A bush stops the carrier at its dense middle; rocks and wood at most of their outline.
+        float footprint = 0.85f;
+        StaticBody3D body;
+        if (plant.Kind == PlantKind.Shrub)
+        {
+            footprint = 0.55f;
+            body = _bushCover ??= NewCover("CoverBushes", false, null);
+        }
+        else if (plant.Kind == PlantKind.Rock)
+        {
+            body = _rockCover ??= NewCover("CoverRocks", true, _rockSurface);
+        }
+        else
+        {
+            body = _woodCover ??= NewCover("CoverWood", true, trunkSurface);
+        }
+        body.AddChild(new CollisionShape3D
+        {
+            Shape = new BoxShape3D { Size = new Vector3(Mathf.Max(size.X * footprint, 0.1f), size.Y, Mathf.Max(size.Z * footprint, 0.1f)) },
+            Transform = new Transform3D(turn, centre),
+        });
+        return true;
+    }
+
+    private static StaticBody3D NewCover(string name, bool vaultable, SurfaceType? surface)
+    {
+        StaticBody3D body = new() { Name = name };
+        body.AddToGroup(CoverGroup);
+        if (vaultable) { body.AddToGroup(VaultableGroup); }
+        if (surface != null) { body.SetMeta(SurfaceType.MetaKey, surface); }
+        return body;
     }
 
     private void AddTreeCollision(PlantData plant, SurfaceType? trunkSurface)

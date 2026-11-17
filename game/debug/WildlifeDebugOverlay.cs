@@ -51,7 +51,7 @@ public partial class WildlifeDebugOverlay : CanvasLayer
             {
                 color = Colors.Yellow;
             }
-            else if (animal.State is WildlifeAnimal.Mode.Flee or WildlifeAnimal.Mode.Fight or WildlifeAnimal.Mode.Shove)
+            else if (animal.State is WildlifeAnimal.Mode.Flee or WildlifeAnimal.Mode.Fight or WildlifeAnimal.Mode.Shove or WildlifeAnimal.Mode.Stalk or WildlifeAnimal.Mode.WindUp or WildlifeAnimal.Mode.Lunge)
             {
                 color = Colors.Red;
             }

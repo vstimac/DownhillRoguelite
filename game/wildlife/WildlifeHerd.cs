@@ -7,8 +7,10 @@ namespace DownhillRoguelite.Wildlife;
 /// What an animal knows of the carrier it watches (the nearest one standing, host-side): where it
 /// is, how fast it goes, whether it steers into the animal, sprints or falls, how heavy its load is
 /// (louder footsteps), whether it crouches (the brake key: quieter, harder to see), whether its
-/// torch is lit, and how much daylight there is (1 day, 0 night). Velocity of a guest comes from
-/// its streamed feet; its crouch and load come in its pose flags.
+/// torch is lit, and how much daylight there is (1 day, 0 night); for predators also whether it is
+/// at a station's fire (left alone), down after a fall (a chance to close in) or bleeding out in
+/// co-op (circled, never bitten). Velocity of a guest comes from its streamed feet; its crouch and
+/// load come in its pose flags.
 /// </summary>
 public readonly record struct CarrierSense(
     Vector3 Position,
@@ -19,7 +21,10 @@ public readonly record struct CarrierSense(
     float LoadMass,
     bool Crouching = false,
     bool TorchLit = false,
-    float Daylight = 1.0f)
+    float Daylight = 1.0f,
+    bool AtFire = false,
+    bool Downed = false,
+    bool Bleeding = false)
 {
     public static CarrierSense Still(Vector3 position) => new(position, Vector3.Zero, Vector3.Zero, false, false, 0.0f);
 }
@@ -43,6 +48,12 @@ public sealed class WildlifeHerd
     public int MoveSerial { get; private set; }
     /// <summary>The way the herd is fleeing (zero when calm).</summary>
     public Vector3 FleeDirection { get; set; }
+    /// <summary>A predator pack: the one wolf biting now (one at a time), and seconds until the next may.</summary>
+    public WildlifeAnimal? Attacker { get; set; }
+    public float AttackTimer { get; set; }
+    /// <summary>A predator pack: members hurt or killed so far, and the most it ever had (half hurt: it retreats).</summary>
+    public int Wounded { get; set; }
+    public int Founding { get; private set; }
 
     public WildlifeAnimal? Leader
     {
@@ -64,6 +75,7 @@ public sealed class WildlifeHerd
         WildlifeAnimal? leader = Leader;
         _members.Add(animal);
         animal.Herd = this;
+        Founding = Mathf.Max(Founding, _members.Count);
         if (leader == null || animal.Species == null)
         {
             animal.HerdSlot = Vector3.Zero;
