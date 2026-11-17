@@ -115,6 +115,10 @@ public partial class CharacterAnimator : Node
     private static readonly StringName BrakeWalkRateParameter = new("parameters/" + BrakeWalkNode + RateSuffix + "/scale");
     private static readonly StringName TakeoffSeekParameter = new("parameters/" + TakeoffNode + "_seek/seek_request");
     private static readonly StringName LandingSeekParameter = new("parameters/" + LandingNode + "_seek/seek_request");
+    // The action slot's blend once went by its bare node name ("action_blend"), which isn't a tree
+    // parameter: the slot never showed, so rolls, the dive and the get-up clips were invisible.
+    private static readonly StringName ActionSeekParameter = new("parameters/" + ActionNode + "_seek/seek_request");
+    private static readonly StringName ActionBlendParameter = new("parameters/" + ActionNode + "_blend/blend_amount");
 
     private AnimationTree? _tree;
     public AnimationTree? Tree => _tree;
@@ -321,8 +325,8 @@ public partial class CharacterAnimator : Node
         {
             _actionWeight = target;
         }
-        _tree!.Set($"parameters/{ActionNode}_seek/seek_request", _actionTime);
-        SetBlend(ActionNode + "_blend", Mathf.SmoothStep(0.0f, 1.0f, _actionWeight));
+        _tree!.Set(ActionSeekParameter, _actionTime);
+        SetBlend(ActionBlendParameter, Mathf.SmoothStep(0.0f, 1.0f, _actionWeight));
     }
 
     private float Length(StringName clip)
