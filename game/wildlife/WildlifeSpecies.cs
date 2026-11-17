@@ -38,7 +38,11 @@ public partial class WildlifeSpecies : Resource
     [Export] public float ModelScale { get; set; } = 1.0f;
     /// <summary>Model rotation so it stands up and faces -Z, in degrees.</summary>
     [Export] public Vector3 ModelRotationDegrees { get; set; }
-    /// <summary>A material laid over the whole model in place of the pack's own (the wolf's muted, grainy coat); empty keeps the pack's.</summary>
+    /// <summary>
+    /// The colour of the animal's fur in place of the pack's own (only its albedo colour counts): it
+    /// becomes the mountain's palette coat (<see cref="DownhillRoguelite.Environment.WorldStyle.Coat"/>),
+    /// muted and grained like every animal's. Empty keeps the pack's own colour.
+    /// </summary>
     [Export] public Material? Coat { get; set; }
 
     [ExportGroup("Clips")]

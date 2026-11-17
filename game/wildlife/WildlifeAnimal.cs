@@ -382,9 +382,11 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             _animation = FindPlayer(_model);
             if (species.Coat != null)
             {
+                // After the restyle: the species' fur colour as the same palette coat (the wolf's grey-brown).
+                Material coat = DownhillRoguelite.Environment.WorldStyle.Coat(species.Coat);
                 foreach (Node node in _model.FindChildren("*", "MeshInstance3D", true, false))
                 {
-                    ((MeshInstance3D)node).MaterialOverride = species.Coat;
+                    ((MeshInstance3D)node).MaterialOverride = coat;
                 }
             }
             foreach (Node node in _model.FindChildren("*", "Skeleton3D", true, false))

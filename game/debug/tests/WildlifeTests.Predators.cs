@@ -96,30 +96,47 @@ public partial class WildlifeTests
     private async Task TestWolfLookAndBody(WildlifeTable table, WildlifeSpecies wolf)
     {
         PlayerController player = PlayerBody!;
-        Vector3 ahead = player.GlobalPosition + Vector3.Forward * 1.6f;
-        Spawner!.Ground(GetWorld3D().DirectSpaceState, ahead, out Vector3 ground, out string _, out float _);
-        WildlifeAnimal animal = Standalone(wolf, table, ground + Vector3.Up * 0.05f, 501);
+        // A stand-in with the carrier's own body (its shapes, layer and mask) on the flat test field,
+        // so the check doesn't depend on where the steps before left the real carrier.
+        CharacterBody3D carrier = new() { CollisionLayer = player.CollisionLayer, CollisionMask = player.CollisionMask };
+        foreach (Node node in player.FindChildren("*", "CollisionShape3D", false, false))
+        {
+            CollisionShape3D shape = (CollisionShape3D)node;
+            carrier.AddChild(new CollisionShape3D { Shape = shape.Shape, Transform = shape.Transform, Disabled = shape.Disabled });
+        }
+        AddChild(carrier);
+        carrier.GlobalPosition = _fieldTop + new Vector3(20.0f, 0.02f, 20.0f);
+        WildlifeAnimal animal = Standalone(wolf, table, carrier.GlobalPosition + Vector3.Forward * 1.6f + Vector3.Up * 0.03f, 501);
         await WaitSeconds(0.1f);
         int meshes = 0;
         int coated = 0;
+        Material? coat = wolf.Coat != null ? DownhillRoguelite.Environment.WorldStyle.Coat(wolf.Coat) : null;
+        string why = "";
         foreach (Node node in animal.FindChildren("*", "MeshInstance3D", true, false))
         {
             meshes++;
-            if (wolf.Coat != null && ((MeshInstance3D)node).MaterialOverride == wolf.Coat)
+            Material? worn = ((MeshInstance3D)node).MaterialOverride;
+            if (coat != null && worn == coat && coat != wolf.Coat && DownhillRoguelite.Environment.WorldStyle.IsInStyle(worn, out why))
             {
                 coated++;
             }
         }
-        Vector3 toward = animal.GlobalPosition - player.GlobalPosition;
+        Vector3 toward = animal.GlobalPosition - carrier.GlobalPosition;
         toward.Y = 0.0f;
         KinematicCollision3D hit = new();
-        // A little above the ground, so the slope underfoot doesn't stop the move first.
-        bool blocked = player.TestMove(player.GlobalTransform.Translated(Vector3.Up * 0.25f), toward.Normalized() * 2.5f, hit);
-        bool byWolf = blocked && hit.GetCollider() == animal;
-        Check("a wolf wears a muted textured coat and the carrier's body collides with it",
+        // A little above the ground, so the slope underfoot doesn't stop the move first (at two heights).
+        bool byWolf = false;
+        foreach (float lift in new[] { 0.25f, 0.6f })
+        {
+            bool blocked = carrier.TestMove(carrier.GlobalTransform.Translated(Vector3.Up * lift), toward.Normalized() * 2.5f, hit);
+            byWolf = blocked && hit.GetCollider() == animal;
+            if (byWolf) { break; }
+        }
+        Check("a wolf wears the palette coat (grey-brown) and the carrier's body collides with it",
             wolf.Coat != null && meshes > 0 && coated == meshes && byWolf && animal.Radius >= 0.4f,
-            $"coat {wolf.Coat?.ResourcePath}, {coated}/{meshes} meshes coated, carrier stopped by the wolf {byWolf} (hit {hit.GetCollider()}), body radius {animal.Radius:0.00} m");
+            $"palette coat {DownhillRoguelite.Environment.WorldStyle.NameOf(coat)} from {wolf.Coat?.ResourcePath} {why}, {coated}/{meshes} meshes coated, carrier stopped by the wolf {byWolf} (hit {hit.GetCollider()}), body radius {animal.Radius:0.00} m; wolf {toward.Length():0.00} m off, feet {animal.GlobalPosition.Y - carrier.GlobalPosition.Y:0.00} m from the carrier's (mask {carrier.CollisionMask}, {carrier.GetChildCount()} shape)");
         Free(new[] { animal });
+        carrier.QueueFree();
         await WaitSeconds(0.1f);
     }
 
