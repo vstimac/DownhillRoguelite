@@ -32,6 +32,11 @@ public partial class WildlifeSpecies : Resource
     [Export] public float ModelScale { get; set; } = 1.0f;
     /// <summary>Model rotation so it stands up and faces -Z, in degrees.</summary>
     [Export] public Vector3 ModelRotationDegrees { get; set; }
+    /// <summary>
+    /// Its colours by the model's surface, muted into the mountain's palette (a transparent entry, or
+    /// none, keeps that surface's own colour): turns a cartoon-coloured model into a natural animal.
+    /// </summary>
+    [Export] public Color[] CoatColours { get; set; } = System.Array.Empty<Color>();
 
     [ExportGroup("Clips")]
     [Export] public string IdleClip { get; set; } = "";
