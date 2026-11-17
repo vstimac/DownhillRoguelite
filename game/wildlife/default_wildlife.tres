@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="WildlifeTable" load_steps=41 format=3]
+[gd_resource type="Resource" script_class="WildlifeTable" load_steps=44 format=3]
 
 [ext_resource type="Script" path="res://wildlife/WildlifeTable.cs" id="1_table"]
 [ext_resource type="Script" path="res://wildlife/WildlifeSpecies.cs" id="0_species"]
@@ -21,6 +21,8 @@
 [ext_resource type="PackedScene" path="res://art/creatures/quaternius_farm_animals/FBX/Pig.fbx" id="18_model"]
 [ext_resource type="PackedScene" path="res://art/creatures/quaternius_farm_animals/FBX/Sheep.fbx" id="19_model"]
 [ext_resource type="PackedScene" path="res://art/creatures/quaternius_farm_animals/FBX/Zebra.fbx" id="20_model"]
+[ext_resource type="PackedScene" path="res://art/creatures/quaternius_wolf/FBX/Wolf.fbx" id="21_wolf"]
+[ext_resource type="Material" path="res://wildlife/wolf_coat.tres" id="22_coat"]
 
 [sub_resource type="Resource" id="WildlifeSpecies_cow"]
 script = ExtResource("0_species")
@@ -662,6 +664,42 @@ HerdSpacing = 0.6
 ViewAngle = 300.0
 GrazeClip = "eat"
 
+[sub_resource type="Resource" id="WildlifeSpecies_wolf"]
+script = ExtResource("0_species")
+DisplayName = "Wolf"
+Model = ExtResource("21_wolf")
+ModelScale = 0.27
+ModelRotationDegrees = Vector3(0.0, 90.0, 0.0)
+Coat = ExtResource("22_coat")
+IdleClip = "WolfArmature|Idle"
+WalkClip = "WolfArmature|Walking"
+FleeClip = "WolfArmature|Walking"
+FleeClipSpeed = 2.2
+WalkSpeed = 1.2
+FleeSpeed = 8.0
+TurnSpeed = 240.0
+HoverHeight = 0.0
+FleeDistance = 8.0
+SprintFleeDistance = 12.0
+BodySize = Vector3(0.8, 1.2, 1.0)
+GroupSize = Vector2i(2, 4)
+GroupSpread = 5.0
+Weight = 1.0
+Circles = PackedInt32Array(5, 6, 7, 8)
+Surfaces = PackedStringArray("Rock", "Scree", "Dirt", "Mud")
+MaxSlope = 40.0
+Temperament = 5
+SightRange = 35.0
+HearingRange = 30.0
+AlertSeconds = 0.8
+SafeDistance = 40.0
+HerdSpacing = 2.0
+ViewAngle = 200.0
+Health = 60.0
+Loot = PackedStringArray("leather_patch")
+AlwaysLoot = PackedStringArray("raw_meat")
+LootCount = Vector2i(1, 1)
+
 [resource]
 script = ExtResource("1_table")
-Species = [SubResource("WildlifeSpecies_cow"), SubResource("WildlifeSpecies_horse"), SubResource("WildlifeSpecies_zebra"), SubResource("WildlifeSpecies_sheep"), SubResource("WildlifeSpecies_llama"), SubResource("WildlifeSpecies_pig"), SubResource("WildlifeSpecies_rat"), SubResource("WildlifeSpecies_frog"), SubResource("WildlifeSpecies_snake"), SubResource("WildlifeSpecies_spider"), SubResource("WildlifeSpecies_wasp"), SubResource("WildlifeSpecies_deer"), SubResource("WildlifeSpecies_fox"), SubResource("WildlifeSpecies_bunny"), SubResource("WildlifeSpecies_penguin"), SubResource("WildlifeSpecies_polar"), SubResource("WildlifeSpecies_cat"), SubResource("WildlifeSpecies_dog"), SubResource("WildlifeSpecies_chick")]
+Species = [SubResource("WildlifeSpecies_cow"), SubResource("WildlifeSpecies_horse"), SubResource("WildlifeSpecies_zebra"), SubResource("WildlifeSpecies_sheep"), SubResource("WildlifeSpecies_llama"), SubResource("WildlifeSpecies_pig"), SubResource("WildlifeSpecies_rat"), SubResource("WildlifeSpecies_frog"), SubResource("WildlifeSpecies_snake"), SubResource("WildlifeSpecies_spider"), SubResource("WildlifeSpecies_wasp"), SubResource("WildlifeSpecies_deer"), SubResource("WildlifeSpecies_fox"), SubResource("WildlifeSpecies_bunny"), SubResource("WildlifeSpecies_penguin"), SubResource("WildlifeSpecies_polar"), SubResource("WildlifeSpecies_cat"), SubResource("WildlifeSpecies_dog"), SubResource("WildlifeSpecies_chick"), SubResource("WildlifeSpecies_wolf")]
