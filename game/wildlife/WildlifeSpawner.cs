@@ -15,11 +15,18 @@ namespace DownhillRoguelite.Wildlife;
 /// WorldClock). A fall (DownedChanged, a guest's fall) or a sword swing scatters every animal nearby,
 /// a hard landing startles them; killed animals are removed after a while; a new run clears them.
 /// Adds the stealth eye (StealthEye) to the screen.
+/// Predators (wolves, PredatorTuning) are placed more often at night, one pack at a time, and only
+/// while PredatorTuning.Enabled; each picks its prey among all carriers (fallen ones first, never one
+/// at a station's fire, sticking with its prey: PickPrey), and every machine tells its own carrier
+/// once a run when wolves hunt it and when one crouches to spring.
 /// Reads LocomotionUpdated, VitalsUpdated (sprinting), LoadChanged, Landed, MeleeSwung and
 /// RunState (circle). Times itself (AverageMilliseconds) so tests can hold it under budget.
 /// </summary>
 public partial class WildlifeSpawner : Node3D
 {
+    /// <summary>A carrier a predator may hunt: who (0 = the host's own), where, fallen, bleeding out, at a station's fire.</summary>
+    public readonly record struct Prey(long Peer, Vector3 Position, bool Downed, bool Bleeding, bool AtFire);
+
     [Export] public WildlifeTable? Table { get; set; }
     /// <summary>Off stops spawning (existing animals keep living); for tests.</summary>
     [Export] public bool Spawning { get; set; } = true;
@@ -59,6 +66,10 @@ public partial class WildlifeSpawner : Node3D
     private bool _sprinting;
     private float _spawnTimer;
     private ulong _serial;
+    private readonly List<Prey> _prey = new();
+    private float _hintTimer;
+    private bool _toldStalk;
+    private bool _toldWindUp;
 
     public override void _Ready()
     {
@@ -71,6 +82,7 @@ public partial class WildlifeSpawner : Node3D
         GameEvents.VitalsUpdated += OnVitalsUpdated;
         GameEvents.DownedChanged += OnDownedChanged;
         GameEvents.RespawnRequested += Clear;
+        GameEvents.RespawnRequested += ForgetHints;
         GameEvents.SharedCarrierFell += OnSharedFall;
         GameEvents.SharedCarrierSwung += OnSharedSwing;
         GameEvents.LoadChanged += OnLoadChanged;
@@ -84,6 +96,7 @@ public partial class WildlifeSpawner : Node3D
         GameEvents.VitalsUpdated -= OnVitalsUpdated;
         GameEvents.DownedChanged -= OnDownedChanged;
         GameEvents.RespawnRequested -= Clear;
+        GameEvents.RespawnRequested -= ForgetHints;
         GameEvents.SharedCarrierFell -= OnSharedFall;
         GameEvents.SharedCarrierSwung -= OnSharedSwing;
         GameEvents.LoadChanged -= OnLoadChanged;
@@ -97,6 +110,7 @@ public partial class WildlifeSpawner : Node3D
 
     public override void _PhysicsProcess(double delta)
     {
+        WolfHints((float)delta);
         if (!GameEvents.MaySimulateWorld) { if (_animals.Count > 0) { Clear(); } return; }
         if (!_hasCarrier || Table == null)
         {
@@ -114,6 +128,7 @@ public partial class WildlifeSpawner : Node3D
             Circle = _run.Circles.CircleAt(_run.Depth);
         }
         TrackGuests(dt);
+        GatherPrey();
 
         for (int i = _animals.Count - 1; i >= 0; i--)
         {
@@ -164,10 +179,31 @@ public partial class WildlifeSpawner : Node3D
         AverageMilliseconds = Mathf.Lerp(AverageMilliseconds, ms, 0.05f);
     }
 
-    /// <summary>Ticks an animal against the nearest carrier standing (the host's own, or a guest's).</summary>
+    /// <summary>Ticks an animal against the nearest carrier standing (the host's own, or a guest's); a predator against its prey.</summary>
     private void TickAnimal(WildlifeAnimal animal, float dt, PhysicsDirectSpaceState3D space)
     {
         float daylight = _clock?.Daylight ?? 1.0f;
+        if (animal.IsPredator && _prey.Count > 0)
+        {
+            int pick = PickPrey(animal.GlobalPosition, _prey, animal.TargetPeer);
+            Prey prey = _prey[pick];
+            animal.TargetPeer = prey.Peer;
+            CarrierSense hunted;
+            if (prey.Peer == 0)
+            {
+                hunted = new CarrierSense(_carrier, _carrierVelocity, _carrierInput, _sprinting, _carrierFalling, _loadMass,
+                    _crouching, GameEvents.CarrierTorchLit, daylight);
+            }
+            else
+            {
+                NetCarrier other = System.Array.Find(GameEvents.OtherCarriers, c => c.Peer == prey.Peer);
+                Vector3 velocity = _guests.TryGetValue(other.Peer, out var guest) ? guest.Velocity : Vector3.Zero;
+                hunted = new CarrierSense(other.Feet, velocity, other.InputDirection, other.Sprinting, false, other.LoadMass,
+                    other.Crouching, other.TorchLit, daylight);
+            }
+            animal.Tick(dt, hunted with { AtFire = prey.AtFire, Downed = prey.Downed, Bleeding = prey.Bleeding }, space);
+            return;
+        }
         CarrierSense sense = new(_carrier, _carrierVelocity, _carrierInput, _sprinting, _carrierFalling, _loadMass,
             _crouching, GameEvents.CarrierTorchLit, daylight);
         animal.TargetPeer = 0;
@@ -194,6 +230,129 @@ public partial class WildlifeSpawner : Node3D
             }
         }
         animal.Tick(dt, sense, space);
+    }
+
+    /// <summary>Every carrier a predator may hunt this frame: the host's own and each guest's.</summary>
+    private void GatherPrey()
+    {
+        _prey.Clear();
+        bool downed = GameEvents.IsDowned;
+        bool bleeding = GameEvents.CarrierBleeding;
+        _prey.Add(new Prey(0, _carrier, downed && !bleeding, bleeding, GameEvents.InShelter || NearFire(_carrier)));
+        if (!GameEvents.SharedWorldHost)
+        {
+            return;
+        }
+        foreach (NetCarrier other in GameEvents.OtherCarriers)
+        {
+            _prey.Add(new Prey(other.Peer, other.Feet, other.Down && !other.Bleeding, other.Bleeding, NearFire(other.Feet)));
+        }
+    }
+
+    /// <summary>
+    /// The carrier a predator goes for: the nearest, a fallen one counting closer (a chance), its
+    /// current prey counting closer too (it doesn't switch for a step), never one at a station's
+    /// fire. With everyone at a fire it watches the nearest (and keeps off). Index into prey.
+    /// </summary>
+    public static int PickPrey(Vector3 from, IReadOnlyList<Prey> prey, long current)
+    {
+        int best = -1;
+        float bestScore = float.MaxValue;
+        int nearest = 0;
+        float nearestDistance = float.MaxValue;
+        for (int i = 0; i < prey.Count; i++)
+        {
+            Prey candidate = prey[i];
+            float distance = new Vector2(candidate.Position.X - from.X, candidate.Position.Z - from.Z).Length();
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = i;
+            }
+            if (candidate.AtFire)
+            {
+                continue;
+            }
+            float score = distance;
+            if (candidate.Downed)
+            {
+                score *= PredatorTuning.DownedPull;
+            }
+            if (candidate.Peer == current)
+            {
+                score *= PredatorTuning.Loyalty;
+            }
+            if (score < bestScore)
+            {
+                bestScore = score;
+                best = i;
+            }
+        }
+        return best >= 0 ? best : nearest;
+    }
+
+    /// <summary>Near a station's fire: the stations around a point's stage (the beasts' rule).</summary>
+    public bool NearFire(Vector3 at)
+    {
+        IRouteQuery? route = _run?.Route;
+        if (route == null)
+        {
+            return false;
+        }
+        int next = route.NextStationIndex(at.Z);
+        for (int index = Mathf.Max(1, next - 1); index <= next; index++)
+        {
+            Vector3 fire = route.Station(index);
+            if (new Vector2(fire.X - at.X, fire.Z - at.Z).Length() < PredatorTuning.FireRadius)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// On every machine: tells its own carrier once a run when wolves hunt it, and when one first
+    /// crouches to spring at it (read from the host's own wolves or a guest's puppets alike).
+    /// </summary>
+    private void WolfHints(float dt)
+    {
+        _hintTimer -= dt;
+        if (_hintTimer > 0.0f || !_hasCarrier || (_toldStalk && _toldWindUp))
+        {
+            return;
+        }
+        _hintTimer = 0.25f;
+        foreach (Node node in GetTree().GetNodesInGroup(StealthEye.AnimalGroup))
+        {
+            if (node is not WildlifeAnimal animal || !animal.IsPredator || animal.IsDead)
+            {
+                continue;
+            }
+            float distance = new Vector2(animal.GlobalPosition.X - _carrier.X, animal.GlobalPosition.Z - _carrier.Z).Length();
+            if (distance > PredatorTuning.HintRange)
+            {
+                continue;
+            }
+            // On the host only the wolves after its own carrier; on a guest every wolf near it.
+            bool mine = animal.Puppet || animal.TargetPeer == 0;
+            if (!_toldStalk && mine && animal.Aware == WildlifeAnimal.Awareness.Alerted && (animal.Puppet || animal.Hunting))
+            {
+                _toldStalk = true;
+                GameEvents.PublishHint(PredatorTuning.StalkHint);
+            }
+            if (!_toldWindUp && mine && animal.WindingUp && distance < PredatorTuning.WindUpDistance * 3.0f)
+            {
+                _toldWindUp = true;
+                GameEvents.PublishHint(PredatorTuning.WindUpHint);
+            }
+        }
+    }
+
+    private void ForgetHints()
+    {
+        _toldStalk = false;
+        _toldWindUp = false;
     }
 
     /// <summary>Guests' speed from their streamed feet (a jump of metres in a frame is a teleport, not speed).</summary>
@@ -313,6 +472,14 @@ public partial class WildlifeSpawner : Node3D
         {
             return false;
         }
+        if (species.Temperament == Temperament.Predator)
+        {
+            // A pack lives on its own ground, away from the carrier's station fire.
+            if (NearFire(point))
+            {
+                return false;
+            }
+        }
         string spotSurface = surface;
         float spotSlope = slope;
         int size = _random.RandiRange(species.GroupSize.X, Mathf.Max(species.GroupSize.X, species.GroupSize.Y));
@@ -336,14 +503,48 @@ public partial class WildlifeSpawner : Node3D
         return true;
     }
 
+    /// <summary>Predator packs alive now.</summary>
+    public int PredatorPacks
+    {
+        get
+        {
+            HashSet<object> packs = new();
+            foreach (WildlifeAnimal animal in _animals)
+            {
+                if (animal.IsPredator && !animal.IsDead)
+                {
+                    packs.Add((object?)animal.Herd ?? animal);
+                }
+            }
+            return packs.Count;
+        }
+    }
+
+    /// <summary>A species' chance here and now: predators only while switched on, one pack at a time, more often at night.</summary>
+    public static float SpawnWeight(WildlifeSpecies species, int predatorPacks, float daylight)
+    {
+        if (species.Temperament != Temperament.Predator)
+        {
+            return species.Weight;
+        }
+        if (!PredatorTuning.Enabled || predatorPacks >= PredatorTuning.MaxPacks)
+        {
+            return 0.0f;
+        }
+        bool night = PredatorTuning.IsNight(daylight);
+        return species.Weight * (night ? PredatorTuning.NightWeight : PredatorTuning.DayWeight);
+    }
+
     private WildlifeSpecies? PickSpecies(string surface, float slope)
     {
         float total = 0.0f;
+        int packs = PredatorPacks;
+        float daylight = _clock?.Daylight ?? 1.0f;
         foreach (WildlifeSpecies species in Table!.Species)
         {
             if (species.LivesIn(Circle) && species.LivesOn(surface, slope))
             {
-                total += species.Weight;
+                total += SpawnWeight(species, packs, daylight);
             }
         }
         if (total <= 0.0f)
@@ -357,7 +558,12 @@ public partial class WildlifeSpawner : Node3D
             {
                 continue;
             }
-            pick -= species.Weight;
+            float weight = SpawnWeight(species, packs, daylight);
+            if (weight <= 0.0f)
+            {
+                continue;
+            }
+            pick -= weight;
             if (pick <= 0.0f)
             {
                 return species;
