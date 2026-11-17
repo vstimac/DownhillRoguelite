@@ -12,6 +12,10 @@ const PINE_HEIGHT = 12.0
 const TRUNK_TOP = 0.93
 var vertices := PackedVector3Array()
 var normals := PackedVector3Array()
+## Colours are written as seen (sRGB); the wind shader takes vertex colours as linear light, so tri()
+## converts them, or trees and bushes render pale and frosty next to the ground. Grass is the
+## exception (tuned as written).
+var as_seen := true
 var colours := PackedColorArray()
 var uvs := PackedVector2Array()
 var indices := PackedInt32Array()
@@ -47,12 +51,14 @@ func _initialize() -> void:
 		if not wanted("grass_" + str(variant)):
 			continue
 		reset(391 + variant * 53)
+		# The grass was tuned against its own shader's light as written: kept as it is.
+		as_seen = false
 		grass(variant)
 		save_asset("grass_" + str(variant), false)
 	# Broadleaf trees for the deeper circles: summer green, dark, autumn; and bare snags.
 	var palettes := {
 		"green": [Color(0.29, 0.43, 0.2), Color(0.36, 0.27, 0.2)],
-		"dark": [Color(0.17, 0.3, 0.17), Color(0.24, 0.19, 0.15)],
+		"dark": [Color(0.18, 0.25, 0.13), Color(0.24, 0.19, 0.15)],
 		"fall": [Color(0.6, 0.38, 0.16), Color(0.33, 0.25, 0.19)],
 	}
 	var palette_seed := 0
@@ -75,7 +81,7 @@ func _initialize() -> void:
 	# browns, and low wind-bent dwarf pines of the pines' needle sprays.
 	var bush_palettes := {
 		"green": [Color(0.27, 0.41, 0.19), Color(0.33, 0.25, 0.19)],
-		"dark": [Color(0.16, 0.27, 0.16), Color(0.24, 0.19, 0.15)],
+		"dark": [Color(0.17, 0.23, 0.12), Color(0.24, 0.19, 0.15)],
 		"fall": [Color(0.6, 0.37, 0.14), Color(0.31, 0.24, 0.18)],
 		"dry": [Color(0.39, 0.34, 0.21), Color(0.3, 0.24, 0.18)],
 	}
@@ -98,6 +104,7 @@ func _initialize() -> void:
 
 func reset(seed_value: int) -> void:
 	random.seed = seed_value
+	as_seen = true
 	vertices.clear()
 	normals.clear()
 	colours.clear()
@@ -110,6 +117,10 @@ func reset(seed_value: int) -> void:
 ## One triangle with a colour and a flex per corner (the phase is the current branch's). `full` false:
 ## only in the coarser LODs (a stand-in for finer geometry that LOD 0 shows instead).
 func tri(a: Vector3, b: Vector3, c: Vector3, ca: Color, cb: Color, cc: Color, fa: float, fb: float, fc: float, level: int = 2, full: bool = true) -> void:
+	if as_seen:
+		ca = ca.srgb_to_linear()
+		cb = cb.srgb_to_linear()
+		cc = cc.srgb_to_linear()
 	var index := vertices.size()
 	var normal := (c - a).cross(b - a).normalized()
 	var points := [a, b, c]

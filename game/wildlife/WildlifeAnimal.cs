@@ -375,6 +375,17 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             _model = species.Model.Instantiate<Node3D>();
             // Smooth shading and a muted fur coat, like every animal on the mountain (WorldStyle).
             DownhillRoguelite.Environment.WorldStyle.RestyleCreature(_model);
+            if (species.CoatColours.Length > 0)
+            {
+                foreach (Node node in _model.FindChildren("*", "MeshInstance3D", true, false))
+                {
+                    if (node is not MeshInstance3D mesh || mesh.Mesh == null) { continue; }
+                    for (int i = 0; i < mesh.Mesh.GetSurfaceCount() && i < species.CoatColours.Length; i++)
+                    {
+                        if (species.CoatColours[i].A > 0.0f) { mesh.SetSurfaceOverrideMaterial(i, DownhillRoguelite.Environment.WorldStyle.CoatOf(species.CoatColours[i], false)); }
+                    }
+                }
+            }
             _model.Scale = Vector3.One * species.ModelScale;
             _model.RotationDegrees = species.ModelRotationDegrees;
             AddChild(_model);

@@ -15,6 +15,21 @@ public partial class BeastSpecies : Resource
     [Export] public float ModelScale { get; set; } = 1.0f;
     /// <summary>Model rotation so it stands up and faces -Z, in degrees.</summary>
     [Export] public Vector3 ModelRotationDegrees { get; set; } = new(0, 180, 0);
+    /// <summary>
+    /// The body's proportions on top of ModelScale, in the beast's own frame (x across, y up, z nose to
+    /// tail): a leopard is the wolf's frame drawn long and low, a lion broad and heavy.
+    /// </summary>
+    [Export] public Vector3 ModelStretch { get; set; } = Vector3.One;
+    /// <summary>Its coat (muted into the mountain's palette); fully transparent keeps the model's own colours.</summary>
+    [Export] public Color CoatColour { get; set; } = new(0.0f, 0.0f, 0.0f, 0.0f);
+    /// <summary>Rosettes in the coat (a leopard's).</summary>
+    [Export] public bool CoatSpots { get; set; }
+    /// <summary>A mane round the neck this many metres across (a lion's); 0 none.</summary>
+    [Export] public float ManeSize { get; set; }
+    /// <summary>The mane's colour (muted), darker than the coat.</summary>
+    [Export] public Color ManeColour { get; set; } = new(0.3f, 0.22f, 0.15f);
+    /// <summary>The bone the mane sits on (the neck's).</summary>
+    [Export] public string ManeBone { get; set; } = "";
     /// <summary>Darkens the model toward a silhouette (alpha = how dark).</summary>
     [Export] public Color Shade { get; set; } = new(0.0f, 0.0f, 0.0f, 0.55f);
     [Export] public Color EyeColor { get; set; } = new(1.0f, 0.75f, 0.2f);

@@ -44,6 +44,11 @@ public partial class WildlifeSpecies : Resource
     /// muted and grained like every animal's. Empty keeps the pack's own colour.
     /// </summary>
     [Export] public Material? Coat { get; set; }
+    /// <summary>
+    /// Its colours by the model's surface, muted into the mountain's palette (a transparent entry, or
+    /// none, keeps that surface's own colour): turns a cartoon-coloured model into a natural animal.
+    /// </summary>
+    [Export] public Color[] CoatColours { get; set; } = System.Array.Empty<Color>();
 
     [ExportGroup("Clips")]
     [Export] public string IdleClip { get; set; } = "";

@@ -311,17 +311,25 @@ public partial class WorldStyleTests : Node3D
         Check("every animal that spawns is smooth-shaded (no paper facets)", worstFlat < 0.05f && spawning > 5,
             spawning + " species, most faceted " + worst + " " + (worstFlat * 100.0f).ToString("0", CultureInfo.InvariantCulture) + " % split normals");
         BeastRoster? beasts = ResourceLoader.Load<BeastRoster>("res://wildlife/default_beasts.tres");
-        if (beasts != null)
+        if (beasts == null)
         {
-            foreach (BeastSpecies beast in beasts.Beasts)
-            {
-                string source = beast.Model?.ResourcePath ?? "";
-                if (source.Contains("cube_pets", StringComparison.Ordinal))
-                {
-                    GD.Print("NOTE  night beast " + beast.DisplayName + " is still a toy-block model (" + source.GetFile()
-                        + "); it shows only as a dark shadow at night, and no fitting model is in the repository");
-                }
-            }
+            Check("the night beasts load", false, "");
+            return;
+        }
+        int n = 0;
+        foreach (BeastSpecies beast in beasts.Beasts)
+        {
+            string source = beast.Model?.ResourcePath ?? "";
+            Check("night beast " + beast.DisplayName + " is not a toy-block model", beast.Model != null && !source.Contains("cube_pets", StringComparison.Ordinal), source);
+            if (beast.Model == null) { continue; }
+            Node3D model = beast.Model.Instantiate<Node3D>();
+            NightBeast.Shape(model, beast);
+            model.Position = new Vector3(3400.0f + n * 6.0f, -1000.0f, 0.0f);
+            AddChild(model);
+            Walk(model, "night beast " + beast.DisplayName);
+            float flat = FlatShare(model);
+            Check("night beast " + beast.DisplayName + " is smooth-shaded", flat < 0.05f, (flat * 100.0f).ToString("0", CultureInfo.InvariantCulture) + " % split normals");
+            n++;
         }
     }
 

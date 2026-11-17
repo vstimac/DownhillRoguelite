@@ -97,6 +97,7 @@ public static class WorldStyle
     private static Texture2D? _rockTexture;
     private static Texture2D? _soilTexture;
     private static Texture2D? _furTexture;
+    private static Texture2D? _spotTexture;
     private static StandardMaterial3D? _rock;
 
     /// <summary>The terrain's own materials and the generated plants (made by the project itself in this style).</summary>
@@ -488,6 +489,66 @@ public static class WorldStyle
         Material coat = Make(tint, false, 0.35f, 0.4f, 0.95f, 0.0f, atlas, atlas != null ? 0.8f : 0.0f, true, "coat", _furTexture, 0.85f);
         Materials[key] = coat;
         return coat;
+    }
+
+    /// <summary>
+    /// A fur coat of this colour (muted), with rosettes when <paramref name="spots"/>. <paramref name="tile"/>
+    /// is the pattern's repeat in the model's own units (a skinned model is often imported tiny and
+    /// scaled up): 0 means metres.
+    /// </summary>
+    public static Material CoatOf(Color colour, bool spots, float tile = 0.0f)
+    {
+        Color tint = Mute(colour);
+        string key = "coatof|" + tint.ToHtml(false) + "|" + spots + "|" + tile.ToString("0.#####", System.Globalization.CultureInfo.InvariantCulture);
+        if (Materials.TryGetValue(key, out Material? cached)) { return cached; }
+        Texture2D texture = spots ? _spotTexture ??= SpotTexture() : _furTexture ??= FurTexture();
+        float metres = tile > 0.0f ? tile : spots ? 0.5f : 0.35f;
+        Material coat = Make(tint, false, metres, spots ? 0.75f : 0.4f, 0.95f, 0.0f, null, 0.0f, true, "coat", texture, spots ? 0.95f : 0.85f);
+        Materials[key] = coat;
+        return coat;
+    }
+
+    /// <summary>
+    /// A soft, lumpy ball (a mane, a tuft): a sphere whose surface is pushed in and out a little, so it
+    /// reads as a mass of fur. Smooth-shaded.
+    /// </summary>
+    public static Mesh Lump(float radius, int seed)
+    {
+        SphereMesh sphere = new() { Radius = radius, Height = radius * 2.0f, RadialSegments = 18, Rings = 10 };
+        Godot.Collections.Array arrays = sphere.GetMeshArrays();
+        Vector3[] vertices = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        Vector3[] normals = arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+        for (int i = 0; i < vertices.Length; i++)
+        {
+            Vector3 v = vertices[i];
+            float bump = 1.0f + 0.12f * Mathf.Sin(v.X / radius * 7.0f + seed) * Mathf.Sin(v.Y / radius * 5.0f + seed * 0.7f) * Mathf.Cos(v.Z / radius * 6.0f);
+            vertices[i] = v * bump;
+            normals[i] = v.Normalized();
+        }
+        arrays[(int)Mesh.ArrayType.Vertex] = vertices;
+        arrays[(int)Mesh.ArrayType.Normal] = normals;
+        arrays[(int)Mesh.ArrayType.Tangent] = default;
+        ArrayMesh mesh = new();
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+        return mesh;
+    }
+
+    /// <summary>Rosettes: dark rings and blots on a light ground (a cellular noise's cell edges).</summary>
+    private static Texture2D SpotTexture()
+    {
+        FastNoiseLite noise = new()
+        {
+            NoiseType = FastNoiseLite.NoiseTypeEnum.Cellular,
+            Frequency = 0.045f,
+            CellularReturnType = FastNoiseLite.CellularReturnTypeEnum.Distance,
+            FractalType = FastNoiseLite.FractalTypeEnum.None,
+        };
+        Gradient ramp = new();
+        ramp.SetColor(0, new Color(0.35f, 0.33f, 0.31f));
+        ramp.SetOffset(0, 0.0f);
+        ramp.SetColor(1, Colors.White);
+        ramp.SetOffset(1, 0.45f);
+        return new NoiseTexture2D { Width = 256, Height = 256, Seamless = true, Noise = noise, ColorRamp = ramp };
     }
 
     private static Texture2D FurTexture()
