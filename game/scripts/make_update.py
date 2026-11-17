@@ -168,7 +168,8 @@ OVERRIDE_SETTINGS = {
     # compiles its shaders on it. Several threads compiling at once crash the official Windows build
     # (a double free in the C runtime's locale code under glslang) on about a third of the starts
     # with an empty shader cache; see Backups/director-run-2026-11-16/startup-crash.md.
-    "threading": ("worker_pool/max_threads.windows",),
+    # The editor keeps all its threads (-1, the default); carried only so the guard passes.
+    "threading": ("worker_pool/max_threads.windows", "worker_pool/max_threads.editor_hint"),
 }
 OVERRIDE_FILE = "override.cfg"
 
