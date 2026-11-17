@@ -28,7 +28,7 @@ public partial class EnvironmentShots : Node3D
 
     private SubViewport? _view;
     /// <summary>Key, button and stick events that reached the game during a spot (they must not move the carrier).</summary>
-    private int _inputEvents;
+    protected int _inputEvents;
 
     public override async void _Ready()
     {
@@ -58,35 +58,7 @@ public partial class EnvironmentShots : Node3D
         RunState run = GetNode<RunState>("/root/RunState");
         WorldClock? clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
         await Seconds(2.0f);
-        // Nobody plays during the shots: no key, stick or button may move, lean or throw the carrier.
-        player.InputEnabled = false;
-        foreach (Node node in player.FindChildren("*", "", true, false))
-        {
-            if (node is DownhillRoguelite.Balance.BalanceController balance) { balance.InputEnabled = false; }
-        }
-        HideOverlays(GetTree().Root);
-        DebugDraw3D.SetEnabled(false);
-        // The shot camera renders the same world through a viewport of its own, so no HUD or debug
-        // overlay (some re-show themselves every frame) ends up in the picture.
-        Viewport root = GetViewport();
-        SubViewport view = new()
-        {
-            Name = "ShotView",
-            Size = (Vector2I)root.GetVisibleRect().Size,
-            World3D = root.World3D,
-            RenderTargetUpdateMode = SubViewport.UpdateMode.Always,
-            Msaa3D = root.Msaa3D,
-            ScreenSpaceAA = root.ScreenSpaceAA,
-            UseTaa = root.UseTaa,
-            UseDebanding = root.UseDebanding,
-            Scaling3DMode = root.Scaling3DMode,
-            Scaling3DScale = root.Scaling3DScale,
-            PositionalShadowAtlasSize = 4096,
-        };
-        AddChild(view);
-        _view = view;
-        Camera3D camera = new() { Name = "ShotCamera", Fov = 70.0f, Far = 400.0f };
-        view.AddChild(camera);
+        Camera3D camera = MakeShotCamera(player);
         if (run.Route == null || streamer.Generator == null)
         {
             GD.Print("FAIL  environment shots: no route");
@@ -101,23 +73,7 @@ public partial class EnvironmentShots : Node3D
             float z = route.StartZ - 5.0f;
             while (generator.DepthAt(route.RoutePoint(z).Y) < depth && z > -60000.0f) { z -= 10.0f; }
             Vector3 at = route.RoutePoint(z);
-            player.Teleport(at + Vector3.Up * 0.3f, 0.0f);
-            if (clock != null) { clock.SetTimeOfDay(12.0f); clock.Paused = true; }
-            TerrainStreamer.Loading = true;
-            float waited = 0.0f;
-            int stable = 0;
-            int lastLoaded = -1;
-            while (waited < MaxWaitSeconds)
-            {
-                await Seconds(0.25f);
-                waited += 0.25f;
-                player.Teleport(at + Vector3.Up * 0.3f, 0.0f);
-                if (streamer.LoadedCount == lastLoaded && streamer.PlantsPendingCount == 0) { stable++; } else { stable = 0; }
-                lastLoaded = streamer.LoadedCount;
-                if (stable >= 6) { break; }
-            }
-            TerrainStreamer.Loading = false;
-            await Seconds(SettleSeconds);
+            float waited = await StandAndLoad(player, streamer, clock, at);
             Vector3 standing = player.GlobalPosition;
             _inputEvents = 0;
             Vector3 ahead = route.RoutePoint(z - 30.0f);
@@ -144,6 +100,65 @@ public partial class EnvironmentShots : Node3D
         }
         GD.Print("PASS  environment shots saved in " + directory);
         GetTree().Quit(0);
+    }
+
+    /// <summary>
+    /// Nobody plays during the shots: no key, stick or button may move, lean or throw the carrier. The
+    /// shot camera renders the same world through a viewport of its own, so no HUD or debug overlay
+    /// (some re-show themselves every frame) ends up in the picture.
+    /// </summary>
+    protected Camera3D MakeShotCamera(PlayerController player)
+    {
+        player.InputEnabled = false;
+        foreach (Node node in player.FindChildren("*", "", true, false))
+        {
+            if (node is DownhillRoguelite.Balance.BalanceController balance) { balance.InputEnabled = false; }
+        }
+        HideOverlays(GetTree().Root);
+        DebugDraw3D.SetEnabled(false);
+        Viewport root = GetViewport();
+        SubViewport view = new()
+        {
+            Name = "ShotView",
+            Size = (Vector2I)root.GetVisibleRect().Size,
+            World3D = root.World3D,
+            RenderTargetUpdateMode = SubViewport.UpdateMode.Always,
+            Msaa3D = root.Msaa3D,
+            ScreenSpaceAA = root.ScreenSpaceAA,
+            UseTaa = root.UseTaa,
+            UseDebanding = root.UseDebanding,
+            Scaling3DMode = root.Scaling3DMode,
+            Scaling3DScale = root.Scaling3DScale,
+            PositionalShadowAtlasSize = 4096,
+        };
+        AddChild(view);
+        _view = view;
+        Camera3D camera = new() { Name = "ShotCamera", Fov = 70.0f, Far = 400.0f };
+        view.AddChild(camera);
+        return camera;
+    }
+
+    /// <summary>Stands the carrier at <paramref name="at"/> at midday and waits until the ground and plants round it are in; returns the seconds waited.</summary>
+    protected async Task<float> StandAndLoad(PlayerController player, TerrainStreamer streamer, WorldClock? clock, Vector3 at)
+    {
+            player.Teleport(at + Vector3.Up * 0.3f, 0.0f);
+            if (clock != null) { clock.SetTimeOfDay(12.0f); clock.Paused = true; }
+            TerrainStreamer.Loading = true;
+            float waited = 0.0f;
+            int stable = 0;
+            int lastLoaded = -1;
+            while (waited < MaxWaitSeconds)
+            {
+                await Seconds(0.25f);
+                waited += 0.25f;
+                player.Teleport(at + Vector3.Up * 0.3f, 0.0f);
+                if (streamer.LoadedCount == lastLoaded && streamer.PlantsPendingCount == 0) { stable++; } else { stable = 0; }
+                lastLoaded = streamer.LoadedCount;
+                if (stable >= 6) { break; }
+            }
+            TerrainStreamer.Loading = false;
+            await Seconds(SettleSeconds);
+            return waited;
     }
 
     public override void _Input(InputEvent @event)
@@ -182,7 +197,7 @@ public partial class EnvironmentShots : Node3D
         foreach (Node child in node.GetChildren()) { SetCarpets(child, shown); }
     }
 
-    private static void HideOverlays(Node node)
+    protected static void HideOverlays(Node node)
     {
         if (node is CanvasLayer layer) { layer.Visible = false; }
         // A stray Escape reaching the window must not open the pause menu mid-shoot.
@@ -192,7 +207,7 @@ public partial class EnvironmentShots : Node3D
         foreach (Node child in node.GetChildren()) { HideOverlays(child); }
     }
 
-    private async Task Shoot(Camera3D camera, Vector3 eye, Vector3 target, string file)
+    protected async Task Shoot(Camera3D camera, Vector3 eye, Vector3 target, string file)
     {
         camera.GlobalPosition = eye;
         camera.LookAt(target, Vector3.Up);
@@ -205,7 +220,7 @@ public partial class EnvironmentShots : Node3D
         GD.Print("Saved " + file + ": " + error.ToString().ToLower(CultureInfo.InvariantCulture));
     }
 
-    private async Task Seconds(float seconds)
+    protected async Task Seconds(float seconds)
     {
         float dt = 1.0f / Engine.PhysicsTicksPerSecond;
         for (float elapsed = 0.0f; elapsed < seconds; elapsed += dt)
