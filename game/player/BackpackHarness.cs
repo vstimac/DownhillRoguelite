@@ -47,6 +47,12 @@ public partial class BackpackHarness : Node3D
     [Export] public float RecheckEvery { get; set; } = 1.0f;
     /// <summary>Let the pack swing on its straps; off: it sits at its fit.</summary>
     [Export] public bool Simulate { get; set; } = true;
+    /// <summary>Not simulated (a placed pack): still turn it along the back when he bends deep (BentPivot).</summary>
+    [Export] public bool FollowBend { get; set; } = true;
+    /// <summary>How far (degrees) the upper spine may lean past the line from the hips before the pack is turned back.</summary>
+    [Export] public float BendDeadZoneDegrees { get; set; } = 28.0f;
+    /// <summary>The most (degrees) a placed pack is turned back along a bent back.</summary>
+    [Export] public float MaxBendTurnDegrees { get; set; } = 60.0f;
     [Export] public float PackMass { get; set; } = 8.0f;
     /// <summary>How much the shoulder straps' tops give (compliance, m/N; 0 holds rigidly).</summary>
     [Export] public float ShoulderGive { get; set; } = 0.00001f;
@@ -173,6 +179,8 @@ public partial class BackpackHarness : Node3D
     private readonly List<Anchor>[] _paths = { new(), new(), new(), new() };
     private readonly List<Vector3>[] _drawn = { new(), new(), new(), new() };
     private int _hips = -1;
+    /// <summary>The line from the hips to the pack's bone at rest, in that bone's frame (BentPivot).</summary>
+    private Vector3 _lineOnSpine;
     private int _top = -1;
     private int _beltBuckleAt;
     private ImmediateMesh _mesh = new();
@@ -509,6 +517,16 @@ public partial class BackpackHarness : Node3D
         }
         _hull = BodyHull.Measure(_rig, BodyMeshes(), hullBones);
         _physics ??= new PackPhysics();
+        _lineOnSpine = Vector3.Zero;
+        if (_hips >= 0 && _pack.BoneIdx >= 0)
+        {
+            Transform3D spineRest = _rig.GetBoneGlobalRest(_pack.BoneIdx);
+            Vector3 restLine = spineRest.Origin - _rig.GetBoneGlobalRest(_hips).Origin;
+            if (restLine.LengthSquared() > 0.0001f)
+            {
+                _lineOnSpine = spineRest.Basis.Orthonormalized().Inverse() * restLine.Normalized();
+            }
+        }
         _needReset = true;
         Problem = "";
         Fitted = true;
@@ -650,7 +668,19 @@ public partial class BackpackHarness : Node3D
             // Still read the body's pose each update: the body's surface stays current for the rest of the game.
             _hull?.Pose(false);
             PublishSway(Vector3.Zero);
-            _pack.StopSimulating();
+            Transform3D? bent = null;
+            if (FollowBend && !Limp())
+            {
+                bent = BentPivot();
+            }
+            if (bent is Transform3D pivot)
+            {
+                _pack.Simulate(pivot);
+            }
+            else
+            {
+                _pack.StopSimulating();
+            }
             DrawStraps();
             return;
         }
@@ -759,6 +789,44 @@ public partial class BackpackHarness : Node3D
             turn = new Basis(turn.GetRotationQuaternion().Slerp(chest.Normalized(), FollowChest));
         }
         return new Transform3D(turn, top - turn * _topInPack);
+    }
+
+    /// <summary>
+    /// A placed pack (not simulated) sits on the upper spine bone. When he bends deep (a crouch, a
+    /// get-up), the crouch clips curl the upper spine much further than the back as a whole, and the
+    /// pack, turning with that one bone, lay flat and stood off the lower back. Turned back about its
+    /// top by however much the upper spine leans past the line from the hips to it (beyond
+    /// BendDeadZoneDegrees), it stays along his back; standing and walking it is exactly where it was put.
+    /// Null while no turn is needed.
+    /// </summary>
+    private Transform3D? BentPivot()
+    {
+        if (_rig == null || _pack == null || _hips < 0 || _pack.BoneIdx < 0 || _lineOnSpine == Vector3.Zero)
+        {
+            return null;
+        }
+        Transform3D spine = _rig.GlobalTransform * _rig.GetBoneGlobalPose(_pack.BoneIdx);
+        Vector3 hips = _rig.GlobalTransform * _rig.GetBoneGlobalPose(_hips).Origin;
+        Vector3 line = spine.Origin - hips;
+        Vector3 rigid = spine.Basis.Orthonormalized() * _lineOnSpine;
+        if (line.LengthSquared() < 0.0001f || rigid.LengthSquared() < 0.0001f)
+        {
+            return null;
+        }
+        line = line.Normalized();
+        rigid = rigid.Normalized();
+        float angle = rigid.AngleTo(line);
+        float excess = angle - Mathf.DegToRad(BendDeadZoneDegrees);
+        Vector3 axis = rigid.Cross(line);
+        if (excess <= 0.0f || axis.LengthSquared() < 0.000001f)
+        {
+            return null;
+        }
+        Basis turn = new(axis.Normalized(), Mathf.Min(excess, Mathf.DegToRad(MaxBendTurnDegrees)));
+        Transform3D fitted = _pack.FittedPivot;
+        Aabb box = _pack.PackBounds();
+        Vector3 top = fitted * (box.GetCenter() + new Vector3(0.0f, box.Size.Y * 0.5f, 0.0f));
+        return new Transform3D(turn * fitted.Basis, top + turn * (fitted.Origin - top));
     }
 
     /// <summary>An orthonormal frame from a down direction and an away direction (columns: across, down, away).</summary>
