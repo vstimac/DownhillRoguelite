@@ -49,6 +49,14 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         CollisionLayer = 0; CollisionMask = 0;
         _puppetDown = down;
         Play(clip, speed, -1);
+        // A predator crouched to spring plays its idle fast (a shiver): the guest growls with it.
+        bool windUp = IsPredator && clip == Species!.IdleClip && speed >= PredatorTuning.WindUpClipSpeed * 0.9f && !down;
+        if (windUp && !_puppetWindUp)
+        {
+            PuppetWindUps++;
+            Growl();
+        }
+        _puppetWindUp = windUp;
         if (_animation != null && _animation.HasAnimation(clip)
             && Mathf.Abs((float)_animation.CurrentAnimationPosition - position) > 0.25f) { _animation.Seek(position, true); }
     }
@@ -80,6 +88,12 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         Fight,
         /// <summary>Killed: lies there a while, then is removed.</summary>
         Dead,
+        /// <summary>A predator hunting: circling its prey at a distance, closing in, rushing in to bite.</summary>
+        Stalk,
+        /// <summary>A predator crouched and growling, about to spring (the warning to dodge).</summary>
+        WindUp,
+        /// <summary>A predator springing at its prey: it bites if the prey is still there.</summary>
+        Lunge,
     }
 
     /// <summary>What an animal knows of the carrier, for the stealth eye.</summary>
@@ -113,6 +127,24 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     public int Bites { get; private set; }
     /// <summary>Chases given up (aggressive ones, tests).</summary>
     public int GiveUps { get; private set; }
+    /// <summary>A predator's hunts started, wind-ups (crouched to spring), springs, times scared off and pack retreats it ran in.</summary>
+    public int Stalks { get; private set; }
+    public int WindUps { get; private set; }
+    public int Lunges { get; private set; }
+    public int Scared { get; private set; }
+    public int PackRetreats { get; private set; }
+    /// <summary>Wind-ups a guest's puppet showed (read from the streamed clip).</summary>
+    public int PuppetWindUps { get; private set; }
+    /// <summary>A predator hunting: stalking, crouched to spring or springing.</summary>
+    public bool Hunting => State is Mode.Stalk or Mode.WindUp or Mode.Lunge;
+    /// <summary>Crouched to spring: from its own state on the host, from the streamed clip on a guest.</summary>
+    public bool WindingUp => Puppet ? _puppetWindUp : State == Mode.WindUp;
+    /// <summary>A predator: hunts carriers as a pack (wolves).</summary>
+    public bool IsPredator => Species?.Temperament == Temperament.Predator;
+    /// <summary>Seconds a predator leaves carriers alone yet (scared off, or its pack retreated).</summary>
+    public float HuntRest => _huntRest;
+    /// <summary>The ring a stalking predator is circling on now, in m.</summary>
+    public float StalkRing => _ring;
     /// <summary>0 unaware, 1 alerted (up to 1.5 while it keeps sensing the carrier).</summary>
     public float Suspicion => _suspicion;
     /// <summary>Health left, in points.</summary>
@@ -132,7 +164,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             {
                 return Awareness.Unaware;
             }
-            if (State is Mode.Flee or Mode.Retreat or Mode.Approach or Mode.Fight or Mode.Shove || _suspicion >= 1.0f)
+            if (State is Mode.Flee or Mode.Retreat or Mode.Approach or Mode.Fight or Mode.Shove or Mode.Stalk or Mode.WindUp or Mode.Lunge || _suspicion >= 1.0f)
             {
                 return Awareness.Alerted;
             }
@@ -212,6 +244,23 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     private float _deadTimer;
     private float _deathTip;
     private bool _puppetDown;
+    private bool _puppetWindUp;
+    // A predator's hunt (PredatorTuning).
+    private float _huntRest;
+    private float _huntTimer;
+    private float _ring;
+    private float _ringRate;
+    private float _orbitSide = 1.0f;
+    private bool _rushing;
+    private float _rushTime;
+    private Vector3 _lungeDirection;
+    private bool _bitThisLunge;
+    private bool _hurt;
+    private bool _carrierAtFire;
+    private float _daylight = 1.0f;
+    private AudioStreamPlayer3D? _voice;
+    /// <summary>Growls loaded once and shared by every predator.</summary>
+    private static readonly System.Collections.Generic.Dictionary<string, AudioStream?> Growls = new();
     private float _zigPhase;
     private float _zigAmplitude;
     private PhysicsRayQueryParameters3D? _ray;
@@ -273,6 +322,19 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             return;
         }
         _suspicion = 1.5f;
+        if (Species.Temperament == Temperament.Predator)
+        {
+            // A solid blow (any sword hit or kick) scares a wolf off; half the pack hurt, it all retreats.
+            if (damage >= PredatorTuning.ScareDamage)
+            {
+                Scare(from);
+            }
+            else
+            {
+                Notice(from);
+            }
+            return;
+        }
         if (Species.Temperament is Temperament.Bold or Temperament.Aggressive)
         {
             StartFight(from, true);
@@ -329,6 +391,15 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             AddChild(_model);
             _modelBase = _model.Transform;
             _animation = FindPlayer(_model);
+            if (species.Coat != null)
+            {
+                // After the restyle: the species' fur colour as the same palette coat (the wolf's grey-brown).
+                Material coat = DownhillRoguelite.Environment.WorldStyle.Coat(species.Coat);
+                foreach (Node node in _model.FindChildren("*", "MeshInstance3D", true, false))
+                {
+                    ((MeshInstance3D)node).MaterialOverride = coat;
+                }
+            }
             foreach (Node node in _model.FindChildren("*", "Skeleton3D", true, false))
             {
                 _skeleton = node as Skeleton3D;
@@ -337,6 +408,12 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         }
         AddToGroup(IMeleeTarget.Group);
         AddToGroup(StealthEye.AnimalGroup);
+        if (species.Temperament == Temperament.Predator)
+        {
+            _voice = new AudioStreamPlayer3D { Name = "Voice", MaxDistance = 45.0f, VolumeDb = 4.0f, Position = Vector3.Up * species.BodySize.Y * 0.7f };
+            AddChild(_voice);
+            _orbitSide = _random.Randf() < 0.5f ? -1.0f : 1.0f;
+        }
         Rotation = new Vector3(0.0f, _random.RandfRange(0.0f, Mathf.Tau), 0.0f);
         _maxHealth = species.Health > 0.0f ? species.Health : Mathf.Max(6.0f, 45.0f * species.BodySize.Y);
         _health = _maxHealth;
@@ -394,6 +471,9 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         _attackCooldown -= dt;
         _losTimer -= dt;
         _stateTime += dt;
+        _huntRest -= dt;
+        _daylight = carrier.Daylight;
+        _carrierAtFire = carrier.AtFire;
         if (IsOnFloor())
         {
             // The horizontal part of the floor's normal points downhill (zero on the flat).
@@ -420,6 +500,9 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
                 Mode.Approach => ApproachStep(dt, carrier, toCarrier, distance, sense, space),
                 Mode.LookBack => LookBackStep(dt, carrier, toCarrier, distance, sense, space),
                 Mode.Fight => FightStep(dt, toCarrier, distance, space),
+                Mode.Stalk => StalkStep(dt, carrier, distance, space),
+                Mode.WindUp => WindUpStep(dt, carrier, toCarrier, distance),
+                Mode.Lunge => LungeStep(dt, carrier, distance),
                 _ => CalmStep(dt, carrier, distance, sense, space),
             };
         }
@@ -566,6 +649,17 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
                     return Mode.Approach;
                 }
                 return Mode.Idle;
+            case Temperament.Predator:
+                // A carrier at a station's fire is left alone; a scared wolf keeps its distance.
+                if (_carrierAtFire)
+                {
+                    return distance < PredatorTuning.FireKeepOff && CanWalk ? Mode.Retreat : Mode.Idle;
+                }
+                if (_huntRest > 0.0f)
+                {
+                    return distance < species.FleeDistance && CanWalk ? Mode.Retreat : Mode.Idle;
+                }
+                return distance < species.SightRange * PredatorTuning.TrackRange ? Mode.Stalk : Mode.Idle;
             case Temperament.Aggressive:
                 // It defends its nest spot: not while resting from a chase, nor for a carrier far from it.
                 return distance < species.SightRange && _chaseRest <= 0.0f && NearHome(_carrierAt, species.ChaseLeash) ? Mode.Fight : Mode.Idle;
@@ -583,7 +677,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         if (sense.Suspicious)
         {
             Mode reaction = Reaction(sense, distance);
-            if (reaction is Mode.Flee or Mode.Retreat or Mode.Fight)
+            if (reaction is Mode.Flee or Mode.Retreat or Mode.Fight or Mode.Stalk)
             {
                 // Close already: a short beat, then it acts.
                 EnterAlert(carrier.Position, _table!.MinAlertBeat + 0.2f, true);
@@ -657,7 +751,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             Turn(look.Normalized(), dt * 2.0f);
         }
         Mode reaction = Reaction(sense, distance);
-        if (reaction is Mode.Flee or Mode.Retreat or Mode.Fight && _stateTime >= _table!.MinAlertBeat)
+        if (reaction is Mode.Flee or Mode.Retreat or Mode.Fight or Mode.Stalk && _stateTime >= _table!.MinAlertBeat)
         {
             Act(reaction, carrier.Position);
             return Vector3.Zero;
@@ -693,7 +787,8 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             _threat = carrier.Position;
         }
         float fromThreat = Flat(GlobalPosition - _threat).Length();
-        bool settled = fromThreat >= species.SafeDistance && (distance >= species.SafeDistance * 0.8f || !sense.Moving);
+        float safe = species.Temperament == Temperament.Predator ? PredatorTuning.ScaredDistance : species.SafeDistance;
+        bool settled = fromThreat >= safe && (distance >= safe * 0.8f || !sense.Moving);
         if ((_stateTime >= table.FleeSeconds && settled) || _stateTime >= table.MaxFleeSeconds)
         {
             StartLookBack();
@@ -739,7 +834,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             }
         }
         // Easing off as the distance grows.
-        float speed = species.FleeSpeed * (fromThreat > species.SafeDistance * 0.75f ? 0.65f : 1.0f);
+        float speed = species.FleeSpeed * (fromThreat > safe * 0.75f ? 0.65f : 1.0f);
         return Move(Steer(run, 0.6f), speed, dt);
     }
 
@@ -752,7 +847,12 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             Act(Mode.Flee, carrier.Position);
             return Vector3.Zero;
         }
-        bool farEnough = !sense.Aware || distance >= species.FleeDistance * 1.6f * (_uneasy > 0.0f ? _table!.UneasyFactor : 1.0f);
+        float keepOff = species.FleeDistance * 1.6f * (_uneasy > 0.0f ? _table!.UneasyFactor : 1.0f);
+        if (species.Temperament == Temperament.Predator && _carrierAtFire)
+        {
+            keepOff = PredatorTuning.FireKeepOff;
+        }
+        bool farEnough = !sense.Aware || distance >= keepOff;
         if ((farEnough && _stateTime > 2.0f) || _stateTime > 20.0f)
         {
             StartLookBack();
@@ -774,7 +874,8 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             }
             return Vector3.Zero;
         }
-        float speed = species.WalkSpeed * 1.4f;
+        // A predator backing off (from a fire, or scared) trots.
+        float speed = species.Temperament == Temperament.Predator ? PredatorTuning.StalkSpeed : species.WalkSpeed * 1.4f;
         if (_escapeTimer <= 0.0f)
         {
             _escapeTimer = 0.8f;
@@ -858,7 +959,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             Turn(look.Normalized(), dt * 1.5f);
         }
         Mode reaction = Reaction(sense, distance);
-        if (reaction is Mode.Flee or Mode.Retreat or Mode.Fight && _stateTime > 0.5f)
+        if (reaction is Mode.Flee or Mode.Retreat or Mode.Fight or Mode.Stalk && _stateTime > 0.5f)
         {
             Act(reaction, carrier.Position);
             return Vector3.Zero;
@@ -1007,7 +1108,19 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         WildlifeSpecies species = Species!;
         WildlifeHerd? herd = Herd;
         herd?.Leave(this);
-        if (herd != null)
+        if (species.Temperament == Temperament.Predator)
+        {
+            ReleaseAttack(herd, false);
+            if (herd != null)
+            {
+                if (!_hurt)
+                {
+                    herd.Wounded++;
+                }
+                PackHurt(herd, from);
+            }
+        }
+        else if (herd != null)
         {
             foreach (WildlifeAnimal member in herd.Members)
             {
@@ -1068,6 +1181,411 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         return Vector3.Zero;
     }
 
+    // --- Predators: the hunt (PredatorTuning) ---
+
+    /// <summary>
+    /// Stalking: circles its prey on a ring that shrinks as the stalk goes on (faster with the prey
+    /// down), keeps track of it by scent, and when the pack's turn comes (one bite at a time) rushes
+    /// in to crouch and spring. A carrier at a station's fire is left alone; one bleeding out is
+    /// circled close but never bitten.
+    /// </summary>
+    private Vector3 StalkStep(float dt, in CarrierSense carrier, float distance, PhysicsDirectSpaceState3D space)
+    {
+        WildlifeSpecies species = Species!;
+        WildlifeTable table = _table!;
+        if (carrier.AtFire)
+        {
+            ReleaseAttack(Herd, false);
+            StartRetreat(carrier.Position, true);
+            return Vector3.Zero;
+        }
+        if (_huntRest > 0.0f || distance > species.SightRange * PredatorTuning.TrackRange)
+        {
+            // Scared off, or outrun: it lets this one go.
+            ReleaseAttack(Herd, false);
+            _suspicion = Mathf.Min(_suspicion, 0.5f);
+            _alertCooldown = _random.RandfRange(table.AlertCooldown.X, table.AlertCooldown.Y);
+            StartLookBack();
+            return Vector3.Zero;
+        }
+        // On the scent: it doesn't lose a carrier it hunts by crouching alone.
+        _suspicion = 1.5f;
+        _threat = carrier.Position;
+        float close = carrier.Bleeding ? PredatorTuning.BleedingRing : PredatorTuning.StalkRingClose;
+        float rate = carrier.Downed || carrier.Bleeding ? Mathf.Max(_ringRate, 4.0f) : _ringRate;
+        _ring = Mathf.MoveToward(_ring, close, rate * dt);
+        if (!_rushing && !carrier.Bleeding && AttackDue(dt, carrier))
+        {
+            ClaimAttack();
+        }
+
+        Vector3 offset = Flat(GlobalPosition - carrier.Position);
+        Vector3 outward = distance > 0.01f ? offset / distance : -Facing;
+        Vector3 direction;
+        float speed;
+        float pull = Mathf.Clamp((distance - _ring) * 0.5f, -1.5f, 1.5f);
+        if (_rushing)
+        {
+            _rushTime += dt;
+            if (distance <= PredatorTuning.WindUpDistance)
+            {
+                StartWindUp(-outward);
+                return Vector3.Zero;
+            }
+            if (_rushTime > PredatorTuning.RushSeconds || carrier.Bleeding)
+            {
+                ReleaseAttack(Herd, true);
+                return Vector3.Zero;
+            }
+            direction = -outward;
+            speed = PredatorTuning.RushSpeed;
+        }
+        else
+        {
+            // Round the prey on its ring, drifting in or out to it.
+            direction = Orbit(outward, pull, _orbitSide);
+            speed = distance - _ring > 8.0f ? PredatorTuning.RushSpeed : PredatorTuning.StalkSpeed;
+        }
+        if (_probeTimer <= 0.0f)
+        {
+            _probeTimer = table.ProbeInterval;
+            float ahead = Mathf.Min(Lookahead(speed), Mathf.Max(distance - 1.0f, 1.0f));
+            if (!Safe(direction, ahead, space))
+            {
+                // A drop, a bank or a rock: circle the other way round it, or wait there.
+                _orbitSide = -_orbitSide;
+                direction = Orbit(outward, pull, _orbitSide);
+                if (_rushing || !Safe(direction, ahead, space))
+                {
+                    if (distance > 0.01f)
+                    {
+                        Turn(-outward, dt * 2.0f);
+                    }
+                    Play(species.IdleClip, 1.0f, -1.0f);
+                    return Vector3.Zero;
+                }
+            }
+        }
+        HuntClip(speed);
+        return Move(Steer(direction, 0.6f), speed, dt);
+    }
+
+    /// <summary>Round its prey (one way or the other), drifting in or out toward its ring.</summary>
+    private static Vector3 Orbit(Vector3 outward, float pull, float side)
+    {
+        return (Vector3.Up.Cross(outward) * side - outward * pull).Normalized();
+    }
+
+    /// <summary>Crouched and growling: it faces its prey, fixes the way it will spring, then springs.</summary>
+    private Vector3 WindUpStep(float dt, in CarrierSense carrier, Vector3 toCarrier, float distance)
+    {
+        if (carrier.AtFire || carrier.Bleeding || _huntRest > 0.0f)
+        {
+            ReleaseAttack(Herd, true);
+            State = Mode.Stalk;
+            _stateTime = 0.0f;
+            return Vector3.Zero;
+        }
+        if (_stateTime < PredatorTuning.WindUpSeconds * PredatorTuning.WindUpAimShare && distance > 0.01f)
+        {
+            // Still aiming; after this it is committed to the way it faces.
+            _lungeDirection = toCarrier / distance;
+            Turn(_lungeDirection, dt * 3.0f);
+        }
+        if (_stateTime >= PredatorTuning.WindUpSeconds)
+        {
+            State = Mode.Lunge;
+            _stateTime = 0.0f;
+            _bitThisLunge = false;
+            Lunges++;
+            HuntClip(PredatorTuning.RushSpeed * 1.2f);
+        }
+        return Vector3.Zero;
+    }
+
+    /// <summary>The spring: a short dash along the way it fixed; it bites once if the prey is still in reach.</summary>
+    private Vector3 LungeStep(float dt, in CarrierSense carrier, float distance)
+    {
+        float reach = Radius + _table!.CarrierRadius + PredatorTuning.BiteReach;
+        if (!_bitThisLunge && distance <= reach && !carrier.Bleeding && !carrier.AtFire)
+        {
+            _bitThisLunge = true;
+            Vector3 toward = Flat(carrier.Position - GlobalPosition);
+            PredatorBite(toward.LengthSquared() > 0.0001f ? toward.Normalized() : _lungeDirection);
+        }
+        if (_stateTime >= PredatorTuning.LungeSeconds || _bitThisLunge)
+        {
+            // Bitten or missed, it backs off to its ring and circles again.
+            ReleaseAttack(Herd, true);
+            State = Mode.Stalk;
+            _stateTime = 0.0f;
+            _ring = Mathf.Max(_ring, PredatorTuning.StalkRingClose) + PredatorTuning.BackOff;
+            _ringRate = Mathf.Max(_ringRate, PredatorTuning.BackOff / 3.0f);
+            _orbitSide = _random.Randf() < 0.5f ? -1.0f : 1.0f;
+            return Vector3.Zero;
+        }
+        return _lungeDirection * PredatorTuning.LungeSpeed;
+    }
+
+    /// <summary>A predator's bite on its prey (the host's own carrier, or a guest's as a network strike).</summary>
+    private void PredatorBite(Vector3 toward)
+    {
+        Bites++;
+        if (TargetPeer == 0)
+        {
+            GameEvents.RequestDamage(PredatorTuning.BiteDamage, Species!.DisplayName);
+        }
+        else
+        {
+            GameEvents.PublishNetStrike(new NetStrike(TargetPeer, PredatorTuning.BiteDamage, toward, 1.0f, false, 0, 0, Species!.DisplayName));
+        }
+    }
+
+    /// <summary>
+    /// A predator starts hunting a carrier at a point: it circles it on a ring (closer at night) and
+    /// its pack joins; the pack's first bite comes after the stalk (sooner at night).
+    /// </summary>
+    public void StartStalk(Vector3 at, bool spread)
+    {
+        if (Species == null || _table == null || IsDead || _huntRest > 0.0f)
+        {
+            return;
+        }
+        bool night = PredatorTuning.IsNight(_daylight);
+        Vector2 stalk = night ? PredatorTuning.StalkSecondsNight : PredatorTuning.StalkSecondsDay;
+        float seconds = _random.RandfRange(stalk.X, stalk.Y);
+        float start = night ? PredatorTuning.StalkRingNight : PredatorTuning.StalkRingDay;
+        bool packHunting = PackHunting();
+        State = Mode.Stalk;
+        _stateTime = 0.0f;
+        _probeTimer = 0.0f;
+        _toWater = false;
+        _rushing = false;
+        _threat = at;
+        _threatIsCarrier = true;
+        _suspicion = 1.5f;
+        _ring = Mathf.Clamp(Flat(GlobalPosition - at).Length(), PredatorTuning.StalkRingClose, start);
+        _ringRate = (_ring - PredatorTuning.StalkRingClose) / Mathf.Max(seconds, 0.1f);
+        Stalks++;
+        if (Herd == null)
+        {
+            _huntTimer = seconds;
+        }
+        else if (!packHunting)
+        {
+            Herd.AttackTimer = seconds;
+            Herd.Attacker = null;
+        }
+        HuntClip(PredatorTuning.StalkSpeed);
+        if (!spread || Herd == null)
+        {
+            return;
+        }
+        foreach (WildlifeAnimal member in Herd.Members)
+        {
+            if (member != this && WildlifeHerd.Alive(member) && !member.IsDead && !member.Hunting && member.State != Mode.Flee)
+            {
+                member.StartStalk(at, false);
+            }
+        }
+    }
+
+    /// <summary>Something drew a predator's attention (a fall, a landing, a swing, a light blow): it hunts.</summary>
+    public void Notice(Vector3 point)
+    {
+        if (!IsPredator || IsDead || _huntRest > 0.0f || _carrierAtFire)
+        {
+            return;
+        }
+        _suspicion = 1.5f;
+        if (!Hunting && State != Mode.Flee)
+        {
+            StartStalk(point, true);
+        }
+    }
+
+    /// <summary>A solid blow: it breaks off and runs; half its pack hurt, the whole pack retreats.</summary>
+    private void Scare(Vector3 from)
+    {
+        WildlifeHerd? herd = Herd;
+        if (!_hurt)
+        {
+            _hurt = true;
+            if (herd != null)
+            {
+                herd.Wounded++;
+            }
+        }
+        BreakOff(from, PredatorTuning.ScaredRest);
+        if (herd != null)
+        {
+            PackHurt(herd, from);
+        }
+    }
+
+    /// <summary>With this share of the pack hurt or dead, every wolf left retreats and rests a long while.</summary>
+    private static void PackHurt(WildlifeHerd herd, Vector3 from)
+    {
+        if (herd.Wounded < Mathf.CeilToInt(herd.Founding * PredatorTuning.PackRetreatShare))
+        {
+            return;
+        }
+        foreach (WildlifeAnimal member in herd.Members)
+        {
+            if (WildlifeHerd.Alive(member) && !member.IsDead)
+            {
+                member.PackRetreats++;
+                member.BreakOff(from, PredatorTuning.PackRest);
+            }
+        }
+    }
+
+    /// <summary>Runs from a point and leaves carriers alone for a while.</summary>
+    private void BreakOff(Vector3 from, float rest)
+    {
+        if (IsDead)
+        {
+            return;
+        }
+        ReleaseAttack(Herd, true);
+        _huntRest = Mathf.Max(_huntRest, rest);
+        Scared++;
+        StartFlee(from, true, false);
+    }
+
+    /// <summary>Whether any of its pack is hunting already (the pack keeps one attack clock).</summary>
+    private bool PackHunting()
+    {
+        if (Herd == null)
+        {
+            return false;
+        }
+        foreach (WildlifeAnimal member in Herd.Members)
+        {
+            if (member != this && WildlifeHerd.Alive(member) && !member.IsDead && member.Hunting)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>The pack's (or a lone wolf's) clock for the next bite runs down; true when it may go now.</summary>
+    private bool AttackDue(float dt, in CarrierSense carrier)
+    {
+        float rate = carrier.Downed ? 1.0f / PredatorTuning.DownedHurry : 1.0f;
+        WildlifeHerd? herd = Herd;
+        if (herd == null)
+        {
+            _huntTimer -= dt * rate;
+            return _huntTimer <= 0.0f;
+        }
+        WildlifeAnimal? attacker = herd.Attacker;
+        if (attacker != null && (!WildlifeHerd.Alive(attacker) || attacker.IsDead || !attacker.Hunting))
+        {
+            herd.Attacker = attacker = null;
+        }
+        // The first hunting member keeps the pack's clock.
+        foreach (WildlifeAnimal member in herd.Members)
+        {
+            if (WildlifeHerd.Alive(member) && !member.IsDead && member.Hunting)
+            {
+                if (member == this)
+                {
+                    herd.AttackTimer -= dt * rate;
+                }
+                break;
+            }
+        }
+        return herd.AttackTimer <= 0.0f && attacker == null;
+    }
+
+    private void ClaimAttack()
+    {
+        if (Herd != null)
+        {
+            Herd.Attacker = this;
+        }
+        _rushing = true;
+        _rushTime = 0.0f;
+    }
+
+    /// <summary>Its turn to bite is over (or never came); with reset, the next bite waits the pack's interval.</summary>
+    private void ReleaseAttack(WildlifeHerd? herd, bool reset)
+    {
+        bool mine = _rushing || State is Mode.WindUp or Mode.Lunge || herd?.Attacker == this;
+        _rushing = false;
+        if (!mine)
+        {
+            return;
+        }
+        Vector2 interval = PredatorTuning.IsNight(_daylight) ? PredatorTuning.AttackIntervalNight : PredatorTuning.AttackIntervalDay;
+        float wait = _random.RandfRange(interval.X, interval.Y);
+        if (herd != null)
+        {
+            if (herd.Attacker == this)
+            {
+                herd.Attacker = null;
+            }
+            if (reset)
+            {
+                herd.AttackTimer = Mathf.Max(herd.AttackTimer, wait);
+            }
+        }
+        else if (reset)
+        {
+            _huntTimer = wait;
+        }
+    }
+
+    /// <summary>Crouches to spring: stops, faces its prey and growls.</summary>
+    private void StartWindUp(Vector3 toward)
+    {
+        State = Mode.WindUp;
+        _stateTime = 0.0f;
+        _rushing = false;
+        _lungeDirection = toward;
+        WindUps++;
+        Play(Species!.IdleClip, PredatorTuning.WindUpClipSpeed, -1.0f);
+        Growl();
+    }
+
+    /// <summary>Moving while it hunts: its walk clip, faster the faster it goes (guests read it as alerted).</summary>
+    private void HuntClip(float speed)
+    {
+        float clipSpeed = Mathf.Clamp(speed / Mathf.Max(Species!.WalkSpeed * 2.0f, 0.5f), 1.3f, 2.6f);
+        if (Species.WalkClip.Length > 0)
+        {
+            Play(Species.WalkClip, clipSpeed, -1.0f);
+        }
+        else
+        {
+            Play(Species.FleeClip, Species.FleeClipSpeed * clipSpeed / 2.0f, -1.0f);
+        }
+    }
+
+    /// <summary>The growl before it springs (on the host and on a guest's puppet alike).</summary>
+    private void Growl()
+    {
+        if (_voice == null || PredatorTuning.GrowlSounds.Length == 0)
+        {
+            return;
+        }
+        string path = PredatorTuning.GrowlSounds[_random.RandiRange(0, PredatorTuning.GrowlSounds.Length - 1)];
+        if (!Growls.TryGetValue(path, out AudioStream? stream))
+        {
+            stream = ResourceLoader.Exists(path) ? GD.Load<AudioStream>(path) : null;
+            Growls[path] = stream;
+        }
+        if (stream == null)
+        {
+            return;
+        }
+        _voice.Stream = stream;
+        _voice.PitchScale = _random.RandfRange(0.94f, 1.06f);
+        _voice.Play();
+    }
+
     // --- Starting states ---
 
     private void Act(Mode reaction, Vector3 carrier)
@@ -1083,6 +1601,10 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         else if (reaction == Mode.Fight)
         {
             StartFight(carrier, true);
+        }
+        else if (reaction == Mode.Stalk)
+        {
+            StartStalk(carrier, true);
         }
     }
 
@@ -1392,7 +1914,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         _probe.From = origin + Vector3.Up * height;
         _probe.To = _probe.From + direction * Mathf.Min(distance, 2.5f);
         Godot.Collections.Dictionary hit = space.IntersectRay(_probe);
-        if (hit.Count > 0 && ((Vector3)hit["normal"]).Y < 0.7f)
+        if (hit.Count > 0 && ((Vector3)hit["normal"]).Y < 0.7f && !CarrierInTheWay(hit))
         {
             return false;
         }
@@ -1425,6 +1947,13 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         _probe.From = new Vector3(at.X, y + rise + 1.0f, at.Z);
         _probe.To = new Vector3(at.X, y - rise - _table!.CliffDrop, at.Z);
         Godot.Collections.Dictionary hit = space.IntersectRay(_probe);
+        if (CarrierInTheWay(hit))
+        {
+            // A carrier standing there, not ground: a predator goes for it (or round it), it isn't a wall.
+            point = new Vector3(at.X, y, at.Z);
+            normal = Vector3.Up;
+            return true;
+        }
         if (hit.Count == 0)
         {
             point = at;
@@ -1434,6 +1963,15 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         point = (Vector3)hit["position"];
         normal = (Vector3)hit["normal"];
         return true;
+    }
+
+    /// <summary>
+    /// A predator's ray met a carrier's body (carriers share the world layer): its prey, or a friend
+    /// in the way. Not an obstacle to stop for; the bodies still collide.
+    /// </summary>
+    private bool CarrierInTheWay(Godot.Collections.Dictionary hit)
+    {
+        return IsPredator && hit.Count > 0 && hit["collider"].AsGodotObject() is CharacterBody3D;
     }
 
     /// <summary>How far ahead a check looks at a speed, in m.</summary>
@@ -1556,7 +2094,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         }
         _calm = 0.0f;
         PushTime += dt;
-        bool bigEnough = Species!.BodySize.Y >= _table.MinShoverHeight;
+        bool bigEnough = Species!.BodySize.Y >= _table.MinShoverHeight && Species.Temperament != Temperament.Predator;
         if (bigEnough && PushTime >= _table.PushPatience && _shoveCooldown <= 0.0f)
         {
             BeginShove();
@@ -1612,6 +2150,12 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     /// <summary>Bolts away from a point (a fall, a sword swing, a blow); its herd runs with it.</summary>
     public void FleeFrom(Vector3 point)
     {
+        if (IsPredator)
+        {
+            // A fall or a swing nearby doesn't scare a wolf: it draws it in.
+            Notice(point);
+            return;
+        }
         if (Species == null || _table == null || State is Mode.Shove or Mode.Fight || IsDead)
         {
             return;
@@ -1623,6 +2167,11 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     /// <summary>A loud noise at a point (a hard landing): skittish and wary animals bolt, the others look up, uneasy.</summary>
     public void Startle(Vector3 point)
     {
+        if (IsPredator)
+        {
+            Notice(point);
+            return;
+        }
         if (Species == null || _table == null || State is Mode.Shove or Mode.Flee or Mode.Fight || IsDead)
         {
             return;
@@ -1703,7 +2252,19 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             _deathTip = Mathf.MoveToward(_deathTip, 1.0f, dt * 2.5f);
             basis *= new Basis(Vector3.Back, _deathTip * Mathf.Pi * 0.5f);
         }
-        _model.Transform = new Transform3D(basis, Vector3.Down * _sink) * _modelBase;
+        float crouch = 0.0f;
+        if (State == Mode.WindUp)
+        {
+            // Crouched to spring: haunches down, nose low (guests see it in the streamed model pose).
+            float low = Mathf.Clamp(_stateTime / Mathf.Max(PredatorTuning.WindUpSeconds * 0.35f, 0.01f), 0.0f, 1.0f);
+            crouch = PredatorTuning.CrouchDrop * Species.BodySize.Y * low;
+            basis *= new Basis(Vector3.Right, -Mathf.DegToRad(PredatorTuning.CrouchPitch) * low);
+        }
+        else if (State == Mode.Lunge)
+        {
+            basis *= new Basis(Vector3.Right, Mathf.DegToRad(PredatorTuning.CrouchPitch * 0.6f));
+        }
+        _model.Transform = new Transform3D(basis, Vector3.Down * (_sink + crouch)) * _modelBase;
     }
 
     /// <summary>Turns toward a horizontal direction (the model faces -Z).</summary>
@@ -1744,6 +2305,11 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         if ((_clip == Species.FleeClip && _clip != Species.WalkClip && speed >= Species.FleeClipSpeed * 0.9f)
             || (_clip == Species.WalkClip && speed >= 1.25f))
         {
+            return Awareness.Alerted;
+        }
+        if (_clip == Species.IdleClip && speed >= 1.5f)
+        {
+            // A predator's idle played fast: crouched to spring.
             return Awareness.Alerted;
         }
         if (_clip == Species.IdleClip && speed <= 0.2f)

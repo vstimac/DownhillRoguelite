@@ -15,6 +15,12 @@ public enum Temperament
     Bold,
     /// <summary>Attacks a carrier it notices (wasps).</summary>
     Aggressive,
+    /// <summary>
+    /// Hunts the carrier as a pack (wolves): once it notices one it stalks, circling and closing in,
+    /// then bites one at a time after a visible wind-up; it breaks off when hurt or at a fire
+    /// (PredatorTuning).
+    /// </summary>
+    Predator,
 }
 
 /// <summary>
@@ -32,6 +38,12 @@ public partial class WildlifeSpecies : Resource
     [Export] public float ModelScale { get; set; } = 1.0f;
     /// <summary>Model rotation so it stands up and faces -Z, in degrees.</summary>
     [Export] public Vector3 ModelRotationDegrees { get; set; }
+    /// <summary>
+    /// The colour of the animal's fur in place of the pack's own (only its albedo colour counts): it
+    /// becomes the mountain's palette coat (<see cref="DownhillRoguelite.Environment.WorldStyle.Coat"/>),
+    /// muted and grained like every animal's. Empty keeps the pack's own colour.
+    /// </summary>
+    [Export] public Material? Coat { get; set; }
     /// <summary>
     /// Its colours by the model's surface, muted into the mountain's palette (a transparent entry, or
     /// none, keeps that surface's own colour): turns a cartoon-coloured model into a natural animal.

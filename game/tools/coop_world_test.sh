@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Host + participant + late joiner: actor identities/death, NPC arbitration and pickup history,
 # falls and get-ups seen both ways, a med kit, the host's pack set down and shouldered (seen by the
-# others, the world running meanwhile), and the same set pieces, rocks, grass and signs everywhere.
+# others, the world running meanwhile), a host's wolf hunting the guest (stalk, crouch and bite seen by
+# the guest), and the same set pieces, rocks, grass and signs everywhere.
 set -u
 PORT="${1:-7940}"
 LOGS="${2:-$(mktemp -d)}"
