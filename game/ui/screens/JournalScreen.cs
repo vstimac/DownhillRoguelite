@@ -253,7 +253,6 @@ public partial class JournalScreen : ParchmentPanel
                 float y = b.Y - i * s.Y * 0.1f;
                 DrawLine(new Vector2(b.X - 20 + i * 3, y), new Vector2(b.X + 20 - i * 3, y), new Color(UiStyle.Paper, 0.6f), 1.5f);
             }
-            DrawString(UiStyle.Heading, new Vector2(20, s.Y - 18), "the descent", HorizontalAlignment.Left, -1, 22, UiStyle.InkSoft);
         }
     }
 }

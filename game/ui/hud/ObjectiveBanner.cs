@@ -13,7 +13,7 @@ namespace DownhillRoguelite.Ui;
 /// </summary>
 public partial class ObjectiveBanner : Control
 {
-    [Export] public float HoldSeconds { get; set; } = 5.5f;
+    [Export] public float HoldSeconds { get; set; } = 4.5f;
     [Export] public float FadeSeconds { get; set; } = 0.6f;
     [Export] public Vector2 CardSize { get; set; } = new(600.0f, 104.0f);
 

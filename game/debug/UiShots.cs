@@ -67,7 +67,7 @@ public partial class UiShots : Node3D
         await Seconds(1.0f);
         await Shoot("start_options");
         start.ShowPage(StartScreen.Page.Character);
-        await Seconds(1.0f);
+        await Seconds(2.5f);
         await Shoot("start_character");
     }
 
