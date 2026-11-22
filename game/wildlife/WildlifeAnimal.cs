@@ -395,6 +395,7 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             _animation = FindPlayer(_model);
             CreatureGait.AddClips(_animation, species.ExtraAnimations);
             _gait = CreatureGait.For(species.WalkClip, species.FleeClip, species.WalkGroundSpeed, species.FleeGroundSpeed, species.MaxClipRate);
+            _gait?.TrimHolds(_animation);
             if (species.Coat != null)
             {
                 // After the restyle: the species' fur colour as the same palette coat (the wolf's grey-brown).

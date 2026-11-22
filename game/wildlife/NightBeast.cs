@@ -253,6 +253,7 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
             }
             CreatureGait.AddClips(_animation, species.ExtraAnimations);
             _gait = CreatureGait.For(species.WalkClip, species.RunClip, species.WalkGroundSpeed, species.RunGroundSpeed, species.MaxClipRate);
+            _gait?.TrimHolds(_animation);
         }
         // Headless runs (tests) have no audio output and never release playing streams.
         if (DisplayServer.GetName() != "headless")

@@ -77,6 +77,7 @@ public partial class FootSlipMeter : Node
             }
             if (_skeleton == null)
             {
+                MeasureLegs(body, (float)delta);
                 return;
             }
             _bones = FindFeet(_skeleton, Feet);
@@ -96,22 +97,53 @@ public partial class FootSlipMeter : Node
             FootNames = string.Join(", ", System.Array.ConvertAll(_bones, b => _skeleton.GetBoneName(b)));
             Stats.Feet = FootNames;
         }
-        float dt = (float)delta;
-        Transform3D toBody = body.GlobalTransform.AffineInverse();
-        Vector3[] now = new Vector3[_bones.Length];
-        int lowest = -1;
-        float lowestY = float.MaxValue;
+        Vector3[] feet = new Vector3[_bones.Length];
         for (int i = 0; i < _bones.Length; i++)
         {
             if (_bones[i] < 0)
             {
+                feet[i] = new Vector3(0.0f, float.MaxValue, 0.0f);
                 continue;
             }
             Vector3 local = _follower != null && _bones[i] < _follower.TargetPose.Length
                 ? _follower.TargetPose[_bones[i]]
                 : _skeleton.GetBoneGlobalPose(_bones[i]).Origin;
-            now[i] = _skeleton.GlobalTransform * local;
+            feet[i] = _skeleton.GlobalTransform * local;
+        }
+        Step(body, feet, (float)delta);
+    }
+
+    /// <summary>One frame's foot positions (world) into the stats: the lowest foot, if on the ground, is the planted one.</summary>
+    /// <remarks>
+    /// Swinging legs (a cube animal's, which only swing to and fro on the same arc, never planted)
+    /// have no lowest foot: the one sweeping back fastest under the body is the one meant to grip.
+    /// </remarks>
+    private void Step(Node3D body, Vector3[] now, float dt, bool swinging = false)
+    {
+        Transform3D toBody = body.GlobalTransform.AffineInverse();
+        int lowest = -1;
+        float lowestY = float.MaxValue;
+        float mostBack = 0.0f;
+        for (int i = 0; i < now.Length; i++)
+        {
+            if (now[i].Y == float.MaxValue)
+            {
+                continue;
+            }
             float y = (toBody * now[i]).Y;
+            if (swinging)
+            {
+                // The body faces its -Z: a foot sweeping back moves toward +Z in its frame.
+                float z = (toBody * now[i]).Z;
+                float back = _primed && i < _previousZ.Length ? z - _previousZ[i] : 0.0f;
+                if (back > mostBack)
+                {
+                    mostBack = back;
+                    lowest = i;
+                    lowestY = float.MinValue;
+                }
+                continue;
+            }
             _groundY = Mathf.Min(_groundY, y);
             if (y < lowestY)
             {
@@ -135,10 +167,56 @@ public partial class FootSlipMeter : Node
                 Stats.Samples++;
             }
         }
+        if (swinging)
+        {
+            _previousZ = System.Array.ConvertAll(now, p => (toBody * p).Z);
+        }
         _previous = now;
         _previousBody = bodyNow;
         _previousSpeed = speedNow;
         _primed = true;
+    }
+
+    /// <summary>A model without a skeleton (Kenney's cube animals): its leg meshes, each foot the bottom of its box.</summary>
+    private MeshInstance3D[] _legs = System.Array.Empty<MeshInstance3D>();
+    private Vector3[] _legTips = System.Array.Empty<Vector3>();
+    private float[] _previousZ = System.Array.Empty<float>();
+
+    private void MeasureLegs(Node3D body, float dt)
+    {
+        if (_legs.Length == 0 || !IsInstanceValid(_legs[0]))
+        {
+            System.Collections.Generic.List<MeshInstance3D> legs = new();
+            foreach (Node node in body.FindChildren("leg*", "MeshInstance3D", true, false))
+            {
+                if (node is MeshInstance3D leg && leg.Mesh != null)
+                {
+                    legs.Add(leg);
+                }
+            }
+            if (legs.Count < 2)
+            {
+                return;
+            }
+            _legs = legs.ToArray();
+            _legTips = new Vector3[_legs.Length];
+            for (int i = 0; i < _legs.Length; i++)
+            {
+                Aabb box = _legs[i].Mesh.GetAabb();
+                _legTips[i] = new Vector3(box.GetCenter().X, box.Position.Y, box.GetCenter().Z);
+            }
+            _previous = new Vector3[_legs.Length];
+            _primed = false;
+            _groundY = float.MaxValue;
+            FootNames = string.Join(", ", System.Array.ConvertAll(_legs, l => (string)l.Name));
+            Stats.Feet = FootNames;
+        }
+        Vector3[] now = new Vector3[_legs.Length];
+        for (int i = 0; i < _legs.Length; i++)
+        {
+            now[i] = _legs[i].GlobalTransform * _legTips[i];
+        }
+        Step(body, now, dt, true);
     }
 
     /// <summary>The feet this meter watches, for the report.</summary>
