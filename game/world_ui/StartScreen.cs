@@ -899,6 +899,11 @@ public partial class StartScreen : CanvasLayer
         {
             return;
         }
+        // One page at a time: going straight from one page to another (a key, the command line) closes the first.
+        if (page != Current && PageFor(Current) is ParchmentPanel previous && previous.IsOpen)
+        {
+            previous.Close();
+        }
         Current = page;
         if (_column == null)
         {
@@ -979,6 +984,20 @@ public partial class StartScreen : CanvasLayer
             UpdateCharacterHint();
             (_lastFocus ?? FirstItem())?.GrabFocus();
         }
+    }
+
+    private ParchmentPanel? PageFor(Page page)
+    {
+        return page switch
+        {
+            Page.Options => _options,
+            Page.Character => _characters,
+            Page.About => _about,
+            Page.Achievements => _achievements,
+            Page.Coop => _coop,
+            Page.Saves => _saves,
+            _ => null,
+        };
     }
 
     private MenuItem? FirstItem()

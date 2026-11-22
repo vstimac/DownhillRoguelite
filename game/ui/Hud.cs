@@ -604,8 +604,9 @@ public partial class Hud : CanvasLayer
         }
         if (Objectives != null && Banner != null)
         {
-            // While the big card announces the goal, the goal note doesn't say it a second time.
-            float target = Banner.Showing.Length > 0 ? 0.0f : 1.0f;
+            // While the big card announces the goal (or waits to, behind the circle's title), the goal note
+            // doesn't say it a second time: it comes in once the card has gone, not before and again after.
+            float target = Banner.Showing.Length > 0 || Banner.Queued > 0 ? 0.0f : 1.0f;
             Objectives.Modulate = new Color(1, 1, 1, Mathf.MoveToward(Objectives.Modulate.A, target, (float)delta * 3.0f));
         }
         if (ObjectivesStacked)
