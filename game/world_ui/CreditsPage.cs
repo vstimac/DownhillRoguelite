@@ -23,7 +23,7 @@ public partial class CreditsPage : ParchmentPanel
         "Items, props and pets: Kenney (Survival Kit, Food Kit, Graveyard Kit, Nature Kit, Cube Pets)\n" +
         "Sound: Kenney (Impact Sounds, RPG Audio, Interface Sounds); music, weather and footsteps made for this game\n" +
         "Narrator: lines written for this game, voiced with ElevenLabs\n" +
-        "Fonts: Patrick Hand (Patrick Wagesreiter) and IM Fell English SC (Igino Marini), SIL Open Font License\n" +
+        "Fonts: Barlow and Barlow Condensed (Jeremy Tribby), Patrick Hand (Patrick Wagesreiter) and IM Fell English SC (Igino Marini), SIL Open Font License\n" +
         "Conversation: NobodyWho, running a local language model\n" +
         "Made with the Godot Engine\n\n" +
         "Thank you to everyone who played the playtests and said what they thought.";

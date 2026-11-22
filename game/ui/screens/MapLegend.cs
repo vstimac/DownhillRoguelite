@@ -53,6 +53,10 @@ public partial class MapLegend : Control
         for (int i = 0; i < Entries.Length; i++)
         {
             Vector2 c = new(16, 46 + i * row);
+            // Each symbol on a swatch of the chart's paper: the chart's dark inks don't read on the dark panel.
+            Rect2 swatch = new(c - new Vector2(17, 12), new Vector2(34, 24));
+            DrawRect(swatch, paper);
+            DrawRect(swatch, UiStyle.Line, false, 1.0f);
             switch (i)
             {
                 case 0:
