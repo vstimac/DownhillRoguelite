@@ -53,8 +53,17 @@ public partial class Dive : Node3D
     [Export] public float FlightFrom { get; set; } = 0.55f;
     [Export] public float FlightClipSpeed { get; set; } = 1.0f;
     [Export] public StringName RollClip { get; set; } = "Roll";
-    [Export] public float RollFrom { get; set; } = 0.0f;
-    /// <summary>The roll clip is stretched to RollSeconds unless this is above zero.</summary>
+    /// <summary>
+    /// Where a landing roll starts in the clip (s): the moment his hands and shoulders meet the ground.
+    /// The clip's first 0.3 s is a crouch and a leap up off the ground; started from 0 on a landing he
+    /// stood on the ground and leapt again before rolling, instead of rolling out of the fall.
+    /// </summary>
+    [Export] public float RollFrom { get; set; } = 0.44f;
+    /// <summary>The top of the clip's leap (s): from here to RollFrom he dives forward and down, the part played in the air.</summary>
+    [Export] public float RollDiveFrom { get; set; } = 0.29f;
+    /// <summary>A ragdoll let go this close to the ground (s before his hips meet it) dives straight into the roll, the dive slowed to fill the time.</summary>
+    [Export] public float RollDiveLongest { get; set; } = 0.5f;
+    /// <summary>The roll clip (from RollFrom on) is stretched to RollSeconds unless this is above zero.</summary>
     [Export] public float RollClipSpeed { get; set; } = 0.0f;
 
     [ExportGroup("Ground")]
@@ -173,6 +182,7 @@ public partial class Dive : Node3D
             return;
         }
         UpdateRollCue(busy);
+        UpdatePreRoll();
     }
 
     /// <summary>Starts the dive if there's the stamina for it; false otherwise.</summary>
@@ -233,12 +243,64 @@ public partial class Dive : Node3D
         }
         else if (phase == Phase.Roll)
         {
-            float speed = RollClipSpeed;
-            if (speed <= 0.0f)
+            float speed = RollRate();
+            if (Animator.ActionOn && Animator.ActionClip == RollClip && Animator.ActionTime >= RollDiveFrom - 0.01f
+                && Animator.ActionTime <= RollFrom + 0.3f)
             {
-                speed = ClipLength(RollClip) / Mathf.Max(RollSeconds, 0.05f);
+                // Already diving into it in the air (a timed press, or a ragdoll let go near the ground):
+                // the roll goes on from there instead of starting again on the ground.
+                _time = Mathf.Max(0.0f, (Animator.ActionTime - RollFrom) / speed);
+                // A dive slowed to meet the ground plays the roll itself at the roll's own rate.
+                Animator.PlayAction(RollClip, Animator.ActionTime, speed, false);
             }
-            Animator.PlayAction(RollClip, RollFrom, speed, false);
+            else
+            {
+                Animator.PlayAction(RollClip, RollFrom, speed, false);
+            }
+            _preRoll = false;
+        }
+    }
+
+    /// <summary>How fast the roll clip plays: from its contact on, stretched to RollSeconds.</summary>
+    public float RollRate()
+    {
+        if (RollClipSpeed > 0.0f)
+        {
+            return RollClipSpeed;
+        }
+        return Mathf.Max(ClipLength(RollClip) - RollFrom, 0.1f) / Mathf.Max(RollSeconds, 0.05f);
+    }
+
+    private bool _preRoll;
+
+    /// <summary>
+    /// A roll is primed while he falls (his own press, or a ragdoll let go in the air): the clip's dive
+    /// starts in the air, timed so his hands and shoulders meet the ground at the impact. A press close
+    /// to the ground starts it at once, further into the dive.
+    /// </summary>
+    private void UpdatePreRoll()
+    {
+        if (Body == null || Animator == null)
+        {
+            return;
+        }
+        if (!GameEvents.RollPrimed || Body.IsOnFloor())
+        {
+            _preRoll = false;
+            return;
+        }
+        if (_preRoll || (Animator.ActionOn && Animator.ActionClip == RollClip))
+        {
+            // Already diving into it (a ragdoll let go close to the ground starts the dive itself).
+            _preRoll = true;
+            return;
+        }
+        float height = Body.GlobalPosition.Y - GroundBelow(Body.GlobalPosition).Y;
+        float rate = RollRate();
+        float toImpact = RollSave.TimeToImpact(height, -Body.Velocity.Y, _gravity);
+        if (toImpact <= (RollFrom - RollDiveFrom) / rate)
+        {
+            _preRoll = Animator.PlayAction(RollClip, Mathf.Max(RollDiveFrom, RollFrom - toImpact * rate), rate, false);
         }
     }
 

@@ -151,6 +151,8 @@ public partial class CharacterAnimator : Node
     /// <summary>The clip in the action slot, its place in it (s) and how much of it shows (0–1).</summary>
     public StringName ActionClip { get; private set; } = "";
     public float ActionTime => _actionTime;
+    /// <summary>True while an action clip is meant to show (it may still be fading in).</summary>
+    public bool ActionOn => _actionOn;
     public float ActionWeight => _actionWeight;
 
     public override void _Ready()

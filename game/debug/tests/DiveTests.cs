@@ -61,6 +61,12 @@ public partial class DiveTests : Node3D
         TestSaveRules();
         await Place(PlayerBody, Streamer.SpawnPoint);
         await TestBlowRoll(PlayerBody);
+        foreach ((float pressAt, bool onFeet) in new[] { (0.40f, false), (0.08f, false), (0.20f, true), (0.06f, true) })
+        {
+            await Place(PlayerBody, Streamer.SpawnPoint);
+            await WaitSeconds(1.0f);
+            await TestRollFromAir(PlayerBody, pressAt, onFeet);
+        }
 
         if (_failures.Count == 0)
         {
@@ -457,6 +463,76 @@ public partial class DiveTests : Node3D
         Check(cued && rolls == 1 && !ragdoll.Downed && !GameEvents.IsDowned,
             "knocked flying by a blow, a timed press rolls him out of it like any other fall",
             $"cue {cued}, rolls {rolls}, downed {ragdoll.Downed}");
+    }
+
+    /// <summary>
+    /// A timed roll is already diving in the air: the Roll clip's dive plays during the fall and meets
+    /// the ground at the landing, and the roll goes on from there. Before, the roll always began on the
+    /// ground with the clip's standing crouch and leap, and a ragdoll near the ground first stood up
+    /// into the jump pose.
+    /// </summary>
+    private async Task TestRollFromAir(PlayerController player, float pressAt, bool onFeet)
+    {
+        PlayerRagdoll ragdoll = player.GetNode<PlayerRagdoll>("Ragdoll");
+        Dive dive = player.GetNode<Dive>("Dive");
+        player.Health?.Refill();
+        player.Stamina?.Refill();
+        RollSave.Reset();
+        if (onFeet)
+        {
+            player.GlobalPosition += Vector3.Up * 4.0f;
+            player.Velocity = player.GlobalBasis.Z * -3.0f;
+        }
+        else
+        {
+            GameEvents.RequestKnockdown(player.GlobalBasis.Z * 3.0f + Vector3.Up * 5.0f, "test blow");
+        }
+        bool pressed = false;
+        bool standingPose = false;
+        bool rewound = false;
+        bool rolled = false;
+        float airWeight = 0.0f;
+        float atRoll = -1.0f;
+        float last = -1.0f;
+        for (int i = 0; i < 400 && !rolled; i++)
+        {
+            await Frame();
+            VaultCue cue = GameEvents.CurrentVault;
+            if (!pressed && cue.InWindow && cue.Distance <= pressAt)
+            {
+                pressed = true;
+                if (onFeet) { dive.TryRoll(cue); } else { ragdoll.TryThrowRoll(cue); }
+                continue;
+            }
+            if (!pressed)
+            {
+                continue;
+            }
+            bool rollClip = _animator!.ActionClip == dive.RollClip;
+            standingPose |= _animator.ActionClip == dive.FlightClip && _animator.ActionWeight > 0.05f;
+            // (a faded-out clip left from the last roll doesn't count)
+            if (rollClip && _animator.ActionWeight > 0.01f)
+            {
+                rewound |= last >= 0.0f && _animator.ActionTime < last - 0.01f;
+                last = _animator.ActionTime;
+            }
+            if (rollClip && dive.Stage != Dive.Phase.Roll && !player.IsOnFloor())
+            {
+                airWeight = Mathf.Max(airWeight, _animator.ActionWeight);
+            }
+            if (dive.Stage == Dive.Phase.Roll)
+            {
+                rolled = true;
+                atRoll = rollClip ? _animator.ActionTime : -1.0f;
+            }
+        }
+        string how = onFeet ? $"a jump's roll pressed {pressAt:0.00} s out" : $"a ragdoll's roll pressed {pressAt:0.00} s out";
+        bool onTime = atRoll >= dive.RollFrom - 0.06f && atRoll <= dive.RollFrom + 0.1f;
+        bool dived = !onFeet || pressAt < 0.1f || airWeight > 0.5f;
+        Check(rolled && onTime && !rewound && !standingPose && dived,
+            $"{how} dives in the air and meets the ground at the clip's contact ({atRoll:0.00} s, contact {dive.RollFrom:0.00})",
+            $"{how}: rolled {rolled}, clip at {atRoll:0.00} s on landing (contact {dive.RollFrom:0.00}), rewound {rewound}, standing pose {standingPose}, roll shown in the air {airWeight:0.00}");
+        await WaitSeconds(2.0f);
     }
 
     private async Task Place(PlayerController player, Vector3 position)

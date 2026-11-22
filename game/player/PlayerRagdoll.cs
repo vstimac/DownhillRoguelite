@@ -1236,7 +1236,33 @@ public partial class PlayerRagdoll : Node
         _gettingUp = true;
         _blend = 0.0f;
         Dive? dive = Body?.GetNodeOrNull<Dive>("Dive");
-        if (dive?.Animator != null && dive.Animator.PlayAction(dive.FlightClip, 0.0f, 1.0f, true))
+        if (dive?.Animator == null)
+        {
+            return;
+        }
+        float gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity", 9.8f);
+        float rate = dive.RollRate();
+        float down = -_bones[0].Body.LinearVelocity.Y;
+        float toImpact = RollSave.TimeToImpact(Mathf.Max(_hipsHeight - HipsDownHeight, 0.0f), down, gravity);
+        if (toImpact <= dive.RollDiveLongest)
+        {
+            // The body lands once the ragdoll lets go (after the blend), from under the hips: the
+            // roll's contact belongs there, not where the ragdoll's own hips would have met the ground.
+            float blend = Mathf.Max(RollOutBlendTime, 0.0f);
+            float hips = _hipsHeight - (down * blend + 0.5f * gravity * blend * blend);
+            float above = Mathf.Max(hips - RecoverHipsHeight, 0.0f);
+            toImpact = blend + (above <= RollAtOnceBelow ? 0.0f : RollSave.TimeToImpact(above, down + gravity * blend, gravity));
+        }
+        float diveLength = dive.RollFrom - dive.RollDiveFrom;
+        if (toImpact <= dive.RollDiveLongest)
+        {
+            // Close to the ground: no standing flight pose first, he dives straight into the roll,
+            // timed (slowed if there's time to spare) so his shoulders meet the ground as the ragdoll's hips do.
+            float diveRate = toImpact * rate <= diveLength ? rate : diveLength / Mathf.Max(toImpact, 0.01f);
+            dive.Animator.PlayAction(dive.RollClip, Mathf.Max(dive.RollDiveFrom, dive.RollFrom - toImpact * diveRate), diveRate, false);
+            return;
+        }
+        if (dive.Animator.PlayAction(dive.FlightClip, 0.0f, 1.0f, true))
         {
             _flightPose = dive.FlightClip;
             _flightPoseTime = 0.0f;
