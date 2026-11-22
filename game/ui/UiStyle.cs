@@ -40,7 +40,7 @@ public static class UiStyle
     public const float PieceGap = 12.0f;
     /// <summary>A HUD panel's own see-through; pages (windows that take the mouse) are nearly solid.</summary>
     public const float PanelOpacity = 0.86f;
-    public const float PageOpacity = 0.95f;
+    public const float PageOpacity = 0.985f;
 
     private static Font? _hand;
     private static Font? _heading;

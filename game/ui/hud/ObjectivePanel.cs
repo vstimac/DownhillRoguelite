@@ -88,7 +88,9 @@ public partial class ObjectivePanel : ParchmentPanel
             return;
         }
         _scoreTimer = 0.5f;
-        _score.Text = "score " + _run.ScoreOf(_run.Depth, _run.Stage, _run.Telemetry.CargoScore);
+        int score = _run.ScoreOf(_run.Depth, _run.Stage, _run.Telemetry.CargoScore);
+        // Nothing to show before the first metres: "score 0" reads like a bug at the summit.
+        _score.Text = score > 0 ? "score " + score : "";
     }
 
     private void OnObjectives(IReadOnlyList<ObjectiveNote> notes) => Show(notes);

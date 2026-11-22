@@ -32,7 +32,9 @@ public partial class EquipmentPanel : ParchmentPanel
     private ItemSlot? _pack;
     private Label? _packLabel;
     private Control? _figure;
-    private float _idle;
+    // Starts out of sight: the kit packed at the start of a run is not a change worth showing.
+    private float _idle = 1000.0f;
+    private float _age;
     private bool _hovered;
 
     public override void _Ready()
@@ -96,7 +98,7 @@ public partial class EquipmentPanel : ParchmentPanel
             {
                 item = Inventory.ItemText.Find(piece.ItemId);
             }
-            if (slot.Item != item)
+            if (slot.Item != item && Settled)
             {
                 _idle = 0.0f;
             }
@@ -133,7 +135,10 @@ public partial class EquipmentPanel : ParchmentPanel
 
     private void OnLoad(LoadSnapshot load)
     {
-        _idle = 0.0f;
+        if (Settled)
+        {
+            _idle = 0.0f;
+        }
         string name = load.Name;
         int cut = name.IndexOf(" (");
         if (cut > 0)
@@ -155,6 +160,11 @@ public partial class EquipmentPanel : ParchmentPanel
     public override void _Process(double delta)
     {
         _idle += (float)delta;
+        _age += (float)delta;
+        if (WorldUi.StartScreen.Covering)
+        {
+            _age = 0.0f;
+        }
         float target = 0.0f;
         if (_hovered || _idle < ShowSeconds || GameEvents.IsScreenOpen || Arranging?.Invoke() == true)
         {
@@ -167,6 +177,10 @@ public partial class EquipmentPanel : ParchmentPanel
             MouseFilter = Modulate.A > 0.05f ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
         }
     }
+
+    /// <summary>Seconds into the run before changes call the sheet up (the starting kit arrives in them).</summary>
+    [Export] public float StartQuiet { get; set; } = 3.0f;
+    private bool Settled => _age > StartQuiet;
 
     /// <summary>Seconds the sheet stays after the gear or the load changed; then it leaves the screen to the world.</summary>
     [Export] public float ShowSeconds { get; set; } = 5.0f;
