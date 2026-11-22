@@ -28,6 +28,11 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
     private SurfaceType?[] _surfaces = System.Array.Empty<SurfaceType?>();
     private Material? _grassMaterial;
     private Material? _rockMaterial;
+    /// <summary>The scattered rocks' material that blends them into the ground (null: they take _rockMaterial).</summary>
+    private Material? _rockBlend;
+    private float[] _groundHeights = System.Array.Empty<float>();
+    private Color[] _groundColours = System.Array.Empty<Color>();
+    private int _gridPoints;
     private Material? _woodMaterial;
     private StaticBody3D? _treeBody;
     private StaticBody3D? _rockCover;
@@ -63,6 +68,10 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         _surfaces = surfaces;
         _grassMaterial = grassMaterial;
         _rockMaterial = boulderMaterial;
+        _rockBlend = boulderMaterial is StandardMaterial3D textured ? DownhillRoguelite.Environment.WorldStyle.RockBlend(textured) : null;
+        _groundHeights = data.Heights;
+        _groundColours = data.Colors;
+        _gridPoints = data.GridPoints;
         _woodMaterial = trunkMaterial;
         _rockSurface = boulderSurface;
         Name = $"Chunk_{data.Coord.X}_{data.Coord.Y}";
@@ -295,18 +304,32 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
             _plantPhase = "batch mesh";
             mesh = DrawnMesh(kind, model, mesh);
             _plantPhase = "multimesh allocation";
-            MultiMesh batch = new() { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, Mesh = mesh, InstanceCount = plants.Count };
+            // Rocks carry the ground they stand on (custom data) for the material that blends them into it.
+            bool blended = kind == PlantKind.Rock && _rockBlend != null && _groundColours.Length == _gridPoints * _gridPoints && _gridPoints > 1;
+            int stride = blended ? 16 : 12;
+            MultiMesh batch = new() { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D, UseCustomData = blended, Mesh = mesh, InstanceCount = plants.Count };
             yield return true;
             _plantPhase = "transform buffer";
             Aabb meshBounds = mesh.GetAabb();
-            // One buffer for all instances (12 floats each: the basis by rows, then the origin) instead
-            // of a call per tuft, which made adding a chunk hitch.
-            float[] buffer = new float[plants.Count * 12];
+            // One buffer for all instances (12 floats each: the basis by rows, then the origin; 4 more
+            // of custom data for blended rocks) instead of a call per tuft, which made adding a chunk hitch.
+            float[] buffer = new float[plants.Count * stride];
             for (int i = 0; i < plants.Count; i++)
             {
                 PlantData plant = source[plants[i]];
                 Transform3D t = FitPlant(plant, meshBounds, local, chunkOrigin);
-                int o = i * 12;
+                int o = i * stride;
+                if (blended)
+                {
+                    Vector3 at = plant.Position - chunkOrigin;
+                    (float groundY, Color colour) = GroundAt(at.X, at.Z);
+                    // How far the ground lies over the model's origin, along the rock's up.
+                    float overOrigin = (groundY - t.Origin.Y) * t.Basis.Y.Normalized().Y;
+                    buffer[o + 12] = colour.R;
+                    buffer[o + 13] = colour.G;
+                    buffer[o + 14] = colour.B;
+                    buffer[o + 15] = overOrigin;
+                }
                 buffer[o] = t.Basis.X.X;
                 buffer[o + 1] = t.Basis.Y.X;
                 buffer[o + 2] = t.Basis.Z.X;
@@ -331,6 +354,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
             {
                 material = grassMaterial;
             }
+            else if (kind == PlantKind.Rock && blended) { material = _rockBlend; }
             else if (kind == PlantKind.Pebble || kind == PlantKind.Rock) { material = _rockMaterial; }
             else if (kind == PlantKind.Debris && (model.Contains("/log") || model.Contains("/stump"))) { material = _woodMaterial; }
 
@@ -392,6 +416,36 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         return mesh;
     }
 
+    /// <summary>A rock at least this wide (m) is a slab: solid from SlabHeight (he steps up onto it) instead of KneeHeight.</summary>
+    public const float WideRock = 1.0f;
+    /// <summary>
+    /// A slab this proud of the ground (m) is solid: he steps up onto it. Lower ones he steps over with
+    /// his feet a little in them, as through a pebble.
+    /// </summary>
+    public const float SlabHeight = DownhillRoguelite.Environment.WorldStyle.KneeHeight * 0.4f;
+
+    /// <summary>
+    /// The chunk's ground at a point (chunk-local x and z): its height and colour, with lying snow
+    /// (the colour's alpha says how little snow covers it) turned to snow white as the ground shader does.
+    /// </summary>
+    private (float Height, Color Colour) GroundAt(float lx, float lz)
+    {
+        float cell = _generator!.Settings.CellSize;
+        float gx = Mathf.Clamp(lx / cell, 0.0f, _gridPoints - 1.001f);
+        float gz = Mathf.Clamp(lz / cell, 0.0f, _gridPoints - 1.001f);
+        int i = (int)gx;
+        int j = (int)gz;
+        float fx = gx - i;
+        float fz = gz - j;
+        int a = i + j * _gridPoints;
+        int b = a + _gridPoints;
+        float height = Mathf.Lerp(Mathf.Lerp(_groundHeights[a], _groundHeights[a + 1], fx), Mathf.Lerp(_groundHeights[b], _groundHeights[b + 1], fx), fz);
+        Color colour = _groundColours[a].Lerp(_groundColours[a + 1], fx).Lerp(_groundColours[b].Lerp(_groundColours[b + 1], fx), fz);
+        float lying = Mathf.SmoothStep(0.46f, 0.54f, 1.0f - colour.A);
+        colour = colour.Lerp(new Color(0.88f, 0.91f, 0.95f), lying);
+        return (height, colour);
+    }
+
     public static bool IsGroundCover(PlantKind kind)
     {
         return kind == PlantKind.Shrub || kind == PlantKind.Rock || kind == PlantKind.Debris;
@@ -405,13 +459,36 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
     {
         if (plant.Kind == PlantKind.Rock)
         {
-            return plant.Scale * 0.2f;
+            // On a slope (read back from its lean, TerrainGenerator.AddCover) a rock sinks deeper, so
+            // what's left of the slope under it doesn't lift its downhill edge clear of the ground.
+            float sink = plant.Scale * 0.2f;
+            if (plant.Lean != Vector2.Zero)
+            {
+                float tilt = (Basis.FromEuler(new Vector3(plant.Lean.X, 0.0f, plant.Lean.Y)) * Vector3.Up).AngleTo(Vector3.Up);
+                float gradient = Mathf.Tan(Mathf.Min(tilt / TerrainGenerator.RockSlopeFollow, 1.4f));
+                sink += Mathf.Min(plant.Scale * TerrainGenerator.RockSlopeSink * gradient, plant.Scale * TerrainGenerator.RockSlopeSinkMost);
+            }
+            return sink;
         }
         if (plant.Kind == PlantKind.Shrub || plant.Kind == PlantKind.Debris)
         {
             return plant.Scale * 0.08f;
         }
         return 0.0f;
+    }
+
+    /// <summary>
+    /// How far a piece of cover <paramref name="height"/> tall stands proud of the ground, straight up
+    /// (as his legs meet it): a rock leaning with a steep slope stands taller than it is thick.
+    /// </summary>
+    public static float ProudHeight(PlantData plant, float height)
+    {
+        float upright = 1.0f;
+        if (plant.Lean != Vector2.Zero)
+        {
+            upright = Mathf.Max((Basis.FromEuler(new Vector3(plant.Lean.X, 0.0f, plant.Lean.Y)) * Vector3.Up).Y, 0.3f);
+        }
+        return height / upright - GroundSink(plant);
     }
 
     /// <summary>Fits authored plants in metres; legacy ground plants retain their original scale.</summary>
@@ -436,11 +513,14 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
     /// taller than a knee, and bushes as tall as a big bush. Grass, flowers, pebbles and small
     /// shrubs never do.
     /// </summary>
-    public static bool BlocksCarrier(PlantKind kind, float visibleHeight)
+    public static bool BlocksCarrier(PlantKind kind, float visibleHeight, float width = 0.0f)
     {
         return kind switch
         {
-            PlantKind.Rock or PlantKind.Debris => visibleHeight >= DownhillRoguelite.Environment.WorldStyle.KneeHeight,
+            // A wide slab is solid from a little lower: he steps up onto it or is stopped by it, where
+            // before a 6 m slab under knee height let him wade through it to the waist.
+            PlantKind.Rock or PlantKind.Debris => visibleHeight >= DownhillRoguelite.Environment.WorldStyle.KneeHeight
+                || (width >= WideRock && visibleHeight >= SlabHeight),
             PlantKind.Shrub => visibleHeight >= DownhillRoguelite.Environment.WorldStyle.BigBushHeight,
             _ => false,
         };
@@ -458,8 +538,8 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
             foot = new Vector3(bounds.GetCenter().X, bounds.Position.Y, bounds.GetCenter().Z);
         }
         Vector3 size = bounds.Size * scale;
-        float visible = size.Y - GroundSink(plant);
-        if (!BlocksCarrier(plant.Kind, visible))
+        float visible = ProudHeight(plant, size.Y);
+        if (!BlocksCarrier(plant.Kind, visible, Mathf.Max(size.X, size.Z)))
         {
             return false;
         }
@@ -468,6 +548,12 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         Vector3 centre = origin + turn * ((bounds.GetCenter() - foot) * scale);
         // A bush stops the carrier at its dense middle; rocks and wood at most of their outline.
         float footprint = 0.85f;
+        if (plant.Kind != PlantKind.Shrub)
+        {
+            // A wide slab's outline is left at most 0.1 m outside the box (leaning with a slope, a wider
+            // margin along its foot let him walk a metre into it, crossing the sliver at a slant).
+            footprint = Mathf.Max(footprint, 1.0f - 0.2f / Mathf.Max(Mathf.Min(size.X, size.Z), 0.2f));
+        }
         StaticBody3D body;
         if (plant.Kind == PlantKind.Shrub)
         {

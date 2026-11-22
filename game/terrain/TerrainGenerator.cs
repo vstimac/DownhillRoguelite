@@ -2133,10 +2133,42 @@ public sealed partial class TerrainGenerator
         }
     }
 
+    /// <summary>
+    /// How much of the slope a rock leans with (1: square to the ground, 0: level). All of it: what a
+    /// wide slab didn't follow lifted its downhill edge clear of the ground across its width.
+    /// </summary>
+    public const float RockSlopeFollow = 1.0f;
+    /// <summary>A rock on a slope sinks this share of its height per unit of gradient (at most RockSlopeSinkMost).</summary>
+    public const float RockSlopeSink = 0.2f;
+    public const float RockSlopeSinkMost = 0.3f;
+
     private void AddCover(TerrainChunkData data, PlantKind kind, string model, Vector3 corner, float lx, float lz, float yaw, float height)
     {
         float ground = GridHeight(data, lx, lz);
-        data.Plants.Add(new PlantData(kind, model, new Vector3(corner.X + lx, ground, corner.Z + lz), yaw, height, Vector2.Zero, true));
+        Vector2 lean = Vector2.Zero;
+        if (kind == PlantKind.Rock)
+        {
+            // Rocks lean with the slope (and sink deeper on it, TerrainChunk.GroundSink): stood level, a
+            // slab on a steep flank stuck out of it like a shelf (buried uphill, a metre clear downhill).
+            float span = Mathf.Clamp(height, 1.0f, 4.0f);
+            float gx = (GridHeight(data, lx + span, lz) - GridHeight(data, lx - span, lz)) / (2.0f * span);
+            float gz = (GridHeight(data, lx, lz + span) - GridHeight(data, lx, lz - span)) / (2.0f * span);
+            lean = SlopeLean(gx, gz) * RockSlopeFollow;
+        }
+        data.Plants.Add(new PlantData(kind, model, new Vector3(corner.X + lx, ground, corner.Z + lz), yaw, height, lean, true));
+    }
+
+    /// <summary>
+    /// The lean (PlantData.Lean: x and z angles of Basis.FromEuler, YXZ) that turns a plant's up to
+    /// the normal of ground rising <paramref name="gx"/> per metre along x and <paramref name="gz"/> along z.
+    /// </summary>
+    public static Vector2 SlopeLean(float gx, float gz)
+    {
+        Vector3 normal = new Vector3(-gx, 1.0f, -gz).Normalized();
+        // Basis.FromEuler((a, 0, b)) = Rx(a)·Rz(b) turns up to (-sin b, cos b cos a, cos b sin a).
+        float b = Mathf.Asin(Mathf.Clamp(-normal.X, -1.0f, 1.0f));
+        float a = Mathf.Asin(Mathf.Clamp(normal.Z / Mathf.Max(Mathf.Cos(b), 0.01f), -1.0f, 1.0f));
+        return new Vector2(a, b);
     }
 
     private static string Pick(string[] models, float roll)

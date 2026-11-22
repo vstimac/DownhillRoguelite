@@ -121,6 +121,27 @@ public static class WorldStyle
     /// <summary>The boulders' textured rock, shared by every rock on the mountain.</summary>
     public static StandardMaterial3D Rock => _rock ??= RockMaterial(RockColourPath, RockNormalPath, 1.5f, new Color(0.5f, 0.5f, 0.52f));
 
+    /// <summary>
+    /// The scattered rocks' version of a textured rock material (terrain/rock_blend.gdshader): the same
+    /// texture, with the ground they stand on over their tops and at their foot (the ground's colour comes
+    /// per instance). Null when the rock has no texture to share.
+    /// </summary>
+    public static ShaderMaterial? RockBlend(StandardMaterial3D rock)
+    {
+        string key = "rock blend|" + rock.GetInstanceId();
+        if (Materials.TryGetValue(key, out Material? cached) && cached is ShaderMaterial known) { return known; }
+        if (rock.AlbedoTexture == null || ResourceLoader.Load<Shader>("res://terrain/rock_blend.gdshader") is not Shader shader) { return null; }
+        ShaderMaterial material = new() { Shader = shader, ResourceName = "style:rock" };
+        material.SetShaderParameter("rock_colour", rock.AlbedoTexture);
+        if (rock.NormalTexture != null) { material.SetShaderParameter("rock_normal", rock.NormalTexture); }
+        material.SetShaderParameter("normal_strength", rock.NormalEnabled ? rock.NormalScale : 0.0f);
+        material.SetShaderParameter("metres", 1.0f / Mathf.Max(rock.Uv1Scale.X, 0.001f));
+        material.SetShaderParameter("tint", new Color(0.5f, 0.5f, 0.52f));
+        Register(material, "rock");
+        Materials[key] = material;
+        return material;
+    }
+
     /// <summary>A textured rock material (TerrainStreamer's settings may point at other textures); it joins the palette.</summary>
     public static StandardMaterial3D RockMaterial(string colourPath, string normalPath, float metres, Color fallback)
     {

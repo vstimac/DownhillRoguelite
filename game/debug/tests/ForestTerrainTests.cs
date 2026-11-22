@@ -121,7 +121,7 @@ public partial class ForestTerrainTests : Node3D
             PlantData upright = plant with { Lean = Vector2.Zero, Yaw = 0 };
             Transform3D fitted = TerrainChunk.FitPlant(upright, mesh.GetAabb(), local, Vector3.Zero);
             Aabb bounds = fitted * mesh.GetAabb();
-            fits &= Mathf.Abs(bounds.Position.Y - (plant.Position.Y - TerrainChunk.GroundSink(plant))) < 0.001f;
+            fits &= Mathf.Abs(bounds.Position.Y - (plant.Position.Y - TerrainChunk.GroundSink(upright))) < 0.001f;
             if (plant.HeightInMetres) { fits &= Mathf.Abs(bounds.Size.Y - plant.Scale) < 0.001f; }
             if (plant.Kind == PlantKind.Tree)
             {

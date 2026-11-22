@@ -138,7 +138,7 @@ public partial class WorldStyleTests : Node3D
         }
         foreach (PlantData plant in data.Plants)
         {
-            float visible = plant.Scale - TerrainChunk.GroundSink(plant);
+            float visible = TerrainChunk.ProudHeight(plant, plant.Scale);
             float groundY = plant.Position.Y;
             string file = plant.Model.GetFile();
             switch (plant.Kind)
@@ -151,7 +151,7 @@ public partial class WorldStyleTests : Node3D
                 case PlantKind.Rock:
                     if (!plant.HeightInMetres) { break; }
                     string rockKind = file.Contains("wall", StringComparison.Ordinal) ? "wall" : "outcrop rock";
-                    if (TerrainChunk.BlocksCarrier(PlantKind.Rock, visible))
+                    if (TerrainChunk.BlocksCarrier(PlantKind.Rock, visible, CoverReach(plant) / 0.75f))
                     {
                         Add(samples, new Sample(rockKind, plant.Position, groundY, CoverReach(plant), "CoverRocks"));
                     }
@@ -171,7 +171,7 @@ public partial class WorldStyleTests : Node3D
                     }
                     break;
                 case PlantKind.Debris:
-                    if (TerrainChunk.BlocksCarrier(PlantKind.Debris, visible))
+                    if (TerrainChunk.BlocksCarrier(PlantKind.Debris, visible, CoverReach(plant) / 0.75f))
                     {
                         Add(samples, new Sample("stump or gear", plant.Position, groundY, CoverReach(plant), "CoverWood"));
                     }
@@ -466,6 +466,15 @@ public partial class WorldStyleTests : Node3D
                 float angle = d * Mathf.Pi * 0.25f + 0.4f;
                 Vector3 direction = new(Mathf.Cos(angle), 0.0f, Mathf.Sin(angle));
                 Vector3 from = new Vector3(sample.Centre.X, sample.Ground + 0.05f + ProbeHeight * 0.5f, sample.Centre.Z) + direction * start;
+                // A walk that would start inside a neighbour's cover (a slab beside the sample) tells
+                // nothing: the cast passes out of a shape it starts in. That side is closed by other cover.
+                PhysicsShapeQueryParameters3D inside = new() { Shape = capsule, Transform = new Transform3D(Basis.Identity, from), Exclude = exclude };
+                bool startsInCover = false;
+                foreach (Godot.Collections.Dictionary overlap in space.IntersectShape(inside, 4))
+                {
+                    if (overlap["collider"].AsGodotObject() is Node near && Shared(near)) { startsInCover = true; }
+                }
+                if (startsInCover) { seen = "starts inside shared cover"; continue; }
                 for (int attempt = 0; attempt < 6; attempt++)
                 {
                     PhysicsShapeQueryParameters3D query = new()
