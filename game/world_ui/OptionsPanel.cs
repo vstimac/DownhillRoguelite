@@ -53,6 +53,11 @@ public partial class OptionsPanel : ParchmentPanel
 
     public override void _Ready()
     {
+        // A page over the world: nearly solid, so nothing in the world reads through it.
+        if (Opacity < 0.0f)
+        {
+            Opacity = UiStyle.PageOpacity;
+        }
         base._Ready();
         GameOptions.Load();
         _tabs = new TabStrip { FontSize = 24 };

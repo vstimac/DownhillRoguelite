@@ -42,6 +42,11 @@ public partial class CharacterPage : ParchmentPanel
 
     public override void _Ready()
     {
+        // A page over the world: nearly solid, so nothing in the world reads through it.
+        if (Opacity < 0.0f)
+        {
+            Opacity = UiStyle.PageOpacity;
+        }
         base._Ready();
         GameOptions.Load();
         _scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled };
@@ -113,6 +118,27 @@ public partial class CharacterPage : ParchmentPanel
             InkButton button = new() { Text = name, Paper = true, Focusable = true, FontSize = 14, SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 CustomMinimumSize = new Vector2(42, 32), TooltipText = name + " " + title.ToLowerInvariant() };
             button.Pressed += () => apply(colour);
+            // A swatch of the colour itself in front of its name.
+            Panel swatch = new()
+            {
+                MouseFilter = MouseFilterEnum.Ignore,
+                AnchorTop = 0.5f,
+                AnchorBottom = 0.5f,
+                OffsetLeft = 8.0f,
+                OffsetRight = 20.0f,
+                OffsetTop = -6.0f,
+                OffsetBottom = 6.0f,
+            };
+            swatch.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+            {
+                BgColor = colour,
+                BorderColor = new Color(UiStyle.Line, 0.6f),
+                BorderWidthLeft = 1,
+                BorderWidthRight = 1,
+                BorderWidthTop = 1,
+                BorderWidthBottom = 1,
+            });
+            button.AddChild(swatch);
             row.AddChild(button);
         }
         return row;
