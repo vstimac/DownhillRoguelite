@@ -528,16 +528,16 @@ public partial class WorldStyleTests : Node3D
         string what = "no cover within 3 m";
         foreach (Node node in GetTree().GetNodesInGroup(TerrainChunk.CoverGroup))
         {
-            foreach (Node child in node.GetChildren())
+            if (node is not StaticBody3D cover) { continue; }
+            foreach ((Vector3 size, Transform3D place) in TerrainChunk.CoverBoxes(cover))
             {
-                if (child is not CollisionShape3D shape || shape.Shape is not BoxShape3D box) { continue; }
-                Vector3 at = shape.GlobalPosition;
+                Vector3 at = place.Origin;
                 float far = new Vector2(at.X - sample.Centre.X, at.Z - sample.Centre.Z).Length();
                 if (far < best && far < 3.0f)
                 {
                     best = far;
-                    what = "nearest " + node.Name + " box " + box.Size.ToString("0.00") + " at " + far.ToString("0.00", CultureInfo.InvariantCulture)
-                        + " m, from " + (at.Y - box.Size.Y * 0.5f - sample.Ground).ToString("0.00", CultureInfo.InvariantCulture) + " m over the foot";
+                    what = "nearest " + node.Name + " box " + size.ToString("0.00") + " at " + far.ToString("0.00", CultureInfo.InvariantCulture)
+                        + " m, from " + (at.Y - size.Y * 0.5f - sample.Ground).ToString("0.00", CultureInfo.InvariantCulture) + " m over the foot";
                 }
             }
         }
@@ -570,8 +570,8 @@ public partial class WorldStyleTests : Node3D
         if (!name.StartsWith(body, StringComparison.Ordinal)) { return false; }
         if (!Shared(hit)) { return true; }
         // A shared body: the shape that stopped the probe must be this sample's own.
-        if (hit.ShapeOwnerGetOwner(hit.ShapeFindOwner(shapeIndex)) is not CollisionShape3D own) { return false; }
-        return new Vector2(own.GlobalPosition.X - sample.Centre.X, own.GlobalPosition.Z - sample.Centre.Z).Length() < 0.75f;
+        Vector3 own = TerrainChunk.ShapeCentre(hit, shapeIndex);
+        return new Vector2(own.X - sample.Centre.X, own.Z - sample.Centre.Z).Length() < 0.75f;
     }
 
     /// <summary>
@@ -589,9 +589,8 @@ public partial class WorldStyleTests : Node3D
             foreach (Godot.Collections.Dictionary hit in space.IntersectPoint(query, 8))
             {
                 if (hit["collider"].AsGodotObject() is not StaticBody3D body || !body.IsInGroup(TerrainChunk.CoverGroup)) { continue; }
-                uint owner = body.ShapeFindOwner(hit["shape"].AsInt32());
-                if (body.ShapeOwnerGetOwner(owner) is CollisionShape3D shape
-                    && new Vector2(shape.GlobalPosition.X - sample.Centre.X, shape.GlobalPosition.Z - sample.Centre.Z).Length() < 0.15f)
+                Vector3 shape = TerrainChunk.ShapeCentre(body, hit["shape"].AsInt32());
+                if (new Vector2(shape.X - sample.Centre.X, shape.Z - sample.Centre.Z).Length() < 0.15f)
                 {
                     clear = false;
                 }

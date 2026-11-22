@@ -197,11 +197,12 @@ public partial class RockClipTests : Node3D
                 string near = "";
                 foreach (Node cover in GetTree().GetNodesInGroup(TerrainChunk.CoverGroup))
                 {
-                    foreach (Node child in cover.GetChildren())
+                    if (cover is not StaticBody3D coverBody) { continue; }
+                    foreach ((Vector3 boxSize, Transform3D place) in TerrainChunk.CoverBoxes(coverBody))
                     {
-                        if (child is CollisionShape3D shape && shape.GlobalPosition.DistanceTo(rock.Centre) < rock.Reach + 1.0f && shape.Shape is BoxShape3D b)
+                        if (place.Origin.DistanceTo(rock.Centre) < rock.Reach + 1.0f)
                         {
-                            near += $" [{cover.Name} at {shape.GlobalPosition - rock.Centre:0.00} size {b.Size:0.00} inTree {shape.IsInsideTree()} layer {((CollisionObject3D)cover).CollisionLayer} disabled {shape.Disabled}]";
+                            near += $" [{cover.Name} at {place.Origin - rock.Centre:0.00} size {boxSize:0.00} layer {coverBody.CollisionLayer}]";
                         }
                     }
                 }

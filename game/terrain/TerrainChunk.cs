@@ -571,12 +571,58 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         {
             body = _woodCover ??= NewCover("CoverWood", true, trunkSurface);
         }
-        body.AddChild(new CollisionShape3D
-        {
-            Shape = new BoxShape3D { Size = new Vector3(Mathf.Max(size.X * footprint, 0.1f), size.Y, Mathf.Max(size.Z * footprint, 0.1f)) },
-            Transform = new Transform3D(turn, centre),
-        });
+        // Straight into the physics server: a CollisionShape3D node and a BoxShape3D per rock, bush and
+        // stump were two managed objects each, hundreds per chunk, and the garbage collector's pauses
+        // as they piled up were the hitches while a chunk's plants streamed in.
+        Rid box = PhysicsServer3D.BoxShapeCreate();
+        PhysicsServer3D.ShapeSetData(box, new Vector3(Mathf.Max(size.X * footprint, 0.1f), size.Y, Mathf.Max(size.Z * footprint, 0.1f)) * 0.5f);
+        PhysicsServer3D.BodyAddShape(body.GetRid(), box, new Transform3D(turn, centre));
+        _coverShapes.Add(box);
         return true;
+    }
+
+    /// <summary>The cover bodies' boxes (made on the physics server, freed with the chunk).</summary>
+    private readonly System.Collections.Generic.List<Rid> _coverShapes = new();
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationPredelete)
+        {
+            foreach (Rid shape in _coverShapes)
+            {
+                PhysicsServer3D.FreeRid(shape);
+            }
+            _coverShapes.Clear();
+        }
+    }
+
+    /// <summary>Where (world) the shape a query hit on a shared body sits: a cover box on the server, or a trunk's node.</summary>
+    public static Vector3 ShapeCentre(CollisionObject3D body, int shapeIndex)
+    {
+        if (body.IsInGroup(CoverGroup))
+        {
+            return body.GlobalTransform * PhysicsServer3D.BodyGetShapeTransform(body.GetRid(), shapeIndex).Origin;
+        }
+        return body.ShapeOwnerGetOwner(body.ShapeFindOwner(shapeIndex)) is Node3D own ? own.GlobalPosition : body.GlobalPosition;
+    }
+
+    /// <summary>
+    /// A cover body's boxes (they have no nodes): each one's size and where it is, in the world.
+    /// For tests and diagnostics.
+    /// </summary>
+    public static System.Collections.Generic.IEnumerable<(Vector3 Size, Transform3D At)> CoverBoxes(StaticBody3D body)
+    {
+        Rid rid = body.GetRid();
+        int count = PhysicsServer3D.BodyGetShapeCount(rid);
+        for (int i = 0; i < count; i++)
+        {
+            Rid shape = PhysicsServer3D.BodyGetShape(rid, i);
+            if (PhysicsServer3D.ShapeGetType(shape) != PhysicsServer3D.ShapeType.Box)
+            {
+                continue;
+            }
+            yield return (PhysicsServer3D.ShapeGetData(shape).AsVector3() * 2.0f, body.GlobalTransform * PhysicsServer3D.BodyGetShapeTransform(rid, i));
+        }
     }
 
     private static StaticBody3D NewCover(string name, bool vaultable, SurfaceType? surface)

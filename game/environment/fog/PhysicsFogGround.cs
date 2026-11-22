@@ -97,7 +97,8 @@ public sealed class PhysicsFogGround
         {
             return true;
         }
-        if (shapeIndex < 0)
+        // Rocks, bushes and stumps keep their boxes on the physics server (no shape owners to look up).
+        if (shapeIndex < 0 || body.IsInGroup(DownhillRoguelite.Terrain.TerrainChunk.CoverGroup))
         {
             return false;
         }

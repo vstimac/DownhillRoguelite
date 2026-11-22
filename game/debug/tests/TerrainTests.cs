@@ -397,7 +397,7 @@ public partial class TerrainTests : Node3D
         Check("adding a chunk doesn't hitch", streamer.MaxApplyMilliseconds <= MaxApplyMilliseconds,
             $"slowest chunk add {streamer.MaxApplyMilliseconds:0.0} ms, last build {streamer.LastBuildMilliseconds:0} ms");
         Check("adding a chunk's trees and grass doesn't hitch", TerrainChunk.MaxPlantMilliseconds <= MaxApplyMilliseconds,
-            $"slowest plants frame {TerrainChunk.MaxPlantMilliseconds:0.0} ms");
+            $"slowest plants frame {TerrainChunk.MaxPlantMilliseconds:0.0} ms; GC over the whole test {System.GC.GetTotalPauseDuration().TotalMilliseconds:0} ms in {System.GC.CollectionCount(0)}/{System.GC.CollectionCount(1)}/{System.GC.CollectionCount(2)} collections (gen 0/1/2)");
 
         RunState? run = GetNodeOrNull<RunState>("/root/RunState");
         Check("depth reaches RunState", run != null && run.Depth >= (int)streamer.Depth - 1 && run.Depth > 0,
