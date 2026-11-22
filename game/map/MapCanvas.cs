@@ -225,6 +225,8 @@ public partial class MapCanvas : Control
         Vector2 at = tail - direction * 10.0f + new Vector2(-40.0f, side.Y * 8.0f);
         at.X = Mathf.Clamp(at.X, 8.0f, size.X - 170.0f);
         at.Y = Mathf.Clamp(at.Y, 40.0f, size.Y - 30.0f);
+        // A paper halo keeps the words clear of the route line running through them.
+        DrawStringOutline(font, at, label, HorizontalAlignment.Left, -1, 20, 6, Paper);
         DrawString(font, at, label, HorizontalAlignment.Left, -1, 20, StationInk);
     }
 
