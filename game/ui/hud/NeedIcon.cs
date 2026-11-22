@@ -20,7 +20,7 @@ public partial class NeedIcon : Control
     [Export] public float WarnBelow { get; set; } = 0.25f;
     [Export] public float IconSize { get; set; } = 44.0f;
     /// <summary>How see-through it is while the need is fine.</summary>
-    [Export] public float CalmAlpha { get; set; } = 0.6f;
+    [Export] public float CalmAlpha { get; set; } = 0.75f;
     /// <summary>Scale while the need is fine, and at the warning level.</summary>
     [Export] public float CalmScale { get; set; } = 0.8f;
     [Export] public float UrgentScale { get; set; } = 1.12f;
@@ -96,7 +96,7 @@ public partial class NeedIcon : Control
         {
             ring = ring.Lerp(UiStyle.Warning, 0.5f + 0.5f * Mathf.Sin(_time * PulseSpeed));
         }
-        InkDraw.Shape(this, InkDraw.Circle(c, radius - 3.0f, 22), UiStyle.Paper, 2.0f, (int)Icon + 30);
+        DrawCircle(c, radius - 1.0f, new Color(UiStyle.Paper, 0.9f));
         float inset = Size.X * 0.24f;
         InkDraw.Icon(this, Icon, new Rect2(new Vector2(inset, inset), Size - new Vector2(inset, inset) * 2.0f), (int)Icon + 2);
         if (GameOptions.Stats == StatStyle.Bars)
@@ -106,7 +106,7 @@ public partial class NeedIcon : Control
             DrawRect(new Rect2(track.Position, new Vector2(track.Size.X * fraction, track.Size.Y)), ring);
             return;
         }
-        InkDraw.Arc(this, c, radius, 0.0f, Mathf.Tau, 5.0f, new Color(UiStyle.Paper, 0.8f));
+        InkDraw.Arc(this, c, radius, 0.0f, Mathf.Tau, 3.5f, new Color(UiStyle.Line, 0.9f));
         if (fraction > 0.001f)
         {
             InkDraw.Arc(this, c, radius, 0.0f, Mathf.Tau * fraction, 3.5f, ring);

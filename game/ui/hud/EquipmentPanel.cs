@@ -7,8 +7,8 @@ namespace DownhillRoguelite.Ui;
 /// The carrier's equipment sheet on the left: a drawn figure with the slots around it. The
 /// backpack slot shows the pack actually carried (its name and weight from the load); the clothing
 /// slots (head, torso, legs, hands, feet, cape) stay empty outlines until gear exists (M14). It
-/// sinks to half opacity when nothing changes, so the world stays clear, and comes back on hover,
-/// when the load changes or while a UI page is open.
+/// leaves the screen when nothing changes, so the world stays clear, and comes back on hover,
+/// when the gear or load changes, while a UI page is open and while the HUD is arranged (Alt).
 /// </summary>
 public partial class EquipmentPanel : ParchmentPanel
 {
@@ -43,7 +43,7 @@ public partial class EquipmentPanel : ParchmentPanel
         AddChild(_figure);
         _pack = new ItemSlot { Position = new Vector2(14, 62), Size = new Vector2(54, 54), EmptyGlyph = InkIcon.Backpack, Index = 90 };
         AddChild(_pack);
-        _packLabel = UiStyle.MakeLabel("", 14);
+        _packLabel = UiStyle.MakeLabel("", 15, true);
         _packLabel.Position = new Vector2(12, 10);
         AddChild(_packLabel);
         foreach ((EquipSlot equip, Vector2 at) in _layout)
@@ -153,16 +153,23 @@ public partial class EquipmentPanel : ParchmentPanel
     public override void _Process(double delta)
     {
         _idle += (float)delta;
-        float target = 0.55f;
-        if (_hovered || _idle < 4.0f || GameEvents.IsScreenOpen)
+        float target = 0.0f;
+        if (_hovered || _idle < ShowSeconds || GameEvents.IsScreenOpen || Arranging?.Invoke() == true)
         {
             target = 1.0f;
         }
         if (IsOpen)
         {
-            Modulate = new Color(1, 1, 1, Mathf.MoveToward(Modulate.A, target, (float)delta * 1.5f));
+            Modulate = new Color(1, 1, 1, Mathf.MoveToward(Modulate.A, target, (float)delta * 2.5f));
+            // Out of sight it takes no clicks either.
+            MouseFilter = Modulate.A > 0.05f ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
         }
     }
+
+    /// <summary>Seconds the sheet stays after the gear or the load changed; then it leaves the screen to the world.</summary>
+    [Export] public float ShowSeconds { get; set; } = 5.0f;
+    /// <summary>True while the HUD is being arranged (Alt held): the sheet shows so it can be grabbed.</summary>
+    public System.Func<bool>? Arranging { get; set; }
 
     private partial class FigureView : Control
     {

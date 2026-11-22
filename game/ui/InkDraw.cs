@@ -214,14 +214,14 @@ public static class InkDraw
             }
             case InkIcon.Figure:
             {
-                Color body = new(0.72f, 0.64f, 0.5f);
+                Color body = new(UiStyle.Line, 0.4f);
                 Shape(canvas, Circle(c + new Vector2(0, -0.78f) * s, s * 0.14f, 16), body, 2.0f, seed);
                 Vector2[] torso = { c + new Vector2(-0.22f, -0.6f) * s, c + new Vector2(0.22f, -0.6f) * s, c + new Vector2(0.2f, 0.05f) * s, c + new Vector2(-0.2f, 0.05f) * s };
                 Shape(canvas, torso, body, 2.0f, seed + 1);
-                canvas.DrawPolyline(Wobble(new[] { c + new Vector2(-0.22f, -0.55f) * s, c + new Vector2(-0.38f, -0.05f) * s, c + new Vector2(-0.36f, 0.25f) * s }, 1.0f, seed), UiStyle.Ink, 3.0f, true);
-                canvas.DrawPolyline(Wobble(new[] { c + new Vector2(0.22f, -0.55f) * s, c + new Vector2(0.38f, -0.05f) * s, c + new Vector2(0.36f, 0.25f) * s }, 1.0f, seed + 2), UiStyle.Ink, 3.0f, true);
-                canvas.DrawPolyline(Wobble(new[] { c + new Vector2(-0.1f, 0.05f) * s, c + new Vector2(-0.15f, 0.5f) * s, c + new Vector2(-0.16f, 0.92f) * s }, 1.0f, seed + 3), UiStyle.Ink, 3.5f, true);
-                canvas.DrawPolyline(Wobble(new[] { c + new Vector2(0.1f, 0.05f) * s, c + new Vector2(0.15f, 0.5f) * s, c + new Vector2(0.16f, 0.92f) * s }, 1.0f, seed + 4), UiStyle.Ink, 3.5f, true);
+                canvas.DrawPolyline(Wobble(new[] { c + new Vector2(-0.22f, -0.55f) * s, c + new Vector2(-0.38f, -0.05f) * s, c + new Vector2(-0.36f, 0.25f) * s }, 1.0f, seed), new Color(UiStyle.Line, 0.9f), 2.5f, true);
+                canvas.DrawPolyline(Wobble(new[] { c + new Vector2(0.22f, -0.55f) * s, c + new Vector2(0.38f, -0.05f) * s, c + new Vector2(0.36f, 0.25f) * s }, 1.0f, seed + 2), new Color(UiStyle.Line, 0.9f), 2.5f, true);
+                canvas.DrawPolyline(Wobble(new[] { c + new Vector2(-0.1f, 0.05f) * s, c + new Vector2(-0.15f, 0.5f) * s, c + new Vector2(-0.16f, 0.92f) * s }, 1.0f, seed + 3), new Color(UiStyle.Line, 0.9f), 3.0f, true);
+                canvas.DrawPolyline(Wobble(new[] { c + new Vector2(0.1f, 0.05f) * s, c + new Vector2(0.15f, 0.5f) * s, c + new Vector2(0.16f, 0.92f) * s }, 1.0f, seed + 4), new Color(UiStyle.Line, 0.9f), 3.0f, true);
                 break;
             }
         }

@@ -46,6 +46,7 @@ public partial class ItemSlot : Control
     private float _time;
     private bool _hover;
     private FootprintMark? _footprint;
+    private SlotMarks? _marks;
     private bool _dragging;
     private Tween? _tween;
 
@@ -65,6 +66,8 @@ public partial class ItemSlot : Control
         AddChild(_icon);
         _footprint = new FootprintMark { Visible = false };
         AddChild(_footprint);
+        _marks = new SlotMarks { Slot = this, MouseFilter = MouseFilterEnum.Ignore };
+        AddChild(_marks);
         MouseEntered += () => SetHover(true);
         MouseExited += () => SetHover(false);
         Resized += Layout;
@@ -88,6 +91,10 @@ public partial class ItemSlot : Control
         if (_footprint != null)
         {
             _footprint.Size = Size;
+        }
+        if (_marks != null)
+        {
+            _marks.Size = Size;
         }
         PivotOffset = Size * 0.5f;
     }
@@ -249,6 +256,7 @@ public partial class ItemSlot : Control
         }
         _icon.Texture = texture;
         _icon.Visible = texture != null;
+        _marks?.QueueRedraw();
         if (Selected)
         {
             QueueRedraw();
@@ -275,32 +283,50 @@ public partial class ItemSlot : Control
         {
             InkDraw.Icon(this, EmptyGlyph.Value, new Rect2(size * 0.2f, size * 0.6f), Index + 5);
         }
+    }
+
+    /// <summary>
+    /// What sits on top of the picture (it is drawn over the icon, which would hide it): the wear bar,
+    /// the stack count, the key number and the selection frame.
+    /// </summary>
+    private void DrawMarks(Control canvas)
+    {
+        Vector2 size = Size;
+        Font font = UiStyle.Strong;
+        Color shadow = new(0.0f, 0.0f, 0.0f, 0.85f);
         if (Durability >= 0.0f)
         {
             Rect2 bar = new(new Vector2(6, size.Y - 9), new Vector2(size.X - 12, 5));
-            DrawRect(bar, new Color(UiStyle.Paper, 0.75f));
+            canvas.DrawRect(bar, new Color(UiStyle.Paper, 0.75f));
             Color wear = UiStyle.Warning.Lerp(UiStyle.Stamina, Mathf.Clamp(Durability, 0.0f, 1.0f));
-            DrawRect(new Rect2(bar.Position, new Vector2(bar.Size.X * Mathf.Clamp(Durability, 0.0f, 1.0f), bar.Size.Y)), wear);
+            canvas.DrawRect(new Rect2(bar.Position, new Vector2(bar.Size.X * Mathf.Clamp(Durability, 0.0f, 1.0f), bar.Size.Y)), wear);
         }
         if (Count > 1)
         {
-            string text = Count.ToString();
-            Vector2 at = new(size.X - font.GetStringSize(text, HorizontalAlignment.Left, -1, UiStyle.SmallSize).X - 6, size.Y - 6);
-            DrawString(font, at + new Vector2(1, 1), text, HorizontalAlignment.Left, -1, UiStyle.SmallSize, UiStyle.Paper);
-            DrawString(font, at, text, HorizontalAlignment.Left, -1, UiStyle.SmallSize, UiStyle.Ink);
+            string text = "×" + Count;
+            Vector2 at = new(size.X - font.GetStringSize(text, HorizontalAlignment.Left, -1, 14).X - 4, size.Y - 5);
+            canvas.DrawString(font, at + new Vector2(1, 1), text, HorizontalAlignment.Left, -1, 14, shadow);
+            canvas.DrawString(font, at, text, HorizontalAlignment.Left, -1, 14, UiStyle.Ink);
         }
         if (KeyHint.Length > 0)
         {
-            DrawString(font, new Vector2(6, 16), KeyHint, HorizontalAlignment.Left, -1, 14, UiStyle.InkSoft);
+            // The key that picks the slot, in the corner where the eye looks for it.
+            Color key = Selected ? UiStyle.Highlight : new Color(UiStyle.Ink, 0.8f);
+            canvas.DrawString(font, new Vector2(6, 16), KeyHint, HorizontalAlignment.Left, -1, 13, shadow);
+            canvas.DrawString(font, new Vector2(5, 15), KeyHint, HorizontalAlignment.Left, -1, 13, key);
         }
         if (Selected)
         {
-            // A breathing inked ring round the chosen slot.
-            float breathe = 2.0f + Mathf.Sin(_time * 5.0f) * 1.5f;
-            Vector2 a = new(-breathe, -breathe);
-            Vector2 b = size + new Vector2(breathe, breathe);
-            Vector2[] ring = { a, new Vector2(b.X, a.Y), b, new Vector2(a.X, b.Y), a };
-            DrawPolyline(InkDraw.Wobble(ring, 1.2f, (int)(_time * 4.0f) % 3 + 11), UiStyle.Highlight.Darkened(0.35f), 3.5f, true);
+            // A crisp amber frame round the chosen slot, breathing a pixel.
+            float breathe = 1.5f + Mathf.Sin(_time * 4.0f) * 0.75f;
+            canvas.DrawRect(new Rect2(-Vector2.One * breathe, size + Vector2.One * breathe * 2.0f), UiStyle.Highlight, false, 2.0f);
         }
+    }
+
+    private partial class SlotMarks : Control
+    {
+        public ItemSlot? Slot { get; set; }
+
+        public override void _Draw() => Slot?.DrawMarks(this);
     }
 }

@@ -27,12 +27,16 @@ public partial class Hud : CanvasLayer
     private static readonly StringName ActionTalk = "talk_open";
     private static readonly StringName ActionRadio = "radio_open";
 
-    /// <summary>Screen margin of the corner pieces, in px.</summary>
-    [Export] public float Margin { get; set; } = 18.0f;
+    /// <summary>Screen margin of every piece (corners, compass, hotbar): one edge round the whole HUD, in px.</summary>
+    [Export] public float Margin { get; set; } = UiStyle.ScreenMargin;
     /// <summary>Gap between neighbouring pieces, in px.</summary>
-    [Export] public float Gap { get; set; } = 10.0f;
+    [Export] public float Gap { get; set; } = UiStyle.PieceGap;
     /// <summary>The compass strip and hotbar sit this far from the screen's top and bottom, in px.</summary>
-    [Export] public float EdgeGap { get; set; } = 8.0f;
+    [Export] public float EdgeGap { get; set; } = UiStyle.ScreenMargin;
+    /// <summary>The right-hand column (descent note, notes, pack look, ability card) is this wide, in px.</summary>
+    [Export] public float ColumnWidth { get; set; } = 300.0f;
+    /// <summary>Padding inside the vitals card round the hearts and need icons, in px.</summary>
+    [Export] public float VitalsPad { get; set; } = 10.0f;
     /// <summary>Room kept under the need icons for the low-stat list, in px.</summary>
     [Export] public float AlertsHeight { get; set; } = 170.0f;
 
@@ -73,6 +77,9 @@ public partial class Hud : CanvasLayer
 
     private Control? _root;
     private Control? _play;
+    private Control? _ambient;
+    private ColorRect? _vitals;
+    private Vector2 _vitalsSize;
 
     public override void _Ready()
     {
@@ -98,31 +105,39 @@ public partial class Hud : CanvasLayer
         _play.AddChild(Ring);
         SideHearts = new SideHearts { Name = "SideHearts", Ring = Ring };
         _play.AddChild(SideHearts);
-        Hearts = new HeartRow { Name = "Hearts" };
-        _play.AddChild(Hearts);
+        // What is read off the world while walking (vitals, where you are, the goal, notes, compass) steps
+        // back while a page or the map is open, so the window over the world is the one thing to read.
+        _ambient = new Control { Name = "Ambient", MouseFilter = Control.MouseFilterEnum.Ignore };
+        _ambient.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        _play.AddChild(_ambient);
+        // The vitals card: one panel behind the hearts and the need icons, so they read on snow and fog.
+        _vitals = new ColorRect { Name = "VitalsCard", Color = Colors.White, MouseFilter = Control.MouseFilterEnum.Ignore };
+        _ambient.AddChild(_vitals);
+        Hearts = new HeartRow { Name = "Hearts", HeartSize = 22.0f, Gap = 5.0f };
+        _ambient.AddChild(Hearts);
         HungerIcon = Need("Hunger", InkIcon.Stomach, UiStyle.Hunger);
         ThirstIcon = Need("Thirst", InkIcon.Drop, UiStyle.Thirst);
         WarmthIcon = Need("Warmth", InkIcon.Snowflake, UiStyle.Cold);
         Alerts = new LowStatAlerts { Name = "LowStatAlerts", Size = new Vector2(300, AlertsHeight) };
-        _play.AddChild(Alerts);
-        Descent = new DescentPanel { Size = new Vector2(350, 172) };
-        _play.AddChild(Descent);
+        _ambient.AddChild(Alerts);
+        Descent = new DescentPanel { Size = new Vector2(ColumnWidth, 110) };
+        _ambient.AddChild(Descent);
         Compass = new CompassStrip { Name = "Compass" };
-        _play.AddChild(Compass);
+        _ambient.AddChild(Compass);
         Objectives = new ObjectivePanel { Name = "Objectives" };
-        _play.AddChild(Objectives);
+        _ambient.AddChild(Objectives);
         Banner = new ObjectiveBanner { Name = "ObjectiveBanner" };
-        _play.AddChild(Banner);
+        _ambient.AddChild(Banner);
         Achievements = new AchievementToast { Name = "AchievementToast" };
-        _play.AddChild(Achievements);
+        _ambient.AddChild(Achievements);
         Equipment = new EquipmentPanel { Size = new Vector2(184, 320) };
         _play.AddChild(Equipment);
         Hotbar = new Hotbar();
         _play.AddChild(Hotbar);
-        Tooltip = new InteractionTooltip { Size = new Vector2(330, 170) };
+        Tooltip = new InteractionTooltip { Size = new Vector2(ColumnWidth, 170) };
         _play.AddChild(Tooltip);
-        Notes = new Notifications { Size = new Vector2(330, 200) };
-        _play.AddChild(Notes);
+        Notes = new Notifications { Size = new Vector2(ColumnWidth, 200) };
+        _ambient.AddChild(Notes);
         Captions = new Subtitles { Name = "Subtitles" };
         _play.AddChild(Captions);
         _play.AddChild(new VaultPrompt { Name = "VaultPrompt" });
@@ -177,6 +192,8 @@ public partial class Hud : CanvasLayer
         // New names for the pieces that changed shape, so a layout saved for the old dials isn't applied to them.
         LayoutEditor.AddPiece("hearts", Hearts);
         LayoutEditor.AddPiece(SideHeartsPiece, SideHearts);
+        UiLayoutEditor arranging = LayoutEditor;
+        Equipment.Arranging = () => arranging.Editing;
         if (SideHearts != null)
         {
             // Moved by hand (Alt and drag) they stay where they were put; until then they follow the carrier.
@@ -229,12 +246,13 @@ public partial class Hud : CanvasLayer
 
     private NeedIcon Need(string name, InkIcon icon, Color colour)
     {
-        NeedIcon need = new() { Name = name, Icon = icon, RingColour = colour };
-        _play!.AddChild(need);
+        NeedIcon need = new() { Name = name, Icon = icon, RingColour = colour, IconSize = 38.0f };
+        _ambient!.AddChild(need);
         return need;
     }
 
     private int _heartRows = 1;
+    private int _heartCount = -1;
 
     private void OnVitals(VitalsSnapshot vitals)
     {
@@ -244,10 +262,11 @@ public partial class Hud : CanvasLayer
         ThirstIcon?.SetValue(vitals.Thirst, 100.0f);
         // Warmth is what the cold hasn't taken: full while warm or sheltered.
         WarmthIcon?.SetValue((1.0f - Mathf.Clamp(GameEvents.CarrierCold, 0.0f, 1.0f)) * 100.0f, 100.0f);
-        if (Hearts != null && Hearts.RowsUsed != _heartRows)
+        if (Hearts != null && (Hearts.RowsUsed != _heartRows || Hearts.HeartCount != _heartCount))
         {
             // More (or fewer) rows of hearts: the icons under them move.
             _heartRows = Hearts.RowsUsed;
+            _heartCount = Hearts.HeartCount;
             Layout();
         }
     }
@@ -261,13 +280,17 @@ public partial class Hud : CanvasLayer
     /// <summary>Places everything for a screen of <paramref name="screen"/> pixels (also used by tests).</summary>
     public void LayoutFor(Vector2 screen)
     {
+        // Top left, the vitals card: the hearts over the need icons, on one panel.
         float cornerRight = Margin;
         float needsBottom = Margin;
+        float inside = Margin + VitalsPad;
+        float vitalsWidth = 0.0f;
         if (Hearts != null)
         {
-            Hearts.Position = new Vector2(Margin, EdgeGap + 4.0f);
-            cornerRight = Hearts.Position.X + Hearts.Size.X;
-            needsBottom = Hearts.Position.Y + Hearts.Size.Y;
+            Hearts.Position = new Vector2(inside - 2.0f, Margin + VitalsPad - 4.0f);
+            float shown = Mathf.Min(Hearts.HeartCount, Hearts.PerRow) * (Hearts.HeartSize + Hearts.Gap) - Hearts.Gap + 4.0f;
+            vitalsWidth = shown;
+            needsBottom = Hearts.Position.Y + Hearts.RowsUsed * (Hearts.HeartSize + Hearts.Gap);
         }
         NeedIcon?[] needs = { HungerIcon, ThirstIcon, WarmthIcon };
         float needsTop = needsBottom + 2.0f;
@@ -275,10 +298,23 @@ public partial class Hud : CanvasLayer
         {
             if (needs[i] != null)
             {
-                needs[i]!.Position = new Vector2(Margin + i * (needs[i]!.Size.X + Gap), needsTop);
+                needs[i]!.Position = new Vector2(inside - 3.0f + i * (needs[i]!.Size.X + 6.0f), needsTop);
                 needsBottom = needs[i]!.Position.Y + needs[i]!.Size.Y;
+                vitalsWidth = Mathf.Max(vitalsWidth, needs[i]!.Position.X + needs[i]!.Size.X - inside - 3.0f);
             }
         }
+        _vitalsSize = new Vector2(vitalsWidth + VitalsPad * 2.0f, needsBottom - Margin + VitalsPad - 4.0f);
+        if (_vitals != null)
+        {
+            _vitals.Position = new Vector2(Margin, Margin);
+            if (!_vitals.Size.IsEqualApprox(_vitalsSize))
+            {
+                _vitals.Size = _vitalsSize;
+                _vitals.Material = UiStyle.Parchment(_vitalsSize, 3.0f, 3.0f, 3.0f);
+            }
+        }
+        cornerRight = Margin + _vitalsSize.X;
+        needsBottom = Margin + _vitalsSize.Y;
         if (Alerts != null)
         {
             Alerts.Position = new Vector2(Margin, needsBottom + Gap);
@@ -287,7 +323,7 @@ public partial class Hud : CanvasLayer
         float stripRight = 0.0f;
         if (Compass != null)
         {
-            // Top centre; in a narrow window it slides right, clear of the hearts.
+            // Top centre, on the same top line as the corners; in a narrow window it slides right, clear of the vitals.
             Compass.Position = new Vector2(Mathf.Max((screen.X - Compass.Size.X) * 0.5f, cornerRight + Gap), EdgeGap);
             stripBottom = Compass.Position.Y + Compass.Size.Y;
             stripRight = Compass.Position.X + Compass.Size.X;
@@ -297,11 +333,11 @@ public partial class Hud : CanvasLayer
         if (Descent != null)
         {
             descentLeft = screen.X - Margin - Descent.Size.X;
-            float top = Margin - 4.0f;
+            float top = Margin;
             if (descentLeft < stripRight + Gap)
             {
                 // No room beside the compass strip: the note goes under it.
-                top = stripBottom + Gap * 0.6f;
+                top = stripBottom + Gap;
             }
             Descent.Position = new Vector2(descentLeft, top);
             descentBottom = top + Descent.Size.Y;
@@ -318,7 +354,7 @@ public partial class Hud : CanvasLayer
             // Left side, mid height: under the low-stat list when the screen is tall enough, never over the hotbar's row.
             float top = Mathf.Max(needsBottom + Gap + AlertsHeight, screen.Y * 0.5f - Equipment.Size.Y * 0.5f);
             top = Mathf.Min(top, hotbarTop - Gap - Equipment.Size.Y);
-            Equipment.Position = new Vector2(Margin - 4.0f, Mathf.Max(top, needsBottom + Gap));
+            Equipment.Position = new Vector2(Margin, Mathf.Max(top, needsBottom + Gap));
             equipmentRight = Equipment.Position.X + Equipment.Size.X;
         }
         ObjectivesStacked = false;
@@ -330,7 +366,7 @@ public partial class Hud : CanvasLayer
             float right = descentLeft - Gap - ObjectivePanel.PanelWidth;
             if (right >= left)
             {
-                Objectives.Position = new Vector2(Mathf.Clamp((screen.X - ObjectivePanel.PanelWidth) * 0.5f, left, right), stripBottom + Gap * 0.8f);
+                Objectives.Position = new Vector2(Mathf.Clamp((screen.X - ObjectivePanel.PanelWidth) * 0.5f, left, right), stripBottom + Gap);
                 if (Banner != null)
                 {
                     Banner.MinTop = Objectives.Position.Y + Objectives.MaxHeight + 12.0f;
@@ -357,7 +393,11 @@ public partial class Hud : CanvasLayer
             }
         }
         PlaceNotes(screen);
-        Tooltip?.SetHome(new Vector2(screen.X - 350, screen.Y - 300));
+        if (Tooltip != null)
+        {
+            // Right column, above the ability card in the corner.
+            Tooltip.SetHome(new Vector2(screen.X - Margin - Tooltip.Size.X, screen.Y - Margin - 44.0f - Gap - Tooltip.Size.Y));
+        }
         foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, MapPage, Journal, Talk, RadioPage })
         {
             if (page != null)
@@ -386,11 +426,11 @@ public partial class Hud : CanvasLayer
         float top = Margin + 182.0f;
         if (Descent != null)
         {
-            top = Descent.Position.Y + Descent.Size.Y + Gap + 2.0f;
+            top = Descent.Position.Y + Descent.Size.Y + Gap;
         }
         if (ObjectivesStacked && Objectives != null && Objectives.Visible)
         {
-            top = Objectives.Position.Y + Objectives.Size.Y + 8.0f;
+            top = Objectives.Position.Y + Objectives.Size.Y + Gap;
         }
         Notes.Position = new Vector2(screen.X - Margin - Notes.Size.X, top);
     }
@@ -552,7 +592,16 @@ public partial class Hud : CanvasLayer
         {
             return;
         }
-        _play.Visible = !GameEvents.IsPacking && !Debug.DebugDraw3D.HideHud;
+        // The pause menu and the title screen take the whole screen; packing has its own.
+        _play.Visible = !GameEvents.IsPacking && !Debug.DebugDraw3D.HideHud && !MenuPaused;
+        if (_ambient != null)
+        {
+            // A page or the map open: what is read off the world steps back (the hotbar and the gear sheet stay to drag to).
+            float target = PageShowing() ? 0.0f : 1.0f;
+            float alpha = Mathf.MoveToward(_ambient.Modulate.A, target, (float)delta * 8.0f);
+            _ambient.Modulate = new Color(1, 1, 1, alpha);
+            _ambient.Visible = alpha > 0.01f;
+        }
         if (ObjectivesStacked)
         {
             PlaceNotes(GetViewport().GetVisibleRect().Size);
@@ -561,6 +610,23 @@ public partial class Hud : CanvasLayer
         {
             Compass.WaypointAngle = NearestWaypointAngle();
         }
+    }
+
+    /// <summary>True while one of the pages (inventory, journal, map, conversation, radio) is open over the world.</summary>
+    private bool PageShowing()
+    {
+        if (GameEvents.IsMapOpen)
+        {
+            return true;
+        }
+        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, Journal, Talk, RadioPage, MapPage })
+        {
+            if (page != null && page.IsOpen && page.Visible)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>Direction of the nearest waypoint (or, with none set, the next station) relative to the view, or NaN.</summary>

@@ -15,12 +15,13 @@ public partial class CircleTitle : Node3D
     [Export] public float Distance { get; set; } = 9.0f;
     [Export] public float Height { get; set; } = 1.8f;
     [Export] public float FadeSeconds { get; set; } = 1.5f;
-    [Export] public float HoldSeconds { get; set; } = 3.5f;
+    [Export] public float HoldSeconds { get; set; } = 2.5f;
     [Export] public float StartDelay { get; set; } = 1.0f;
     [Export] public int FontSize { get; set; } = 160;
     [Export] public float PixelSize { get; set; } = 0.006f;
-    [Export] public Color TextColor { get; set; } = new(0.95f, 0.88f, 0.75f);
-    [Export] public string FirstHint { get; set; } = "Esc for controls";
+    [Export] public Color TextColor { get; set; } = new(0.93f, 0.95f, 0.97f);
+    /// <summary>A line under the first title (the start note already says where the controls are).</summary>
+    [Export] public string FirstHint { get; set; } = "";
 
     private Label3D? _title;
     private Label3D? _subtitle;
@@ -29,10 +30,17 @@ public partial class CircleTitle : Node3D
     private float _timer = -1.0f;
     private float _startTimer;
     private bool _started;
+    /// <summary>True from the run's start until the circle's name has faded: the objective card waits, so the two never overlap.</summary>
+    public static bool InAir { get; private set; }
+
+    /// <summary>The title screen, while it is up: nothing is written in the air behind the menu.</summary>
+    private StartScreen? _menu;
 
     public override void _Ready()
     {
         TopLevel = true;
+        _menu = GetParent()?.GetNodeOrNull<StartScreen>("StartScreen");
+        InAir = true;
         _run = GetNodeOrNull<RunState>("/root/RunState");
         _title = MakeLabel(FontSize, Vector3.Zero);
         _subtitle = MakeLabel(FontSize / 3, Vector3.Down * (FontSize * PixelSize * 0.75f));
@@ -44,6 +52,7 @@ public partial class CircleTitle : Node3D
     {
         GameEvents.DepthChanged -= OnDepthChanged;
         GameEvents.RespawnRequested -= OnRespawn;
+        InAir = false;
     }
 
     private Label3D MakeLabel(int size, Vector3 offset)
@@ -80,6 +89,7 @@ public partial class CircleTitle : Node3D
         _title.Text = numeral + name;
         _subtitle.Text = hint;
         _timer = 0.0f;
+        InAir = true;
         _title.Visible = true;
         _subtitle.Visible = hint.Length > 0;
     }
@@ -87,6 +97,11 @@ public partial class CircleTitle : Node3D
     public override void _Process(double delta)
     {
         float dt = (float)delta;
+        if (_menu != null && IsInstanceValid(_menu) && !_menu.Started)
+        {
+            // The title screen is up: the first name waits for the run to begin.
+            return;
+        }
         if (!_started)
         {
             _startTimer += dt;
@@ -120,6 +135,7 @@ public partial class CircleTitle : Node3D
         if (_timer >= total)
         {
             _timer = -1.0f;
+            InAir = false;
             _title.Visible = false;
             _subtitle.Visible = false;
         }

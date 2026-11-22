@@ -17,6 +17,9 @@ public partial class ParchmentPanel : Control
     public float Seed { get; set; }
     public float Border { get; set; } = 4.0f;
     public float Tear { get; set; } = 5.0f;
+    /// <summary>How solid the background is (negative: a page with a close cross, a window over the world, is nearly solid; other panels see-through).</summary>
+    public float Opacity { get; set; } = -1.0f;
+    private float ShownOpacity => Opacity >= 0.0f ? Opacity : (Closable ? UiStyle.PageOpacity : UiStyle.PanelOpacity);
     /// <summary>Space reserved at the top for the heading, in pixels.</summary>
     public float HeaderHeight
     {
@@ -70,7 +73,7 @@ public partial class ParchmentPanel : Control
         }
         _paper.Position = Vector2.Zero;
         _paper.Size = Size;
-        _paper.Material = UiStyle.Parchment(Size, Seed, Border, Tear);
+        _paper.Material = UiStyle.Parchment(Size, Seed, Border, Tear, ShownOpacity);
         _shadow.Position = new Vector2(5, 6);
         _shadow.Size = Size;
         _shadow.Material = UiStyle.Parchment(Size, Seed, 0.0f, Tear);

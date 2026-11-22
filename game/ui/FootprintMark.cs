@@ -38,17 +38,15 @@ public partial class FootprintMark : Control
         }
         if (Cells.Y > 1)
         {
-            // An up arrow if the hand-drawn font has one, else a caret.
-            string arrow = "^";
-            if (UiStyle.Hand.HasChar(0x2191))
-            {
-                arrow = "↑";
-            }
-            string tall = arrow + Cells.Y;
-            Vector2 text = UiStyle.Hand.GetStringSize(tall, HorizontalAlignment.Left, -1, 12);
-            Vector2 at = new(origin.X - text.X - 4.0f, origin.Y + 10.0f);
-            DrawRect(new Rect2(at - new Vector2(2.0f, 11.0f), text + new Vector2(4.0f, 2.0f)), new Color(UiStyle.Paper, 0.9f));
-            DrawString(UiStyle.Hand, at, tall, HorizontalAlignment.Left, -1, 12, UiStyle.Ink);
+            // How many cells tall: a small drawn up-arrow and the number ("▲2"), beside the grid.
+            string tall = Cells.Y.ToString();
+            Vector2 text = UiStyle.Strong.GetStringSize(tall, HorizontalAlignment.Left, -1, 12);
+            float arrowWidth = 7.0f;
+            Vector2 at = new(origin.X - text.X - arrowWidth - 6.0f, origin.Y + 9.0f);
+            DrawRect(new Rect2(at - new Vector2(2.0f, 10.0f), new Vector2(text.X + arrowWidth + 5.0f, 12.0f)), new Color(UiStyle.Paper, 0.9f));
+            Vector2 tip = at + new Vector2(arrowWidth * 0.5f, -8.0f);
+            DrawColoredPolygon(new[] { tip, at + new Vector2(arrowWidth, -1.5f), at + new Vector2(0.0f, -1.5f) }, new Color(UiStyle.Ink, 0.85f));
+            DrawString(UiStyle.Strong, at + new Vector2(arrowWidth + 2.0f, 0.0f), tall, HorizontalAlignment.Left, -1, 12, UiStyle.Ink);
         }
     }
 }

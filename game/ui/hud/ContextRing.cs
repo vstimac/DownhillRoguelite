@@ -40,7 +40,7 @@ public partial class ContextRing : Control
     [Export] public float TorchLowBelow { get; set; } = 0.15f;
     [Export] public Color TorchColour { get; set; } = new(0.95f, 0.62f, 0.2f);
     [Export] public Color Track { get; set; } = new(0.1f, 0.08f, 0.06f, 0.8f);
-    [Export] public Color Plate { get; set; } = new(0.86f, 0.79f, 0.64f, 0.28f);
+    [Export] public Color Plate { get; set; } = new(0.06f, 0.08f, 0.1f, 0.45f);
 
     /// <summary>Stamina as a share of its maximum, as last heard.</summary>
     public float Stamina { get; private set; } = 1.0f;

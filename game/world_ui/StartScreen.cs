@@ -319,7 +319,7 @@ public partial class StartScreen : CanvasLayer
         _hint.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.75f));
         _column.AddChild(_hint);
         UpdateCharacterHint();
-        _keys = UiStyle.MakeLabel("", UiStyle.SmallSize, false, UiStyle.PaperDark);
+        _keys = UiStyle.MakeLabel("", UiStyle.SmallSize, false, UiStyle.Muted);
         _keys.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.7f));
         _root.AddChild(_keys);
         _version = UiStyle.MakeLabel(VersionLine(), UiStyle.SmallSize, false, new Color(UiStyle.Muted, 0.9f));

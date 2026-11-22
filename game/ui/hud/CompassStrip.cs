@@ -29,8 +29,8 @@ public partial class CompassStrip : Control
     [Export] public float FullWind { get; set; } = 15.0f;
     /// <summary>No feather below this wind speed, in m/s.</summary>
     [Export] public float CalmBelow { get; set; } = 1.5f;
-    [Export] public Color Back { get; set; } = new(0.86f, 0.79f, 0.64f, 0.82f);
-    [Export] public Color WindColour { get; set; } = new(0.2f, 0.42f, 0.7f, 0.95f);
+    [Export] public Color Back { get; set; } = new(0.06f, 0.08f, 0.1f, UiStyle.PanelOpacity);
+    [Export] public Color WindColour { get; set; } = new(UiStyle.Thirst, 0.95f);
 
     private float _shown;
     private float _windShown;
@@ -81,10 +81,10 @@ public partial class CompassStrip : Control
         float w = Size.X;
         float h = Size.Y;
         float pad = 10.0f;
-        // A paper band with inked lines above and below, torn short at the ends.
-        DrawRect(new Rect2(new Vector2(0.0f, 4.0f), new Vector2(w, h - 8.0f)), Back);
-        DrawLine(new Vector2(0.0f, 4.0f), new Vector2(w, 4.0f), UiStyle.Ink, 2.0f, true);
-        DrawLine(new Vector2(0.0f, h - 4.0f), new Vector2(w, h - 4.0f), UiStyle.Ink, 2.0f, true);
+        // A slate band like the other panels, with a hairline frame.
+        Rect2 band = new(Vector2.Zero, new Vector2(w, h));
+        DrawRect(band, Back);
+        DrawRect(band, new Color(UiStyle.Line, 0.8f), false, 1.0f);
 
         Font font = UiStyle.Heading;
         string[] marks = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
@@ -105,14 +105,15 @@ public partial class CompassStrip : Control
             {
                 string mark = marks[eighth % 8];
                 int size = 15;
-                Color ink = UiStyle.Ink;
+                Color ink = UiStyle.Muted;
                 if (eighth % 2 == 0)
                 {
                     size = 20;
+                    ink = UiStyle.Ink;
                 }
                 if (eighth % 8 == 0)
                 {
-                    ink = UiStyle.Warning.Darkened(0.2f);
+                    ink = UiStyle.Warning;
                 }
                 Vector2 text = font.GetStringSize(mark, HorizontalAlignment.Left, -1, size);
                 DrawString(font, new Vector2(x - text.X * 0.5f, h * 0.5f + text.Y * 0.28f), mark, HorizontalAlignment.Left, -1, size, new Color(ink, edge));
@@ -143,12 +144,12 @@ public partial class CompassStrip : Control
         {
             // The way to go: a red diamond on the tape, pinned to an end when it is out of view.
             float x = Mathf.Clamp(TapeX(WaypointAngle), pad, w - pad);
-            Vector2 at = new(x, 4.0f);
-            InkDraw.Shape(this, new[] { at + new Vector2(0, -5.5f), at + new Vector2(5.5f, 0), at + new Vector2(0, 5.5f), at + new Vector2(-5.5f, 0) }, UiStyle.Warning, 1.5f, 64);
+            Vector2 at = new(x, 6.0f);
+            DrawColoredPolygon(new[] { at + new Vector2(0, -5.5f), at + new Vector2(5.5f, 0), at + new Vector2(0, 5.5f), at + new Vector2(-5.5f, 0) }, UiStyle.Highlight);
         }
 
         // The notch: straight ahead.
         Vector2 top = new(w * 0.5f, h - 5.0f);
-        DrawColoredPolygon(new[] { top + new Vector2(0, -6.0f), top + new Vector2(5.0f, 3.0f), top + new Vector2(-5.0f, 3.0f) }, UiStyle.Ink);
+        DrawColoredPolygon(new[] { top + new Vector2(0, -6.0f), top + new Vector2(5.0f, 3.0f), top + new Vector2(-5.0f, 3.0f) }, UiStyle.Highlight);
     }
 }

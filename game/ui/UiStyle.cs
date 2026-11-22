@@ -13,7 +13,7 @@ public static class UiStyle
 {
     /// <summary>Text and lines: a cold off-white.</summary>
     public static readonly Color Ink = new(0.91f, 0.93f, 0.95f);
-    public static readonly Color InkSoft = new(0.91f, 0.93f, 0.95f, 0.55f);
+    public static readonly Color InkSoft = new(0.91f, 0.93f, 0.95f, 0.74f);
     /// <summary>The panels' slate (opaque here; the panel shader draws it see-through).</summary>
     public static readonly Color Paper = new(0.06f, 0.08f, 0.1f);
     /// <summary>A raised surface on a panel: a slot, a selected row's ground.</summary>
@@ -34,6 +34,13 @@ public static class UiStyle
     public const int TextSize = 19;
     public const int SmallSize = 15;
     public const int HeadingSize = 26;
+    /// <summary>The one screen margin every HUD piece keeps from the window's edges, in px.</summary>
+    public const float ScreenMargin = 24.0f;
+    /// <summary>The gap between neighbouring HUD pieces, in px.</summary>
+    public const float PieceGap = 12.0f;
+    /// <summary>A HUD panel's own see-through; pages (windows that take the mouse) are nearly solid.</summary>
+    public const float PanelOpacity = 0.86f;
+    public const float PageOpacity = 0.95f;
 
     private static Font? _hand;
     private static Font? _heading;
@@ -68,9 +75,11 @@ public static class UiStyle
     public static Shader InkIconShader => _inkIcon ??= ResourceLoader.Load<Shader>("res://ui/shaders/ink_icon.gdshader");
 
     /// <summary>A panel background for a control of <paramref name="size"/> (border 0: the fill alone, for a shadow).</summary>
-    public static ShaderMaterial Parchment(Vector2 size, float seed, float border = 4.0f, float tear = 5.0f)
+    public static ShaderMaterial Parchment(Vector2 size, float seed, float border = 4.0f, float tear = 5.0f, float opacity = PanelOpacity)
     {
         ShaderMaterial material = new() { Shader = ParchmentShader };
+        material.SetShaderParameter("panel_color", new Color(0.047f, 0.063f, 0.078f, opacity));
+        material.SetShaderParameter("panel_top", new Color(0.08f, 0.1f, 0.118f, opacity));
         material.SetShaderParameter("rect_size", size);
         material.SetShaderParameter("seed", seed);
         material.SetShaderParameter("border_px", border);
@@ -84,7 +93,9 @@ public static class UiStyle
         Font font = Hand;
         if (heading)
         {
+            // Headings show in capitals (MakeLabel), which are wider than the text as written.
             font = Heading;
+            text = text.ToUpperInvariant();
         }
         TextParagraph paragraph = new() { Width = width, BreakFlags = TextServer.LineBreakFlag.Mandatory | TextServer.LineBreakFlag.WordBound | TextServer.LineBreakFlag.Adaptive };
         paragraph.AddString(text, font, size);

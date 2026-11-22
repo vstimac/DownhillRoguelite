@@ -21,7 +21,7 @@ public partial class HeartRow : Control
     [Export] public float EaseRate { get; set; } = 6.0f;
     [Export] public float BeatSpeed { get; set; } = 7.0f;
     [Export] public float BeatScale { get; set; } = 0.18f;
-    [Export] public Color Empty { get; set; } = new(0.12f, 0.08f, 0.06f, 0.7f);
+    [Export] public Color Empty { get; set; } = new(0.06f, 0.08f, 0.1f, 0.7f);
 
     public float Value { get; private set; }
     public float Max { get; private set; } = 100.0f;
@@ -132,7 +132,7 @@ public partial class HeartRow : Control
             {
                 size *= 1.0f + BeatScale * Mathf.Max(0.0f, Mathf.Sin(_time * BeatSpeed));
             }
-            Vector2[] heart = InkDraw.Wobble(Outline(c, size), 0.4f, 40 + i);
+            Vector2[] heart = Outline(c, size);
             float fill = Mathf.Clamp((Shown - i * per) / per, 0.0f, 1.0f);
             DrawColoredPolygon(heart, Empty);
             if (fill > 0.001f)
@@ -160,8 +160,6 @@ public partial class HeartRow : Control
                         }
                     }
                 }
-                // A small paper glint, top left.
-                DrawLine(c + new Vector2(-size * 0.32f, -size * 0.18f), c + new Vector2(-size * 0.18f, -size * 0.32f), new Color(1, 1, 1, 0.4f), 2.0f, true);
             }
             // Hearts just lost flash pale.
             float lostFrom = i * per;
@@ -172,7 +170,9 @@ public partial class HeartRow : Control
             Vector2[] closed = new Vector2[heart.Length + 1];
             heart.CopyTo(closed, 0);
             closed[^1] = heart[0];
-            DrawPolyline(closed, UiStyle.Ink, 2.0f, true);
+            // A thin outline: light on an empty heart so it reads on dark ground, dark on a full one so it reads on snow.
+            Color edge = fill > 0.001f ? new Color(0.0f, 0.0f, 0.0f, 0.55f) : new Color(UiStyle.Muted, 0.8f);
+            DrawPolyline(closed, edge, 1.5f, true);
         }
     }
 }

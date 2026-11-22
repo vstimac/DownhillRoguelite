@@ -59,7 +59,7 @@ public partial class Hotbar : Control
         AddChild(strip);
         for (int i = 0; i < Slots; i++)
         {
-            ItemSlot s = new() { Position = new Vector2(ArrowWidth + EdgePad + i * (slot + gap), NameRoom + StripPad), Size = new Vector2(slot, slot), KeyHint = (i + 1).ToString(), Index = i };
+            ItemSlot s = new() { Position = new Vector2(ArrowWidth + EdgePad + i * (slot + gap), NameRoom + StripPad), Size = new Vector2(slot, slot), KeyHint = (i + 1).ToString(), Index = i, ShowFootprint = false };
             s.Clicked += OnSlotClicked;
             AddChild(s);
             _slots.Add(s);

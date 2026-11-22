@@ -112,7 +112,7 @@ public partial class ObjectiveBanner : Control
         {
             return;
         }
-        bool held = (GetTree().Paused && !GameEvents.PagesFrozen) || GameEvents.MenuOpen;
+        bool held = (GetTree().Paused && !GameEvents.PagesFrozen) || GameEvents.MenuOpen || WorldUi.CircleTitle.InAir;
         if (_left > 0.0f)
         {
             if (!held)

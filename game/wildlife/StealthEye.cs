@@ -19,7 +19,7 @@ public partial class StealthEye : CanvasLayer
     /// <summary>Animals this close to the carrier count, in m.</summary>
     [Export] public float Range { get; set; } = 35.0f;
     /// <summary>Its centre sits this far above the bottom of the screen, in px.</summary>
-    [Export] public float Bottom { get; set; } = 150.0f;
+    [Export] public float Bottom { get; set; } = 160.0f;
     /// <summary>Seconds between looks over the animals.</summary>
     [Export] public float ScanInterval { get; set; } = 0.15f;
 
@@ -103,14 +103,14 @@ public partial class StealthEye : CanvasLayer
             || (snapshot.State == LocomotionState.Idle && Input.IsActionPressed(WildlifeSpawner.CrouchAction));
     }
 
-    /// <summary>The eye itself, drawn in ink on a parchment disc like the rest of the journal HUD.</summary>
+    /// <summary>The eye itself, drawn light on a slate disc like the rest of the HUD.</summary>
     private partial class EyeMark : Control
     {
         public const float Width = 46.0f;
-        private static readonly Color Paper = new(0.93f, 0.87f, 0.74f, 0.88f);
-        private static readonly Color Ink = new(0.24f, 0.17f, 0.11f, 1.0f);
-        private static readonly Color Amber = new(0.80f, 0.55f, 0.12f, 1.0f);
-        private static readonly Color Red = new(0.72f, 0.12f, 0.08f, 1.0f);
+        private static readonly Color Paper = new(0.06f, 0.08f, 0.1f, 0.86f);
+        private static readonly Color Ink = new(0.91f, 0.93f, 0.95f, 1.0f);
+        private static readonly Color Amber = new(0.95f, 0.7f, 0.35f, 1.0f);
+        private static readonly Color Red = new(0.95f, 0.36f, 0.26f, 1.0f);
 
         public WildlifeAnimal.Awareness Level { get; set; }
 
@@ -150,7 +150,7 @@ public partial class StealthEye : CanvasLayer
             if (open > 0.3f)
             {
                 DrawCircle(centre, Mathf.Min(lid, Width * 0.13f), iris);
-                DrawCircle(centre, Mathf.Min(lid, Width * 0.13f) * 0.45f, Ink);
+                DrawCircle(centre, Mathf.Min(lid, Width * 0.13f) * 0.45f, Paper with { A = 1.0f });
             }
             DrawPolyline(outline, Ink, 2.0f, true);
             if (Level == WildlifeAnimal.Awareness.Alerted)

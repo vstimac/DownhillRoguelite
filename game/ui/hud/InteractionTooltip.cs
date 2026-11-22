@@ -101,10 +101,9 @@ public partial class InteractionTooltip : ParchmentPanel
             Visible = true;
             Position = _home + new Vector2(80, 0);
             Modulate = new Color(1, 1, 1, 0);
-            Rotation = Mathf.DegToRad(4.0f);
+            Rotation = 0.0f;
             _slide.TweenProperty(this, "position", _home, 0.25).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
             _slide.TweenProperty(this, "modulate:a", 1.0f, 0.15);
-            _slide.TweenProperty(this, "rotation", Mathf.DegToRad(-1.0f), 0.3);
         }
         else
         {

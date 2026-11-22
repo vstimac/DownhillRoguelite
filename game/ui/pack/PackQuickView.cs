@@ -12,9 +12,9 @@ namespace DownhillRoguelite.Ui;
 public partial class PackQuickView : ParchmentPanel
 {
     /// <summary>Gap between the sheet and the screen's right edge, in px.</summary>
-    [Export] public float ScreenMargin { get; set; } = 28.0f;
-    /// <summary>Where the sheet's top sits, as a share of the screen's height (under the notes, over the ability card).</summary>
-    [Export] public float ScreenTop { get; set; } = 0.37f;
+    [Export] public float ScreenMargin { get; set; } = UiStyle.ScreenMargin;
+    /// <summary>Room kept under the sheet for the ability card in the corner, in px (the sheet sits right on top of it).</summary>
+    [Export] public float CornerRoom { get; set; } = 44.0f + UiStyle.PieceGap;
     [Export] public string Hint { get; set; } = "Hold Tab to set the pack down and repack";
 
     public PackGridView? View { get; private set; }
@@ -26,18 +26,18 @@ public partial class PackQuickView : ParchmentPanel
     {
         Title = "Pack";
         Seed = 57.0f;
-        Size = new Vector2(300, 430);
+        Size = new Vector2(300, 420);
         base._Ready();
         MouseFilter = MouseFilterEnum.Ignore;
-        View = new PackGridView { Position = new Vector2(14, HeaderHeight), Size = new Vector2(Size.X - 28, Size.Y - HeaderHeight - 74) };
+        View = new PackGridView { Position = new Vector2(14, HeaderHeight), Size = new Vector2(Size.X - 28, Size.Y - HeaderHeight - 86) };
         AddChild(View);
         _weight = UiStyle.MakeLabel("", UiStyle.TextSize, true);
-        _weight.Position = new Vector2(20, Size.Y - 74);
-        _weight.Size = new Vector2(Size.X - 40, 28);
+        _weight.Position = new Vector2(16, Size.Y - 84);
+        _weight.Size = new Vector2(Size.X - 32, 28);
         AddChild(_weight);
         _hint = UiStyle.MakeLabel(Hint, UiStyle.SmallSize, false, UiStyle.InkSoft);
-        _hint.Position = new Vector2(20, Size.Y - 46);
-        _hint.Size = new Vector2(Size.X - 40, 40);
+        _hint.Position = new Vector2(16, Size.Y - 56);
+        _hint.Size = new Vector2(Size.X - 32, 42);
         _hint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         AddChild(_hint);
         GameEvents.PackQuickViewRequested += OnRequested;
@@ -62,7 +62,8 @@ public partial class PackQuickView : ParchmentPanel
             return;
         }
         Vector2 screen = GetViewportRect().Size;
-        Position = new Vector2(screen.X - Size.X - ScreenMargin, Mathf.Min(screen.Y * ScreenTop, screen.Y - Size.Y));
+        // Right column, on the HUD margin, standing on the ability card: one edge with the notes above and the card below.
+        Position = new Vector2(screen.X - Size.X - ScreenMargin, Mathf.Max(ScreenMargin, screen.Y - ScreenMargin - CornerRoom - Size.Y));
         Open();
     }
 

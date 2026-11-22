@@ -9,13 +9,14 @@ namespace DownhillRoguelite.Ui;
 /// title strip whenever they're open. Holding Alt frees the mouse and shows every HUD piece (dials,
 /// descent note, compass, equipment, hotbar, tooltip, notes) with a dashed frame: drag one to move
 /// it; Alt+Backspace puts everything back. Moved pieces are kept on screen when the window size
-/// changes and remembered between sessions (user://ui_layout.cfg; not in headless runs, so tests see
+/// changes and remembered between sessions (user://ui_layout_expedition.cfg; not in headless runs, so tests see
 /// the default layout). Presentation only: the Hud registers the pieces and lays out the defaults,
 /// then this applies the player's own positions on top.
 /// </summary>
 public partial class UiLayoutEditor : Control
 {
-    [Export] public string SavePath { get; set; } = "user://ui_layout.cfg";
+    /// <summary>Where the moved positions are kept: a file of its own for the expedition HUD (positions saved for the journal HUD, whose pieces had other sizes, are left alone and unread).</summary>
+    [Export] public string SavePath { get; set; } = "user://ui_layout_expedition.cfg";
     /// <summary>How tall the grab strip at the top of a page is, in px (the close button is left free).</summary>
     [Export] public float HeaderGrab { get; set; } = 52.0f;
     [Export] public float CloseButtonSpace { get; set; } = 56.0f;

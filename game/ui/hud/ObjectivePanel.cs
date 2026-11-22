@@ -30,6 +30,7 @@ public partial class ObjectivePanel : ParchmentPanel
     private Label? _circle;
     private RunState? _run;
     private string _lastTitle = "";
+    private string _signature = "";
     private float _scoreTimer;
 
     public override void _Ready()
@@ -66,8 +67,21 @@ public partial class ObjectivePanel : ParchmentPanel
         return label;
     }
 
+    /// <summary>Seconds after the goals last changed before the note folds to the goal and its distance.</summary>
+    [Export] public float CompactAfter { get; set; } = 10.0f;
+    /// <summary>True while folded: the why, the circle and the score are left out until the goals change.</summary>
+    public bool Compact { get; private set; }
+    private float _sinceChange;
+    private IReadOnlyList<ObjectiveNote> _notes = System.Array.Empty<ObjectiveNote>();
+
     public override void _Process(double delta)
     {
+        _sinceChange += (float)delta;
+        if (!Compact && _sinceChange > CompactAfter)
+        {
+            Compact = true;
+            Show(_notes);
+        }
         _scoreTimer -= (float)delta;
         if (_scoreTimer > 0.0f || _score == null || _run == null)
         {
@@ -86,6 +100,7 @@ public partial class ObjectivePanel : ParchmentPanel
         {
             return;
         }
+        _notes = notes;
         ObjectiveNote? main = null;
         ObjectiveNote? circle = null;
         List<ObjectiveNote> sides = new();
@@ -112,14 +127,31 @@ public partial class ObjectivePanel : ParchmentPanel
         }
         float width = PanelWidth - Padding * 2.0f;
         List<string> lines = new();
-        // The score has the top line to itself; the goal starts under it.
+        // A new goal (or side goal) unfolds the note again; the distances ticking down don't.
+        string signature = main.Value.Title;
+        foreach (ObjectiveNote side in sides)
+        {
+            signature += "|" + side.Title + side.Done + side.Failed;
+        }
+        if (signature != _signature)
+        {
+            _signature = signature;
+            _sinceChange = 0.0f;
+            Compact = false;
+        }
+        // The score has the top line to itself; the goal starts under it. Folded, the goal starts at the top.
         float y = Padding - 2.0f + ScoreLine;
+        if (Compact)
+        {
+            y = Padding - 4.0f;
+        }
+        _score.Visible = !Compact;
         _score.Position = new Vector2(PanelWidth - Padding - 120.0f, 6.0f);
         _score.Size = new Vector2(120.0f, 20.0f);
 
         y = Place(_title, main.Value.Title, width, y, 22, true, lines);
-        y = Place(_why, main.Value.Why, width, y, UiStyle.SmallSize, false, lines);
-        y = Place(_progress, main.Value.Progress, width, y, UiStyle.SmallSize, false, lines);
+        y = Place(_why, main.Value.Why, width, y, UiStyle.SmallSize, false, lines, !Compact);
+        y = Place(_progress, main.Value.Progress, width, y + 2.0f, UiStyle.SmallSize, false, lines);
         y += 4.0f;
         for (int i = 0; i < _sides.Count; i++)
         {
@@ -136,7 +168,7 @@ public partial class ObjectivePanel : ParchmentPanel
         if (circle != null)
         {
             y += 2.0f;
-            y = Place(_circle, circle.Value.Title + " · " + circle.Value.Progress, width, y, UiStyle.SmallSize, false, lines);
+            y = Place(_circle, circle.Value.Title + " · " + circle.Value.Progress, width, y, UiStyle.SmallSize, false, lines, !Compact);
         }
         else
         {
@@ -184,9 +216,14 @@ public partial class ObjectivePanel : ParchmentPanel
         return UiStyle.Ink;
     }
 
-    private float Place(Label label, string text, float width, float y, int size, bool heading, List<string> lines)
+    private float Place(Label label, string text, float width, float y, int size, bool heading, List<string> lines, bool shown = true)
     {
-        if (text.Length == 0 || y > MaxHeight - Padding - 12.0f)
+        if (!shown && text.Length > 0)
+        {
+            // Folded away for now, but still part of what the note says.
+            lines.Add(text);
+        }
+        if (!shown || text.Length == 0 || y > MaxHeight - Padding - 12.0f)
         {
             label.Visible = false;
             return y;

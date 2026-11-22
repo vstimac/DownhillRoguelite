@@ -12,10 +12,14 @@ namespace DownhillRoguelite.Ui;
 /// </summary>
 public partial class DescentPanel : ParchmentPanel
 {
-    public string Text => _body?.Text ?? "";
-    /// <summary>The note never gets shorter than this, in px (its height in the HUD layout).</summary>
-    [Export] public float MinHeight { get; set; } = 172.0f;
+    public string Text => (_heading?.Text ?? "") + "\n" + (_body?.Text ?? "");
+    /// <summary>The note never gets shorter than this, in px.</summary>
+    [Export] public float MinHeight { get; set; } = 60.0f;
+    /// <summary>Above this depth the carrier is "at the summit", in m (the first steps aren't a distance worth a number).</summary>
+    [Export] public int SummitDepth { get; set; } = 5;
+    public const int BodySize = 16;
 
+    private Label? _heading;
     private Label? _body;
     private RunState? _run;
     private WorldClock? _clock;
@@ -28,8 +32,13 @@ public partial class DescentPanel : ParchmentPanel
         base._Ready();
         _run = GetNodeOrNull<RunState>("/root/RunState");
         _clock = GetNodeOrNull<WorldClock>("/root/WorldClock");
-        _body = UiStyle.MakeLabel("", UiStyle.TextSize);
-        _body.Position = new Vector2(20, 14);
+        // The circle as the heading, where you are under it: the same build as the goal note beside it.
+        _heading = UiStyle.MakeLabel("", 18, true);
+        _heading.Position = new Vector2(16, 10);
+        AddChild(_heading);
+        _body = UiStyle.MakeLabel("", BodySize);
+        _body.Position = new Vector2(16, 36);
+        _body.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         AddChild(_body);
     }
 
@@ -72,18 +81,27 @@ public partial class DescentPanel : ParchmentPanel
             }
             time = $"Day {_clock.Day} · {TimeText.PartOfDay(_clock.TimeOfDay)} · {until}";
         }
-        _body.Text = $"{depth} m below the summit\nCircle {circle}\nWeather: {sky}\n{time}";
-        // The note grows with its lines (a long weather or time line wraps), so none falls off the paper.
-        float needed = _body.Position.Y + _body.GetMinimumSize().Y + 16.0f;
-        if (!Mathf.IsEqualApprox(Size.Y, Mathf.Max(needed, MinHeight)))
+        string where = depth < SummitDepth ? "At the summit" : $"{depth:N0} m below the summit";
+        if (_heading != null)
         {
-            Size = new Vector2(Size.X, Mathf.Max(needed, MinHeight));
+            _heading.Text = "Circle " + circle;
+            _heading.Size = new Vector2(Size.X - 32.0f, 24.0f);
         }
-        if (circle != _lastPlace)
+        _body.Text = $"{where}\nWeather: {sky}\n{time}";
+        // The note fits its lines (a long weather or time line wraps), so none falls off the panel and none is empty.
+        float width = Size.X - 32.0f;
+        float lines = UiStyle.Wrapped(_body.Text, BodySize, width).Y;
+        _body.Size = new Vector2(width, lines);
+        float needed = Mathf.Max(_body.Position.Y + lines + 12.0f, MinHeight);
+        if (!Mathf.IsEqualApprox(Size.Y, needed))
+        {
+            Size = new Vector2(Size.X, needed);
+        }
+        if (circle != _lastPlace && _heading != null)
         {
             _lastPlace = circle;
-            _body.Modulate = UiStyle.Muted;
-            CreateTween().TweenProperty(_body, "modulate", Colors.White, 0.8);
+            _heading.Modulate = UiStyle.Highlight;
+            CreateTween().TweenProperty(_heading, "modulate", Colors.White, 1.2);
         }
     }
 

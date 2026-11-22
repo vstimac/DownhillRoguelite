@@ -15,6 +15,8 @@ namespace DownhillRoguelite.Ui;
 public partial class Notifications : Control
 {
     public const int MaxNotes = 4;
+    /// <summary>The notes' letters: a size smaller than body text, so a column of them stays light.</summary>
+    public const int TextSize = 17;
     [Export] public float Life { get; set; } = 4.0f;
 
     public IReadOnlyList<string> Recent => _recent;
@@ -184,25 +186,27 @@ public partial class Notifications : Control
         {
             oldest.QueueFree();
         }
-        // As wide as its words (up to 320 px), as many lines tall as it needs: notes never cut off.
-        Vector2 words = UiStyle.Wrapped(text, UiStyle.TextSize, 280.0f);
-        Vector2 size = new(Mathf.Min(320.0f, words.X + 40.0f), words.Y + 14.0f);
+        // One column as wide as the notes' place (the descent note's width), as many lines tall as it needs: notes never cut off.
+        float width = Mathf.Max(Size.X, 160.0f);
+        Vector2 words = UiStyle.Wrapped(text, TextSize, width - 32.0f);
+        Vector2 size = new(width, words.Y + 16.0f);
         ColorRect paper = new() { Size = size, MouseFilter = MouseFilterEnum.Ignore };
         paper.Material = UiStyle.Parchment(size, _random.Randf() * 50.0f, 2.5f, 3.0f);
         Color ink = UiStyle.Ink;
         if (warning)
         {
-            ink = UiStyle.Warning.Darkened(0.25f);
+            ink = UiStyle.Warning.Lightened(0.15f);
+            // A warning's rule is red, not light.
+            ColorRect rule = new() { Color = UiStyle.Warning, Size = new Vector2(3.0f, size.Y), MouseFilter = MouseFilterEnum.Ignore };
+            paper.AddChild(rule);
         }
-        Label label = UiStyle.MakeLabel(text, UiStyle.TextSize, false, ink);
+        Label label = UiStyle.MakeLabel(text, TextSize, false, ink);
         label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        label.Position = new Vector2(18, 6);
-        label.Size = new Vector2(size.X - 30.0f, words.Y + 4.0f);
+        label.Position = new Vector2(16, 7);
+        label.Size = new Vector2(size.X - 32.0f, words.Y + 2.0f);
         paper.AddChild(label);
         AddChild(paper);
         Restack();
-        paper.PivotOffset = new Vector2(size.X, 0);
-        paper.Rotation = Mathf.DegToRad(_random.RandfRange(-3.0f, 3.0f));
         paper.Modulate = new Color(1, 1, 1, 0);
         float x = paper.Position.X;
         paper.Position += new Vector2(60, 0);
@@ -238,7 +242,27 @@ public partial class Notifications : Control
         return ItemText.Find(itemId)?.DisplayName ?? itemId;
     }
 
-    private void OnPicked(string itemId, string category) => Note($"Picked up {NameOf(itemId)}");
+    private ulong _grantFrame = ulong.MaxValue;
+    private readonly List<(ulong Frame, Control Note)> _pickNotes = new();
+
+    /// <summary>One note per pick-up, except for things handed over together (the starting kit, a reward): those get one note for all.</summary>
+    private void OnPicked(string itemId, string category)
+    {
+        ulong frame = Engine.GetProcessFrames();
+        if (frame == _grantFrame)
+        {
+            return;
+        }
+        Note($"Picked up {NameOf(itemId)}");
+        if (GetChildCount() > 0 && GetChild(GetChildCount() - 1) is Control note)
+        {
+            _pickNotes.Add((frame, note));
+            if (_pickNotes.Count > 8)
+            {
+                _pickNotes.RemoveAt(0);
+            }
+        }
+    }
 
     private void OnConsumed(SupplyNeed need, string itemId, float restore)
     {
@@ -312,6 +336,17 @@ public partial class Notifications : Control
 
     private void OnGranted(string[] items)
     {
+        // The pick-up notes the same handing-over already made (this frame) give way to the one note.
+        ulong frame = Engine.GetProcessFrames();
+        _grantFrame = frame;
+        foreach ((ulong at, Control note) in _pickNotes)
+        {
+            if (at == frame && IsInstanceValid(note))
+            {
+                note.QueueFree();
+            }
+        }
+        _pickNotes.Clear();
         List<string> names = new();
         foreach (string path in items)
         {

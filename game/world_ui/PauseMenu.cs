@@ -20,7 +20,7 @@ public partial class PauseMenu : CanvasLayer
 {
     private static readonly StringName ActionPause = "pause";
 
-    [Export] public Color DimColor { get; set; } = new(0.02f, 0.015f, 0.01f, 0.55f);
+    [Export] public Color DimColor { get; set; } = new(0.02f, 0.03f, 0.04f, 0.72f);
     [Export] public int TitleSize { get; set; } = 64;
     [Export(PropertyHint.MultilineText)] public string TipsText { get; set; } =
         "Death is permanent: every run starts on the summit of a new mountain.\n" +
@@ -328,7 +328,7 @@ public partial class PauseMenu : CanvasLayer
             Network.NetSession.Instance?.Leave();
             GetTree().Quit();
         });
-        _tips = UiStyle.MakeLabel(TipsText, UiStyle.SmallSize, false, UiStyle.PaperDark);
+        _tips = UiStyle.MakeLabel(TipsText, UiStyle.SmallSize, false, UiStyle.Muted);
         _tips.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _tips.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.7f));
         _column.AddChild(_tips);
