@@ -13,13 +13,13 @@ public partial class GroundFogSettings : Resource
 {
     [ExportGroup("Grid")]
     /// <summary>Cells along each side of the simulated patch around the carrier.</summary>
-    [Export] public int GridSize { get; set; } = 128;
+    [Export] public int GridSize { get; set; } = 160;
     /// <summary>Size of one cell, in m (the patch is GridSize × CellSize across).</summary>
     [Export] public float CellSize { get; set; } = 0.75f;
     /// <summary>The patch shifts (whole cells, keeping what it knows) when the carrier is this many cells off its centre.</summary>
     [Export] public int ShiftCells { get; set; } = 8;
     /// <summary>Simulation steps per second (fixed; the shader blends between the last two).</summary>
-    [Export] public float StepsPerSecond { get; set; } = 30.0f;
+    [Export] public float StepsPerSecond { get; set; } = 24.0f;
     /// <summary>At most this many steps in one frame, so a hitch doesn't snowball.</summary>
     [Export] public int MaxStepsPerFrame { get; set; } = 3;
 
@@ -126,13 +126,13 @@ public partial class GroundFogSettings : Resource
     [Export] public float FlowPeriod { get; set; } = 2.0f;
     [Export] public float RaggedTop { get; set; } = 0.45f;
     /// <summary>Ray-march steps at most, the furthest it draws (m), and the finest step inside the fog (m).</summary>
-    [Export] public int Steps { get; set; } = 48;
-    [Export] public float MaxDistance { get; set; } = 60.0f;
+    [Export] public int Steps { get; set; } = 56;
+    [Export] public float MaxDistance { get; set; } = 90.0f;
     [Export] public float FineStep { get; set; } = 0.22f;
     /// <summary>Inside the fog the steps grow by this share of the distance (far fog needs less detail).</summary>
     [Export] public float DistanceStep { get; set; } = 0.035f;
     /// <summary>The fog fades out over this much of the patch's edge, in m.</summary>
-    [Export] public float EdgeFade { get; set; } = 18.0f;
+    [Export] public float EdgeFade { get; set; } = 24.0f;
     /// <summary>The fog thins from this share of MaxDistance to nothing at MaxDistance, so it never ends in a line.</summary>
     [Export] public float FarFade { get; set; } = 0.4f;
     /// <summary>The fog thins toward the camera inside this distance (m), so the view never starts in a white wall.</summary>

@@ -365,7 +365,10 @@ public partial class GroundFogTests : Node3D, IFogCover
         double mean = total / steps;
         GD.Print($"BENCH ground fog {sim.Size}x{sim.Size}: step mean {mean:0.000} ms (fastest batch {fastestBatch:0.000} ms), worst {worst:0.000} ms, export {export:0.000} ms; "
             + $"at {settings.StepsPerSecond} steps/s about {fastestBatch * settings.StepsPerSecond / 1000.0 * 100.0:0.0}% of one core");
-        Check("a 128x128 step costs under 3 ms on average", fastestBatch < 3.0, $"{fastestBatch:0.000} ms (fastest batch of {Batch}; mean over all {mean:0.000} ms)");
+        // The budget per second of fog (it was 3 ms a step at 30 steps a second for 128x128).
+        double perSecond = fastestBatch * settings.StepsPerSecond;
+        Check($"a second of {sim.Size}x{sim.Size} fog costs under 90 ms of one core", perSecond < 90.0,
+            $"{perSecond:0} ms ({fastestBatch:0.000} ms a step at {settings.StepsPerSecond} steps/s, fastest batch of {Batch}; mean over all {mean:0.000} ms)");
     }
 
     // --- With physics ---

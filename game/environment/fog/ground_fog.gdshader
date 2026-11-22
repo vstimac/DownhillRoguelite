@@ -122,9 +122,13 @@ void fragment() {
 		float height = texture(ground, uv).r;
 		float above = p.y - height;
 		float stride = min(max(fine_step, t * distance_step), layer_step);
+		// Never fewer steps left than the ray needs to reach its end: a ray that ran out of steps (a
+		// low or slanting view along the slope crosses the layer for a long way) ended the fog at a
+		// distance that moved with the camera's angle.
+		stride = max(stride, (leave - t) / float(steps - i));
 		if (above > tallest) {
 			// Over open air: stride toward the layer (the ground may rise ahead, so not all the way).
-			stride = clamp((above - tallest) * 0.6, stride, 4.0);
+			stride = max(min((above - tallest) * 0.6, max(4.0, t * 0.1)), stride);
 		} else if (above > -1.0) {
 			// The step's middle gives the fog there; the layer's height profile is averaged over the
 			// whole step (its start, middle and end, Simpson's rule). A point per step let the thin
