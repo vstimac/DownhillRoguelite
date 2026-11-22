@@ -64,6 +64,9 @@ public partial class StationManager : Node3D
 
     /// <summary>The last line on the summit stone: what to do first.</summary>
     [Export] public string SummitGoal { get; set; } = "Go downhill: reach the fire at Station 1 before dark.";
+    /// <summary>The summit stone stands this far down the route from the start and this far to its side, in m.</summary>
+    [Export] public float SummitStoneAhead { get; set; } = 7.0f;
+    [Export] public float SummitStoneAside { get; set; } = 3.5f;
 
     public int ShelterStation { get; private set; }
     public IReadOnlyDictionary<int, StationSite> Stations => _stations;
@@ -243,7 +246,7 @@ public partial class StationManager : Node3D
         RemoveExcept(_cairns, wanted);
     }
 
-    /// <summary>A stone on the summit naming the run and the mountain (its seed, to replay it).</summary>
+    /// <summary>A stone on the summit saying what the run is for, a few steps down the way the carrier faces at the start, so it is read on the screen and not cut off at its edge.</summary>
     private void PlaceSummit(IRouteQuery route)
     {
         if (_summit == null)
@@ -268,8 +271,8 @@ public partial class StationManager : Node3D
             };
             _summit.AddChild(WorldLabel.Readable(_summitLabel));
         }
-        Vector3 top = route.RoutePoint(route.StartZ + 3.0f);
-        Vector3 at = new(top.X + 3.0f, route.GroundHeight(top.X + 3.0f, top.Z) - GroundSink, top.Z);
+        Vector3 top = route.RoutePoint(route.StartZ - SummitStoneAhead);
+        Vector3 at = new(top.X + SummitStoneAside, route.GroundHeight(top.X + SummitStoneAside, top.Z) - GroundSink, top.Z);
         if (!_summit.GlobalPosition.IsEqualApprox(at))
         {
             _summit.GlobalPosition = at;

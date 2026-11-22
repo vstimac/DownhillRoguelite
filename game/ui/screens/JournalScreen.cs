@@ -40,7 +40,7 @@ public partial class JournalScreen : ParchmentPanel
         Seed = 67.0f;
         Size = new Vector2(820, 540);
         base._Ready();
-        Illustration art = new() { Position = new Vector2(24, 60), Size = new Vector2(360, 420), Modulate = new Color(1, 1, 1, 0.22f) };
+        Illustration art = new() { Position = new Vector2(24, 60), Size = new Vector2(360, 420), Modulate = new Color(1, 1, 1, 0.1f) };
         AddChild(art);
         _now = new RichTextLabel
         {
@@ -125,16 +125,16 @@ public partial class JournalScreen : ParchmentPanel
             }
             if (note.Progress.Length > 0)
             {
-                text.Append("[color=#5a4630]").Append(Escape(note.Progress)).Append("[/color]\n");
+                text.Append("[color=#f2b259]").Append(Escape(note.Progress)).Append("[/color]\n");
             }
         }
         IReadOnlyList<ObjectiveNote> finished = GameEvents.FinishedObjectives;
         if (finished.Count > 0)
         {
-            text.Append("\n[color=#7a6850]Behind me:[/color]\n");
+            text.Append("\n[color=#9eb3bf]Behind me:[/color]\n");
             for (int i = Mathf.Max(0, finished.Count - FinishedShown); i < finished.Count; i++)
             {
-                text.Append("[color=#7a6850][s]").Append(Escape(finished[i].Title)).Append("[/s] ").Append(Escape(finished[i].Progress)).Append("[/color]\n");
+                text.Append("[color=#9eb3bf][s]").Append(Escape(finished[i].Title)).Append("[/s] ").Append(Escape(finished[i].Progress)).Append("[/color]\n");
             }
         }
         _now.Text = text.ToString();

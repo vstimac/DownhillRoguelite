@@ -36,6 +36,7 @@ public partial class InventoryScreen : ParchmentPanel
     private InkButton? _drop;
     private WeightScale? _weight;
     private Label? _stats;
+    private Label? _statValues;
     private VitalsSnapshot? _vitals;
     private RunState? _run;
     /// <summary>Width of the pack's column at the left of the page, in px.</summary>
@@ -68,7 +69,8 @@ public partial class InventoryScreen : ParchmentPanel
         if (_vitals is VitalsSnapshot v)
         {
             lines.Add($"Health  {v.Health:0} / {v.MaxHealth:0}");
-            lines.Add($"Hunger {v.Hunger:0}  ·  Thirst {v.Thirst:0}");
+            lines.Add($"Hunger  {v.Hunger:0}");
+            lines.Add($"Thirst  {v.Thirst:0}");
             float baseStamina = v.MaxStamina;
             if (mods != null && mods.StaminaMax > 0.01f)
             {
@@ -196,7 +198,7 @@ public partial class InventoryScreen : ParchmentPanel
             _slots.Add(slot);
         }
         float detailX = ContentX + Columns * (cell + 6) + 12;
-        _detailIcon = new ItemSlot { Position = new Vector2(detailX, 64), Size = new Vector2(96, 96), Index = 99 };
+        _detailIcon = new ItemSlot { Position = new Vector2(detailX, 64), Size = new Vector2(96, 96), Index = 99, Visible = false };
         AddChild(_detailIcon);
         float detailWidth = StatsX - detailX - 16;
         // A long name wraps onto a second line instead of running into the stats.
@@ -224,11 +226,17 @@ public partial class InventoryScreen : ParchmentPanel
         _drop = new InkButton { Text = "Drop", Paper = true, Position = new Vector2(detailX + 120, 448), Size = new Vector2(90, 40), Visible = false };
         _drop.Pressed += DropSelected;
         AddChild(_drop);
-        _stats = UiStyle.MakeLabel("", UiStyle.SmallSize);
+        _stats = UiStyle.MakeLabel("", UiStyle.SmallSize, false, UiStyle.InkSoft);
         _stats.Position = new Vector2(StatsX, 60);
         _stats.Size = new Vector2(Size.X - StatsX - 20, 470);
         _stats.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         AddChild(_stats);
+        // The values stand in their own right-aligned column, so the numbers line up.
+        _statValues = UiStyle.MakeLabel("", UiStyle.SmallSize, false, UiStyle.Ink);
+        _statValues.Position = _stats.Position;
+        _statValues.Size = _stats.Size;
+        _statValues.HorizontalAlignment = HorizontalAlignment.Right;
+        AddChild(_statValues);
         GameEvents.VitalsUpdated += OnVitals;
         _run = GetNodeOrNull<RunState>("/root/RunState");
         _weight = new WeightScale { Position = new Vector2(ContentX, Size.Y - 64), Size = new Vector2(StatsX - ContentX - 24, 40) };
@@ -256,8 +264,49 @@ public partial class InventoryScreen : ParchmentPanel
         }
         if (_stats != null)
         {
-            _stats.Text = StatsText();
+            (string names, string values) = StatColumns(StatsText());
+            _stats.Text = names;
+            if (_statValues != null)
+            {
+                _statValues.Text = values;
+            }
         }
+    }
+
+    /// <summary>
+    /// Splits the sheet into a name column and a value column at each line's first double space;
+    /// a "(100 +15 gear)" breakdown goes on its own line under the name, so the totals stay in line.
+    /// </summary>
+    public static (string Names, string Values) StatColumns(string text)
+    {
+        List<string> names = new();
+        List<string> values = new();
+        foreach (string line in text.Split('\n'))
+        {
+            int cut = line.IndexOf("  ");
+            if (cut < 0)
+            {
+                names.Add(line);
+                values.Add("");
+                continue;
+            }
+            string value = line.Substring(cut).Trim();
+            string parts = "";
+            int open = value.IndexOf("  (");
+            if (open > 0)
+            {
+                parts = value.Substring(open).Trim();
+                value = value.Substring(0, open);
+            }
+            names.Add(line.Substring(0, cut));
+            values.Add(value);
+            if (parts.Length > 0)
+            {
+                names.Add("   " + parts.Trim('(', ')'));
+                values.Add("");
+            }
+        }
+        return (string.Join("\n", names), string.Join("\n", values));
     }
 
     private void Refresh(IReadOnlyList<string> carried)
@@ -354,6 +403,7 @@ public partial class InventoryScreen : ParchmentPanel
         if (item == null)
         {
             _detailIcon.SetItem(null, 0);
+            _detailIcon.Visible = false;
             _detailTitle.Text = "";
             _detailBody.Text = "Choose something to read about it.";
             _use.Visible = false;
@@ -363,6 +413,7 @@ public partial class InventoryScreen : ParchmentPanel
             }
             return;
         }
+        _detailIcon.Visible = true;
         _detailIcon.SetItem(item, _counts.GetValueOrDefault(item.ItemId));
         _detailTitle.Text = item.DisplayName;
         _detailBody.Text = ItemText.Describe(item) + "\n" + ItemText.Properties(item) + "\n\n" + ItemText.HowToUse(item);

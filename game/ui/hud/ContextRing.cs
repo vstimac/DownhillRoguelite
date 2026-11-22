@@ -39,7 +39,7 @@ public partial class ContextRing : Control
     /// <summary>Below this share of a torch the inner arc pulses.</summary>
     [Export] public float TorchLowBelow { get; set; } = 0.15f;
     [Export] public Color TorchColour { get; set; } = new(0.95f, 0.62f, 0.2f);
-    [Export] public Color Track { get; set; } = new(0.1f, 0.08f, 0.06f, 0.8f);
+    [Export] public Color Track { get; set; } = new(0.06f, 0.08f, 0.1f, 0.8f);
     [Export] public Color Plate { get; set; } = new(0.06f, 0.08f, 0.1f, 0.45f);
 
     /// <summary>Stamina as a share of its maximum, as last heard.</summary>

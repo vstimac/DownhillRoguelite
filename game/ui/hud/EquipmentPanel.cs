@@ -43,8 +43,10 @@ public partial class EquipmentPanel : ParchmentPanel
         AddChild(_figure);
         _pack = new ItemSlot { Position = new Vector2(14, 62), Size = new Vector2(54, 54), EmptyGlyph = InkIcon.Backpack, Index = 90 };
         AddChild(_pack);
-        _packLabel = UiStyle.MakeLabel("", 15, true);
-        _packLabel.Position = new Vector2(12, 10);
+        _packLabel = UiStyle.MakeLabel("", 14, true);
+        _packLabel.Size = new Vector2(160, 40);
+        _packLabel.AddThemeConstantOverride("line_spacing", -2);
+        _packLabel.Position = new Vector2(14, 8);
         AddChild(_packLabel);
         foreach ((EquipSlot equip, Vector2 at) in _layout)
         {
@@ -141,7 +143,7 @@ public partial class EquipmentPanel : ParchmentPanel
         PackName = name;
         if (_packLabel != null)
         {
-            _packLabel.Text = $"{name}  {load.Mass:0.0} kg";
+            _packLabel.Text = name + "\n" + load.Mass.ToString("0.0") + " kg";
         }
         if (_pack != null)
         {

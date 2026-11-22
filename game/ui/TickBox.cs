@@ -13,7 +13,7 @@ public partial class TickBox : Control
     [Export] public int Seed { get; set; } = 1;
     [Export] public float BoxWidth { get; set; } = 2.2f;
     [Export] public float TickWidth { get; set; } = 4.0f;
-    [Export] public Color TickColor { get; set; } = new(0.55f, 0.13f, 0.08f);
+    [Export] public Color TickColor { get; set; } = UiStyle.Highlight;
 
     public TickBox()
     {

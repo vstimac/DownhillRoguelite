@@ -86,7 +86,8 @@ public partial class MapScreen : ParchmentPanel
         float side = Mathf.Max(200.0f, Mathf.Min(Size.X - 48.0f - LegendWidth - 16.0f, Size.Y - 58.0f - 50.0f));
         _chart.Position = new Vector2(24, 58);
         _chart.Size = new Vector2(side, side);
-        _compass.Position = new Vector2(24 + side - 106, 66);
+        // In the chart's top-right corner, wholly inside it (clear of the legend beside the chart).
+        _compass.Position = new Vector2(24 + side - _compass.Size.X - 10, 58 + 10);
         float legendX = 24 + side + 16;
         _legend.Position = new Vector2(legendX, 58);
         _legend.Size = new Vector2(Size.X - legendX - 20, side - 50);

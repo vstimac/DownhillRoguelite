@@ -602,6 +602,12 @@ public partial class Hud : CanvasLayer
             _ambient.Modulate = new Color(1, 1, 1, alpha);
             _ambient.Visible = alpha > 0.01f;
         }
+        if (Objectives != null && Banner != null)
+        {
+            // While the big card announces the goal, the goal note doesn't say it a second time.
+            float target = Banner.Showing.Length > 0 ? 0.0f : 1.0f;
+            Objectives.Modulate = new Color(1, 1, 1, Mathf.MoveToward(Objectives.Modulate.A, target, (float)delta * 3.0f));
+        }
         if (ObjectivesStacked)
         {
             PlaceNotes(GetViewport().GetVisibleRect().Size);

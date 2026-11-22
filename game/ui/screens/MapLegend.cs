@@ -48,7 +48,7 @@ public partial class MapLegend : Control
         Color paper = Canvas?.Paper ?? UiStyle.Paper;
         Color ground = Canvas?.GroundLight ?? new Color(0.78f, 0.74f, 0.6f);
         Font font = UiStyle.Hand;
-        DrawString(UiStyle.Heading, new Vector2(0, 22), "Legend", HorizontalAlignment.Left, -1, 24, UiStyle.Ink);
+        DrawString(UiStyle.Heading, new Vector2(0, 20), "LEGEND", HorizontalAlignment.Left, -1, 18, UiStyle.Ink);
         float row = Mathf.Clamp((Size.Y - 40.0f) / Entries.Length, 22.0f, 34.0f);
         for (int i = 0; i < Entries.Length; i++)
         {

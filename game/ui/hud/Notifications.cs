@@ -202,7 +202,8 @@ public partial class Notifications : Control
         }
         Label label = UiStyle.MakeLabel(text, TextSize, false, ink);
         label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        label.Position = new Vector2(16, 7);
+        // The line box carries the descender room below the letters, so the text sits 2 px lower to look centred.
+        label.Position = new Vector2(16, 9);
         label.Size = new Vector2(size.X - 32.0f, words.Y + 2.0f);
         paper.AddChild(label);
         AddChild(paper);
