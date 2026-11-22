@@ -264,7 +264,7 @@ public partial class StationManager : Node3D
             _summitLabel = new Label3D
             {
                 FontSize = 30,
-                PixelSize = 0.0032f,
+                PixelSize = 0.007f,
                 Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
                 OutlineSize = 8,
                 Position = new Vector3(0.0f, 1.9f, 0.0f),
@@ -282,6 +282,8 @@ public partial class StationManager : Node3D
             // The run number and the seed are in the journal and the run summary, and the kit in the start
             // note, not on the stone: a short sign stays readable beside the carrier instead of running off the screen.
             _summitLabel.Text = $"SUMMIT\n{SummitGoal}";
+            // Behind the carrier in the title shot it would peek out in pieces, so it waits for the run.
+            _summitLabel.Visible = !StartScreen.Covering;
         }
     }
 

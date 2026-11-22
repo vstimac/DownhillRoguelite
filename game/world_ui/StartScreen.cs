@@ -203,8 +203,12 @@ public partial class StartScreen : CanvasLayer
     /// filter) and the in-world debug lines stay hidden while the front end is up; New Run brings
     /// back exactly what was showing.
     /// </summary>
+    /// <summary>True while the front end covers the world (labels in the world that would peek out behind the carrier stay hidden).</summary>
+    public static bool Covering { get; private set; }
+
     private void HideWorldUi()
     {
+        Covering = true;
         foreach (Node node in GetTree().Root.FindChildren("*", "CanvasLayer", true, false))
         {
             if (node is CanvasLayer layer && layer != this && layer is not ColourFilterLayer && layer is not LoadingScreen && layer.Visible && !_hidden.Contains(layer))
@@ -222,6 +226,7 @@ public partial class StartScreen : CanvasLayer
 
     private void RestoreWorldUi()
     {
+        Covering = false;
         foreach (CanvasLayer layer in _hidden)
         {
             if (IsInstanceValid(layer))

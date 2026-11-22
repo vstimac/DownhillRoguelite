@@ -136,7 +136,7 @@ public partial class ChoiceRow : OptionRow
                     radius = 2.6f;
                     dot = UiStyle.Ink;
                 }
-                DrawCircle(new Vector2(start + gap * i, Size.Y - 6.0f), radius, dot);
+                DrawCircle(new Vector2(start + gap * i, Size.Y - 3.5f), radius, dot);
             }
         }
     }

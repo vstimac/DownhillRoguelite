@@ -214,7 +214,8 @@ public static class InkDraw
             }
             case InkIcon.Figure:
             {
-                Color body = new(UiStyle.Line, 0.4f);
+                // A faint silhouette: the slots around it stay the thing to look at.
+                Color body = new(UiStyle.Line, 0.12f);
                 Shape(canvas, Circle(c + new Vector2(0, -0.78f) * s, s * 0.14f, 16), body, 2.0f, seed);
                 Vector2[] torso = { c + new Vector2(-0.22f, -0.6f) * s, c + new Vector2(0.22f, -0.6f) * s, c + new Vector2(0.2f, 0.05f) * s, c + new Vector2(-0.2f, 0.05f) * s };
                 Shape(canvas, torso, body, 2.0f, seed + 1);

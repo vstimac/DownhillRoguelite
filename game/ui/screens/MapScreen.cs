@@ -46,7 +46,7 @@ public partial class MapScreen : ParchmentPanel
         };
         _chart.GuiInput += OnChartInput;
         AddChild(_chart);
-        _compass = new CompassDial { Size = new Vector2(96, 96) };
+        _compass = new CompassDial { Size = new Vector2(130, 130) };
         AddChild(_compass);
         _legend = new MapLegend();
         AddChild(_legend);

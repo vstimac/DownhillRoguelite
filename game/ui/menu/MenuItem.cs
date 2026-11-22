@@ -57,7 +57,10 @@ public partial class MenuItem : BaseButton
         Vector2 size = new(Mathf.Min(Size.X, text + 44.0f), Size.Y);
         _strip.Position = new Vector2(-12.0f, 0.0f);
         _strip.Size = size;
-        _strip.Material = UiStyle.Parchment(size, Text.Length * 1.7f, 2.0f, 3.0f);
+        ShaderMaterial strip = UiStyle.Parchment(size, Text.Length * 1.7f, 2.0f, 3.0f);
+        // The strip's own left rule is the focus mark, in the one accent colour.
+        strip.SetShaderParameter("line_color", UiStyle.Highlight);
+        _strip.Material = strip;
     }
 
     /// <summary>The width the entry's text needs, for layout.</summary>
@@ -130,7 +133,6 @@ public partial class MenuItem : BaseButton
     public override void _Draw()
     {
         Font font = UiStyle.Heading;
-        Vector2 text = font.GetStringSize(Text, HorizontalAlignment.Left, -1, FontSize);
         float x = Slide * Lit + 6.0f;
         float body = Size.Y;
         if (Detail.Length > 0)
@@ -156,14 +158,6 @@ public partial class MenuItem : BaseButton
             Color detail = new Color(UiStyle.Muted, 0.9f).Lerp(new Color(UiStyle.Ink, 0.9f), Lit);
             DrawString(hand, new Vector2(x + 2.0f + 1.5f, dy + 1.5f), Detail, HorizontalAlignment.Left, -1, DetailSize, new Color(0, 0, 0, 0.6f));
             DrawString(hand, new Vector2(x + 2.0f, dy), Detail, HorizontalAlignment.Left, -1, DetailSize, detail);
-        }
-        if (Lit > 0.01f)
-        {
-            // An amber rule in front of the focused entry, growing as it lights.
-            float rule = x - 8.0f;
-            float half = text.Y * 0.36f * Lit;
-            float middle = y - text.Y * 0.3f;
-            DrawRect(new Rect2(rule, middle - half, 2.0f, half * 2.0f), new Color(UiStyle.Highlight, Lit));
         }
     }
 }

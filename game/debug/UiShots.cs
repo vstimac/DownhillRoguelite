@@ -101,7 +101,7 @@ public partial class UiShots : Node3D
         await Shoot("hud_clear");
         hud.Notes?.Note("Picked up: rope (2 m)");
         hud.Notes?.Note("Too cold to stand still", true);
-        await Seconds(0.8f);
+        await Seconds(1.5f);
         await Shoot("hud_notes");
         if (weather != null) { weather.Forced = WeatherKind.Fog; }
         await Seconds(6.0f);
