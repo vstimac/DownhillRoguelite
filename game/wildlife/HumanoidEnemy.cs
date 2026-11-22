@@ -37,10 +37,14 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
     public bool Stuck => _stuckTime >= StuckSeconds;
     /// <summary>Times it was put somewhere else after getting stuck.</summary>
     public int Unstuck { get; private set; }
-    /// <summary>Ground speed of the mannequin's walk, jog and sprint clips at normal speed (m/s).</summary>
-    [Export] public float WalkClipSpeed { get; set; } = 1.35f;
-    [Export] public float JogClipSpeed { get; set; } = 3.3f;
-    [Export] public float SprintClipSpeed { get; set; } = 5.6f;
+    /// <summary>
+    /// Ground speed of the mannequin's walk, jog and sprint clips at normal speed (m/s): how fast a
+    /// planted toe moves back, measured on UAL_Mannequin (the carrier's CharacterAnimator uses the same).
+    /// The old 1.35 / 3.3 / 5.6 made a running enemy's legs pedal far faster than it moved.
+    /// </summary>
+    [Export] public float WalkClipSpeed { get; set; } = 1.09f;
+    [Export] public float JogClipSpeed { get; set; } = 5.9f;
+    [Export] public float SprintClipSpeed { get; set; } = 9.0f;
     /// <summary>Clips for standing, guarding, rolling, reeling and dying.</summary>
     [Export] public string IdleClip { get; set; } = "Idle";
     [Export] public string WalkClip { get; set; } = "Walk";
@@ -52,7 +56,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
     [Export] public string DeathClip { get; set; } = "Death01";
     [Export] public float ClipBlend { get; set; } = 0.18f;
     /// <summary>Playback speed limits for the walk and run clips.</summary>
-    [Export] public Vector2 GaitSpeedRange { get; set; } = new(0.6f, 1.6f);
+    [Export] public Vector2 GaitSpeedRange { get; set; } = new(0.5f, 2.0f);
     [Export(PropertyHint.Layers3DPhysics)] public uint GroundMask { get; set; } = 1;
     /// <summary>Loose props (crates, logs) it bumps into and shoves aside.</summary>
     [Export(PropertyHint.Layers3DPhysics)] public uint PropMask { get; set; } = 16;
@@ -647,27 +651,34 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
         Unstuck++;
     }
 
-    /// <summary>Idle, walk, jog or sprint by how fast it really moves, the clip sped up or slowed to match.</summary>
+    /// <summary>
+    /// Idle, walk, jog or sprint by how fast it really moves: the clip whose own pace is nearest (the
+    /// least sped up or slowed down), at the rate that keeps its planted foot still on the ground.
+    /// </summary>
     private void Gait()
     {
         Vector3 real = GetRealVelocity();
         float speed = new Vector2(real.X, real.Z).Length();
-        float stride = Species!.Height / Mathf.Max(DriverHeight, 0.1f);
+        float stride = Species!.Height / Mathf.Max(DriverHeight, 0.1f) * LegRatio();
         string clip = IdleClip;
         float clipSpeed = 1.0f;
         if (speed > 0.25f)
         {
-            clip = WalkClip;
-            clipSpeed = WalkClipSpeed * stride;
-            if (speed > (WalkClipSpeed + JogClipSpeed) * 0.5f * stride)
+            float best = float.MaxValue;
+            foreach ((string name, float pace) in new[] { (WalkClip, WalkClipSpeed), (JogClip, JogClipSpeed), (SprintClip, SprintClipSpeed) })
             {
-                clip = JogClip;
-                clipSpeed = JogClipSpeed * stride;
-            }
-            if (speed > (JogClipSpeed + SprintClipSpeed) * 0.5f * stride)
-            {
-                clip = SprintClip;
-                clipSpeed = SprintClipSpeed * stride;
+                float off = Mathf.Abs(Mathf.Log(speed / Mathf.Max(pace * stride, 0.01f)));
+                // A little stickiness to the clip already playing, so it doesn't flicker between two.
+                if (name == Clip)
+                {
+                    off -= 0.1f;
+                }
+                if (off < best)
+                {
+                    best = off;
+                    clip = name;
+                    clipSpeed = pace * stride;
+                }
             }
         }
         float rate = 1.0f;
@@ -676,6 +687,38 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
             rate = Mathf.Clamp(speed / Mathf.Max(clipSpeed, 0.01f), GaitSpeedRange.X, GaitSpeedRange.Y);
         }
         Play(clip, ClipBlend, rate);
+    }
+
+    private float _legRatio = -1.0f;
+
+    /// <summary>
+    /// The shown model's leg length against the (scaled) driver's, by their hips' height: the model's
+    /// feet take the driver's joint angles on its own legs, so its stride is this much longer or
+    /// shorter than the driver's (a long-legged pack fiend outstrides the mannequin of its height).
+    /// </summary>
+    public float LegRatio()
+    {
+        if (_legRatio > 0.0f)
+        {
+            return _legRatio;
+        }
+        if (HitSkeleton == null || _driver == null || Follower == null || !HitSkeleton.IsInsideTree())
+        {
+            return 1.0f;
+        }
+        int model = HitSkeleton.FindBone(Follower.HipsBone);
+        int driver = _driver.FindBone(Follower.DriverHipsBone);
+        _legRatio = 1.0f;
+        if (model >= 0 && driver >= 0)
+        {
+            float modelHips = (HitSkeleton.GlobalTransform * HitSkeleton.GetBoneGlobalRest(model).Origin).Y - GlobalPosition.Y;
+            float driverHips = (_driver.GlobalTransform * _driver.GetBoneGlobalRest(driver).Origin).Y - GlobalPosition.Y;
+            if (modelHips > 0.05f && driverHips > 0.05f)
+            {
+                _legRatio = Mathf.Clamp(modelHips / driverHips, 0.5f, 2.0f);
+            }
+        }
+        return _legRatio;
     }
 
     // --- Blows ---

@@ -31,6 +31,8 @@ public partial class BeastTests : Node3D
 	private readonly List<string> _failures = new();
 	private int _launches;
 	private string _dropped = "";
+	/// <summary>The stalking and charging beast's paws (FootSlipMeter).</summary>
+	private readonly FootSlipStats _beastFeet = new();
 
 	public override async void _Ready()
 	{
@@ -102,6 +104,8 @@ public partial class BeastTests : Node3D
 				animation = node as AnimationPlayer;
 				break;
 			}
+			// Clips made for the model (the gallop) are added as the beast adds them.
+			CreatureGait.AddClips(animation, species.ExtraAnimations);
 			// Models that come with clips must have the ones the species names (a typo leaves it frozen).
 			if (animation != null && animation.GetAnimationList().Length > 0)
 			{
@@ -181,6 +185,7 @@ public partial class BeastTests : Node3D
 		}
 		NightBeast beast = director.Beasts[0];
 		BeastSpecies species = beast.Species!;
+		beast.AddChild(new FootSlipMeter { Stats = _beastFeet });
 		beast.AttackTimer = 1000.0f;
 		float closest = float.MaxValue;
 		float dt = 1.0f / Engine.PhysicsTicksPerSecond;
@@ -232,6 +237,15 @@ public partial class BeastTests : Node3D
 		Check("it growls before it charges, and a hit throws the carrier into the air",
 			woundUp && chargedAfterWindUp && _launches == 1 && beast.Hits == hitsBefore + 1 && rise >= species.ThrowHeight * 0.6f,
 			$"wind-up {woundUp}, charge {chargedAfterWindUp}, launches {_launches}, carrier rose {rise:0.0} m (aim {species.ThrowHeight:0.0} m)");
+		if (_beastFeet.Samples > 0)
+		{
+			// Its walk and gallop play at the rate of its real speed: planted paws stay put instead of gliding.
+			Check($"the {species.DisplayName}'s paws stay planted while it stalks and charges", _beastFeet.Samples >= 30 && _beastFeet.Skate < 0.35f, _beastFeet.ToString());
+		}
+		else
+		{
+			GD.Print($"NOTE  the {species.DisplayName} has no wolf paws to measure; foot slip not checked");
+		}
 		await Recover(player, director);
 	}
 

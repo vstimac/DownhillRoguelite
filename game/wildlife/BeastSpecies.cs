@@ -44,6 +44,16 @@ public partial class BeastSpecies : Resource
     [Export] public string RunClip { get; set; } = "run";
     /// <summary>Playback speed of the run clip (a model with only a walk cycle plays it faster to run).</summary>
     [Export] public float RunClipSpeed { get; set; } = 1.0f;
+    /// <summary>Animation-only files with clips the model lacks (the wolf's gallop), played as "extra/&lt;clip&gt;".</summary>
+    [Export] public Godot.Collections.Array<PackedScene> ExtraAnimations { get; set; } = new();
+    /// <summary>
+    /// Ground a planted foot covers per second in WalkClip and RunClip at rate 1, at this beast's scale
+    /// and stretch (m/s). When both are known the clips follow its real speed (CreatureGait); 0 keeps fixed rates.
+    /// </summary>
+    [Export] public float WalkGroundSpeed { get; set; }
+    [Export] public float RunGroundSpeed { get; set; }
+    /// <summary>Fastest the walk or run clip may play (0: CreatureGait.MaxRate); a spider with one walk clip scuttles faster.</summary>
+    [Export] public float MaxClipRate { get; set; }
 
     [ExportGroup("Voice")]
     /// <summary>Played as it crouches before a charge (the warning), one picked at random.</summary>

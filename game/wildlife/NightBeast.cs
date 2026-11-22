@@ -185,6 +185,8 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
     /// <summary>Voices loaded once and shared by every beast (no reloading while it hunts).</summary>
     private static readonly System.Collections.Generic.Dictionary<string, AudioStream?> Voices = new();
     private AnimationPlayer? _animation;
+    /// <summary>Walk and run follow the beast's real speed (null when its clips aren't measured).</summary>
+    private CreatureGait? _gait;
     private string _clip = "";
     private float _timer;
     private float _orbit;
@@ -249,6 +251,8 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
                 _animation = node as AnimationPlayer;
                 break;
             }
+            CreatureGait.AddClips(_animation, species.ExtraAnimations);
+            _gait = CreatureGait.For(species.WalkClip, species.RunClip, species.WalkGroundSpeed, species.RunGroundSpeed, species.MaxClipRate);
         }
         // Headless runs (tests) have no audio output and never release playing streams.
         if (DisplayServer.GetName() != "headless")
@@ -764,7 +768,16 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
         }
         Velocity = new Vector3(walk.X + _shove.X, vertical, walk.Z + _shove.Z);
         _shove = _shove.MoveToward(Vector3.Zero, _shove.Length() * Species!.ShoveDrag * dt + 0.5f * dt);
+        Vector3 before = GlobalPosition;
         MoveAndSlide();
+        if (_gait != null)
+        {
+            _gait.Measure(GlobalPosition - before, dt);
+            if (!Puppet && _gait.Manages(_clip))
+            {
+                Play(_clip, 1.0f);
+            }
+        }
     }
 
     /// <summary>Turns toward a horizontal direction (the beast faces -Z).</summary>
@@ -783,13 +796,19 @@ public partial class NightBeast : CharacterBody3D, IMeleeTarget, INetMob
 
     private void Play(string clip, float speed)
     {
+        if (_gait != null && !Puppet && _gait.Manages(clip))
+        {
+            // Walk or gallop by its real speed, at the rate that keeps its feet planted.
+            clip = _gait.Pick();
+            speed = _gait.Rate();
+        }
+        else if (Species != null && clip == Species.RunClip && speed >= 1.0f)
+        {
+            speed *= Species.RunClipSpeed;
+        }
         if (_animation == null || clip.Length == 0 || !_animation.HasAnimation(clip))
         {
             return;
-        }
-        if (Species != null && clip == Species.RunClip && speed >= 1.0f)
-        {
-            speed *= Species.RunClipSpeed;
         }
         _animation.SpeedScale = speed;
         if (_clip == clip)

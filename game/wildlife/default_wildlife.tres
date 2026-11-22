@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="WildlifeTable" load_steps=44 format=3]
+[gd_resource type="Resource" script_class="WildlifeTable" load_steps=45 format=3]
 
 [ext_resource type="Script" path="res://wildlife/WildlifeTable.cs" id="1_table"]
 [ext_resource type="Script" path="res://wildlife/WildlifeSpecies.cs" id="0_species"]
@@ -23,6 +23,7 @@
 [ext_resource type="PackedScene" path="res://art/creatures/quaternius_farm_animals/FBX/Zebra.fbx" id="20_model"]
 [ext_resource type="PackedScene" path="res://art/creatures/quaternius_wolf/FBX/Wolf.fbx" id="21_wolf"]
 [ext_resource type="Material" path="res://wildlife/wolf_coat.tres" id="22_coat"]
+[ext_resource type="PackedScene" uid="uid://twu21gkm8afj" path="res://art/creatures/quaternius_wolf/FBX/Wolf_Gallop.fbx" id="23_gallop"]
 
 [sub_resource type="Resource" id="WildlifeSpecies_cow"]
 script = ExtResource("0_species")
@@ -343,6 +344,9 @@ IdleClip = "SpiderArmature|Spider_Idle"
 WalkClip = "SpiderArmature|Spider_Walk"
 FleeClip = "SpiderArmature|Spider_Walk"
 FleeClipSpeed = 2.5
+WalkGroundSpeed = 0.77
+FleeGroundSpeed = 0.77
+MaxClipRate = 6.0
 WalkSpeed = 0.8
 FleeSpeed = 4.0
 HoverHeight = 0.0
@@ -674,8 +678,11 @@ ModelRotationDegrees = Vector3(0.0, 90.0, 0.0)
 Coat = ExtResource("22_coat")
 IdleClip = "WolfArmature|Idle"
 WalkClip = "WolfArmature|Walking"
-FleeClip = "WolfArmature|Walking"
+FleeClip = "extra/Gallop"
 FleeClipSpeed = 2.2
+ExtraAnimations = Array[PackedScene]([ExtResource("23_gallop")])
+WalkGroundSpeed = 0.72
+FleeGroundSpeed = 3.75
 WalkSpeed = 1.2
 FleeSpeed = 8.0
 TurnSpeed = 240.0

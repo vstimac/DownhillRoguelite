@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://wildlife/BeastSpecies.cs" id="1_species"]
 [ext_resource type="Script" path="res://wildlife/BeastRoster.cs" id="5_roster"]
 [ext_resource type="PackedScene" path="res://art/creatures/quaternius_wolf/FBX/Wolf.fbx" id="2_wolf"]
+[ext_resource type="PackedScene" uid="uid://twu21gkm8afj" path="res://art/creatures/quaternius_wolf/FBX/Wolf_Gallop.fbx" id="7_gallop"]
 [ext_resource type="PackedScene" path="res://art/creatures/quaternius_enemies/FBX/Spider.fbx" id="6_spider"]
 
 [sub_resource type="Resource" id="SheWolf"]
@@ -18,8 +19,11 @@ ModelStretch = Vector3(0.9, 1, 1.05)
 CoatColour = Color(0.44, 0.41, 0.36, 1)
 IdleClip = "WolfArmature|Idle"
 WalkClip = "WolfArmature|Walking"
-RunClip = "WolfArmature|Walking"
+RunClip = "extra/Gallop"
 RunClipSpeed = 2.2
+ExtraAnimations = Array[PackedScene]([ExtResource("7_gallop")])
+WalkGroundSpeed = 0.76
+RunGroundSpeed = 3.94
 Shade = Color(0.03, 0.03, 0.05, 0.8)
 EyeColor = Color(1, 0.72, 0.15, 1)
 EyeOffset = Vector3(-0.08, 1.14, -0.98)
@@ -52,8 +56,11 @@ CoatColour = Color(0.5, 0.33, 0.12, 1)
 CoatSpots = true
 IdleClip = "WolfArmature|Idle"
 WalkClip = "WolfArmature|Walking"
-RunClip = "WolfArmature|Walking"
+RunClip = "extra/Gallop"
 RunClipSpeed = 2.4
+ExtraAnimations = Array[PackedScene]([ExtResource("7_gallop")])
+WalkGroundSpeed = 0.79
+RunGroundSpeed = 4.10
 Shade = Color(0.04, 0.03, 0.02, 0.8)
 EyeColor = Color(0.6, 1, 0.3, 1)
 EyeOffset = Vector3(-0.06, 0.85, -1.07)
@@ -88,8 +95,11 @@ ManeColour = Color(0.4, 0.26, 0.12, 1)
 ManeBone = "Bone.002"
 IdleClip = "WolfArmature|Idle"
 WalkClip = "WolfArmature|Walking"
-RunClip = "WolfArmature|Walking"
+RunClip = "extra/Gallop"
 RunClipSpeed = 1.9
+ExtraAnimations = Array[PackedScene]([ExtResource("7_gallop")])
+WalkGroundSpeed = 0.83
+RunGroundSpeed = 4.31
 Shade = Color(0.04, 0.025, 0.0, 0.8)
 EyeColor = Color(1, 0.35, 0.1, 1)
 EyeOffset = Vector3(-0.11, 1.34, -1.13)
@@ -121,6 +131,9 @@ IdleClip = "SpiderArmature|Spider_Idle"
 WalkClip = "SpiderArmature|Spider_Walk"
 RunClip = "SpiderArmature|Spider_Walk"
 RunClipSpeed = 2.5
+WalkGroundSpeed = 1.41
+RunGroundSpeed = 1.41
+MaxClipRate = 6.0
 Shade = Color(0.02, 0.02, 0.03, 0.85)
 EyeColor = Color(0.9, 0.1, 0.1, 1)
 EyeOffset = Vector3(0, 0.5, -0.85)

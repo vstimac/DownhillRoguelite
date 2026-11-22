@@ -149,6 +149,11 @@ public partial class WildlifeTests
     {
         Vector3 carrier = Field(50.0f, 40.0f);
         List<WildlifeAnimal> pack = Pack(wolf, table, Field(50.0f, 22.0f), 3, Vector3.Back, 301);
+        FootSlipStats feet = new();
+        foreach (WildlifeAnimal member in pack)
+        {
+            member.AddChild(new FootSlipMeter { Stats = feet });
+        }
         await Live(pack, 0.3f, _ => CarrierSense.Still(carrier + Vector3.Back * 300.0f));
         int strikes = 0;
         float damage = 0.0f;
@@ -235,6 +240,8 @@ public partial class WildlifeTests
             bites >= 2 && strikes == bites && mostAttacking == 1 && shortestWindUp >= PredatorTuning.WindUpSeconds - 0.05f && crouchedSeen
                 && Mathf.IsEqualApprox(damage, bites * PredatorTuning.BiteDamage),
             $"{bites} bites in 24 s ({strikes} strikes to the co-op peer, {damage:0} hp), most attacking at once {mostAttacking}, shortest wind-up {shortestWindUp:0.00} s, crouch seen {crouchedSeen}");
+        // The walk and gallop follow each wolf's real speed: planted paws stay put instead of gliding.
+        Check("hunting wolves' paws stay planted while they circle, rush and spring", feet.Samples >= 60 && feet.Skate < 0.35f, feet.ToString());
         Free(pack);
     }
 
@@ -520,7 +527,8 @@ public partial class WildlifeTests
         puppet.NetShow(wolf.IdleClip, 0.0f, 1.0f, 1.0f, false);
         WildlifeAnimal.Awareness calm = StealthEye.Strongest(near, carrier, 35.0f);
         bool calmWindUp = puppet.WindingUp;
-        puppet.NetShow(wolf.WalkClip, 0.0f, 1.3f, 1.0f, false);
+        // What a host streams for a stalking wolf: at the stalking pace it lopes in its gallop.
+        puppet.NetShow(wolf.FleeClip, 0.0f, PredatorTuning.StalkSpeed / wolf.FleeGroundSpeed, 1.0f, false);
         WildlifeAnimal.Awareness stalking = StealthEye.Strongest(near, carrier, 35.0f);
         puppet.NetShow(wolf.IdleClip, 0.0f, PredatorTuning.WindUpClipSpeed, 1.0f, false);
         WildlifeAnimal.Awareness crouched = StealthEye.Strongest(near, carrier, 35.0f);

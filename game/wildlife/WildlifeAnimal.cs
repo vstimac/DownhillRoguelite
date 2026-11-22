@@ -207,6 +207,8 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
     private WildlifeTable? _table;
     private RandomNumberGenerator _random = new();
     private AnimationPlayer? _animation;
+    /// <summary>Walk and run follow the body's real speed (null for species whose clips aren't measured).</summary>
+    private CreatureGait? _gait;
     private string _clip = "";
     private float _timer;
     private float _stateTime;
@@ -391,6 +393,8 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             AddChild(_model);
             _modelBase = _model.Transform;
             _animation = FindPlayer(_model);
+            CreatureGait.AddClips(_animation, species.ExtraAnimations);
+            _gait = CreatureGait.For(species.WalkClip, species.FleeClip, species.WalkGroundSpeed, species.FleeGroundSpeed, species.MaxClipRate);
             if (species.Coat != null)
             {
                 // After the restyle: the species' fur colour as the same palette coat (the wolf's grey-brown).
@@ -2221,7 +2225,16 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
         }
         Velocity = new Vector3(walk.X + _knock.X, vertical, walk.Z + _knock.Z);
         _knock = _knock.MoveToward(Vector3.Zero, KnockDecay * dt);
+        Vector3 before = GlobalPosition;
         MoveAndSlide();
+        if (_gait != null)
+        {
+            _gait.Measure(GlobalPosition - before, dt);
+            if (!Puppet && _gait.Manages(_clip))
+            {
+                Play(_clip, 1.0f, -1.0f);
+            }
+        }
         if (Species.HoverHeight <= 0.0f)
         {
             HasGround = IsOnFloor();
@@ -2302,7 +2315,16 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
             return Awareness.Unaware;
         }
         float speed = Mathf.Abs(_animation.SpeedScale);
-        if ((_clip == Species.FleeClip && _clip != Species.WalkClip && speed >= Species.FleeClipSpeed * 0.9f)
+        if (_gait != null)
+        {
+            // Rates follow the host's real speed: running, or walking well above its calm pace, is alerted.
+            bool running = _clip == Species.FleeClip && Species.FleeClip != Species.WalkClip;
+            if (running || (_clip == Species.WalkClip && speed >= _gait.WalkRateAt(Species.WalkSpeed) * 1.25f))
+            {
+                return Awareness.Alerted;
+            }
+        }
+        else if ((_clip == Species.FleeClip && _clip != Species.WalkClip && speed >= Species.FleeClipSpeed * 0.9f)
             || (_clip == Species.WalkClip && speed >= 1.25f))
         {
             return Awareness.Alerted;
@@ -2340,6 +2362,12 @@ public partial class WildlifeAnimal : CharacterBody3D, IMeleeTarget, INetMob
 
     private void Play(string clip, float speed, float startFraction)
     {
+        if (_gait != null && !Puppet && _gait.Manages(clip))
+        {
+            // Walk or run by its real speed, at the rate that keeps its feet planted.
+            clip = _gait.Pick();
+            speed = _gait.Rate();
+        }
         if (_animation == null || clip.Length == 0 || !_animation.HasAnimation(clip))
         {
             return;

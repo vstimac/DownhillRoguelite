@@ -119,6 +119,8 @@ public partial class EnemyTests : Node3D
 
         // Far off: it wanders, unaware; its model follows the animated mannequin.
         HumanoidEnemy enemy = Spawn(species, new Vector3(0, 0, -60));
+        FootSlipStats feet = new();
+        enemy.AddChild(new FootSlipMeter { Stats = feet });
         Vector3 carrier = Vector3.Zero;
         await Track(enemy, carrier, 60);
         Check($"{name}: the model follows the animated rig", enemy.Follower != null && enemy.Follower.Followed >= 40 && enemy.Animations != null && enemy.Animations.HasAnimation("Punch_Jab"),
@@ -139,6 +141,10 @@ public partial class EnemyTests : Node3D
         float after = enemy.GlobalPosition.DistanceTo(carrier);
         Check($"{name}: once it sees the carrier it runs in", enemy.Aware && after < before - 2.0f && fastest > species.WalkSpeed + 0.5f && (enemy.Clip == "Jog_Fwd" || enemy.Clip == "Sprint"),
             $"{before:0.0} m → {after:0.0} m, fastest {fastest:0.0} m/s, clip {enemy.Clip}");
+        // Its walk, jog and sprint follow its real speed (clip paces measured on the mannequin, stride by
+        // the model's own legs): its toes stay put on the ground. A biped's toe rolls through each step,
+        // so even the bare mannequin measures about 0.2-0.3 here; 3.2's enemies measured 0.48.
+        Check($"{name}: its feet stay planted as it walks and runs in", feet.Samples >= 20 && feet.Skate < 0.4f, $"{feet}, leg ratio {enemy.LegRatio():0.00}");
 
         // Its blows land: health and a shove.
         _damage = 0.0f;
