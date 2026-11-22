@@ -76,6 +76,14 @@ vec3 debug_tint(vec4 cell, float height, float shown) {
 	return mix(vec3(0.5), mix(vec3(0.2, 0.7, 0.3), vec3(0.9, 0.9, 0.3), band), shown);
 }
 
+// How much of the layer is at this height over the ground (1 inside, thinning toward its ragged top).
+float layer_body(float above, float top) {
+	float body = 1.0 - smoothstep(top * (1.0 - top_soft), top + 0.1, above);
+	// Fog may sit a little below the sampled ground: the ray already ends at the real surface, and a
+	// hard cut here drew the cells' coarser ground as contour stripes across the slope.
+	return body * smoothstep(-1.0, -0.2, above);
+}
+
 void fragment() {
 	vec3 eye = INV_VIEW_MATRIX[3].xyz;
 	vec3 dir = normalize((INV_VIEW_MATRIX * vec4(normalize(VERTEX), 0.0)).xyz);
@@ -100,6 +108,8 @@ void fragment() {
 	}
 
 	float tallest = depth * max_density * (1.0 + ragged_top) + 0.3;
+	// A step inside the layer crosses at most a third of its usual depth (looking down it is crossed steeply).
+	float layer_step = max(fine_step, depth * 0.35 / max(abs(dir.y), 0.05));
 	float t = enter + interleaved(FRAGCOORD.xy) * fine_step;
 	float through = 1.0;
 	vec3 light = vec3(0.0);
@@ -111,11 +121,23 @@ void fragment() {
 		vec2 uv = (p.xz - now_origin) / patch_size;
 		float height = texture(ground, uv).r;
 		float above = p.y - height;
-		float stride = max(fine_step, t * distance_step);
+		float stride = min(max(fine_step, t * distance_step), layer_step);
 		if (above > tallest) {
 			// Over open air: stride toward the layer (the ground may rise ahead, so not all the way).
 			stride = clamp((above - tallest) * 0.6, stride, 4.0);
-		} else if (above > -0.3) {
+		} else if (above > -1.0) {
+			// The step's middle gives the fog there; the layer's height profile is averaged over the
+			// whole step (its start, middle and end, Simpson's rule). A point per step let the thin
+			// layer fall between samples at the same distance on every ray: rings round the camera
+			// and stripes on far slopes (a per-pixel jitter only turned them into a crawling grain).
+			stride = min(stride, leave - t);
+			float above_start = above;
+			vec3 p_end = p + dir * stride;
+			float above_end = p_end.y - texture(ground, (p_end.xz - now_origin) / patch_size).r;
+			p = p + dir * (stride * 0.5);
+			uv = (p.xz - now_origin) / patch_size;
+			height = texture(ground, uv).r;
+			above = p.y - height;
 			vec4 now = texture(fog_now, uv);
 			vec4 before = texture(fog_prev, (p.xz - prev_origin) / patch_size);
 			vec4 cell = mix(before, now, blend);
@@ -128,8 +150,7 @@ void fragment() {
 			float shown = smoothstep(0.6, 1.0, now.a) * round_edge * far * near;
 			float n = smoothstep(0.2, 0.8, wisp_noise(p, cell.gb));
 			float top = depth * cell.r * (1.0 + ragged_top * (n - 0.5) * 2.0);
-			float body = 1.0 - smoothstep(top * (1.0 - top_soft), top + 0.1, above);
-			body *= smoothstep(-0.3, 0.05, above);
+			float body = (layer_body(above_start, top) + 4.0 * layer_body(above, top) + layer_body(above_end, top)) / 6.0;
 			float thick = mix(1.0 - noise_amount, 1.0 + noise_amount, n);
 			float sigma = density * max(cell.r, 0.0) * thick * body * shown;
 			if (debug_mode != 0) {
