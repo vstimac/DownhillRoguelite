@@ -77,8 +77,8 @@ public partial class CompassDial : Control
     {
         Vector2 c = Size * 0.5f;
         float r = Mathf.Min(Size.X, Size.Y) * 0.5f - 6.0f;
-        InkDraw.Shape(this, InkDraw.Circle(c, r + 4.0f, 32), new Color(0.24f, 0.18f, 0.12f), 3.0f, 61);
-        InkDraw.Shape(this, InkDraw.Circle(c, r - 4.0f, 32), UiStyle.Paper, 2.0f, 62);
+        InkDraw.Shape(this, InkDraw.Circle(c, r + 4.0f, 32), new Color(UiStyle.Paper, 0.85f), 1.5f, 61);
+        InkDraw.Shape(this, InkDraw.Circle(c, r - 4.0f, 32), new Color(UiStyle.PaperDark, 0.6f), 1.0f, 62);
         Font font = UiStyle.Heading;
         string[] marks = { "N", "E", "S", "W" };
         for (int i = 0; i < 4; i++)
@@ -90,7 +90,7 @@ public partial class CompassDial : Control
             if (i == 0)
             {
                 size = 24;
-                ink = UiStyle.Warning.Darkened(0.2f);
+                ink = UiStyle.Highlight;
             }
             Vector2 text = font.GetStringSize(marks[i], HorizontalAlignment.Left, -1, size);
             DrawString(font, c + d * (r - 18.0f) - new Vector2(text.X * 0.5f, -text.Y * 0.3f), marks[i], HorizontalAlignment.Left, -1, size, ink);
@@ -103,7 +103,7 @@ public partial class CompassDial : Control
             float a = _windShown - Mathf.Pi * 0.5f;
             Vector2 d = new(Mathf.Cos(a), Mathf.Sin(a));
             Vector2 side = new(-d.Y, d.X);
-            Color blue = new(0.2f, 0.42f, 0.7f, 0.9f);
+            Color blue = new(UiStyle.Thirst, 0.9f);
             Vector2 tail = c - d * length * 0.6f;
             Vector2 tip = c + d * length;
             DrawLine(tail, tip, blue, 3.0f, true);
@@ -112,7 +112,7 @@ public partial class CompassDial : Control
             DrawLine(tail - side * 6.0f, tail - side * 6.0f + d * length * 0.35f, new Color(blue, 0.6f), 2.0f, true);
         }
         // Star in the middle and the heading pointer.
-        InkDraw.Shape(this, new[] { c + new Vector2(0, -r * 0.42f), c + new Vector2(r * 0.13f, 0), c + new Vector2(0, r * 0.2f), c + new Vector2(-r * 0.13f, 0) }, new Color(0.85f, 0.82f, 0.74f), 2.0f, 63);
+        InkDraw.Shape(this, new[] { c + new Vector2(0, -r * 0.42f), c + new Vector2(r * 0.13f, 0), c + new Vector2(0, r * 0.2f), c + new Vector2(-r * 0.13f, 0) }, UiStyle.Ink, 1.5f, 63);
         foreach ((float angle, bool down) in _teammates)
         {
             float a = angle - Mathf.Pi * 0.5f;

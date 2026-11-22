@@ -229,7 +229,7 @@ public partial class JournalScreen : ParchmentPanel
         public override void _Draw()
         {
             Vector2 s = Size;
-            InkDraw.Shape(this, new[] { new Vector2(6, 6), new Vector2(s.X - 6, 6), new Vector2(s.X - 6, s.Y - 6), new Vector2(6, s.Y - 6) }, new Color(0.8f, 0.72f, 0.56f), 2.5f, 81);
+            InkDraw.Shape(this, new[] { new Vector2(6, 6), new Vector2(s.X - 6, 6), new Vector2(s.X - 6, s.Y - 6), new Vector2(6, s.Y - 6) }, new Color(UiStyle.PaperDark, 0.7f), 2.5f, 81);
             // Rings of the descent, nested ellipses getting darker toward the bottom.
             for (int i = 0; i < 7; i++)
             {
@@ -247,7 +247,7 @@ public partial class JournalScreen : ParchmentPanel
             }
             // The spire rising from the deepest ring.
             Vector2 b = new(s.X * 0.5f, s.Y * 0.8f);
-            InkDraw.Shape(this, new[] { b + new Vector2(-24, 0), b + new Vector2(-6, -s.Y * 0.62f), b + new Vector2(0, -s.Y * 0.7f), b + new Vector2(6, -s.Y * 0.62f), b + new Vector2(24, 0) }, new Color(0.3f, 0.24f, 0.18f), 2.5f, 97);
+            InkDraw.Shape(this, new[] { b + new Vector2(-24, 0), b + new Vector2(-6, -s.Y * 0.62f), b + new Vector2(0, -s.Y * 0.7f), b + new Vector2(6, -s.Y * 0.62f), b + new Vector2(24, 0) }, UiStyle.Line, 2.5f, 97);
             for (int i = 1; i < 6; i++)
             {
                 float y = b.Y - i * s.Y * 0.1f;

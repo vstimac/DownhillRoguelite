@@ -551,7 +551,7 @@ public partial class InventoryScreen : ParchmentPanel
             float fill = Mathf.Clamp(Mass / FullMass, 0.0f, 1.0f);
             if (fill > 0.0f)
             {
-                DrawRect(new Rect2(bar.Position + new Vector2(2, 2), new Vector2((bar.Size.X - 4) * fill, bar.Size.Y - 4)), new Color(0.45f, 0.3f, 0.18f));
+                DrawRect(new Rect2(bar.Position + new Vector2(2, 2), new Vector2((bar.Size.X - 4) * fill, bar.Size.Y - 4)), UiStyle.Ink);
             }
             DrawString(UiStyle.Hand, new Vector2(bar.End.X + 14, 26), $"{Mass:0.0} / {FullMass:0} kg", HorizontalAlignment.Left, -1, UiStyle.TextSize, UiStyle.Ink);
         }

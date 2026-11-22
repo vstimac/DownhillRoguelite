@@ -117,13 +117,13 @@ public abstract partial class OptionRow : Control
         if (Lit > 0.01f)
         {
             DrawRect(new Rect2(0.0f, 2.0f, Size.X, Size.Y - 4.0f), new Color(UiStyle.Ink, 0.10f * Lit));
-            DrawRect(new Rect2(0.0f, 4.0f, 3.0f, Size.Y - 8.0f), new Color(UiStyle.Ink, 0.8f * Lit));
+            DrawRect(new Rect2(0.0f, 4.0f, 2.0f, Size.Y - 8.0f), new Color(UiStyle.Highlight, Lit));
         }
         Font font = UiStyle.Hand;
         Color ink = UiStyle.Ink;
         if (Lit > 0.5f)
         {
-            ink = new Color(0.36f, 0.15f, 0.04f);
+            ink = UiStyle.Highlight;
         }
         DrawString(font, new Vector2(14.0f, Baseline(FontSize)), Label, HorizontalAlignment.Left, Size.X * LabelShare - 20.0f, FontSize, ink);
         DrawValue();

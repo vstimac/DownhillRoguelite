@@ -23,7 +23,7 @@ public partial class NetHud : CanvasLayer
     {
         Layer = 5;
         ProcessMode = ProcessModeEnum.Always;
-        _label = UiStyle.MakeLabel("", UiStyle.SmallSize, false, UiStyle.Paper);
+        _label = UiStyle.MakeLabel("", UiStyle.SmallSize, false, UiStyle.Ink);
         _label.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.8f));
         _label.AddThemeConstantOverride("shadow_offset_x", 2);
         _label.AddThemeConstantOverride("shadow_offset_y", 2);

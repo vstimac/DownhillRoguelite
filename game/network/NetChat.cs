@@ -87,8 +87,8 @@ public partial class NetChat : CanvasLayer
         _box.AddChild(_log);
         StyleBoxFlat back = new()
         {
-            BgColor = new Color(0.08f, 0.06f, 0.04f, 0.72f),
-            BorderColor = new Color(UiStyle.Paper, 0.5f),
+            BgColor = new Color(DownhillRoguelite.Ui.UiStyle.Paper, 0.78f),
+            BorderColor = new Color(UiStyle.Line, 0.8f),
             ContentMarginLeft = 8.0f,
             ContentMarginRight = 8.0f,
             ContentMarginTop = 4.0f,
@@ -107,7 +107,7 @@ public partial class NetChat : CanvasLayer
         };
         _input.AddThemeStyleboxOverride("normal", back);
         _input.AddThemeStyleboxOverride("focus", back);
-        _input.AddThemeColorOverride("font_color", UiStyle.Paper);
+        _input.AddThemeColorOverride("font_color", UiStyle.Ink);
         _input.AddThemeFontSizeOverride("font_size", UiStyle.SmallSize);
         _input.TextSubmitted += OnSubmitted;
         _input.GuiInput += OnInputKey;

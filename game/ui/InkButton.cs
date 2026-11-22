@@ -3,8 +3,10 @@ using Godot;
 namespace DownhillRoguelite.Ui;
 
 /// <summary>
-/// A button drawn in ink on a scrap of parchment: it leans and grows a touch under the mouse and
-/// presses down physically when clicked. Shows a text label, or a glyph (close cross, page arrows).
+/// A button in the expedition look: plain text that, under the mouse or with focus, gains a light
+/// band with an amber rule at its left; a primary button is filled light with dark letters. It
+/// presses down a touch when clicked. Shows a text label, or a glyph (close cross, page arrows).
+/// (Named for the inked journal style it replaced.)
 /// </summary>
 public partial class InkButton : BaseButton
 {
@@ -46,16 +48,6 @@ public partial class InkButton : BaseButton
         ButtonDown += () => Bounce(0.88f, 0.06);
         ButtonUp += () => Bounce(HoverScale(), 0.12);
         Resized += () => PivotOffset = Size * 0.5f;
-        if (Paper && Glyph == GlyphKind.None)
-        {
-            ColorRect paper = new() { MouseFilter = MouseFilterEnum.Ignore, ShowBehindParent = true };
-            AddChild(paper);
-            Resized += () =>
-            {
-                paper.Size = Size;
-                paper.Material = UiStyle.Parchment(Size, Text.Length, 2.5f, 2.5f);
-            };
-        }
         PivotOffset = Size * 0.5f;
     }
 
@@ -63,7 +55,7 @@ public partial class InkButton : BaseButton
     {
         if (_hover)
         {
-            return 1.06f;
+            return 1.02f;
         }
         return 1.0f;
     }
@@ -72,12 +64,6 @@ public partial class InkButton : BaseButton
     {
         _hover = on;
         Bounce(HoverScale(), 0.12);
-        float lean = 0.0f;
-        if (on)
-        {
-            lean = Mathf.DegToRad(-2.0f);
-        }
-        _tween?.TweenProperty(this, "rotation", lean, 0.12);
         QueueRedraw();
     }
 
@@ -91,65 +77,54 @@ public partial class InkButton : BaseButton
     public override void _Draw()
     {
         Vector2 c = Size * 0.5f;
-        float s = Mathf.Min(Size.X, Size.Y) * 0.32f;
+        float s = Mathf.Min(Size.X, Size.Y) * 0.26f;
         Color ink = UiStyle.Ink;
         if (_hover)
         {
-            ink = new Color(0.45f, 0.18f, 0.05f);
+            ink = UiStyle.Highlight;
         }
         if (Glyph == GlyphKind.Cross)
         {
-            DrawPolyline(InkDraw.Wobble(new[] { c + new Vector2(-s, -s), c + new Vector2(s, s) }, 1.0f, 3), ink, 3.5f, true);
-            DrawPolyline(InkDraw.Wobble(new[] { c + new Vector2(s, -s), c + new Vector2(-s, s) }, 1.0f, 4), ink, 3.5f, true);
+            DrawLine(c + new Vector2(-s, -s), c + new Vector2(s, s), ink, 2.0f, true);
+            DrawLine(c + new Vector2(s, -s), c + new Vector2(-s, s), ink, 2.0f, true);
             return;
         }
         if (Glyph == GlyphKind.Left || Glyph == GlyphKind.Right)
         {
-            float dir = 1.0f;
-            if (Glyph == GlyphKind.Left)
-            {
-                dir = -1.0f;
-            }
-            InkDraw.Shape(this, new[] { c + new Vector2(dir * s, 0), c + new Vector2(-dir * s * 0.7f, -s), c + new Vector2(-dir * s * 0.7f, s) }, ink, 2.0f, 5);
+            float dir = Glyph == GlyphKind.Left ? -1.0f : 1.0f;
+            Vector2 tip = c + new Vector2(dir * s * 0.6f, 0);
+            DrawPolyline(new[] { c + new Vector2(-dir * s * 0.6f, -s), tip, c + new Vector2(-dir * s * 0.6f, s) }, ink, 2.0f, true);
             return;
         }
         Font font = UiStyle.Hand;
         Vector2 size = font.GetStringSize(Text, HorizontalAlignment.Left, -1, FontSize);
-        Color letters = ink;
+        Color letters = UiStyle.Ink;
+        Rect2 band = new(new Vector2(2.0f, 3.0f), Size - new Vector2(4.0f, 6.0f));
         if (Paper && Primary)
         {
-            // Inked in, so it reads as the button to press before anything is focused.
-            Color fill = new(UiStyle.Ink, 0.9f);
-            if (_hover)
-            {
-                fill = new Color(0.45f, 0.18f, 0.05f, 0.95f);
-            }
-            DrawRect(new Rect2(new Vector2(5.0f, 5.0f), Size - new Vector2(10.0f, 10.0f)), fill);
+            // Filled light, so it reads as the button to press before anything is focused.
+            DrawRect(band, _hover ? UiStyle.Highlight : UiStyle.Ink);
             letters = UiStyle.Paper;
         }
-        else if (Paper && Focusable && !_hover)
+        else
         {
-            // At rest a paper button still shows its edge, so it looks pressable.
-            Vector2 a0 = new(4.0f, 4.0f);
-            Vector2 b0 = Size - new Vector2(4.0f, 4.0f);
-            DrawPolyline(InkDraw.Wobble(new[] { a0, new(b0.X, a0.Y), b0, new(a0.X, b0.Y), a0 }, 0.6f, Text.Length + 5), new Color(ink, 0.45f), 1.5f, true);
-        }
-        DrawString(font, new Vector2((Size.X - size.X) * 0.5f, (Size.Y + size.Y * 0.55f) * 0.5f), Text, HorizontalAlignment.Left, -1, FontSize, letters);
-        if (_hover)
-        {
-            DrawPolyline(InkDraw.Wobble(new[] { new Vector2((Size.X - size.X) * 0.5f, Size.Y * 0.78f), new Vector2((Size.X + size.X) * 0.5f, Size.Y * 0.78f) }, 1.0f, 7), letters, 2.0f, true);
-            if (Paper && Focusable)
+            if (Paper)
             {
-                // Keyboard and controller focus must read at a glance, not only as a colour change: an inked frame.
-                Vector2 a = new(3.0f, 3.0f);
-                Vector2 b = Size - new Vector2(3.0f, 3.0f);
-                Vector2[] frame = { a, new(b.X, a.Y), b, new(a.X, b.Y), a };
-                DrawPolyline(InkDraw.Wobble(frame, 0.8f, Text.Length + 11), ink, 2.0f, true);
+                // A paper button still shows its edge at rest, so it looks pressable.
+                DrawRect(band, new Color(UiStyle.PaperDark, 0.55f));
+                DrawRect(band, new Color(UiStyle.Line, 0.9f), false, 1.0f);
+            }
+            if (_hover)
+            {
+                // Mouse and keyboard focus read the same, at a glance: a light band and an amber rule.
+                DrawRect(band, new Color(UiStyle.Ink, 0.12f));
+                DrawRect(new Rect2(band.Position, new Vector2(2.0f, band.Size.Y)), UiStyle.Highlight);
             }
         }
+        DrawString(font, new Vector2((Size.X - size.X) * 0.5f, (Size.Y + size.Y * 0.55f) * 0.5f), Text, HorizontalAlignment.Left, -1, FontSize, letters);
         if (Disabled)
         {
-            DrawRect(new Rect2(Vector2.Zero, Size), new Color(UiStyle.Paper, 0.55f));
+            DrawRect(new Rect2(Vector2.Zero, Size), new Color(UiStyle.Paper, 0.6f));
         }
     }
 }

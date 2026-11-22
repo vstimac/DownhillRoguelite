@@ -14,8 +14,8 @@ namespace DownhillRoguelite.WorldUi;
 public partial class ExpeditionRow : PanelContainer
 {
     [Export] public float RowHeight { get; set; } = 64.0f;
-    [Export] public Color Card { get; set; } = new(0.74f, 0.65f, 0.49f, 0.55f);
-    [Export] public Color CardSelected { get; set; } = new(0.8f, 0.7f, 0.5f, 0.85f);
+    [Export] public Color Card { get; set; } = new(0.16f, 0.2f, 0.23f, 0.6f);
+    [Export] public Color CardSelected { get; set; } = new(0.26f, 0.32f, 0.36f, 0.9f);
     [Export] public Color Waiting { get; set; } = new(0.3f, 0.5f, 0.22f);
     [Export] public Color Busy { get; set; } = new(0.55f, 0.42f, 0.2f);
 
@@ -57,7 +57,7 @@ public partial class ExpeditionRow : PanelContainer
         VBoxContainer right = new() { MouseFilter = MouseFilterEnum.Ignore, Alignment = BoxContainer.AlignmentMode.Center };
         right.AddThemeConstantOverride("separation", 2);
         row.AddChild(right);
-        _pill = Text(UiStyle.SmallSize, UiStyle.Paper);
+        _pill = Text(UiStyle.SmallSize, UiStyle.Ink);
         _pill.HorizontalAlignment = HorizontalAlignment.Center;
         _pill.SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
         _pillBox = new StyleBoxFlat { BgColor = Waiting, ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 1, ContentMarginBottom = 1 };

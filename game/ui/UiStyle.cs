@@ -3,38 +3,52 @@ using Godot;
 namespace DownhillRoguelite.Ui;
 
 /// <summary>
-/// The journal UI's visual system in one place: ink and paper colours, the two fonts (Patrick Hand
-/// for text, IM Fell English SC for headings), sizes and a factory for parchment backgrounds and
-/// labels. Every panel and widget takes its look from here so the interface stays one family.
+/// The UI's visual system in one place, the expedition look: dark see-through slate panels, thin
+/// light lines, one warm accent, Barlow for text and Barlow Condensed in spaced capitals for headings.
+/// Colours, fonts, sizes and a factory for panel backgrounds and labels; every panel and widget takes
+/// its look from here so the interface stays one family. The names (Ink, Paper, Parchment) are the
+/// journal style's it replaced: Ink is what is drawn (text, lines), Paper what it is drawn on.
 /// </summary>
 public static class UiStyle
 {
-    public static readonly Color Ink = new(0.17f, 0.12f, 0.08f);
-    public static readonly Color InkSoft = new(0.17f, 0.12f, 0.08f, 0.55f);
-    public static readonly Color Paper = new(0.86f, 0.79f, 0.64f);
-    public static readonly Color PaperDark = new(0.62f, 0.52f, 0.38f);
+    /// <summary>Text and lines: a cold off-white.</summary>
+    public static readonly Color Ink = new(0.91f, 0.93f, 0.95f);
+    public static readonly Color InkSoft = new(0.91f, 0.93f, 0.95f, 0.55f);
+    /// <summary>The panels' slate (opaque here; the panel shader draws it see-through).</summary>
+    public static readonly Color Paper = new(0.06f, 0.08f, 0.1f);
+    /// <summary>A raised surface on a panel: a slot, a selected row's ground.</summary>
+    public static readonly Color PaperDark = new(0.16f, 0.2f, 0.23f);
     public static readonly Color PaperShadow = new(0.0f, 0.0f, 0.0f, 0.28f);
-    public static readonly Color Health = new(0.66f, 0.16f, 0.12f);
-    public static readonly Color Hunger = new(0.85f, 0.55f, 0.18f);
-    public static readonly Color Thirst = new(0.25f, 0.45f, 0.7f);
-    public static readonly Color Stamina = new(0.42f, 0.55f, 0.25f);
-    public static readonly Color Cold = new(0.45f, 0.6f, 0.75f);
-    public static readonly Color Warning = new(0.8f, 0.12f, 0.08f);
-    public static readonly Color Highlight = new(0.95f, 0.8f, 0.4f);
+    /// <summary>Labels, captions and hairlines: blue-grey.</summary>
+    public static readonly Color Muted = new(0.62f, 0.7f, 0.75f);
+    public static readonly Color Line = new(0.36f, 0.43f, 0.47f);
+    public static readonly Color Health = new(0.9f, 0.36f, 0.3f);
+    public static readonly Color Hunger = new(0.95f, 0.66f, 0.32f);
+    public static readonly Color Thirst = new(0.42f, 0.68f, 0.92f);
+    public static readonly Color Stamina = new(0.62f, 0.8f, 0.42f);
+    public static readonly Color Cold = new(0.62f, 0.8f, 0.94f);
+    public static readonly Color Warning = new(0.95f, 0.36f, 0.26f);
+    /// <summary>The one accent: amber, for what's selected, new or worth reading first.</summary>
+    public static readonly Color Highlight = new(0.95f, 0.7f, 0.35f);
 
-    public const int TextSize = 20;
-    public const int SmallSize = 16;
-    public const int HeadingSize = 30;
+    public const int TextSize = 19;
+    public const int SmallSize = 15;
+    public const int HeadingSize = 26;
 
-    private static FontFile? _hand;
-    private static FontFile? _heading;
+    private static Font? _hand;
+    private static Font? _heading;
+    private static Font? _strong;
     private static Shader? _parchment;
     private static Shader? _inkIcon;
 
-    public static Font Hand => _hand ??= Load("res://ui/fonts/PatrickHand-Regular.ttf");
-    public static Font Heading => _heading ??= Load("res://ui/fonts/IMFeENsc28P.ttf");
+    /// <summary>Body text (Barlow).</summary>
+    public static Font Hand => _hand ??= Load("res://ui/fonts/Barlow-Regular.ttf");
+    /// <summary>Headings: Barlow Condensed with its letters spaced out (headings show in capitals).</summary>
+    public static Font Heading => _heading ??= Spaced(Load("res://ui/fonts/BarlowCondensed-Medium.ttf"), 2);
+    /// <summary>Emphasis in body text (Barlow Medium).</summary>
+    public static Font Strong => _strong ??= Load("res://ui/fonts/Barlow-Medium.ttf");
 
-    private static FontFile Load(string path)
+    private static Font Load(string path)
     {
         if (ResourceLoader.Load(path) is FontFile font)
         {
@@ -43,10 +57,17 @@ public static class UiStyle
         return new FontFile();
     }
 
+    private static Font Spaced(Font font, int glyph)
+    {
+        FontVariation spaced = new() { BaseFont = font };
+        spaced.SetSpacing(TextServer.SpacingType.Glyph, glyph);
+        return spaced;
+    }
+
     public static Shader ParchmentShader => _parchment ??= ResourceLoader.Load<Shader>("res://ui/shaders/parchment.gdshader");
     public static Shader InkIconShader => _inkIcon ??= ResourceLoader.Load<Shader>("res://ui/shaders/ink_icon.gdshader");
 
-    /// <summary>A parchment material for a control of <paramref name="size"/>; each seed tears differently.</summary>
+    /// <summary>A panel background for a control of <paramref name="size"/> (border 0: the fill alone, for a shadow).</summary>
     public static ShaderMaterial Parchment(Vector2 size, float seed, float border = 4.0f, float tear = 5.0f)
     {
         ShaderMaterial material = new() { Shader = ParchmentShader };
@@ -89,16 +110,27 @@ public static class UiStyle
         label.AddThemeFontOverride("font", font);
         label.AddThemeFontSizeOverride("font_size", size);
         label.AddThemeColorOverride("font_color", colour ?? Ink);
+        // Headings in spaced capitals, like the labels on an expedition's kit.
+        label.Uppercase = heading;
         return label;
     }
 
-    /// <summary>A theme so built-in controls (buttons, sliders) inside panels use the hand font and ink.</summary>
+    /// <summary>A theme so built-in controls (buttons, text fields) inside panels use the UI's font and colours.</summary>
     public static Theme MakeTheme()
     {
         Theme theme = new() { DefaultFont = Hand, DefaultFontSize = TextSize };
         theme.SetColor("font_color", "Label", Ink);
         theme.SetColor("font_color", "Button", Ink);
-        theme.SetColor("font_hover_color", "Button", new Color(0.4f, 0.2f, 0.05f));
+        theme.SetColor("font_hover_color", "Button", Highlight);
+        theme.SetColor("font_color", "LineEdit", Ink);
+        theme.SetColor("caret_color", "LineEdit", Highlight);
+        theme.SetColor("font_placeholder_color", "LineEdit", Muted);
+        StyleBoxFlat field = new() { BgColor = new Color(PaperDark, 0.6f), BorderColor = Line, ContentMarginLeft = 8, ContentMarginRight = 8, ContentMarginTop = 4, ContentMarginBottom = 4 };
+        field.SetBorderWidthAll(1);
+        theme.SetStylebox("normal", "LineEdit", field);
+        StyleBoxFlat focused = (StyleBoxFlat)field.Duplicate();
+        focused.BorderColor = Highlight;
+        theme.SetStylebox("focus", "LineEdit", focused);
         StyleBoxEmpty empty = new();
         theme.SetStylebox("normal", "Button", empty);
         theme.SetStylebox("hover", "Button", empty);

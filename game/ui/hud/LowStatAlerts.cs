@@ -103,7 +103,7 @@ public partial class LowStatAlerts : Control
         {
             string text = _alerts[i];
             Vector2 size = font.GetStringSize(text, HorizontalAlignment.Left, -1, UiStyle.SmallSize);
-            DrawRect(new Rect2(new Vector2(0.0f, y), size + new Vector2(16.0f, 8.0f)), new Color(0.1f, 0.07f, 0.05f, 0.7f));
+            DrawRect(new Rect2(new Vector2(0.0f, y), size + new Vector2(16.0f, 8.0f)), new Color(UiStyle.Paper, 0.75f));
             DrawString(font, new Vector2(8.0f, y + size.Y), text, HorizontalAlignment.Left, -1, UiStyle.SmallSize, Flash(i * 0.4f));
             y += size.Y + 12.0f;
         }

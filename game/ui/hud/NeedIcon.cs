@@ -106,7 +106,7 @@ public partial class NeedIcon : Control
             DrawRect(new Rect2(track.Position, new Vector2(track.Size.X * fraction, track.Size.Y)), ring);
             return;
         }
-        InkDraw.Arc(this, c, radius, 0.0f, Mathf.Tau, 5.0f, new Color(0.1f, 0.08f, 0.06f));
+        InkDraw.Arc(this, c, radius, 0.0f, Mathf.Tau, 5.0f, new Color(UiStyle.Paper, 0.8f));
         if (fraction > 0.001f)
         {
             InkDraw.Arc(this, c, radius, 0.0f, Mathf.Tau * fraction, 3.5f, ring);

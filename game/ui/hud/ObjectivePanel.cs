@@ -147,7 +147,7 @@ public partial class ObjectivePanel : ParchmentPanel
         if (main.Value.Title != _lastTitle)
         {
             _lastTitle = main.Value.Title;
-            _title.Modulate = new Color(0.6f, 0.4f, 0.3f);
+            _title.Modulate = UiStyle.Muted;
             CreateTween().TweenProperty(_title, "modulate", Colors.White, 0.8);
         }
     }

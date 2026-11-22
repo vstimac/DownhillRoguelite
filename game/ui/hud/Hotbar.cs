@@ -72,7 +72,7 @@ public partial class Hotbar : Control
         _right = new InkButton { Glyph = InkButton.GlyphKind.Right, Position = new Vector2(Size.X - ArrowWidth, arrowTop), Size = new Vector2(ArrowWidth, arrowHeight) };
         _right.Pressed += () => Select((Selected + 1) % Slots);
         AddChild(_right);
-        _name = UiStyle.MakeLabel("", UiStyle.TextSize, false, UiStyle.Paper);
+        _name = UiStyle.MakeLabel("", UiStyle.TextSize, false, UiStyle.Ink);
         _name.AddThemeColorOverride("font_outline_color", UiStyle.Ink);
         _name.AddThemeConstantOverride("outline_size", 6);
         _name.Modulate = new Color(1, 1, 1, 0);

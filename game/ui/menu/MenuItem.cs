@@ -138,34 +138,32 @@ public partial class MenuItem : BaseButton
             body = Size.Y - DetailSize * 1.5f;
         }
         float y = (body + font.GetAscent(FontSize) - font.GetDescent(FontSize)) * 0.5f;
-        Color colour = UiStyle.Paper.Lerp(UiStyle.Ink, Lit);
+        Color colour = UiStyle.Ink.Lerp(UiStyle.Highlight, Lit);
         if (Disabled)
         {
             colour = new Color(UiStyle.PaperDark, 0.45f);
         }
-        if (Lit < 0.5f && !Disabled)
+        if (!Disabled)
         {
-            // A soft shadow keeps paper-coloured text readable over bright snow and sky.
-            DrawString(font, new Vector2(x + 2.0f, y + 2.0f), Text, HorizontalAlignment.Left, -1, FontSize, new Color(0, 0, 0, 0.55f * (1.0f - Lit)));
+            // A soft shadow keeps light text readable over bright snow and sky.
+            DrawString(font, new Vector2(x + 2.0f, y + 2.0f), Text, HorizontalAlignment.Left, -1, FontSize, new Color(0, 0, 0, 0.55f));
         }
         DrawString(font, new Vector2(x, y), Text, HorizontalAlignment.Left, -1, FontSize, colour);
         if (Detail.Length > 0)
         {
             Font hand = UiStyle.Hand;
             float dy = body + DetailSize * 0.75f;
-            Color detail = new Color(UiStyle.Paper, 0.8f).Lerp(new Color(UiStyle.Ink, 0.85f), Lit);
-            if (Lit < 0.5f)
-            {
-                DrawString(hand, new Vector2(x + 2.0f + 1.5f, dy + 1.5f), Detail, HorizontalAlignment.Left, -1, DetailSize, new Color(0, 0, 0, 0.6f * (1.0f - Lit)));
-            }
+            Color detail = new Color(UiStyle.Muted, 0.9f).Lerp(new Color(UiStyle.Ink, 0.9f), Lit);
+            DrawString(hand, new Vector2(x + 2.0f + 1.5f, dy + 1.5f), Detail, HorizontalAlignment.Left, -1, DetailSize, new Color(0, 0, 0, 0.6f));
             DrawString(hand, new Vector2(x + 2.0f, dy), Detail, HorizontalAlignment.Left, -1, DetailSize, detail);
         }
         if (Lit > 0.01f)
         {
-            // An inked tick in front of the focused entry.
-            float tick = x - 2.0f;
-            Vector2[] mark = { new(tick - 12.0f * Lit, y - text.Y * 0.32f), new(tick - 3.0f, y - text.Y * 0.18f), new(tick - 12.0f * Lit, y - text.Y * 0.04f) };
-            DrawPolyline(InkDraw.Wobble(mark, 0.6f, Text.Length), new Color(UiStyle.Ink, Lit), 2.5f, true);
+            // An amber rule in front of the focused entry, growing as it lights.
+            float rule = x - 8.0f;
+            float half = text.Y * 0.36f * Lit;
+            float middle = y - text.Y * 0.3f;
+            DrawRect(new Rect2(rule, middle - half, 2.0f, half * 2.0f), new Color(UiStyle.Highlight, Lit));
         }
     }
 }

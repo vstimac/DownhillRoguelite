@@ -304,7 +304,7 @@ public partial class PauseMenu : CanvasLayer
 
         _column = new Control { MouseFilter = Control.MouseFilterEnum.Ignore };
         _root.AddChild(_column);
-        _title = UiStyle.MakeLabel("Paused", TitleSize, true, UiStyle.Paper);
+        _title = UiStyle.MakeLabel("Paused", TitleSize, true, UiStyle.Ink);
         _title.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.6f));
         _title.AddThemeConstantOverride("shadow_offset_x", 3);
         _title.AddThemeConstantOverride("shadow_offset_y", 3);

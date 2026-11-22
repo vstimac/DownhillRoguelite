@@ -266,7 +266,7 @@ public partial class StartScreen : CanvasLayer
 
         _column = new Control { Name = "Column", MouseFilter = Control.MouseFilterEnum.Ignore };
         _root.AddChild(_column);
-        _title = UiStyle.MakeLabel(Title, TitleSize, true, UiStyle.Paper);
+        _title = UiStyle.MakeLabel(Title, TitleSize, true, UiStyle.Ink);
         _title.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _title.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.6f));
         _title.AddThemeConstantOverride("shadow_offset_x", 3);
@@ -276,7 +276,7 @@ public partial class StartScreen : CanvasLayer
         _subtitle = UiStyle.MakeLabel(Subtitle, UiStyle.TextSize + 2, false, UiStyle.Highlight);
         _subtitle.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.6f));
         _column.AddChild(_subtitle);
-        _records = UiStyle.MakeLabel(RecordsText(), UiStyle.TextSize - 2, false, new Color(UiStyle.Paper, 0.85f));
+        _records = UiStyle.MakeLabel(RecordsText(), UiStyle.TextSize - 2, false, new Color(UiStyle.Ink, 0.85f));
         _records.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.7f));
         _column.AddChild(_records);
 
@@ -314,7 +314,7 @@ public partial class StartScreen : CanvasLayer
         LinkRows();
 
         // What the focused entry does sits right under the menu, where the eye already is.
-        _hint = UiStyle.MakeLabel("", UiStyle.TextSize - 2, false, new Color(UiStyle.Paper, 0.9f));
+        _hint = UiStyle.MakeLabel("", UiStyle.TextSize - 2, false, new Color(UiStyle.Ink, 0.9f));
         _hint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _hint.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.75f));
         _column.AddChild(_hint);
@@ -322,7 +322,7 @@ public partial class StartScreen : CanvasLayer
         _keys = UiStyle.MakeLabel("", UiStyle.SmallSize, false, UiStyle.PaperDark);
         _keys.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.7f));
         _root.AddChild(_keys);
-        _version = UiStyle.MakeLabel(VersionLine(), UiStyle.SmallSize, false, new Color(UiStyle.Paper, 0.8f));
+        _version = UiStyle.MakeLabel(VersionLine(), UiStyle.SmallSize, false, new Color(UiStyle.Muted, 0.9f));
         _version.HorizontalAlignment = HorizontalAlignment.Right;
         _version.AddThemeColorOverride("font_shadow_color", new Color(0, 0, 0, 0.7f));
         _root.AddChild(_version);

@@ -278,7 +278,7 @@ public partial class ItemSlot : Control
         if (Durability >= 0.0f)
         {
             Rect2 bar = new(new Vector2(6, size.Y - 9), new Vector2(size.X - 12, 5));
-            DrawRect(bar, new Color(0.1f, 0.08f, 0.06f, 0.7f));
+            DrawRect(bar, new Color(UiStyle.Paper, 0.75f));
             Color wear = UiStyle.Warning.Lerp(UiStyle.Stamina, Mathf.Clamp(Durability, 0.0f, 1.0f));
             DrawRect(new Rect2(bar.Position, new Vector2(bar.Size.X * Mathf.Clamp(Durability, 0.0f, 1.0f), bar.Size.Y)), wear);
         }

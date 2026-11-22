@@ -82,7 +82,7 @@ public partial class DescentPanel : ParchmentPanel
         if (circle != _lastPlace)
         {
             _lastPlace = circle;
-            _body.Modulate = new Color(0.6f, 0.4f, 0.3f);
+            _body.Modulate = UiStyle.Muted;
             CreateTween().TweenProperty(_body, "modulate", Colors.White, 0.8);
         }
     }

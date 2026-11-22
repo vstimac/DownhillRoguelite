@@ -277,7 +277,7 @@ public partial class BalanceGauge : Control
             const int font = 18;
             Vector2 text = UiStyle.Hand.GetStringSize(Hint, HorizontalAlignment.Left, -1, font);
             Vector2 at = new(centre.X - text.X * 0.5f, centre.Y + 30.0f);
-            Color colour = new(UiStyle.Paper, a);
+            Color colour = new(UiStyle.Ink, a);
             if (_snapshot.State == BalanceState.Stumbling)
             {
                 colour = new Color(UiStyle.Warning.Lightened(0.35f), a);

@@ -135,7 +135,7 @@ public partial class InteractionTooltip : ParchmentPanel
             string action = Text.Substring(split + 2);
             Font font = UiStyle.Hand;
             Rect2 cap = new(new Vector2(0, 2), new Vector2(26, 26));
-            InkDraw.Shape(this, new[] { cap.Position, new Vector2(cap.End.X, cap.Position.Y), cap.End, new Vector2(cap.Position.X, cap.End.Y) }, new Color(0.3f, 0.24f, 0.18f), 2.0f, 9);
+            InkDraw.Shape(this, new[] { cap.Position, new Vector2(cap.End.X, cap.Position.Y), cap.End, new Vector2(cap.Position.X, cap.End.Y) }, UiStyle.Ink, 1.0f, 9);
             DrawString(font, new Vector2(7, 23), key, HorizontalAlignment.Left, -1, 20, UiStyle.Paper);
             DrawString(font, new Vector2(36, 23), action, HorizontalAlignment.Left, -1, 20, UiStyle.Ink);
         }

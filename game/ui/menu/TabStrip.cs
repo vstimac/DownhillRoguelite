@@ -178,7 +178,7 @@ public partial class TabStrip : Control
             }
             else if (i == _hover)
             {
-                ink = new Color(0.36f, 0.15f, 0.04f, 0.85f);
+                ink = UiStyle.Highlight;
             }
             DrawString(font, new Vector2(rect.Position.X + (rect.Size.X - width) * 0.5f, baseline), _names[i], HorizontalAlignment.Left, -1, FontSize, ink);
         }

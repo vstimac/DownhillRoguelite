@@ -3,10 +3,10 @@ using Godot;
 namespace DownhillRoguelite.Ui;
 
 /// <summary>
-/// A sheet of parchment: the shader background (torn, inked edges), an optional heading in the
-/// old-print font and an optional inked close cross. Opens by unfolding (it grows from a thin
-/// fold with a small overshoot and settles its tilt) and closes by folding away, so screens feel
-/// like paper being handled rather than windows appearing.
+/// A window in the expedition look: the panel background (dark slate, hairline frame, a light rule
+/// at its left), an optional heading in spaced capitals over a thin line, and an optional close
+/// cross. Opens with a quick fade as it rises into place and closes by fading away.
+/// (Named for the parchment sheet it replaced.)
 /// </summary>
 public partial class ParchmentPanel : Control
 {
@@ -34,13 +34,14 @@ public partial class ParchmentPanel : Control
     private ColorRect? _paper;
     private ColorRect? _shadow;
     private Label? _title;
+    private ColorRect? _rule;
     private InkButton? _close;
     private Tween? _tween;
 
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop;
-        _shadow = new ColorRect { Color = UiStyle.PaperShadow, MouseFilter = MouseFilterEnum.Ignore, ShowBehindParent = true };
+        _shadow = new ColorRect { Color = UiStyle.PaperShadow, MouseFilter = MouseFilterEnum.Ignore, ShowBehindParent = true, Visible = false };
         AddChild(_shadow);
         _paper = new ColorRect { Color = Colors.White, MouseFilter = MouseFilterEnum.Ignore };
         AddChild(_paper);
@@ -48,6 +49,8 @@ public partial class ParchmentPanel : Control
         {
             _title = UiStyle.MakeLabel(Title, UiStyle.HeadingSize, true);
             AddChild(_title);
+            _rule = new ColorRect { Color = UiStyle.Line, MouseFilter = MouseFilterEnum.Ignore };
+            AddChild(_rule);
         }
         if (Closable)
         {
@@ -75,7 +78,12 @@ public partial class ParchmentPanel : Control
         PivotOffset = Size * 0.5f;
         if (_title != null)
         {
-            _title.Position = new Vector2(22, 10);
+            _title.Position = new Vector2(22, 9);
+        }
+        if (_rule != null)
+        {
+            _rule.Position = new Vector2(22, HeaderHeight - 6);
+            _rule.Size = new Vector2(Mathf.Max(Size.X - 44, 0), 1);
         }
         if (_close != null)
         {
@@ -95,12 +103,13 @@ public partial class ParchmentPanel : Control
         KeepOnScreen();
         _tween?.Kill();
         PivotOffset = Size * 0.5f;
-        Scale = new Vector2(1.0f, 0.04f);
-        Rotation = Mathf.DegToRad(-3.0f);
+        Scale = Vector2.One;
+        Rotation = 0.0f;
         Modulate = new Color(1, 1, 1, 0.0f);
+        Vector2 settled = Position;
+        Position = settled + new Vector2(0.0f, 12.0f);
         _tween = CreateTween().SetParallel();
-        _tween.TweenProperty(this, "scale", Vector2.One, 0.38).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
-        _tween.TweenProperty(this, "rotation", 0.0f, 0.45).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
+        _tween.TweenProperty(this, "position", settled, 0.22).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
         _tween.TweenProperty(this, "modulate:a", 1.0f, 0.18);
     }
 
@@ -136,9 +145,7 @@ public partial class ParchmentPanel : Control
         IsOpen = false;
         _tween?.Kill();
         _tween = CreateTween().SetParallel();
-        _tween.TweenProperty(this, "scale", new Vector2(1.0f, 0.04f), 0.22).SetTrans(Tween.TransitionType.Quad).SetEase(Tween.EaseType.In);
-        _tween.TweenProperty(this, "rotation", Mathf.DegToRad(2.0f), 0.22);
-        _tween.TweenProperty(this, "modulate:a", 0.0f, 0.22);
+        _tween.TweenProperty(this, "modulate:a", 0.0f, 0.14);
         _tween.Chain().TweenCallback(Callable.From(() =>
         {
             Visible = false;

@@ -28,9 +28,14 @@ public enum InkIcon
 /// </summary>
 public static class InkDraw
 {
+    /// <summary>How much the hand-drawn wobble shows (0: straight lines, the expedition look; 1: the old inked journal).</summary>
+    public static float HandDrawn { get; set; }
+
     /// <summary>Points around a closed outline, nudged by a seeded wobble so it looks drawn by hand.</summary>
     public static Vector2[] Wobble(IReadOnlyList<Vector2> points, float amount, int seed)
     {
+        // The expedition look draws clean, straight lines.
+        amount *= HandDrawn;
         Vector2[] result = new Vector2[points.Count];
         for (int i = 0; i < points.Count; i++)
         {
@@ -171,40 +176,40 @@ public static class InkDraw
                 {
                     c + new Vector2(-0.55f, -0.45f) * s, c + new Vector2(0.55f, -0.45f) * s, c + new Vector2(0.65f, 0.75f) * s, c + new Vector2(-0.65f, 0.75f) * s,
                 };
-                Shape(canvas, bag, new Color(0.55f, 0.38f, 0.22f), 2.5f, seed);
+                Shape(canvas, bag, UiStyle.PaperDark, 1.5f, seed);
                 Vector2[] flap = { c + new Vector2(-0.55f, -0.45f) * s, c + new Vector2(0.55f, -0.45f) * s, c + new Vector2(0.45f, 0.05f) * s, c + new Vector2(-0.45f, 0.05f) * s };
-                Shape(canvas, flap, new Color(0.45f, 0.3f, 0.18f), 2.0f, seed + 1);
+                Shape(canvas, flap, UiStyle.Line, 1.5f, seed + 1);
                 Arc(canvas, c + new Vector2(0, -0.45f) * s, s * 0.28f, -1.4f, 1.4f, 2.5f, UiStyle.Ink);
                 break;
             }
             case InkIcon.Hat:
             {
                 Vector2[] hat = { c + new Vector2(-0.8f, 0.35f) * s, c + new Vector2(0.8f, 0.35f) * s, c + new Vector2(0.4f, 0.15f) * s, c + new Vector2(0.35f, -0.55f) * s, c + new Vector2(-0.35f, -0.55f) * s, c + new Vector2(-0.4f, 0.15f) * s };
-                Shape(canvas, hat, new Color(0.35f, 0.32f, 0.28f, 0.55f), 2.0f, seed);
+                Shape(canvas, hat, new Color(UiStyle.Line, 0.55f), 2.0f, seed);
                 break;
             }
             case InkIcon.Shirt:
             {
                 Vector2[] shirt = { c + new Vector2(-0.3f, -0.7f) * s, c + new Vector2(0.3f, -0.7f) * s, c + new Vector2(0.8f, -0.35f) * s, c + new Vector2(0.6f, 0.0f) * s, c + new Vector2(0.4f, -0.15f) * s, c + new Vector2(0.45f, 0.75f) * s, c + new Vector2(-0.45f, 0.75f) * s, c + new Vector2(-0.4f, -0.15f) * s, c + new Vector2(-0.6f, 0.0f) * s, c + new Vector2(-0.8f, -0.35f) * s };
-                Shape(canvas, shirt, new Color(0.35f, 0.32f, 0.28f, 0.55f), 2.0f, seed);
+                Shape(canvas, shirt, new Color(UiStyle.Line, 0.55f), 2.0f, seed);
                 break;
             }
             case InkIcon.Trousers:
             {
                 Vector2[] legs = { c + new Vector2(-0.45f, -0.75f) * s, c + new Vector2(0.45f, -0.75f) * s, c + new Vector2(0.5f, 0.8f) * s, c + new Vector2(0.12f, 0.8f) * s, c + new Vector2(0.0f, -0.2f) * s, c + new Vector2(-0.12f, 0.8f) * s, c + new Vector2(-0.5f, 0.8f) * s };
-                Shape(canvas, legs, new Color(0.35f, 0.32f, 0.28f, 0.55f), 2.0f, seed);
+                Shape(canvas, legs, new Color(UiStyle.Line, 0.55f), 2.0f, seed);
                 break;
             }
             case InkIcon.Glove:
             {
                 Vector2[] glove = { c + new Vector2(-0.4f, 0.8f) * s, c + new Vector2(-0.45f, -0.2f) * s, c + new Vector2(-0.3f, -0.75f) * s, c + new Vector2(0.0f, -0.8f) * s, c + new Vector2(0.3f, -0.7f) * s, c + new Vector2(0.4f, -0.1f) * s, c + new Vector2(0.75f, -0.25f) * s, c + new Vector2(0.6f, 0.2f) * s, c + new Vector2(0.4f, 0.8f) * s };
-                Shape(canvas, glove, new Color(0.35f, 0.32f, 0.28f, 0.55f), 2.0f, seed);
+                Shape(canvas, glove, new Color(UiStyle.Line, 0.55f), 2.0f, seed);
                 break;
             }
             case InkIcon.Cape:
             {
                 Vector2[] cape = { c + new Vector2(-0.25f, -0.75f) * s, c + new Vector2(0.25f, -0.75f) * s, c + new Vector2(0.75f, 0.8f) * s, c + new Vector2(-0.75f, 0.8f) * s };
-                Shape(canvas, cape, new Color(0.35f, 0.32f, 0.28f, 0.55f), 2.0f, seed);
+                Shape(canvas, cape, new Color(UiStyle.Line, 0.55f), 2.0f, seed);
                 break;
             }
             case InkIcon.Figure:
