@@ -1,8 +1,9 @@
 // Scattered rocks that grow out of the ground instead of standing on it: the rock texture in world
 // space (as the boulders' material), with the ground the rock stands on (its colour, snow included,
 // sent per instance) laid over its upward faces, and a soiled, darker foot where it meets the ground.
-// Per instance (MultiMesh custom data): rgb the ground's colour there (0 for none), a how far the
-// ground lies above the model's origin along its up (m).
+// Per instance (MultiMesh custom data, or for a single boulder the ground_here instance uniform):
+// rgb the ground's colour there (0 for none), a how far the ground lies above the model's origin
+// along its up (m).
 shader_type spatial;
 render_mode blend_mix, cull_back, depth_draw_opaque;
 
@@ -20,6 +21,9 @@ uniform float top_amount = 0.7;
 uniform float foot_height = 0.3;
 uniform float foot_soil = 0.55;
 uniform float foot_dark = 0.35;
+// A boulder drawn on its own (not in a MultiMesh) gets its ground from the instance uniform.
+uniform bool from_instance = false;
+instance uniform vec4 ground_here = vec4(0.0);
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -29,9 +33,9 @@ varying float above;
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_normal = normalize(mat3(MODEL_MATRIX) * NORMAL);
-	ground = INSTANCE_CUSTOM;
+	ground = from_instance ? ground_here : INSTANCE_CUSTOM;
 	vec3 up = normalize(MODEL_MATRIX[1].xyz);
-	above = dot(world_pos - MODEL_MATRIX[3].xyz, up) - INSTANCE_CUSTOM.a;
+	above = dot(world_pos - MODEL_MATRIX[3].xyz, up) - ground.a;
 }
 
 void fragment() {

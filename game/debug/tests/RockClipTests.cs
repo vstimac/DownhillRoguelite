@@ -23,6 +23,9 @@ public partial class RockClipTests : Node3D
     private int _rockBatches;
     private int _blendedBatches;
     private int _toldBatch;
+    private int _boulders;
+    private int _blendedBoulders;
+    private int _toldBoulder;
     private int _leanTowards;
     private float _leanError;
     private readonly Color[] _palette = { new(0.56f, 0.57f, 0.6f), new(0.68f, 0.6f, 0.48f), new(0.42f, 0.62f, 0.3f),
@@ -67,8 +70,8 @@ public partial class RockClipTests : Node3D
         // (A rock or so at a chunk's edge, where the chunk's own grid gives a slightly other slope, may be off.)
         bool leans = _leaning > 50 && meanError < 3.0f && _leanTowards >= _leaning * 0.999f;
         GD.Print($"{(leans ? "PASS" : "FAIL")}  rocks on slopes lean with the ground: {_leaning} rocks, {_leanTowards} turned toward its normal, mean {meanError:0.0}° off the intended lean");
-        bool blendAll = _rockBatches > 0 && _blendedBatches == _rockBatches;
-        GD.Print($"{(blendAll ? "PASS" : "FAIL")}  scattered rocks take the ground they stand on (rock_blend, the ground's colour and height per rock): {_blendedBatches}/{_rockBatches} batches");
+        bool blendAll = _rockBatches > 0 && _blendedBatches == _rockBatches && _boulders > 0 && _blendedBoulders == _boulders;
+        GD.Print($"{(blendAll ? "PASS" : "FAIL")}  scattered rocks and boulders take the ground they stand on (rock_blend, the ground's colour and height per rock): {_blendedBatches}/{_rockBatches} batches, {_blendedBoulders}/{_boulders} boulders");
         // A thin slab on ground that curves away under it may lift an edge a little past the rule (one in
         // a few thousand): that much is allowed, more means the rule or the boxes went wrong.
         int allowed = rocks.Count / 1000;
@@ -121,6 +124,12 @@ public partial class RockClipTests : Node3D
                 if (part is MeshInstance3D shown && shown.Mesh != null)
                 {
                     AddShown(shown.GlobalTransform, shown.Mesh, "boulder", "Boulder", generator, rocks, 0, false);
+                    _boulders++;
+                    Vector4 ground = shown.GetInstanceShaderParameter("ground_here").AsVector4();
+                    bool shaded = shown.MaterialOverride is ShaderMaterial blend && blend.Shader.ResourcePath.EndsWith("rock_blend.gdshader", StringComparison.Ordinal)
+                        && blend.GetShaderParameter("from_instance").AsBool();
+                    if (shaded && ground.X + ground.Y + ground.Z > 0.01f) { _blendedBoulders++; }
+                    else if (_toldBoulder++ < 2) { GD.Print($"NOTE boulder: material {(shown.MaterialOverride as ShaderMaterial)?.Shader?.ResourcePath}, ground {ground}"); }
                 }
             }
         }

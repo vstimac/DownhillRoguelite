@@ -126,9 +126,9 @@ public static class WorldStyle
     /// texture, with the ground they stand on over their tops and at their foot (the ground's colour comes
     /// per instance). Null when the rock has no texture to share.
     /// </summary>
-    public static ShaderMaterial? RockBlend(StandardMaterial3D rock)
+    public static ShaderMaterial? RockBlend(StandardMaterial3D rock, bool single = false)
     {
-        string key = "rock blend|" + rock.GetInstanceId();
+        string key = "rock blend|" + rock.GetInstanceId() + (single ? "|single" : "");
         if (Materials.TryGetValue(key, out Material? cached) && cached is ShaderMaterial known) { return known; }
         if (rock.AlbedoTexture == null || ResourceLoader.Load<Shader>("res://terrain/rock_blend.gdshader") is not Shader shader) { return null; }
         ShaderMaterial material = new() { Shader = shader, ResourceName = "style:rock" };
@@ -137,6 +137,7 @@ public static class WorldStyle
         material.SetShaderParameter("normal_strength", rock.NormalEnabled ? rock.NormalScale : 0.0f);
         material.SetShaderParameter("metres", 1.0f / Mathf.Max(rock.Uv1Scale.X, 0.001f));
         material.SetShaderParameter("tint", new Color(0.5f, 0.5f, 0.52f));
+        material.SetShaderParameter("from_instance", single);
         Register(material, "rock");
         Materials[key] = material;
         return material;

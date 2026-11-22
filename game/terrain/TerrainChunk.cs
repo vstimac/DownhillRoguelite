@@ -30,6 +30,8 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
     private Material? _rockMaterial;
     /// <summary>The scattered rocks' material that blends them into the ground (null: they take _rockMaterial).</summary>
     private Material? _rockBlend;
+    /// <summary>The same for boulders drawn one by one (their ground in an instance uniform).</summary>
+    private Material? _boulderBlend;
     private float[] _groundHeights = System.Array.Empty<float>();
     private Color[] _groundColours = System.Array.Empty<Color>();
     private int _gridPoints;
@@ -69,6 +71,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         _grassMaterial = grassMaterial;
         _rockMaterial = boulderMaterial;
         _rockBlend = boulderMaterial is StandardMaterial3D textured ? DownhillRoguelite.Environment.WorldStyle.RockBlend(textured) : null;
+        _boulderBlend = boulderMaterial is StandardMaterial3D drawn ? DownhillRoguelite.Environment.WorldStyle.RockBlend(drawn, true) : null;
         _groundHeights = data.Heights;
         _groundColours = data.Colors;
         _gridPoints = data.GridPoints;
@@ -629,9 +632,13 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         body.AddToGroup(VaultableGroup);
         if (obstacle.Kind == ObstacleKind.Boulder)
         {
-            if (!AddModel(body, _generator!.Settings.BoulderModels, obstacle, obstacle.Size, false, boulderMaterial))
+            if (!AddModel(body, _generator!.Settings.BoulderModels, obstacle, obstacle.Size, false, boulderMaterial, out MeshInstance3D? drawn))
             {
                 body.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = obstacle.Size }, MaterialOverride = boulderMaterial });
+            }
+            else
+            {
+                BlendIntoGround(body, drawn!);
             }
             body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = obstacle.Size } });
             if (boulderSurface != null)
@@ -642,7 +649,7 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
         else
         {
             float radius = obstacle.Size.X * 0.5f;
-            if (!AddModel(body, _generator!.Settings.TrunkModels, obstacle, new Vector3(radius * 2.0f, obstacle.Size.Y, radius * 2.0f), true, trunkMaterial))
+            if (!AddModel(body, _generator!.Settings.TrunkModels, obstacle, new Vector3(radius * 2.0f, obstacle.Size.Y, radius * 2.0f), true, trunkMaterial, out _))
             {
                 body.AddChild(new MeshInstance3D
                 {
@@ -660,12 +667,29 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
     }
 
     /// <summary>
+    /// A boulder takes the ground it stands on, as the scattered rocks do (rock_blend): the ground's
+    /// colour (snow included) over its upward faces and a soiled foot where it meets the ground.
+    /// </summary>
+    private void BlendIntoGround(StaticBody3D body, MeshInstance3D drawn)
+    {
+        if (_boulderBlend == null || _gridPoints < 2 || _groundColours.Length != _gridPoints * _gridPoints)
+        {
+            return;
+        }
+        Transform3D t = body.Transform * drawn.Transform;
+        (float groundY, Color colour) = GroundAt(t.Origin.X, t.Origin.Z);
+        drawn.MaterialOverride = _boulderBlend;
+        drawn.SetInstanceShaderParameter("ground_here", new Vector4(colour.R, colour.G, colour.B, (groundY - t.Origin.Y) * t.Basis.Y.Normalized().Y));
+    }
+
+    /// <summary>
     /// Draws an obstacle with one of the art-pack models (picked by its position, so it never changes),
     /// stretched to its collision shape; a log's long side is turned to the trunk's axis (Y).
     /// Returns false when no model is available.
     /// </summary>
-    private static bool AddModel(StaticBody3D body, string[] paths, ObstacleData obstacle, Vector3 size, bool alongY, Material? material = null)
+    private static bool AddModel(StaticBody3D body, string[] paths, ObstacleData obstacle, Vector3 size, bool alongY, Material? material, out MeshInstance3D? drawn)
     {
+        drawn = null;
         if (paths.Length == 0)
         {
             return false;
@@ -692,7 +716,8 @@ public partial class TerrainChunk : StaticBody3D, ISurfaceQuery, IFogCover
             }
             bounds = turn * bounds;
         }
-        body.AddChild(new MeshInstance3D { Mesh = mesh, Transform = ModelFit.FitCentred(bounds, size) * turn * local, MaterialOverride = material });
+        drawn = new MeshInstance3D { Mesh = mesh, Transform = ModelFit.FitCentred(bounds, size) * turn * local, MaterialOverride = material };
+        body.AddChild(drawn);
         return true;
     }
 }
