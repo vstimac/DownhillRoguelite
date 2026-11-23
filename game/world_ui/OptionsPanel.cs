@@ -321,8 +321,8 @@ public partial class OptionsPanel : ParchmentPanel
         const int access = 3;
         const int controls = 4;
 
-        Add(gameplay, ChoiceRow.Toggle("Stop the world while sorting", GameOptions.PauseWhileOpen, GameOptions.SetPauseWhileOpen,
-            "Single player: time stands still while the inventory page or the pack is open."));
+        Add(gameplay, ChoiceRow.Toggle("Stop the world while the pack is open", GameOptions.PauseWhileOpen, GameOptions.SetPauseWhileOpen,
+            "Single player: time stands still while the pack is set down and open. Off: it is set down in the running world, as in co-op."));
         Add(gameplay, ChoiceRow.Toggle("Low-stat alerts", GameOptions.LowStatAlerts, GameOptions.SetLowStatAlerts,
             "A flashing list in the top-left corner when hunger, thirst, warmth or health run low."));
         Add(gameplay, new ChoiceRow
@@ -634,8 +634,8 @@ public partial class OptionsPanel : ParchmentPanel
             ("Take a cart / let go", InputGlyphs.Both("interact") + " at the handles"),
             ("Eat", InputGlyphs.Both("player_eat")),
             ("Drink", InputGlyphs.Both("player_drink")),
-            ("Pack (at stations)", InputGlyphs.Both("inventory_toggle_packing")),
-            ("Inventory: wear, mend, drop", InputGlyphs.Both("inventory_open")),
+            ("Pack: look (tap)  ·  set down and sort (hold)", InputGlyphs.Both("inventory_toggle_packing")),
+            ("Pack page at once: sort, wear, mend, drop", InputGlyphs.Both("inventory_open")),
             ("Journal", InputGlyphs.Both("journal_open")),
             ("Map", InputGlyphs.Both("map_toggle")),
             ("Radio (the summit car's songs)", InputGlyphs.Both("radio_open")),

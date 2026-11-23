@@ -1,4 +1,5 @@
 using DownhillRoguelite.Core;
+using DownhillRoguelite.Inventory;
 using Godot;
 
 namespace DownhillRoguelite.Ui;
@@ -15,7 +16,8 @@ public partial class PackQuickView : ParchmentPanel
     [Export] public float ScreenMargin { get; set; } = UiStyle.ScreenMargin;
     /// <summary>Room kept under the sheet for the ability card in the corner, in px (the sheet sits right on top of it).</summary>
     [Export] public float CornerRoom { get; set; } = 44.0f + UiStyle.PieceGap;
-    [Export] public string Hint { get; set; } = "Hold Tab to set the pack down and repack";
+    /// <summary>The second line under the figures ({0}: the pack key as last used, Tab or Y).</summary>
+    [Export] public string Hint { get; set; } = "Hold {0}: set it down and sort\nI: the same, without holding\nHotbar 1–9: eat and drink on the move";
 
     public PackGridView? View { get; private set; }
 
@@ -26,18 +28,18 @@ public partial class PackQuickView : ParchmentPanel
     {
         Title = "Pack";
         Seed = 57.0f;
-        Size = new Vector2(300, 420);
+        Size = new Vector2(320, 480);
         base._Ready();
         MouseFilter = MouseFilterEnum.Ignore;
-        View = new PackGridView { Position = new Vector2(14, HeaderHeight), Size = new Vector2(Size.X - 28, Size.Y - HeaderHeight - 86) };
+        View = new PackGridView { Position = new Vector2(14, HeaderHeight), Size = new Vector2(Size.X - 28, Size.Y - HeaderHeight - 150) };
         AddChild(View);
         _weight = UiStyle.MakeLabel("", UiStyle.TextSize, true);
-        _weight.Position = new Vector2(16, Size.Y - 84);
-        _weight.Size = new Vector2(Size.X - 32, 28);
+        _weight.Position = new Vector2(16, Size.Y - 148);
+        _weight.Size = new Vector2(Size.X - 32, 50);
         AddChild(_weight);
-        _hint = UiStyle.MakeLabel(Hint, UiStyle.SmallSize, false, UiStyle.InkSoft);
-        _hint.Position = new Vector2(16, Size.Y - 56);
-        _hint.Size = new Vector2(Size.X - 32, 42);
+        _hint = UiStyle.MakeLabel(string.Format(Hint, "Tab"), UiStyle.SmallSize, false, UiStyle.InkSoft);
+        _hint.Position = new Vector2(16, Size.Y - 94);
+        _hint.Size = new Vector2(Size.X - 32, 82);
         _hint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         AddChild(_hint);
         GameEvents.PackQuickViewRequested += OnRequested;
@@ -64,6 +66,11 @@ public partial class PackQuickView : ParchmentPanel
         Vector2 screen = GetViewportRect().Size;
         // Right column, on the HUD margin, standing on the ability card: one edge with the notes above and the card below.
         Position = new Vector2(screen.X - Size.X - ScreenMargin, Mathf.Max(ScreenMargin, screen.Y - ScreenMargin - CornerRoom - Size.Y));
+        if (_hint != null)
+        {
+            _hint.Text = string.Format(Hint, PackingMode.KeyLabel == "Y" ? "Y" : "Tab");
+        }
+        OnLayout(GameEvents.CurrentPackLayout);
         Open();
     }
 
@@ -90,6 +97,17 @@ public partial class PackQuickView : ParchmentPanel
                 packed++;
             }
         }
-        _weight.Text = $"{layout.Mass:0.0} kg  ·  {packed} things";
+        LoadSnapshot load = GameEvents.CurrentLoad;
+        string side = "centred";
+        float offset = load.CenterOfMass.X * 100.0f;
+        if (offset > 0.5f)
+        {
+            side = $"{offset:0} cm right";
+        }
+        else if (offset < -0.5f)
+        {
+            side = $"{-offset:0} cm left";
+        }
+        _weight.Text = $"{layout.Mass:0.0} kg  ·  {packed} things\nWeight sits {load.CenterOfMass.Y:0.00} m up, {side}";
     }
 }

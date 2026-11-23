@@ -27,8 +27,8 @@ public static class GameOptions
         }
     }
 
-    /// <summary>Single player: the world stops while the inventory page or the pack is open.</summary>
-    public static bool PauseWhileOpen { get; private set; } = true;
+    /// <summary>Single player: the world stops while the pack is open. Off by default: the pack is set down in the running world.</summary>
+    public static bool PauseWhileOpen { get; private set; }
     /// <summary>The flashing list of low stats in the top-left corner.</summary>
     public static bool LowStatAlerts { get; private set; } = true;
     public static StatStyle Stats { get; private set; } = StatStyle.Dials;
@@ -108,7 +108,7 @@ public static class GameOptions
     /// <summary>Every option back to its default (not saved until the next change).</summary>
     public static void ResetToDefaults()
     {
-        PauseWhileOpen = true;
+        PauseWhileOpen = false;
         LowStatAlerts = true;
         Stats = StatStyle.Dials;
         Roll = RollMode.Timed;
@@ -168,7 +168,7 @@ public static class GameOptions
             UseCommandLineQuality();
             return;
         }
-        PauseWhileOpen = (bool)file.GetValue(Section, "pause_while_open", PauseWhileOpen);
+        PauseWhileOpen = (bool)file.GetValue(Section, "pause_while_packing", PauseWhileOpen);
         LowStatAlerts = (bool)file.GetValue(Section, "low_stat_alerts", LowStatAlerts);
         Stats = (StatStyle)(int)file.GetValue(Section, "stats", (int)Stats);
         Roll = (RollMode)Mathf.Clamp((int)file.GetValue(Section, "roll", (int)Roll), 0, 2);
@@ -315,7 +315,7 @@ public static class GameOptions
             return;
         }
         ConfigFile file = new();
-        file.SetValue(Section, "pause_while_open", PauseWhileOpen);
+        file.SetValue(Section, "pause_while_packing", PauseWhileOpen);
         file.SetValue(Section, "low_stat_alerts", LowStatAlerts);
         file.SetValue(Section, "stats", (int)Stats);
         file.SetValue(Section, "roll", (int)Roll);

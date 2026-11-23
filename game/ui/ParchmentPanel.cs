@@ -133,8 +133,8 @@ public partial class ParchmentPanel : Control
             parentOrigin = parent.GlobalPosition;
         }
         Vector2 at = GlobalPosition;
-        float x = Mathf.Clamp(at.X, 0.0f, Mathf.Max(0.0f, screen.X - Size.X));
-        float y = Mathf.Clamp(at.Y, 0.0f, Mathf.Max(0.0f, screen.Y - Size.Y));
+        float x = Mathf.Clamp(at.X, 0.0f, Mathf.Max(0.0f, screen.X - Size.X * Scale.X));
+        float y = Mathf.Clamp(at.Y, 0.0f, Mathf.Max(0.0f, screen.Y - Size.Y * Scale.Y));
         Position = new Vector2(x, y) - parentOrigin;
     }
 

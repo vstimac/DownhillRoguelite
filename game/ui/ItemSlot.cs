@@ -29,13 +29,15 @@ public partial class ItemSlot : Control
         return slot switch
         {
             Core.EquipSlot.Head => InkIcon.Hat,
-            Core.EquipSlot.Face => InkIcon.Hat,
-            Core.EquipSlot.InnerTorso => InkIcon.Shirt,
+            Core.EquipSlot.Face => InkIcon.Scarf,
+            Core.EquipSlot.InnerTorso => InkIcon.Vest,
             Core.EquipSlot.Torso => InkIcon.Shirt,
             Core.EquipSlot.Legs => InkIcon.Trousers,
             Core.EquipSlot.Hands => InkIcon.Glove,
             Core.EquipSlot.Feet => InkIcon.Shoe,
             Core.EquipSlot.Cape => InkIcon.Cape,
+            Core.EquipSlot.Waist => InkIcon.Belt,
+            Core.EquipSlot.Accessory => InkIcon.Charm,
             _ => InkIcon.Backpack,
         };
     }

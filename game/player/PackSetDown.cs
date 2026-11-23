@@ -23,14 +23,16 @@ public partial class PackSetDown : Node
 
     /// <summary>How far in front of the carrier the pack is stood, in m.</summary>
     [Export] public float Distance { get; set; } = 0.55f;
-    /// <summary>How far to the carrier's right of straight ahead, in m (so the pack isn't hidden behind the body).</summary>
-    [Export] public float Side { get; set; } = 0.35f;
+    /// <summary>How far to the carrier's right of straight ahead, in m (negative: to the left, where the view sees it beside the pack page docked at the right).</summary>
+    [Export] public float Side { get; set; } = -0.35f;
     /// <summary>How high the pack is lifted over the straight path on its way, in m.</summary>
     [Export] public float ArcHeight { get; set; } = 0.25f;
     /// <summary>Ground is searched this far above and below the carrier's feet, in m.</summary>
     [Export] public float GroundSearch { get; set; } = 2.0f;
     /// <summary>The pack stands this far above the ground so it doesn't flicker against it, in m.</summary>
     [Export] public float GroundLift { get; set; } = 0.01f;
+    /// <summary>How long the pack takes to swing onto the back when shouldered at once (walked off), in s.</summary>
+    [Export] public float ReturnSeconds { get; set; } = 0.35f;
 
     /// <summary>True while the pack is off the back (on its way or on the ground).</summary>
     public bool Off => _copy != null;
@@ -45,6 +47,9 @@ public partial class PackSetDown : Node
     private BackpackAttachment? _mount;
     private Node3D? _copy;
     private Transform3D _onGround;
+    private bool _returning;
+    private Transform3D _returnFrom;
+    private float _returnAt;
 
     public override void _Ready()
     {
@@ -100,9 +105,49 @@ public partial class PackSetDown : Node
     {
         if (packing)
         {
+            // Taken off again while it was still swinging back on: start over from the back.
+            if (_returning)
+            {
+                PutBack();
+            }
             TakeOff();
         }
         else
+        {
+            StartReturn();
+        }
+    }
+
+    /// <summary>
+    /// Shouldered at once (walked off, called off, knocked over): the carrier is free already, and the
+    /// picture of the pack swings from wherever it is onto the back in ReturnSeconds, following the body.
+    /// </summary>
+    private void StartReturn()
+    {
+        if (_copy == null || !GodotObject.IsInstanceValid(_copy) || Way <= 0.001f || ReturnSeconds <= 0.0f)
+        {
+            PutBack();
+            return;
+        }
+        _returning = true;
+        _returnFrom = _copy.GlobalTransform;
+        _returnAt = 0.0f;
+    }
+
+    private void Return(float dt)
+    {
+        if (_copy == null || _mount == null || !GodotObject.IsInstanceValid(_mount) || !GodotObject.IsInstanceValid(_mount.Model))
+        {
+            PutBack();
+            return;
+        }
+        _returnAt = Mathf.Min(_returnAt + dt / ReturnSeconds, 1.0f);
+        float eased = Mathf.SmoothStep(0.0f, 1.0f, _returnAt);
+        Transform3D now = _returnFrom.InterpolateWith(_mount.Model.GlobalTransform, eased);
+        now.Origin += Vector3.Up * ArcHeight * 0.6f * Mathf.Sin(Mathf.Pi * eased);
+        _copy.GlobalTransform = now;
+        Way = 1.0f - eased;
+        if (_returnAt >= 1.0f)
         {
             PutBack();
         }
@@ -152,6 +197,11 @@ public partial class PackSetDown : Node
                 }
             }
         }
+        if (_returning)
+        {
+            Return((float)delta);
+            return;
+        }
         if (_copy != null)
         {
             Place();
@@ -193,6 +243,7 @@ public partial class PackSetDown : Node
             _copy.QueueFree();
         }
         _copy = null;
+        _returning = false;
         if (_mount != null && GodotObject.IsInstanceValid(_mount))
         {
             _mount.Visible = true;

@@ -65,8 +65,8 @@ public partial class UiTests : Node3D
         await TestTooltip();
         TestNotes();
         await TestAlerts(needs);
-        await TestInventory(needs);
-        await TestInventoryInCoop();
+        await TestPackPage(needs, inventory);
+        await TestPackPageInCoop();
         await TestPauseMenuInCoop(PlayerBody);
         await TestMap();
         await TestJournal();
@@ -301,55 +301,71 @@ public partial class UiTests : Node3D
             $"listed [{string.Join(", ", Ui.Alerts.Shown)}] after eating; hungry {hungry}, cleared {cleared}");
     }
 
-    private async Task TestInventory(CarrierNeeds needs)
+    /// <summary>
+    /// The one pack page (I or a held Tab): it takes the mouse, the world goes on by default (stops
+    /// only when the option asks for it), a pocketed flask is drunk from the page, and shouldering
+    /// gives the mouse back.
+    /// </summary>
+    private async Task TestPackPage(CarrierNeeds needs, CarrierInventory inventory)
     {
-        InventoryScreen page = Ui!.Inventory!;
-        Ui.Toggle(page);
+        PackingScreen page = Ui!.Packing!;
+        PackingMode packing = PackingFor(inventory);
+        await Wait(0.1f);
+        bool set = packing.TryOpen();
         await Wait(0.6f);
-        bool open = page.Visible && page.IsOpen && GameEvents.IsScreenOpen && Input.MouseMode == Input.MouseModeEnum.Visible;
-        bool frozen = GetTree().Paused && GameEvents.PagesFrozen;
-        string firstBefore = "";
-        if (page.Order.Count > 0)
-        {
-            firstBefore = page.Order[0];
-        }
-        ItemSlot? slot = null;
-        foreach (Node child in page.GetChildren())
-        {
-            if (child is ItemSlot s && s.Draggable && s.Index == 0)
-            {
-                slot = s;
-            }
-        }
-        slot?.DroppedOn?.Invoke(0, 1);
-        bool swapped = page.Order.Count > 1 && page.Order[1] == firstBefore;
-        int flask = page.Order.ToList().IndexOf("water_flask");
-        needs.SetNeeds(60.0f, 30.0f);
-        page.Select(flask);
-        page.Call("UseSelected");
-        await Wait(0.3f);
-        bool drank = needs.Thirst > 30.0f && !page.Order.Contains("water_flask");
-        page.Close();
-        await Wait(0.5f);
+        bool open = set && page.Visible && page.IsOpen && GameEvents.IsPackOpen && Input.MouseMode == Input.MouseModeEnum.Visible;
         bool running = !GetTree().Paused && !GameEvents.PagesFrozen;
-        Check("the inventory page takes the mouse, stops the world while open, reorders by drag and drop, and drinks",
-            open && frozen && running && swapped && drank && !page.Visible && !GameEvents.IsScreenOpen,
-            $"open {open}, world stopped {frozen} then running again {running}, swapped {swapped}, drank {drank} (thirst {needs.Thirst:0}), closed {!page.Visible}");
+        GameOptions.SetPauseWhileOpen(true);
+        await Wait(0.2f);
+        bool frozen = GetTree().Paused && GameEvents.PagesFrozen;
+        GameOptions.SetPauseWhileOpen(false);
+        await Wait(0.2f);
+        bool runningAgain = !GetTree().Paused;
+        needs.SetNeeds(60.0f, 30.0f);
+        page.SelectItem("water_flask");
+        string title = page.DetailTitle;
+        page.UseSelected();
+        await Wait(0.3f);
+        bool drank = needs.Thirst > 30.0f;
+        page.SelectItem("");
+        await Wait(0.1f);
+        bool sheet = page.DetailTitle == "The carrier";
+        GameEvents.RequestPackClose();
+        await Wait(packing.PutOnTime + 0.4f);
+        bool closed = !page.Visible && !GameEvents.IsPacking && packing.Phase == PackingPhase.Carried;
+        Check("the pack page takes the mouse with the world running (stopped only if asked), drinks from it, and goes with the pack",
+            open && running && frozen && runningAgain && drank && sheet && closed,
+            $"open {open}, world running {running}, stopped with the option {frozen} and running without {runningAgain}, chose \"{title}\" and drank {drank} (thirst {needs.Thirst:0}), nothing chosen shows the carrier {sheet}, closed {closed}");
     }
 
-    /// <summary>Co-op: the others play on in the same world, so the inventory page never stops it.</summary>
-    private async Task TestInventoryInCoop()
+    private PackingMode? _packing;
+
+    /// <summary>The scene has no pack key of its own: one is made for the carrier.</summary>
+    private PackingMode PackingFor(CarrierInventory inventory)
     {
-        InventoryScreen page = Ui!.Inventory!;
+        if (_packing == null)
+        {
+            _packing = new PackingMode { Name = "Packing", Inventory = inventory, PlayerBody = PlayerBody };
+            AddChild(_packing);
+        }
+        return _packing;
+    }
+
+    /// <summary>Co-op: the others play on in the same world, so the pack page never stops it, even with the option on.</summary>
+    private async Task TestPackPageInCoop()
+    {
+        PackingScreen page = Ui!.Packing!;
         GameEvents.SetWorldAuthority(true, true);
-        Ui.Toggle(page);
+        GameOptions.SetPauseWhileOpen(true);
+        bool set = _packing != null && _packing.TryOpen();
         await Wait(0.6f);
-        bool open = page.Visible && page.IsOpen;
+        bool open = set && page.Visible && page.IsOpen;
         bool running = !GetTree().Paused && !GameEvents.PagesFrozen;
-        page.Close();
+        _packing?.Close();
         await Wait(0.3f);
+        GameOptions.SetPauseWhileOpen(false);
         GameEvents.SetWorldAuthority(false, false);
-        Check("in co-op the inventory page leaves the world running (the others play on)", open && running && !GetTree().Paused,
+        Check("in co-op the pack page leaves the world running (the others play on)", open && running && !GetTree().Paused,
             $"open {open}, world running {running}");
     }
 
@@ -463,7 +479,7 @@ public partial class UiTests : Node3D
         {
             Ui!.LayoutFor(size);
             Rect2 screen = new(Vector2.Zero, size);
-            Control?[] parts = { Ui.Hearts, Ui.HungerIcon, Ui.ThirstIcon, Ui.WarmthIcon, Ui.Alerts, Ui.Descent, Ui.Compass, Ui.Objectives, Ui.Equipment, Ui.Hotbar, Ui.Notes, Ui.Inventory, Ui.MapPage, Ui.Journal };
+            Control?[] parts = { Ui.Hearts, Ui.HungerIcon, Ui.ThirstIcon, Ui.WarmthIcon, Ui.Alerts, Ui.Descent, Ui.Compass, Ui.Objectives, Ui.Equipment, Ui.Hotbar, Ui.Notes, Ui.MapPage, Ui.Journal };
             foreach (Control? control in parts)
             {
                 if (control != null && !screen.Encloses(new Rect2(control.Position, control.Size)))
@@ -822,7 +838,7 @@ public partial class UiTests : Node3D
     private void TestDragging()
     {
         UiLayoutEditor? editor = Ui?.LayoutEditor;
-        if (Ui == null || editor == null || Ui.Hotbar == null || Ui.Inventory == null)
+        if (Ui == null || editor == null || Ui.Hotbar == null || Ui.Journal == null)
         {
             Check("the UI can be dragged", false, "no layout editor");
             return;
@@ -830,9 +846,9 @@ public partial class UiTests : Node3D
         Vector2 screen = new(1280, 720);
         Ui.LayoutFor(screen);
         Vector2 home = Ui.Hotbar.Position;
-        bool moved = editor.MoveTo("hotbar", new Vector2(40, 300)) && editor.MoveTo("inventory", new Vector2(10, 20));
+        bool moved = editor.MoveTo("hotbar", new Vector2(40, 300)) && editor.MoveTo("journal", new Vector2(10, 20));
         Ui.LayoutFor(screen);
-        bool kept = Ui.Hotbar.Position.IsEqualApprox(new Vector2(40, 300)) && Ui.Inventory.Position.IsEqualApprox(new Vector2(10, 20));
+        bool kept = Ui.Hotbar.Position.IsEqualApprox(new Vector2(40, 300)) && Ui.Journal.Position.IsEqualApprox(new Vector2(10, 20));
         editor.MoveTo("hotbar", new Vector2(5000, 5000));
         Ui.LayoutFor(screen);
         bool onScreen = Ui.Hotbar.Position.X < screen.X && Ui.Hotbar.Position.Y < screen.Y;

@@ -22,7 +22,6 @@ public partial class Hud : CanvasLayer
 {
     public const string Group = "hud";
     [Export] public bool EnableCompanionChat { get; set; }
-    private static readonly StringName ActionInventory = "inventory_open";
     private static readonly StringName ActionJournal = "journal_open";
     private static readonly StringName ActionTalk = "talk_open";
     private static readonly StringName ActionRadio = "radio_open";
@@ -60,9 +59,6 @@ public partial class Hud : CanvasLayer
     public InteractionTooltip? Tooltip { get; private set; }
     public Notifications? Notes { get; private set; }
     public Subtitles? Captions { get; private set; }
-    /// <summary>Delay before --open-inventory opens the inventory page, in s.</summary>
-    [Export] public float OpenInventoryDelay { get; set; } = 0.5f;
-    public InventoryScreen? Inventory { get; private set; }
     public PackQuickView? PackLook { get; private set; }
     public PackingRing? PackRing { get; private set; }
     public PackingScreen? Packing { get; private set; }
@@ -71,7 +67,6 @@ public partial class Hud : CanvasLayer
     public TalkScreen? Talk { get; private set; }
     public RadioScreen? RadioPage { get; private set; }
     public DialogueChoices? Choices { get; private set; }
-    public ThrowZone? ThrowZone { get; private set; }
     public UiLayoutEditor? LayoutEditor { get; private set; }
     public JournalLog? Log { get; private set; }
 
@@ -146,14 +141,7 @@ public partial class Hud : CanvasLayer
         Choices = new DialogueChoices { Name = "DialogueChoices" };
         _play.AddChild(Choices);
 
-        // Behind the pages, over the world: an item dragged off the inventory page and dropped here is thrown away.
-        ThrowZone = new ThrowZone { Name = "ThrowZone" };
-        _root.AddChild(ThrowZone);
-        Inventory = new InventoryScreen();
-        Equipment.DraggedItem = Inventory.ItemIdAt;
-        _root.AddChild(Inventory);
-        ThrowZone.Inventory = Inventory;
-        AddChild(new PageFreeze { Name = "PageFreeze", Inventory = Inventory });
+        AddChild(new PageFreeze { Name = "PageFreeze" });
         // The pack in 2.5D: the quick look (short Tab), the wait ring, and the packing page (held Tab).
         PackLook = new PackQuickView { Name = "PackQuickView" };
         _root.AddChild(PackLook);
@@ -176,7 +164,6 @@ public partial class Hud : CanvasLayer
         _root.AddChild(Journal);
         Talk = new TalkScreen();
         _root.AddChild(Talk);
-        Inventory.Closed += OnPageClosed;
         Journal.Closed += OnPageClosed;
         Talk.Closed += OnPageClosed;
         GameEvents.TalkRequested += OnTalkRequested;
@@ -213,7 +200,6 @@ public partial class Hud : CanvasLayer
         LayoutEditor.AddPiece("hotbar", Hotbar);
         LayoutEditor.AddPiece("tooltip", Tooltip);
         LayoutEditor.AddPiece("notes", Notes);
-        LayoutEditor.AddPage("inventory", Inventory);
         LayoutEditor.AddPage("map", MapPage);
         LayoutEditor.AddPage("journal", Journal);
         LayoutEditor.AddPage("talk", Talk);
@@ -225,11 +211,6 @@ public partial class Hud : CanvasLayer
         GameEvents.VitalsUpdated += OnVitals;
         GetViewport().SizeChanged += Layout;
         Layout();
-        // For rendered checks (--write-movie): `-- --open-inventory` opens the inventory page shortly after the start.
-        if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--open-inventory") >= 0)
-        {
-            GetTree().CreateTimer(OpenInventoryDelay).Timeout += () => Toggle(Inventory);
-        }
     }
 
     public override void _ExitTree()
@@ -398,7 +379,7 @@ public partial class Hud : CanvasLayer
             // Right column, above the ability card in the corner.
             Tooltip.SetHome(new Vector2(screen.X - Margin - Tooltip.Size.X, screen.Y - Margin - 44.0f - Gap - Tooltip.Size.Y));
         }
-        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, MapPage, Journal, Talk, RadioPage })
+        foreach (ParchmentPanel? page in new ParchmentPanel?[] { MapPage, Journal, Talk, RadioPage })
         {
             if (page != null)
             {
@@ -499,12 +480,7 @@ public partial class Hud : CanvasLayer
         {
             return;
         }
-        if (@event.IsActionPressed(ActionInventory))
-        {
-            Toggle(Inventory);
-            GetViewport().SetInputAsHandled();
-        }
-        else if (@event.IsActionPressed(ActionJournal))
+        if (@event.IsActionPressed(ActionJournal))
         {
             Toggle(Journal);
             GetViewport().SetInputAsHandled();
@@ -529,7 +505,7 @@ public partial class Hud : CanvasLayer
         {
             return;
         }
-        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, Journal, Talk, RadioPage, MapPage })
+        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Journal, Talk, RadioPage, MapPage })
         {
             if (page != null && page.IsOpen && page.Visible)
             {
@@ -552,7 +528,7 @@ public partial class Hud : CanvasLayer
             page.Close();
             return;
         }
-        foreach (ParchmentPanel? other in new ParchmentPanel?[] { Inventory, Journal, Talk, RadioPage })
+        foreach (ParchmentPanel? other in new ParchmentPanel?[] { Journal, Talk, RadioPage })
         {
             if (other != null && other != page && other.IsOpen && other.Visible)
             {
@@ -573,7 +549,7 @@ public partial class Hud : CanvasLayer
 
     private void OnPageClosed()
     {
-        bool anyOpen = (Inventory != null && Inventory.IsOpen) || (Journal != null && Journal.IsOpen) || (Talk != null && Talk.IsOpen)
+        bool anyOpen = (Journal != null && Journal.IsOpen) || (Talk != null && Talk.IsOpen)
             || (RadioPage != null && RadioPage.IsOpen);
         if (anyOpen)
         {
@@ -626,7 +602,7 @@ public partial class Hud : CanvasLayer
         {
             return true;
         }
-        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Inventory, Journal, Talk, RadioPage, MapPage })
+        foreach (ParchmentPanel? page in new ParchmentPanel?[] { Journal, Talk, RadioPage, MapPage })
         {
             if (page != null && page.IsOpen && page.Visible)
             {

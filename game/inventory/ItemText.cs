@@ -6,7 +6,7 @@ namespace DownhillRoguelite.Inventory;
 /// <summary>Words about items for the UI: a short description and their real properties.</summary>
 public static class ItemText
 {
-    /// <summary>How to use an item, in a line or two (the inventory page's legend).</summary>
+    /// <summary>How to use an item, in a line or two (the pack page's legend).</summary>
     public static string HowToUse(ItemDefinition? item)
     {
         if (item == null)
@@ -17,7 +17,7 @@ public static class ItemText
         {
             ItemCategory.Food => "Eat: the Eat button, F, or V on the hotbar.",
             ItemCategory.Water => "Drink: the Drink button, Q, or V on the hotbar.",
-            ItemCategory.Clothing => "Wear: double-click, right-click, the Wear button, V, or drag it onto the equipment sheet. Take it off: click it on the sheet.",
+            ItemCategory.Clothing => "Wear: the Wear button or V, or lift it and click a Worn slot. Take it off: click it under Worn.",
             ItemCategory.Material => "Mend worn gear or the pack: the Mend button, at a station's fire.",
             ItemCategory.Cargo => "Cargo: carry it down. Its weight and place in the pack shift your balance.",
             _ => "Kept in the pack: it helps by being carried.",
@@ -28,13 +28,17 @@ public static class ItemText
         }
         if (OpensMap(item))
         {
-            use = "Right-click or V opens the map ready to draw: drag to mark it (B switches between drawing and moving the map).";
+            use = "The Map button or V opens the map ready to draw: drag to mark it (B switches between drawing and moving the map).";
+        }
+        else if (item.UseLightSeconds > 0.0f && item.UseStamina <= 0.0f && item.UseHealth <= 0.0f)
+        {
+            use = "Light it: the Use button, or V on the hotbar.";
         }
         else if (item.UsableAlone)
         {
-            use = "Use it up: the Use button, right-click, or V on the hotbar.";
+            use = "Use it up: the Use button, or V on the hotbar.";
         }
-        return use + "\nDrop it: Shift+right-click, the Drop button, G on the hotbar, or drag it off the page to throw it.";
+        return use + "\nDrop it: the Drop button, or G on the hotbar.";
     }
 
     /// <summary>Paper and pencil: using them (right-click, V) opens the map to draw on.</summary>
@@ -112,6 +116,10 @@ public static class ItemText
         if (item.UseWakes.Length > 0 && item.UseWakeChance > 0.0f)
         {
             text += $"\n...or ({item.UseWakeChance * 100.0f:0} % chance) it wakes something";
+        }
+        if (item.UseLightSeconds > 0.0f)
+        {
+            text += $"\nBurns {item.UseLightSeconds / 60.0f:0} min once lit";
         }
         if (item.Warmth > 0.0f)
         {

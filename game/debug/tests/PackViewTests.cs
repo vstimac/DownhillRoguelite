@@ -18,6 +18,8 @@ namespace DownhillRoguelite.Debug;
 public partial class PackViewTests : Node3D
 {
     private static readonly StringName ActionToggle = "inventory_toggle_packing";
+    private static readonly StringName ActionOpen = "inventory_open";
+    private static readonly StringName MoveForward = "player_move_forward";
     private const string TestOptionsPath = "user://options_packview_test.cfg";
 
     [Export] public PlayerController? PlayerBody { get; set; }
@@ -37,6 +39,8 @@ public partial class PackViewTests : Node3D
     /// <summary>The set-down pack stands at least this far in front of the carrier, in m.</summary>
     [Export] public float MinAhead { get; set; } = 0.3f;
     [Export] public float MaxAhead { get; set; } = 1.2f;
+    /// <summary>Walking off the pack must move the carrier 5 cm within this many physics frames (nothing locks him longer than it looks).</summary>
+    [Export] public int MaxWalkFrames { get; set; } = 15;
 
     private readonly List<string> _failures = new();
 
@@ -56,14 +60,19 @@ public partial class PackViewTests : Node3D
 
         TestFill();
         TestLayout(Inventory);
-        await TestInventoryPage(Ui);
+        await TestOnePage(Packing, Ui);
         TestLockedWhileCarried(Inventory);
         await TestQuickLook(Packing, Ui);
         await TestLetGoEarly(Packing);
+        await TestRingThenLetGo(Packing, Ui);
+        await TestWalkCallsOff(Packing);
+        await TestGamepad(Packing, Ui);
         await TestSetDown(Packing, Ui);
         TestPointing(Ui.Packing.View);
         TestMoving(Inventory, Ui.Packing);
+        await TestPressWhileShouldering(Packing, Ui);
         await TestPutOn(Packing, Ui);
+        await TestWalkOffOpen(Packing, Ui);
 
         if (_failures.Count == 0)
         {
@@ -153,10 +162,10 @@ public partial class PackViewTests : Node3D
         await Wait(0.6f);
         bool open = packing.Phase == PackingPhase.Open && GameEvents.IsPackOpen && GameEvents.IsPacking;
         bool page = ui.Packing!.IsOpen && ui.Packing.Visible && Input.MouseMode == Input.MouseModeEnum.Visible;
-        bool frozen = GetTree().Paused && GameEvents.PagesFrozen;
+        bool running = !GetTree().Paused && !GameEvents.PagesFrozen;
         Check("holding the pack key sets the pack down, and that takes its time", waiting && ring > 0.5f && ring < 1.0f && open,
             $"still setting down just before the time is up {waiting} (ring {ring:0.00}), open after it {open}");
-        Check("the packing page opens with the pack, takes the mouse and stops the world", page && frozen, $"page {page}, world stopped {frozen}");
+        Check("the pack page opens with the pack, takes the mouse, and the world goes on", page && running, $"page {page}, world running {running}");
         TestOnTheGround(true);
     }
 
@@ -250,6 +259,11 @@ public partial class PackViewTests : Node3D
 
     private async Task TestPutOn(PackingMode packing, Hud ui)
     {
+        if (packing.Phase != PackingPhase.Open)
+        {
+            packing.TryOpen();
+            await Wait(0.3f);
+        }
         GameEvents.RequestPackClose();
         await Wait(Mathf.Max(0.05f, packing.PutOnTime - TimingSlack));
         bool shouldering = packing.Phase == PackingPhase.PuttingOn && GameEvents.IsPacking && !GameEvents.IsPackOpen && !GetTree().Paused;
@@ -278,33 +292,188 @@ public partial class PackViewTests : Node3D
             $"laid fills {laid:0.00} (turn {turn}), kept upright fills {standing:0.00}, same shape fills {same:0.00} unturned {sameTurn == GridOrientations.Identity}");
     }
 
-    /// <summary>The inventory page shows the pack: choosing a slot marks the thing in it, clicking a thing chooses its slot.</summary>
-    private async Task TestInventoryPage(Hud ui)
+    /// <summary>
+    /// I is the same pack without holding: it sets the pack down by itself (no key held) and opens the
+    /// one page; choosing a kind marks its copies in the pack, nothing chosen shows the carrier; I again
+    /// shoulders it.
+    /// </summary>
+    private async Task TestOnePage(PackingMode packing, Hud ui)
     {
-        InventoryScreen page = ui.Inventory!;
-        ui.Toggle(page);
-        await Wait(0.6f);
-        PackGridView? view = page.PackView;
+        PackingScreen page = ui.Packing!;
+        Press(ActionOpen, true);
+        await Wait(0.05f);
+        Press(ActionOpen, false);
+        await Wait(packing.SetDownTime * 0.5f);
+        bool byItself = packing.Phase == PackingPhase.SettingDown && ui.PackRing!.Key == "I" && ui.PackRing.HintText.Contains("I again");
+        await Wait(packing.SetDownTime * 0.5f + 0.4f);
+        bool open = packing.Phase == PackingPhase.Open && page.IsOpen && page.Visible;
         PackLayout layout = GameEvents.CurrentPackLayout;
         PackLayoutEntry top = Topmost(layout);
-        int slot = -1;
-        for (int i = 0; i < page.Order.Count; i++)
-        {
-            if (page.Order[i] == top.ItemId)
-            {
-                slot = i;
-            }
-        }
-        page.Select(slot);
-        bool marked = view != null && view.IsMarked(top.InstanceId);
-        page.Select(-1);
-        bool cleared = view != null && !view.IsMarked(top.InstanceId);
-        Aabb box = PackGeometry.CellBox(layout, top.Origin, top.Size, 0.0f);
-        bool clicked = view != null && page.SelectInPack(view.Project(box.GetCenter() + Vector3.Up * box.Size.Y * 0.5f)) && page.SelectedIndex == slot;
-        page.Close();
+        page.SelectItem(top.ItemId);
+        await Wait(0.05f);
+        bool marked = page.View!.IsMarked(top.InstanceId) && page.DetailTitle.Length > 0 && page.DetailTitle != "The carrier";
+        string described = page.DetailTitle;
+        page.SelectItem("");
+        await Wait(0.05f);
+        bool cleared = !page.View.IsMarked(top.InstanceId) && page.DetailTitle == "The carrier";
+        Rect2 onScreen = page.GetGlobalRect();
+        Vector2 screen = page.GetViewportRect().Size;
+        bool docked = onScreen.End.X <= screen.X + 1.0f && onScreen.Position.X > screen.X * 0.25f && onScreen.Position.Y >= 0.0f && onScreen.End.Y <= screen.Y + 1.0f;
+        Press(ActionOpen, true);
+        await Wait(0.05f);
+        Press(ActionOpen, false);
+        await Wait(packing.PutOnTime + 0.3f);
+        bool back = packing.Phase == PackingPhase.Carried && !GameEvents.IsPacking && !page.IsOpen;
+        Check("I sets the pack down by itself (no holding) and opens the one pack page", byItself && open,
+            $"going down by itself with I in the ring {byItself}, open {open}");
+        Check("the page is docked at the right; a chosen kind is marked in the pack and described, nothing chosen shows the carrier", docked && marked && cleared,
+            $"docked {docked} ({onScreen.Position.X:0}..{onScreen.End.X:0} of {screen.X:0}), marked {marked} (\"{described}\"), cleared {cleared}");
+        Check("I again shoulders it", back, $"carried {back}, phase {packing.Phase}");
+    }
+
+    /// <summary>The ring is filled almost to the end, then the key is let go: the pack stays on the back and nothing in it moves.</summary>
+    private async Task TestRingThenLetGo(PackingMode packing, Hud ui)
+    {
+        string before = Signature(GameEvents.CurrentPackLayout);
+        Key(true);
+        await Wait(packing.HoldThreshold + packing.SetDownTime * 0.85f);
+        float ring = ui.PackRing!.Progress;
+        bool filling = packing.Phase == PackingPhase.SettingDown && ring > 0.6f && ring < 1.0f && ui.PackRing.Visible;
+        Key(false);
+        int frames = await FramesUntil(() => packing.Phase == PackingPhase.Carried && !GameEvents.IsPacking, 30);
+        await Wait(0.1f);
+        bool untouched = Signature(GameEvents.CurrentPackLayout) == before && !GameEvents.IsPackOpen && !ui.PackRing.Visible;
+        Check("the ring filled almost to the end and let go: the pack stays on, at once, and nothing in it moved", filling && frames <= 2 && untouched,
+            $"ring {ring:0.00} {filling}, back on in {frames} frames, layout untouched and ring gone {untouched}");
+    }
+
+    /// <summary>Walking (a move key) while the pack is going down calls it off at once, and the carrier walks in the same moment.</summary>
+    private async Task TestWalkCallsOff(PackingMode packing)
+    {
+        int before = packing.Interrupts;
+        Key(true);
+        await Wait(packing.HoldThreshold + packing.SetDownTime * 0.4f);
+        bool going = packing.Phase == PackingPhase.SettingDown;
+        Vector3 start = PlayerBody!.GlobalPosition;
+        Press(MoveForward, true);
+        int frames = await FramesUntil(() => packing.Phase == PackingPhase.Carried && !GameEvents.IsPacking, 30);
+        int walking = await FramesUntil(() => Flat(PlayerBody.GlobalPosition - start) > 0.05f, 60);
+        Press(MoveForward, false);
+        Key(false);
         await Wait(0.5f);
-        Check("the inventory page shows the pack: a chosen slot is marked in it, and clicking a thing in it chooses its slot",
-            view != null && slot >= 0 && marked && cleared && clicked, $"slot {slot}, marked {marked}, cleared {cleared}, clicked to slot {clicked}");
+        bool counted = packing.Interrupts == before + 1;
+        Check("walking while the pack goes down calls it off at once, and the carrier is walking at once", going && frames <= 1 && walking <= MaxWalkFrames && counted,
+            $"was going down {going}, called off in {frames} frames, moved 5 cm in {walking} frames (max {MaxWalkFrames}), counted {counted}");
+    }
+
+    /// <summary>The controller's Y does what Tab does: a hold sets the pack down; the ring says Y.</summary>
+    private async Task TestGamepad(PackingMode packing, Hud ui)
+    {
+        Pad(true);
+        await Wait(packing.HoldThreshold + packing.SetDownTime * 0.5f);
+        bool going = packing.Phase == PackingPhase.SettingDown && ui.PackRing!.Key == "Y";
+        Pad(false);
+        await Wait(0.2f);
+        bool back = packing.Phase == PackingPhase.Carried;
+        Pad(true);
+        await Wait(0.1f);
+        Pad(false);
+        await Wait(0.4f);
+        bool looked = ui.PackLook!.IsOpen;
+        Pad(true);
+        await Wait(0.1f);
+        Pad(false);
+        await Wait(0.4f);
+        Check("Y on a controller is the pack key: hold sets the pack down, let go keeps it on, a tap looks", going && back && looked && !ui.PackLook.IsOpen,
+            $"going down with Y in the ring {going}, let go {back}, tap looked {looked}");
+    }
+
+    /// <summary>
+    /// A press while the pack is on its way is not lost: holding the key while it is being shouldered
+    /// turns it back to the ground from where it is (the ring goes on from there), and a tap while
+    /// shouldering is kept for a look once it is on.
+    /// </summary>
+    private async Task TestPressWhileShouldering(PackingMode packing, Hud ui)
+    {
+        GameEvents.RequestPackClose();
+        await Wait(packing.PutOnTime * 0.5f);
+        bool shouldering = packing.Phase == PackingPhase.PuttingOn;
+        Key(true);
+        await Wait(packing.HoldThreshold + 0.05f);
+        float ring = ui.PackRing!.Progress;
+        bool turned = packing.Phase == PackingPhase.SettingDown && ring > 0.2f && ring < 0.8f;
+        await Wait(packing.SetDownTime * 0.6f + 0.2f);
+        Key(false);
+        await Wait(0.2f);
+        bool open = packing.Phase == PackingPhase.Open && GameEvents.IsPackOpen;
+
+        GameEvents.RequestPackClose();
+        await Wait(0.2f);
+        Key(true);
+        await Wait(0.05f);
+        Key(false);
+        await Wait(0.1f);
+        bool notTurned = packing.Phase == PackingPhase.PuttingOn;
+        await Wait(packing.PutOnTime + 0.3f);
+        bool looked = packing.Phase == PackingPhase.Carried && ui.PackLook!.IsOpen;
+        GameEvents.RequestPackQuickView();
+        await Wait(0.3f);
+        Check("held while shouldering, the key turns the pack back from where it is", shouldering && turned && open,
+            $"shouldering {shouldering}, turned back with the ring at {ring:0.00} {turned}, open again {open}");
+        Check("a tap while shouldering is kept: the look comes once the pack is on", notTurned && looked,
+            $"went on shouldering {notTurned}, looked after {looked}");
+    }
+
+    /// <summary>
+    /// Walking off an open pack: nothing waits for the animation. The page goes, the carrier walks at
+    /// once, the pack swings onto the back while walking and is worn again a moment later.
+    /// </summary>
+    private async Task TestWalkOffOpen(PackingMode packing, Hud ui)
+    {
+        packing.TryOpen();
+        await Wait(0.5f);
+        bool open = packing.Phase == PackingPhase.Open && ui.Packing!.IsOpen;
+        Vector3 start = PlayerBody!.GlobalPosition;
+        Press(MoveForward, true);
+        int frames = await FramesUntil(() => packing.Phase == PackingPhase.Carried && !GameEvents.IsPacking && !GameEvents.IsPackOpen, 30);
+        int walking = await FramesUntil(() => Flat(PlayerBody.GlobalPosition - start) > 0.05f, 60);
+        PackSetDown? setDown = PlayerBody.FindChild("PackSetDown", true, false) as PackSetDown;
+        bool swinging = setDown != null && setDown.Off;
+        await Wait(0.6f);
+        Press(MoveForward, false);
+        bool worn = setDown != null && !setDown.Off;
+        bool gone = !ui.Packing!.IsOpen;
+        await Wait(0.5f);
+        Check("walking off the open pack shoulders it at once and the carrier walks at once", open && frames <= 1 && walking <= MaxWalkFrames && gone,
+            $"open {open}, carried in {frames} frames, moved 5 cm in {walking} frames (max {MaxWalkFrames}), page gone {gone}");
+        Check("the pack swings onto the back while the carrier walks, then is worn", swinging && worn, $"swinging {swinging}, worn {worn}");
+    }
+
+    /// <summary>The flat distance of a move, in m.</summary>
+    private static float Flat(Vector3 move) => new Vector2(move.X, move.Z).Length();
+
+    /// <summary>Physics frames until the condition holds (max + 1 if it never does in max frames).</summary>
+    private async Task<int> FramesUntil(System.Func<bool> done, int max)
+    {
+        for (int frame = 0; frame <= max; frame++)
+        {
+            if (done())
+            {
+                return frame;
+            }
+            await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+        }
+        return max + 1;
+    }
+
+    private static string Signature(PackLayout layout)
+    {
+        List<string> parts = new();
+        foreach (PackLayoutEntry entry in layout.Entries)
+        {
+            parts.Add($"{entry.InstanceId}:{entry.Packed}:{entry.Origin}:{entry.Orientation}");
+        }
+        return string.Join(";", parts);
     }
 
     /// <summary>The real pack stands on the ground in front of the carrier while it is off, and is worn again after.</summary>
@@ -382,6 +551,18 @@ public partial class PackViewTests : Node3D
     private static void Key(bool down)
     {
         Input.ParseInputEvent(new InputEventAction { Action = ActionToggle, Pressed = down });
+    }
+
+    /// <summary>Presses or lets go of an action the way a key does.</summary>
+    private static void Press(StringName action, bool down)
+    {
+        Input.ParseInputEvent(new InputEventAction { Action = action, Pressed = down });
+    }
+
+    /// <summary>Presses or lets go of the controller's Y button, as the pad sends it.</summary>
+    private static void Pad(bool down)
+    {
+        Input.ParseInputEvent(new InputEventJoypadButton { ButtonIndex = JoyButton.Y, Pressed = down, Device = 0 });
     }
 
     private async Task Wait(float seconds)

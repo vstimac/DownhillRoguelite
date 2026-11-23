@@ -3,6 +3,7 @@ using System.IO;
 using System.Threading.Tasks;
 using DownhillRoguelite.Core;
 using DownhillRoguelite.Environment;
+using DownhillRoguelite.Inventory;
 using DownhillRoguelite.Player;
 using DownhillRoguelite.Terrain;
 using DownhillRoguelite.Ui;
@@ -15,7 +16,7 @@ namespace DownhillRoguelite.Debug;
 /// Debug-only: photographs the interface so its look can be judged and compared — the title screen
 /// (`-- --ui-shots=start`), or (`-- --skip-start --ui-shots=game`) the HUD at the summit at noon in
 /// clear weather and in fog, the HUD a while into the run and with notes, the pause menu, Options,
-/// inventory, journal and map. The carrier takes no input and the run is kept in its own save files,
+/// the pack (quick look, ring, open page, shouldering), journal and map. The carrier takes no input and the run is kept in its own save files,
 /// never in the player's slots. Headless can't render: run it windowed (`--resolution 1920x1080`),
 /// with `-- --shots-directory=C:/somewhere`.
 /// </summary>
@@ -40,7 +41,8 @@ public partial class UiShots : Node3D
         try
         {
             if (mode == "start") { await StartShots(); }
-            else { await GameShots(); }
+            else if (mode == "pack") { await GameShots(true); }
+            else { await GameShots(false); }
             GD.Print("PASS  ui shots saved in " + _directory);
             GetTree().Quit(0);
         }
@@ -71,7 +73,7 @@ public partial class UiShots : Node3D
         await Shoot("start_character");
     }
 
-    private async Task GameShots()
+    private async Task GameShots(bool packOnly)
     {
         PlayerController player = GetNode<PlayerController>("World/Player");
         TerrainStreamer streamer = GetNode<TerrainStreamer>("World/Terrain");
@@ -96,6 +98,13 @@ public partial class UiShots : Node3D
             if (streamer.LoadedCount == lastLoaded && streamer.PlantsPendingCount == 0) { stable++; } else { stable = 0; }
             lastLoaded = streamer.LoadedCount;
         }
+        if (packOnly)
+        {
+            // The opening cards out of the way first, as a player would have them.
+            await Seconds(10.0f);
+            await PackShots(hud);
+            return;
+        }
         await Shoot("hud_clear_start");
         await Seconds(8.0f);
         await Shoot("hud_clear");
@@ -118,11 +127,7 @@ public partial class UiShots : Node3D
         pause.Resume();
         await Seconds(1.0f);
 
-        hud.Toggle(hud.Inventory);
-        await Seconds(1.0f);
-        await Shoot("inventory");
-        hud.Inventory?.Close();
-        await Seconds(0.8f);
+        await PackShots(hud);
         hud.Toggle(hud.Journal);
         await Seconds(1.0f);
         await Shoot("journal");
@@ -136,6 +141,78 @@ public partial class UiShots : Node3D
             hud.MapPage.Map.SetOpen(false);
             await Seconds(0.5f);
         }
+    }
+
+    /// <summary>
+    /// The pack with its one key, pressed the way the keyboard does: a tap (the quick look), a hold
+    /// half way (the ring), the open pack (nothing chosen, then a thing chosen and one in the hand),
+    /// and the shouldering.
+    /// </summary>
+    private async Task PackShots(Hud hud)
+    {
+        Inventory.PackingMode? packing = Inventory.PackingMode.Current;
+        if (packing == null)
+        {
+            GD.Print("FAIL  ui shots: no PackingMode in the scene");
+            return;
+        }
+        PackKey(true);
+        await Seconds(0.1f);
+        PackKey(false);
+        await Seconds(1.0f);
+        await Shoot("pack_look");
+        PackKey(true);
+        ulong pressed = Time.GetTicksMsec();
+        for (float waited = 0.0f; (hud.PackRing == null || hud.PackRing.Progress < 0.55f) && waited < 6.0f; waited += 0.02f)
+        {
+            await Seconds(0.02f);
+        }
+        GD.Print($"  ring {hud.PackRing?.Progress:0.00} after {(Time.GetTicksMsec() - pressed) / 1000.0f:0.00} s, phase {packing.Phase}, {Engine.GetFramesPerSecond():0} fps");
+        await Shoot("pack_ring");
+        for (float waited = 0.0f; packing.Phase != PackingPhase.Open && waited < 6.0f; waited += 0.05f)
+        {
+            await Seconds(0.05f);
+        }
+        GD.Print($"  open after {(Time.GetTicksMsec() - pressed) / 1000.0f:0.00} s, phase {packing.Phase}");
+        PackKey(false);
+        await Seconds(1.6f);
+        await Shoot("pack_open");
+        PackingScreen? page = hud.Packing;
+        if (page != null)
+        {
+            string chosen = "";
+            foreach (string id in GameEvents.CarriedItems)
+            {
+                if (ItemText.Find(id) is ItemDefinition item && (item.Category == ItemCategory.Water || item.Category == ItemCategory.Food))
+                {
+                    chosen = id;
+                    break;
+                }
+            }
+            page.SelectItem(chosen);
+            await Seconds(0.6f);
+            await Shoot("pack_item");
+            foreach (PackLayoutEntry entry in GameEvents.CurrentPackLayout.Entries)
+            {
+                if (entry.Packed)
+                {
+                    page.Hold(entry.InstanceId, entry.Orientation);
+                    break;
+                }
+            }
+            await Seconds(0.6f);
+            await Shoot("pack_hand");
+            page.Hold("", GridOrientations.Identity);
+        }
+        GameEvents.RequestPackClose();
+        await Seconds(packing.PutOnTime * 0.4f);
+        await Shoot("pack_shoulder");
+        await Seconds(packing.PutOnTime + 0.6f);
+    }
+
+    private static void PackKey(bool down)
+    {
+        Input.ParseInputEvent(new InputEventAction { Action = "inventory_toggle_packing", Pressed = down });
     }
 
     private async Task Shoot(string name)

@@ -19,6 +19,10 @@ public enum InkIcon
     Cape,
     Shoe,
     Figure,
+    Scarf,
+    Vest,
+    Belt,
+    Charm,
 }
 
 /// <summary>
@@ -210,6 +214,39 @@ public static class InkDraw
             {
                 Vector2[] cape = { c + new Vector2(-0.25f, -0.75f) * s, c + new Vector2(0.25f, -0.75f) * s, c + new Vector2(0.75f, 0.8f) * s, c + new Vector2(-0.75f, 0.8f) * s };
                 Shape(canvas, cape, new Color(UiStyle.Line, 0.55f), 2.0f, seed);
+                break;
+            }
+            case InkIcon.Scarf:
+            {
+                // A loop round the neck, its two ends hanging from the knot.
+                Arc(canvas, c + new Vector2(0.0f, -0.35f) * s, s * 0.42f, 0.0f, Mathf.Tau, 3.5f, new Color(UiStyle.Line, 0.9f));
+                Vector2[] first = { c + new Vector2(0.05f, 0.02f) * s, c + new Vector2(0.3f, 0.0f) * s, c + new Vector2(0.4f, 0.8f) * s, c + new Vector2(0.12f, 0.8f) * s };
+                Shape(canvas, first, new Color(UiStyle.Line, 0.55f), 2.0f, seed);
+                Vector2[] second = { c + new Vector2(0.2f, 0.02f) * s, c + new Vector2(0.42f, -0.05f) * s, c + new Vector2(0.75f, 0.6f) * s, c + new Vector2(0.5f, 0.68f) * s };
+                Shape(canvas, second, new Color(UiStyle.Line, 0.55f), 2.0f, seed + 1);
+                break;
+            }
+            case InkIcon.Vest:
+            {
+                // A shirt without sleeves, a neck opening at the top.
+                Vector2[] vest = { c + new Vector2(-0.3f, -0.75f) * s, c + new Vector2(-0.1f, -0.45f) * s, c + new Vector2(0.1f, -0.45f) * s, c + new Vector2(0.3f, -0.75f) * s, c + new Vector2(0.5f, -0.6f) * s, c + new Vector2(0.45f, 0.75f) * s, c + new Vector2(-0.45f, 0.75f) * s, c + new Vector2(-0.5f, -0.6f) * s };
+                Shape(canvas, vest, new Color(UiStyle.Line, 0.55f), 2.0f, seed);
+                break;
+            }
+            case InkIcon.Belt:
+            {
+                Vector2[] strap = { c + new Vector2(-0.85f, -0.18f) * s, c + new Vector2(0.85f, -0.18f) * s, c + new Vector2(0.85f, 0.18f) * s, c + new Vector2(-0.85f, 0.18f) * s };
+                Shape(canvas, strap, new Color(UiStyle.Line, 0.55f), 2.0f, seed);
+                Vector2[] buckle = { c + new Vector2(-0.25f, -0.38f) * s, c + new Vector2(0.25f, -0.38f) * s, c + new Vector2(0.25f, 0.38f) * s, c + new Vector2(-0.25f, 0.38f) * s };
+                canvas.DrawPolyline(Wobble(new[] { buckle[0], buckle[1], buckle[2], buckle[3], buckle[0] }, 1.0f, seed + 1), UiStyle.Ink, 2.5f, true);
+                break;
+            }
+            case InkIcon.Charm:
+            {
+                // A pendant on a cord.
+                canvas.DrawPolyline(Wobble(new[] { c + new Vector2(-0.55f, -0.75f) * s, c + new Vector2(0.0f, -0.1f) * s, c + new Vector2(0.55f, -0.75f) * s }, 1.0f, seed), new Color(UiStyle.Line, 0.9f), 2.0f, true);
+                Vector2[] stone = { c + new Vector2(0.0f, -0.15f) * s, c + new Vector2(0.35f, 0.3f) * s, c + new Vector2(0.0f, 0.8f) * s, c + new Vector2(-0.35f, 0.3f) * s };
+                Shape(canvas, stone, new Color(UiStyle.Line, 0.55f), 2.0f, seed + 1);
                 break;
             }
             case InkIcon.Figure:

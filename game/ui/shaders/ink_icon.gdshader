@@ -10,6 +10,13 @@ uniform float levels = 5.0;
 uniform float sepia = 0.3;
 uniform float dim = 1.0;
 
+// The control's modulate (and its parents'), so icons fade with the window they sit on.
+varying vec4 tint_in;
+
+void vertex() {
+	tint_in = COLOR;
+}
+
 void fragment() {
 	vec4 c = texture(TEXTURE, UV);
 	float near = 0.0;
@@ -19,11 +26,11 @@ void fragment() {
 		near = max(near, texture(TEXTURE, UV + vec2(cos(a), sin(a)) * px_step).a);
 	}
 	if (c.a < 0.5) {
-		COLOR = vec4(ink_color.rgb, near * ink_color.a * dim);
+		COLOR = vec4(ink_color.rgb, near * ink_color.a * dim) * tint_in;
 	} else {
 		vec3 flat_col = floor(c.rgb * levels + 0.5) / levels;
 		float grey = dot(flat_col, vec3(0.3, 0.59, 0.11));
 		vec3 cool = mix(flat_col, vec3(grey) * tint.rgb * 1.2, sepia);
-		COLOR = vec4(cool * dim, 1.0);
+		COLOR = vec4(cool * dim, 1.0) * tint_in;
 	}
 }

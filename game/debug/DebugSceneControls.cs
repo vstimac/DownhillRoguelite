@@ -358,11 +358,12 @@ public partial class DebugSceneControls : Node
                 }
                 else
                 {
-                    hud.Toggle(hud.Inventory);
-                    // `--page=inventory:0` also selects that slot (render checks of the item text).
-                    if (page.StartsWith("inventory:") && int.TryParse(page.Substring("inventory:".Length), out int slot))
+                    // The inventory is the pack page: the pack is set down at once.
+                    Inventory.PackingMode.Current?.TryOpen();
+                    // `--page=inventory:water_flask` also chooses that kind (render checks of the item text).
+                    if (page.StartsWith("inventory:"))
                     {
-                        hud.Inventory?.Select(slot);
+                        hud.Packing?.SelectItem(page.Substring("inventory:".Length));
                     }
                 }
             }
