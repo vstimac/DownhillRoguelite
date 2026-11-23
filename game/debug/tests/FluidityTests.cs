@@ -144,44 +144,26 @@ public partial class FluidityTests : Node3D
         await Tap("player_jump");
         int taken = await FramesUntil(() => _body.Jumps > jumps, 10);
         Check(_body.Jumps == jumps + 1, "Space on flat ground jumps", $"jumped after {taken} frames");
-        // The hop is a ragdoll throw (the game's design: a timed roll keeps him on his feet). Without the
-        // roll he lies until the body has come to rest; with a key held he gets up as soon as it has.
+        // A real jump: he lands on his feet and walks on (the ragdoll throw is Ctrl's). JumpTests measures it closely.
         _body.DirectionOverride = Vector3.Forward;
-        bool trace = Array.IndexOf(OS.GetCmdlineUserArgs(), "--trace") >= 0;
-        int traced = 0;
-        float moving = 0.0f;
-        float lastStill = 0.0f;
-        float waited = -1.0f;
-        int upAfter = taken + await FramesUntil(() =>
+        bool downed = false;
+        int walking = taken + await FramesUntil(() =>
         {
-            traced++;
-            if (trace && traced % 6 == 0)
-            {
-                GD.Print($"TRACE {traced * Frame60:0.00} s downed {_ragdoll.Downed} turning {_ragdoll.TurningOver} getting up {_ragdoll.GettingUp} rising {_ragdoll.Rising} still {_ragdoll.StillFor:0.00} speed {Flat(_body.Velocity):0.0} motion {_ragdoll.Motion:0.00}");
-            }
-            if (_ragdoll.Downed && _ragdoll.Motion >= _ragdoll.SettleSpeed)
-            {
-                moving = traced * Frame60;
-            }
-            if (waited < 0.0f && (_ragdoll.TurningOver || _ragdoll.GettingUp))
-            {
-                float at = traced * Frame60;
-                waited = at - Mathf.Max(_ragdoll.LaunchMinDownTime, at - lastStill);
-            }
-            lastStill = _ragdoll.StillFor;
-            return !_ragdoll.Downed && _body.Jumps > jumps && Flat(_body.Velocity) > 0.5f;
-        }, 400);
+            downed |= _ragdoll.Downed;
+            return _body.State != LocomotionState.Airborne && Flat(_body.Velocity) > 0.5f;
+        }, 120);
         _body.DirectionOverride = Vector3.Zero;
-        GD.Print($"MEASURE the Space hop with a key held: the body moves {moving:0.00} s, lies still {waited:0.00} s, walking again {upAfter * Frame60:0.00} s after the press");
-        Check(waited >= 0.0f && waited <= 0.3f, "after a hop he gets up as soon as the body has come to rest (a key held)",
-            $"lay still {waited:0.00} s (max 0.3); in all {upAfter * Frame60:0.00} s from the press, {moving:0.00} s of it the body in motion");
+        GD.Print($"MEASURE the Space jump with a key held: walking again {walking * Frame60:0.00} s after the press");
+        Check(!downed && walking * Frame60 <= 1.0f, "a jump lands on his feet and he walks on at once",
+            $"went down {downed}, walking {walking * Frame60:0.00} s after the press (max 1.0; the old ragdoll hop: 4.2)");
         await WaitUp();
     }
 
 
-    /// <summary>The skill path: the hop with Space timed in the roll's window rolls him onto his feet, walking on at once.</summary>
+    /// <summary>The skill path on a thrown body (the ragdoll hop, now only an option): Space timed in the roll's window rolls him onto his feet.</summary>
     private async Task TestHopWithRoll()
     {
+        _body.RagdollJump = true;
         await Place();
         int rolls = 0;
         void OnRolled() { rolls++; }
@@ -207,6 +189,7 @@ public partial class FluidityTests : Node3D
         Check(pressed && rolls == 1 && !GameEvents.IsDowned && frames * Frame60 <= 2.6f, "a hop with a timed roll comes up walking",
             $"pressed in the window {pressed}, rolls {rolls}, walking {frames * Frame60:0.00} s after the hop (max 2.6)");
         await WaitUp();
+        _body.RagdollJump = false;
     }
     /// <summary>Space a few frames before the feet touch down (a short drop): the jump comes on landing.</summary>
     private async Task TestJumpJustBeforeLanding()

@@ -558,13 +558,16 @@ public partial class PlayerController : CharacterBody3D
         return current.Rotated(Vector3.Up, Mathf.Clamp(angle, -maxTurn, maxTurn));
     }
 
-    /// <summary>Space throws the whole body as a ragdoll (physics, then he gets up) instead of the animated jump.</summary>
-    [Export] public bool RagdollJump { get; set; } = true;
+    /// <summary>
+    /// Space throws the whole body as a ragdoll (physics, then he gets up) instead of the animated jump.
+    /// Off since 23 Nov: Space is a real jump that lands on its feet; only a hard landing goes down, and Ctrl is the throw.
+    /// </summary>
+    [Export] public bool RagdollJump { get; set; } = false;
     /// <summary>The ragdoll jump's upward speed as a share of the normal jump's, its push forward and the upper body's lean (m/s).</summary>
     [Export] public float RagdollJumpLift { get; set; } = 1.0f;
     [Export] public float RagdollJumpForward { get; set; } = 1.2f;
     [Export] public float RagdollJumpLean { get; set; } = 0.5f;
-    /// <summary>Ragdoll jumps made (tests).</summary>
+    /// <summary>Jumps made, real or ragdoll (tests).</summary>
     public int Jumps { get; private set; }
 
     /// <summary>A Space press is kept this long (s): pressed a moment before the feet touch down, or while bracing, it jumps as soon as it can.</summary>
@@ -624,6 +627,7 @@ public partial class PlayerController : CharacterBody3D
             GameEvents.RequestRagdollLaunch(launch, forward * RagdollJumpLean, "jump");
             return;
         }
+        Jumps++;
         Velocity = new Vector3(Velocity.X, speed, Velocity.Z);
     }
 
@@ -752,7 +756,9 @@ public partial class PlayerController : CharacterBody3D
     private Vector3 ComputeAirVelocity(Vector3 input, float dt)
     {
         Vector3 horizontal = Flatten(Velocity, false);
-        Vector3 desired = input * Settings.StrideSpeed;
+        // Steering in the air never brakes the run he jumped with (a sprint or a downhill run is faster
+        // than a stride): only letting go of the keys slows him, and then gently (AirControl).
+        Vector3 desired = input * Mathf.Max(Settings.StrideSpeed, horizontal.Length());
         horizontal = horizontal.MoveToward(desired, Settings.Acceleration * Settings.AirControl * dt);
 
         float vertical = Velocity.Y - _gravity * Settings.GravityScale * dt;

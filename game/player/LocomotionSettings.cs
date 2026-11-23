@@ -129,7 +129,7 @@ public partial class LocomotionSettings : Resource
     /// <summary>Load at which the jump is cut to MinJumpFactor, in kg.</summary>
     [Export] public float JumpLoadForMinimum { get; set; } = 40.0f;
     /// <summary>Fraction of the jump left at JumpLoadForMinimum or more.</summary>
-    [Export] public float MinJumpFactor { get; set; } = 0.4f;
+    [Export] public float MinJumpFactor { get; set; } = 0.6f;
     /// <summary>Landings slower than this aren't reported (stepping off kerbs), in m/s.</summary>
     [Export] public float MinReportedLanding { get; set; } = 1.0f;
 

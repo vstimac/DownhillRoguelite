@@ -17,6 +17,20 @@ Hodaj i trci po ravnom, pa sprintaj. F1 slobodna kamera: gledaj lika sa strane, 
 Controls = "WASD hod/trk | Shift sprint | F1 slobodna kamera | F10 izbornik"
 Setup = ""
 
+[sub_resource type="Resource" id="NextJump"]
+script = ExtResource("2_entry")
+Id = "next-jump"
+Title = "Space je pravi skok"
+Category = "Sljedeca zakrpa"
+ScenePath = "res://debug/playground/DevSandbox.tscn"
+Description = "STO JE NOVO
+Space vise ne baca lika kao ragdoll (to je sad samo Ctrl). Lik skoci oko pola metra, doskoci na noge i odmah hoda dalje: 0,75 s od pritiska do hoda, prije 4,2 s. Skok u trku zadrzi brzinu, i u sprintu (do 3,9 m daleko). Space tren prije doskoka odmah skoci opet. Doskok cucne onoliko koliko je pad bio jak (mali skok 11 cm umjesto 42). Teret skok snizava, ali ne ubija: 20 kg oko 0,36 m, 40 kg oko 0,21 m. Tvrdi doskok s visine i dalje obara, a kolut ga spasava.
+
+KAKO ISPROBATI
+Skaci u mjestu, u hodu i u sprintu. Preskoci kamenje (F10 > Alati > Polje kamenja), skaci niz stepenice, zalijepi nekoliko skokova zaredom. Za usporedbu: Ctrl je i dalje bacanje kao ragdoll."
+Controls = "Space skok | Shift sprint | Ctrl zaron (ragdoll) | F1 slobodna kamera | F10 izbornik"
+Setup = ""
+
 [sub_resource type="Resource" id="NextLanding"]
 script = ExtResource("2_entry")
 Id = "next-landing"
@@ -24,7 +38,7 @@ Title = "Doskok, kolut i tipke kroz ustajanje"
 Category = "Sljedeca zakrpa"
 ScenePath = "res://debug/playground/DevSandbox.tscn"
 Description = "STO JE NOVO
-Tempirani kolut zaroni vec u zraku i docekuje tlo u trenutku doskoka. Tipke stisnute za vrijeme doskoka i ustajanja vise se ne gube:
+Tempirani kolut (pad, udarac, Ctrl) zaroni vec u zraku i docekuje tlo u trenutku doskoka. Tipke stisnute za vrijeme doskoka i ustajanja vise se ne gube:
 - Space tren prije doskoka ili tren nakon silaska s ruba ipak skoci.
 - Drzani smjer digne lika cim tijelo stane, a hod skrati pozu ustajanja.
 - E, interakcija, zaron (Ctrl) i hotbar odrade se cim mozes djelovati.
@@ -239,7 +253,7 @@ Setup = "hurt=60; at=Pad 4 m"
 
 [node name="PatchPlayground" type="Node"]
 script = ExtResource("1_root")
-Labs = Array[Resource]([SubResource("NextLegs"), SubResource("NextLanding"), SubResource("NextPack"), SubResource("NextUi"), SubResource("NextWorld"), SubResource("NextAnimals"), SubResource("NextBeast"), SubResource("B32Animals"), SubResource("B32Wolves"), SubResource("B32Healing"), SubResource("B32Balance"), SubResource("B32Mountain"), SubResource("B31Roll"), SubResource("B31Signs"), SubResource("B30Bargains"), SubResource("B30Hearts")])
+Labs = Array[Resource]([SubResource("NextLegs"), SubResource("NextJump"), SubResource("NextLanding"), SubResource("NextPack"), SubResource("NextUi"), SubResource("NextWorld"), SubResource("NextAnimals"), SubResource("NextBeast"), SubResource("B32Animals"), SubResource("B32Wolves"), SubResource("B32Healing"), SubResource("B32Balance"), SubResource("B32Mountain"), SubResource("B31Roll"), SubResource("B31Signs"), SubResource("B30Bargains"), SubResource("B30Hearts")])
 Seed = 1
 HomeLab = "next-legs"
 Heading = "THE DESCENT / STO JE NOVO PO ZAKRPAMA"

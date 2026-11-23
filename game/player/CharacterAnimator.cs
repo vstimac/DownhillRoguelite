@@ -41,6 +41,13 @@ public partial class CharacterAnimator : Node
     [Export] public float TransitionFadeTime { get; set; } = 0.09f;
     /// <summary>Running landings retain their stride instead of replacing it with a full stationary crouch.</summary>
     [Export] public float MovingLandingWeight { get; set; } = 0.25f;
+    /// <summary>
+    /// Landing this fast (m/s down) plays the landing crouch in full; slower landings dip less (a 0.5 m hop
+    /// lands at about 3.2 m/s). The clip squats 0.42 m: played in full for a hop he sank like after a drop.
+    /// </summary>
+    [Export] public float LandingFullSpeed { get; set; } = 10.0f;
+    /// <summary>How long the landing crouch takes to fade in and out, in s (a landing comes in all at once, so softer than TransitionFadeTime).</summary>
+    [Export] public float LandingFadeTime { get; set; } = 0.14f;
     /// <summary>How long an action clip (PlayAction) takes to fade in or out, in s.</summary>
     [Export] public float ActionFadeTime { get; set; } = 0.12f;
 
@@ -135,6 +142,8 @@ public partial class CharacterAnimator : Node
     private float _airWeight;
     private bool _wasAirborne;
     private bool _landingPending;
+    // How fast he came down at the last landing (m/s): a hop dips a little, a drop all the way.
+    private float _landingSpeed;
     private float _takeoffLeft;
     private float _landingLeft;
     private float _walkLength;
@@ -193,7 +202,7 @@ public partial class CharacterAnimator : Node
         GameEvents.Landed -= OnLanded;
     }
 
-    private void OnLanded(float speed) { _landingPending = true; }
+    private void OnLanded(float speed) { _landingPending = true; _landingSpeed = speed; }
 
     private void ResetMotion()
     {
@@ -384,19 +393,21 @@ public partial class CharacterAnimator : Node
         _landingPending = false;
         _wasAirborne = airborne;
         TakeoffWeight = SampleTransition(TakeoffSeekParameter, TakeoffClip, TakeoffTime, ref _takeoffLeft, dt);
-        LandingWeight = SampleTransition(LandingSeekParameter, LandingClip, LandingTime, ref _landingLeft, dt);
+        LandingWeight = SampleTransition(LandingSeekParameter, LandingClip, LandingTime, ref _landingLeft, dt, LandingFadeTime);
+        LandingWeight *= Mathf.Clamp(_landingSpeed / Mathf.Max(LandingFullSpeed, 0.1f), 0.0f, 1.0f);
         LandingWeight *= Mathf.Lerp(1, MovingLandingWeight, Band(_speed, WalkToJog));
         SetBlend(TakeoffBlendParameter, TakeoffWeight);
         SetBlend(LandingBlendParameter, LandingWeight);
     }
 
-    private float SampleTransition(StringName parameter, StringName clip, float duration, ref float left, float dt)
+    private float SampleTransition(StringName parameter, StringName clip, float duration, ref float left, float dt, float fade = -1.0f)
     {
         if (left <= 0 || duration <= 0 || Animations?.HasAnimation(clip) != true) { return 0; }
         left = Mathf.Max(0, left - dt);
         float elapsed = duration - left;
         _tree!.Set(parameter, Mathf.Clamp(elapsed / duration * Length(clip), 0, Length(clip)));
-        return Mathf.SmoothStep(0, TransitionFadeTime, elapsed) * Mathf.SmoothStep(0, TransitionFadeTime, left);
+        if (fade < 0.0f) { fade = TransitionFadeTime; }
+        return Mathf.SmoothStep(0, fade, elapsed) * Mathf.SmoothStep(0, fade, left);
     }
 
     private AnimationNodeBlendTree BuildTree()

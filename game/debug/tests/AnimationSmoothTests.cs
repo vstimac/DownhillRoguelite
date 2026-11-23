@@ -80,7 +80,8 @@ public partial class AnimationSmoothTests : Node3D
             await Frames(1);
             landingPeak = Mathf.Max(landingPeak, _animator.LandingWeight);
         }
-        Check("actual ground contact plays the landing asset", _body.IsOnFloor() && landingPeak > 0.5f);
+        // The landing crouch scales with how hard he came down (LandingFullSpeed): a 0.5 m hop dips about a third of it.
+        Check("actual ground contact plays the landing asset", _body.IsOnFloor() && landingPeak > 0.2f);
         Check("landing pose blends out instead of sticking", _animator.TakeoffWeight == 0 && _animator.LandingWeight == 0);
         GameEvents.PublishVaulting(true);
         GameEvents.PublishLanded(3);

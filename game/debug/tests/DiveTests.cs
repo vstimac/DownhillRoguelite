@@ -328,6 +328,11 @@ public partial class DiveTests : Node3D
     private async Task TestRagdollJump(PlayerController player)
     {
         player.RagdollJump = true;
+        // The hop is an option now (Space is a real jump), measured as it was tuned: the load cut the
+        // throw to 0.4 at 40 kg then (MinJumpFactor), the real jump's gentler 0.6 would throw it higher.
+        float load = Mathf.Clamp(CarriedLoad.Mass / player.Settings.JumpLoadForMinimum, 0.0f, 1.0f);
+        float liftBefore = player.RagdollJumpLift;
+        player.RagdollJumpLift = liftBefore * Mathf.Lerp(1.0f, 0.4f, load) / Mathf.Lerp(1.0f, player.Settings.MinJumpFactor, load);
         PlayerRagdoll ragdoll = player.GetNode<PlayerRagdoll>("Ragdoll");
         int jumps = player.Jumps;
         Input.ActionPress("player_jump");
@@ -390,6 +395,7 @@ public partial class DiveTests : Node3D
             $"a timed press in the throw lets the ragdoll go in the air and he rolls out on landing ({rollSeconds:0.0} s)",
             $"cue {cued}, rolls {rolls}, downed {ragdoll.Downed}, primed left {GameEvents.RollPrimed}, on floor {player.IsOnFloor()}");
         player.RagdollJump = false;
+        player.RagdollJumpLift = liftBefore;
     }
 
     /// <summary>The saving throw's numbers: timing to impact, grades, the character's window, the cooldown.</summary>
