@@ -153,6 +153,8 @@ def write_pck(source, target, header, entries):
 # at startup on an older base.
 ALLOWED_SETTINGS = {
     'NetSession="*res://network/NetSession.cs"',
+    # The gamepad Y on the pack key (3.3): PatchLoader.AddGamepadButtonsTheBaseLacks adds it at startup.
+    ', Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":3,"pressure":0.0,"pressed":false,"script":null)',
 }
 
 

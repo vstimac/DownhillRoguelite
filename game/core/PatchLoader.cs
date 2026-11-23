@@ -21,6 +21,7 @@ public partial class PatchLoader : Node
 
     public override void _EnterTree()
     {
+        AddGamepadButtonsTheBaseLacks();
         if (!OS.HasFeature("template"))
         {
             return;
@@ -56,6 +57,42 @@ public partial class PatchLoader : Node
             }
         }
         StartCoopIfTheBaseCannot();
+    }
+
+    /// <summary>Input actions and the gamepad buttons they gained after the 3.0 base (action, button).</summary>
+    public static readonly (string Action, JoyButton Button)[] NewGamepadButtons =
+    {
+        ("inventory_toggle_packing", JoyButton.Y),
+    };
+
+    /// <summary>
+    /// Input actions come from the base's project settings, which a patch never replaces, so a button an
+    /// action gained after the base would be missing on an updated folder. The input map can change at
+    /// runtime, so it is added here when the action lacks it. Returns how many were added (0 on a full
+    /// release that has them).
+    /// </summary>
+    public static int AddGamepadButtonsTheBaseLacks()
+    {
+        int added = 0;
+        foreach ((string action, JoyButton button) in NewGamepadButtons)
+        {
+            if (!InputMap.HasAction(action))
+            {
+                continue;
+            }
+            bool has = false;
+            foreach (InputEvent existing in InputMap.ActionGetEvents(action))
+            {
+                has |= existing is InputEventJoypadButton joy && joy.ButtonIndex == button;
+            }
+            if (!has)
+            {
+                InputMap.ActionAddEvent(action, new InputEventJoypadButton { ButtonIndex = button, Device = -1 });
+                GD.Print("PatchLoader: added gamepad " + button + " to " + action + " (this folder's full release is older than it)");
+                added++;
+            }
+        }
+        return added;
     }
 
     /// <summary>

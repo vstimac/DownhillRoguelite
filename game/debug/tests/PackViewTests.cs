@@ -66,6 +66,7 @@ public partial class PackViewTests : Node3D
         await TestLetGoEarly(Packing);
         await TestRingThenLetGo(Packing, Ui);
         await TestWalkCallsOff(Packing);
+        TestGamepadOnOldBase();
         await TestGamepad(Packing, Ui);
         await TestSetDown(Packing, Ui);
         TestPointing(Ui.Packing.View);
@@ -84,6 +85,32 @@ public partial class PackViewTests : Node3D
             GD.Print($"PACK VIEW TESTS: FAIL ({_failures.Count})");
             GetTree().Quit(1);
         }
+    }
+
+    /// <summary>
+    /// A small update on the 3.0 base keeps that base's input map, which has no gamepad Y on the pack
+    /// key: PatchLoader adds it at startup. Taken off here as on that base, it comes back once (the
+    /// gamepad test after this one then presses it), and a second start adds nothing.
+    /// </summary>
+    private void TestGamepadOnOldBase()
+    {
+        const string action = "inventory_toggle_packing";
+        foreach (InputEvent existing in InputMap.ActionGetEvents(action))
+        {
+            if (existing is InputEventJoypadButton)
+            {
+                InputMap.ActionEraseEvent(action, existing);
+            }
+        }
+        int first = PatchLoader.AddGamepadButtonsTheBaseLacks();
+        int again = PatchLoader.AddGamepadButtonsTheBaseLacks();
+        bool y = false;
+        foreach (InputEvent existing in InputMap.ActionGetEvents(action))
+        {
+            y |= existing is InputEventJoypadButton joy && joy.ButtonIndex == JoyButton.Y;
+        }
+        Check("on a folder updated from the 3.0 base the pack key gets its gamepad Y at start, once", first == 1 && again == 0 && y,
+            $"added {first}, then {again}, Y bound {y}");
     }
 
     private void TestLayout(CarrierInventory inventory)
