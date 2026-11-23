@@ -312,6 +312,9 @@ public partial class ItemSlot : Control
         {
             // The key that picks the slot, in the corner where the eye looks for it.
             Color key = Selected ? UiStyle.Highlight : new Color(UiStyle.Ink, 0.8f);
+            // On a small slate tab, so the number stays clear of a picture that fills the slot.
+            float wide = font.GetStringSize(KeyHint, HorizontalAlignment.Left, -1, 13).X;
+            canvas.DrawRect(new Rect2(new Vector2(2, 2), new Vector2(wide + 7, 17)), new Color(UiStyle.Paper, 0.8f));
             canvas.DrawString(font, new Vector2(6, 16), KeyHint, HorizontalAlignment.Left, -1, 13, shadow);
             canvas.DrawString(font, new Vector2(5, 15), KeyHint, HorizontalAlignment.Left, -1, 13, key);
         }

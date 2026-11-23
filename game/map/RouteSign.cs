@@ -77,7 +77,13 @@ public partial class RouteSign : Node3D
                 Position = new Vector3(0.0f, y, 0.04f),
                 Visible = false,
             };
-            AddChild(WorldLabel.Readable(_lines[i], ReadRange));
+            // The bigger heading reads from twice as far, so from a distance the board is still a sign, not a blank plank.
+            float range = ReadRange;
+            if (i == 0)
+            {
+                range = ReadRange * 2.0f;
+            }
+            AddChild(WorldLabel.Readable(_lines[i], range));
         }
         _lines[0].Text = "Paths ahead";
         _lines[0].Visible = true;
