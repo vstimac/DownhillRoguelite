@@ -61,6 +61,9 @@ public partial class DiveTests : Node3D
         TestSaveRules();
         await Place(PlayerBody, Streamer.SpawnPoint);
         await TestBlowRoll(PlayerBody);
+        await Place(PlayerBody, Streamer.SpawnPoint);
+        await WaitSeconds(1.0f);
+        await TestHighThrowRoll(PlayerBody);
         foreach ((float pressAt, bool onFeet) in new[] { (0.40f, false), (0.08f, false), (0.20f, true), (0.06f, true) })
         {
             await Place(PlayerBody, Streamer.SpawnPoint);
@@ -438,6 +441,55 @@ public partial class DiveTests : Node3D
     }
 
     /// <summary>Knocked flying by a blow: the same cue shows on the way down, and a timed press rolls him out of it.</summary>
+    /// <summary>
+    /// A throw far higher than the ragdoll's old 3 m ground probe: the cue tells the real time to the
+    /// ground (it used to take the ground for a metre under the hips, so it opened at the top and a
+    /// "good" roll dropped him onto the ground in a frame), the roll timed at the sweet spot lets go in
+    /// the air, and he falls the rest of the way and rolls: the body never jumps further in a frame
+    /// than it falls.
+    /// </summary>
+    private async Task TestHighThrowRoll(PlayerController player)
+    {
+        PlayerRagdoll ragdoll = player.GetNode<PlayerRagdoll>("Ragdoll");
+        int rolls = 0;
+        void OnRolled() { rolls++; }
+        GameEvents.Rolled += OnRolled;
+        RollSave.Reset();
+        float ground = player.GlobalPosition.Y;
+        GameEvents.RequestRagdollLaunch(Vector3.Up * 14.0f, Vector3.Zero, "test high throw");
+        bool pressed = false;
+        bool earlyCue = false;
+        float pressedAbove = 0.0f, highest = 0.0f, biggestStep = 0.0f, stepAt = 0.0f;
+        Vector3 last = player.GlobalPosition;
+        float seconds = 0.0f;
+        for (; seconds < 6.0f && (ragdoll.Downed || rolls == 0 || !player.IsOnFloor()); seconds += 1.0f / Engine.PhysicsTicksPerSecond)
+        {
+            await Frame();
+            Vector3 now = player.GlobalPosition;
+            // A frame's fall at most (the speed it has, plus a margin): anything more is a jump to the ground.
+            float allowed = Mathf.Max(player.Velocity.Length(), 20.0f) / Engine.PhysicsTicksPerSecond + 0.15f;
+            float step = (now - last).Length();
+            if (step - allowed > biggestStep - 0.15f && step > biggestStep) { biggestStep = step; stepAt = now.Y - ground; }
+            last = now;
+            highest = Mathf.Max(highest, now.Y - ground);
+            VaultCue cue = GameEvents.CurrentVault;
+            // The cue closes in on the real impact: a window opening while he still rises or high up is wrong.
+            if (ragdoll.Downed && cue.InWindow && now.Y - ground > 6.0f) { earlyCue = true; }
+            if (!pressed && ragdoll.Downed && cue.InWindow && cue.Timed && cue.Distance <= cue.Sweet + 0.02f)
+            {
+                pressed = true;
+                pressedAbove = now.Y - ground;
+                ragdoll.TryThrowRoll(cue);
+            }
+        }
+        GameEvents.Rolled -= OnRolled;
+        await WaitSeconds(1.0f);
+        float fallStep = 20.0f / Engine.PhysicsTicksPerSecond + 0.15f;
+        Check(pressed && !earlyCue && rolls == 1 && !ragdoll.Downed && !GameEvents.IsDowned && biggestStep <= fallStep,
+            $"thrown {highest:0.0} m up, the cue waits for the real ground and a timed roll falls the rest of the way ({seconds:0.0} s)",
+            $"pressed {pressed} with the body {pressedAbove:0.0} m up, cue open high up {earlyCue}, rolls {rolls}, downed {ragdoll.Downed}, biggest frame step {biggestStep:0.00} m at {stepAt:0.0} m (max {fallStep:0.00})");
+    }
+
     private async Task TestBlowRoll(PlayerController player)
     {
         PlayerRagdoll ragdoll = player.GetNode<PlayerRagdoll>("Ragdoll");

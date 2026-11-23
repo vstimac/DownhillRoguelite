@@ -99,7 +99,10 @@ public partial class PlayerRagdoll : Node
     [Export] public float ImpactProbeMargin { get; set; } = 0.15f;
     /// <summary>Hardness of geometry without a SurfaceType.</summary>
     [Export] public float DefaultHardness { get; set; } = 1.0f;
-    [Export] public float GroundProbeDistance { get; set; } = 3.0f;
+    /// <summary>A flying ragdoll's body hangs this far below its hips (on the ground once they are this low), in m.</summary>
+    [Export] public float HangBelowHips { get; set; } = 1.0f;
+    /// <summary>How far down the ground is looked for under a flying ragdoll (the roll is timed from it), in m.</summary>
+    [Export] public float FallProbeDistance { get; set; } = 400.0f;
 
     public bool Downed { get; private set; }
     /// <summary>Down, and already blending out of the ragdoll into the rise (what is seen is the animation by then).</summary>
@@ -1130,14 +1133,19 @@ public partial class PlayerRagdoll : Node
     private void FollowHips()
     {
         Vector3 hips = _bones[0].Body.GlobalPosition;
-        PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(hips, hips + Vector3.Down * GroundProbeDistance, WorldMask, _probeExclude);
+        // The real ground, however far down: the roll's cue and its letting go are timed from it. (A 3 m
+        // probe took the ground for a metre under the hips on any higher throw: the cue opened at the top
+        // and a "good" roll dropped him onto the ground in one frame.)
+        PhysicsRayQueryParameters3D query = PhysicsRayQueryParameters3D.Create(hips, hips + Vector3.Down * FallProbeDistance, WorldMask, _probeExclude);
         Godot.Collections.Dictionary hit = Body!.GetWorld3D().DirectSpaceState.IntersectRay(query);
-        float ground = hips.Y - 1.0f;
+        float ground = hips.Y - FallProbeDistance;
         if (hit.Count > 0)
         {
             ground = hit["position"].AsVector3().Y;
         }
-        float feet = ground;
+        // The body (and the camera on it) stays under the hips: on the ground while he lies there, and
+        // thrown higher it hangs a metre below them, rising and falling with him (no jump at any height).
+        float feet = Mathf.Max(ground, hips.Y - HangBelowHips);
         if (_rollingOut)
         {
             feet = Mathf.Max(ground, hips.Y - RecoverHipsHeight);
