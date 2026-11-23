@@ -16,6 +16,9 @@ namespace DownhillRoguelite.Debug;
 public partial class DevPlaygroundConsole : CanvasLayer
 {
     public Godot.Collections.Array<DevPlaygroundEntry> Labs { get; set; } = new();
+    public string HomeLab { get; set; } = "sandbox";
+    public string Heading { get; set; } = "THE DESCENT / DEV PLAYGROUND";
+    public string Intro { get; set; } = "Jedno mjesto za testiranje. F10 otvara/zatvara ovaj izbornik i pauzira probu. Promjena laboratorija resetira trenutnu probu.";
     [Export] public ulong Seed { get; set; } = 1;
     [Export] public float RefreshSeconds { get; set; } = 0.25f;
     [Export] public float DamageAmount { get; set; } = 25;
@@ -111,7 +114,7 @@ public partial class DevPlaygroundConsole : CanvasLayer
             if (floorReady) { _waitingForGround = null; _groundProbe = null; }
             else { Player.Teleport(target + Vector3.Up * TeleportClearance, _spawnYaw); }
         }
-        if (!_bringBeast || GetTree().Paused || _beasts == null || Player == null) { return; }
+        if (!_bringBeast || GetTree().Paused || _beasts == null || Player == null || _waitingForGround != null) { return; }
         _bringBeast = false;
         NightBeast? beast = _beasts.Bring(Player.GlobalPosition, Player.GetWorld3D().DirectSpaceState);
         _message = "Nema prikladnog mjesta za zvijer. Makni se od vrha i probaj opet.";
@@ -169,6 +172,9 @@ public partial class DevPlaygroundConsole : CanvasLayer
             GC.WaitForPendingFinalizers();
             PackedScene? scene = ResourceLoader.Load<PackedScene>(entry.ScenePath);
             if (scene == null) { _message = "Scena se ne moze ucitati: " + entry.ScenePath; return false; }
+            string[] setup = SetupSteps(entry);
+            // A lab that starts somewhere on the mountain goes straight into the run, not to the title screen.
+            DownhillRoguelite.WorldUi.StartScreen.SkipNext = Array.IndexOf(setup, "skip-start") >= 0;
             if (GetTree().ChangeSceneToPacked(scene) != Error.Ok) { return false; }
             await ToSignal(GetTree(), SceneTree.SignalName.SceneChanged);
             ActiveLabId = id;
@@ -184,6 +190,7 @@ public partial class DevPlaygroundConsole : CanvasLayer
             if (Player != null) { _spawn = Player.GlobalPosition; _spawnYaw = Player.GlobalRotation.Y; }
             FillCheckpoints();
             _message = entry.Title + " | F10 izbornik | F9 snimanje svakih 5 frameova";
+            ApplySetup(setup);
             // Only the entry point requests the developer menu. Starting a lab must enter gameplay.
             if (showMenu) { SetMenuOpen(true); }
             return true;
@@ -196,6 +203,67 @@ public partial class DevPlaygroundConsole : CanvasLayer
         }
         finally { ChangingLab = false; _launch.Disabled = _filtered.Count == 0; }
     }
+
+    private static string[] SetupSteps(DevPlaygroundEntry entry)
+    {
+        return entry.Setup.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    /// <summary>Puts the carrier where the entry's change can be seen at once (DevPlaygroundEntry.Setup).</summary>
+    private void ApplySetup(string[] steps)
+    {
+        List<string> missed = new();
+        foreach (string step in steps)
+        {
+            string[] parts = step.Split('=', 2, StringSplitOptions.TrimEntries);
+            string value = parts.Length > 1 ? parts[1] : "";
+            switch (parts[0])
+            {
+                case "skip-start":
+                    break;
+                case "at":
+                    int place = -1;
+                    for (int i = 0; i < _places.ItemCount; i++)
+                    {
+                        if (_places.GetItemText(i).StartsWith(value, StringComparison.OrdinalIgnoreCase)) { place = i; break; }
+                    }
+                    if (place < 0 || !MovePlayer(_checkpoints[place])) { missed.Add(step); break; }
+                    _places.Select(place);
+                    break;
+                case "time":
+                    GetNode<WorldClock>("/root/WorldClock").SetTimeOfDay(float.Parse(value, System.Globalization.CultureInfo.InvariantCulture));
+                    break;
+                case "item":
+                    // No room in the pack: it lies in front of the carrier instead.
+                    if (!GrantItem(value) && !PlaceItem(value)) { missed.Add(step); }
+                    break;
+                case "hurt":
+                    if (Player?.Health == null) { missed.Add(step); break; }
+                    Player.Health.TakeDamage(float.Parse(value, System.Globalization.CultureInfo.InvariantCulture), "dev playground");
+                    break;
+                case "stamina":
+                    if (Player?.Stamina == null) { missed.Add(step); break; }
+                    Player.Stamina.SetCurrent(Player.Stamina.EffectiveMax * float.Parse(value, System.Globalization.CultureInfo.InvariantCulture));
+                    break;
+                case "beast":
+                    if (_beasts == null || Player == null) { missed.Add(step); break; }
+                    _bringBeast = true;
+                    break;
+                default:
+                    missed.Add(step);
+                    break;
+            }
+        }
+        LastSetupMissed = missed.ToArray();
+        if (missed.Count > 0)
+        {
+            _message += "\nPriprema nije uspjela: " + string.Join(", ", missed);
+            GD.PushWarning("DevPlayground setup missed: " + string.Join(", ", missed));
+        }
+    }
+
+    /// <summary>The setup steps the last opened lab couldn't do (for the playground's own test).</summary>
+    public string[] LastSetupMissed { get; private set; } = Array.Empty<string>();
 
     public Task<bool> LaunchSelectedLab()
     {
@@ -273,13 +341,20 @@ public partial class DevPlaygroundConsole : CanvasLayer
     private void DropTestItem()
     {
         if (Player == null || _items.Selected < 0) { _message = "Potreban je igrac i odabran predmet."; return; }
-        string path = _items.GetItemMetadata(_items.Selected).AsString();
+        PlaceItem(_items.GetItemMetadata(_items.Selected).AsString());
+    }
+
+    /// <summary>A fresh copy of the item on the ground two metres in front of the carrier.</summary>
+    private bool PlaceItem(string path)
+    {
+        if (Player == null || !ResourceLoader.Exists(path)) { return false; }
         ItemDefinition? item = ResourceLoader.Load<ItemDefinition>(path);
-        if (item == null) { return; }
+        if (item == null) { return false; }
         WorldItem pickup = new() { Definition = item, InstanceId = Guid.NewGuid().ToString("N") };
         GetTree().CurrentScene.AddChild(pickup);
         pickup.GlobalPosition = Player.GlobalPosition - Player.GlobalBasis.Z * 2 + Vector3.Up;
         _message = "Testni predmet je na tlu. Nastavi igrati i pokupi ga s E.";
+        return true;
     }
 
     private void FillCheckpoints()
@@ -344,8 +419,8 @@ public partial class DevPlaygroundConsole : CanvasLayer
         panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = UiStyle.Paper, ContentMarginLeft = 20, ContentMarginRight = 20, ContentMarginTop = 14, ContentMarginBottom = 14 });
         margin.AddChild(panel);
         VBoxContainer column = new(); column.AddThemeConstantOverride("separation", 10); panel.AddChild(column);
-        column.AddChild(UiStyle.MakeLabel("THE DESCENT / DEV PLAYGROUND", 28, true));
-        column.AddChild(Wrap("Jedno mjesto za testiranje. F10 otvara/zatvara ovaj izbornik i pauzira probu. Promjena laboratorija resetira trenutnu probu.", 17));
+        column.AddChild(UiStyle.MakeLabel(Heading, 28, true));
+        column.AddChild(Wrap(Intro, 17));
         TabContainer tabs = new() { SizeFlagsVertical = Control.SizeFlags.ExpandFill }; column.AddChild(tabs);
         tabs.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = UiStyle.Paper.Lightened(0.06f), ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 10, ContentMarginBottom = 10 });
         VBoxContainer labs = new() { Name = "Laboratoriji" }; tabs.AddChild(labs);
@@ -419,7 +494,7 @@ public partial class DevPlaygroundConsole : CanvasLayer
         column.AddChild(Wrap("Koristi lokalni profil igre; questovi i postavke mogu se spremati. Testni teret ima zaseban dev_playground_load.json.", 14));
         HBoxContainer footer = new(); column.AddChild(footer);
         AddButton(footer, "Nastavi igrati (F10)", () => SetMenuOpen(false));
-        AddButton(footer, "Vrati glavni poligon", () => { _ = OpenLab("sandbox"); });
+        AddButton(footer, HomeLab == "sandbox" ? "Vrati glavni poligon" : "Vrati prvi laboratorij", () => { _ = OpenLab(HomeLab); });
         AddButton(footer, "Ponovno pokreni ovaj lab", () => { _ = OpenLab(ActiveLabId); });
         if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--playground-tools") >= 0) { tabs.CurrentTab = 1; }
     }

@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('Game', 'Ragdoll', 'Coop')]
+    [ValidateSet('Game', 'Ragdoll', 'Coop', 'Patch')]
     [string]$Target = 'Game',
     [string]$ProjectDirectory = '',
     [switch]$CheckOnly
@@ -56,6 +56,9 @@ try {
     if ($Target -eq 'Ragdoll') {
         $gameArguments += 'res://debug/TestActiveRagdoll.tscn'
     }
+    if ($Target -eq 'Patch') {
+        $gameArguments += 'res://debug/PatchPlayground.tscn'
+    }
     if ($Target -eq 'Coop') {
         $gameArguments += @('--', '--menu-page=coop', '--no-update-check')
     }
@@ -63,8 +66,9 @@ try {
         Write-Host "Provjera OK: $Target; Godot $requiredVersion; build i resursi su aktualni." -ForegroundColor Green
         exit 0
     }
-    if ($Target -eq 'Ragdoll') {
-        $trialSettings = Join-Path $repositoryDirectory '.validation\manual-ragdoll-user'
+    if ($Target -eq 'Ragdoll' -or $Target -eq 'Patch') {
+        # Trials keep their options and saves apart from the player's own.
+        $trialSettings = Join-Path $repositoryDirectory ('.validation\manual-' + $Target.ToLowerInvariant() + '-user')
         New-Item -ItemType Directory -Force -Path $trialSettings | Out-Null
         $env:APPDATA = $trialSettings
     }

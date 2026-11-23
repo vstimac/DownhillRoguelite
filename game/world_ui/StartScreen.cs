@@ -166,8 +166,16 @@ public partial class StartScreen : CanvasLayer
         }
     }
 
+    /// <summary>Debug labs set this to open the next scene straight into the run (cleared once used).</summary>
+    public static bool SkipNext { get; set; }
+
     private static bool ShouldSkip()
     {
+        if (SkipNext)
+        {
+            SkipNext = false;
+            return true;
+        }
         if (DisplayServer.GetName() == "headless")
         {
             return true;

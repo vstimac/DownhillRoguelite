@@ -1,0 +1,246 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://debug/DevPlayground.cs" id="1_root"]
+[ext_resource type="Script" path="res://debug/playground/DevPlaygroundEntry.cs" id="2_entry"]
+
+[sub_resource type="Resource" id="NextLegs"]
+script = ExtResource("2_entry")
+Id = "next-legs"
+Title = "Noge u hodu i trku"
+Category = "Sljedeca zakrpa"
+ScenePath = "res://debug/playground/DevSandbox.tscn"
+Description = "STO JE NOVO
+Noge se vise ne istezu i ne poskakuju. IK nogu je kasnio jednu slicicu, pa se koljeno naglo ispravljalo; sad stopalo stigne na cilj u istoj slicici. Kukovi u trku poskakuju upola manje (24 -> 13 cm), stopala manje klize.
+
+KAKO ISPROBATI
+Hodaj i trci po ravnom, pa sprintaj. F1 slobodna kamera: gledaj lika sa strane, u visini koljena. Probaj i nagibe i stepenice (F10 > Alati > checkpoint)."
+Controls = "WASD hod/trk | Shift sprint | F1 slobodna kamera | F10 izbornik"
+Setup = ""
+
+[sub_resource type="Resource" id="NextLanding"]
+script = ExtResource("2_entry")
+Id = "next-landing"
+Title = "Doskok, kolut i tipke kroz ustajanje"
+Category = "Sljedeca zakrpa"
+ScenePath = "res://debug/playground/DevSandbox.tscn"
+Description = "STO JE NOVO
+Tempirani kolut zaroni vec u zraku i docekuje tlo u trenutku doskoka. Tipke stisnute za vrijeme doskoka i ustajanja vise se ne gube:
+- Space tren prije doskoka ili tren nakon silaska s ruba ipak skoci.
+- Drzani smjer digne lika cim tijelo stane, a hod skrati pozu ustajanja.
+- E, interakcija, zaron (Ctrl) i hotbar odrade se cim mozes djelovati.
+- Napad za vrijeme vadenja maca i udarac za vrijeme zamaha slijede odmah.
+- Kad nema stamine za skok, igra to kaze.
+
+KAKO ISPROBATI
+Stojis pred padom od 6 m. Sidi s ruba i stisni Space tren prije tla. Onda namjerno promasi kolut: dok lezis drzi W i stisni E, F ili Ctrl dok se dize. Padovi od 2 i 4 m su u F10 > Alati > checkpoint."
+Controls = "W s ruba | Space kolut/skok | Ctrl zaron | E jelo/pice | F10 > Alati: drugi pad"
+Setup = "at=Pad 6 m"
+
+[sub_resource type="Resource" id="NextPack"]
+script = ExtResource("2_entry")
+Id = "next-pack"
+Title = "Ruksak: jedna tipka, jedan ruksak"
+Category = "Sljedeca zakrpa"
+ScenePath = "res://debug/playground/DevSandbox.tscn"
+Description = "STO JE NOVO
+Inventar je sad ruksak na tlu.
+- Tab kratko: brzi pogled na ruksak (tezina, gdje tezina sjedi, hotbar) dok hodas.
+- Tab drzano: prsten se puni i lik spusti ruksak; pusti ranije i ostaje na ledima.
+- I otvara istu stranicu bez drzanja; na gamepadu je to Y (kratko i drzano).
+- Jedna stranica: ruksak koji vrtis i slazes lijevo; odjeca, dzepovi i opis desno.
+- Svaki korak se moze prekinuti: hod odmah vrati ruksak na leda.
+
+KAKO ISPROBATI
+Cutura je u ruksaku, a pribor za prvu pomoc lezi ispred tebe (pokupi ga s E). Kratko pa dugo stisni Tab, onda I. Kreni hodati dok se ruksak spusta ili dok je stranica otvorena."
+Controls = "Tab kratko/drzano | I | gamepad Y | WASD prekida | F10 izbornik"
+Setup = "item=res://inventory/items/med_kit.tres; item=res://inventory/items/water_flask.tres"
+
+[sub_resource type="Resource" id="NextUi"]
+script = ExtResource("2_entry")
+Id = "next-ui"
+Title = "Novi izgled svih prozora"
+Category = "Sljedeca zakrpa"
+ScenePath = "res://debug/TestTerrain.tscn"
+Description = "STO JE NOVO
+Svi prozori u jednom ekspedicijskom stilu: pocetni ekran (jedna stranica odjednom), pauza, Options (gumbi boja pokazuju boju), ruksak, dnevnik, karta (kompas u karti, legenda na papiru, natpis stanice citljiv preko staze). HUD na jednoj margini; brojevi tipki hotbara na malim jezicima; putokaz citljiv iz daljine; kamen na vrhu stoji u vidu.
+
+KAKO ISPROBATI
+Otvara se pocetni ekran: pogledaj Character i Options, pa New Run (playground ima svoj testni profil, tvoje spremljene igre i postavke se ne diraju). U igri: Esc pauza, I ruksak, J dnevnik, M karta. Je li sve citljivo preko svijetlog snijega?"
+Controls = "Mis, tipkovnica ili gamepad | New Run | Esc | I | J | M | F10 izbornik"
+Setup = ""
+
+[sub_resource type="Resource" id="NextWorld"]
+script = ExtResource("2_entry")
+Id = "next-world"
+Title = "Kamenje, stijene i prizemna magla"
+Category = "Sljedeca zakrpa"
+ScenePath = "res://debug/TestTerrain.tscn"
+Description = "STO JE NOVO
+Kamenje se naginje s padinom, urasta u tlo i ne pusta lika kroz sebe; gromade i kameni tornjevi rastu iz tla. Manje trzanja dok se ucitavaju kamenje i grmlje novog komada terena. Prizemna magla bez prstenova oko kamere, s mekim dalekim rubom; ne mijenja se s kutom kamere i seze dalje.
+
+KAKO ISPROBATI
+Stojis 100 m ispod vrha, u podne. Spusti se stazom, pogledaj kamenje izbliza i na nagibu, probaj se zabiti u stijenu. Magla je ukljucena (zadano za nove igrace); okreci kameru i usporedi s Esc > Options > Ground fog iskljucenim."
+Controls = "WASD | Shift | mis kamera | Esc Options | F10 > Alati: dan/noc, vrijeme"
+Setup = "skip-start; at=Staza 100 m; time=12"
+
+[sub_resource type="Resource" id="NextAnimals"]
+script = ExtResource("2_entry")
+Id = "next-animals"
+Title = "Zivotinje hodaju bez klizanja"
+Category = "Sljedeca zakrpa"
+ScenePath = "res://debug/TestWildlife.tscn"
+Description = "STO JE NOVO
+Domace i sumske zivotinje hodaju i trce bez klizanja nogu: animacija koraka svira brzinom kojom se tijelo stvarno krece.
+
+KAKO ISPROBATI
+Pridi zivotinjama, uplasi ih (trci prema njima, udari) i gledaj noge dok bjeze i usporavaju."
+Controls = "WASD | Shift | F1 slobodna kamera | F10 izbornik"
+Setup = ""
+
+[sub_resource type="Resource" id="NextBeast"]
+script = ExtResource("2_entry")
+Id = "next-beast"
+Title = "Nocna zvijer: sape bez klizanja"
+Category = "Sljedeca zakrpa"
+ScenePath = "res://debug/TestTerrain.tscn"
+Description = "STO JE NOVO
+I nocne zvijeri trce brzinom svojih koraka, pa sape u galopu ne klize.
+
+KAKO ISPROBATI
+Noc je i zvijer dolazi. Gledaj je dok kruzi i juri. Kad zareze, makni se ili zaroni (Ctrl). Ako te udari i baci u zrak: Space tren prije tla za kolut. Nova zvijer: F10 > Alati > Dovedi nocnu zvijer."
+Controls = "WASD | Ctrl zaron | Space kolut | F1 slobodna kamera | F10 izbornik"
+Setup = "skip-start; at=Staza 200 m; time=23; beast"
+
+[sub_resource type="Resource" id="B32Animals"]
+script = ExtResource("2_entry")
+Id = "b32-animals"
+Title = "Zivotinje te vide i cuju; lov"
+Category = "Beta 3.2"
+ScenePath = "res://debug/TestTerrain.tscn"
+Description = "STO JE NOVO
+Krda pasu, lutaju i paze. Trk i tezak ruksak su glasni; spori hod i cucanj (drzi C) su tihi, kamenje i drvece te skrivaju. Oko iznad hotbara kaze jesu li zivotinje mirne, sumnjicave ili uzbunjene. Plasljive bjeze, znatizeljne dodu onjusiti. Mac ili udarac obore zivotinju; velike ostave kozu i sirovo meso (ispeci ga na vatri stanice).
+
+KAKO ISPROBATI
+Stojis 100 m ispod vrha, ujutro. Nadi krdo, pridi cucanj (C) s leda, pa ga uplasi trkom."
+Controls = "WASD | C cucanj | Shift | napad macem | F10 izbornik"
+Setup = "skip-start; at=Staza 100 m; time=9"
+
+[sub_resource type="Resource" id="B32Wolves"]
+script = ExtResource("2_entry")
+Id = "b32-wolves"
+Title = "Vukovi i nocni lov"
+Category = "Beta 3.2"
+ScenePath = "res://debug/TestTerrain.tscn"
+Description = "STO JE NOVO
+Vukovi love u coporima, nocu su smjeliji. Copor koji te primijeti kruzi pa se primice; jedan po jedan cucne i zareze prije skoka: makni se ili zaroni (Ctrl) i promasi. Udari vuka i bjezi; ozlijedi pola copora i cijeli se povuce. Vatra stanice ih drzi podalje; pad ih ne plasi, nego privuce.
+
+KAKO ISPROBATI
+Noc je, 300 m ispod vrha, a zvijer je pozvana. Ako ne dode nitko, F10 > Alati > Dovedi nocnu zvijer."
+Controls = "WASD | Ctrl zaron | napad/udarac | C cucanj | F10 izbornik"
+Setup = "skip-start; at=Staza 300 m; time=23; beast"
+
+[sub_resource type="Resource" id="B32Healing"]
+script = ExtResource("2_entry")
+Id = "b32-healing"
+Title = "Pribor za prvu pomoc i zacjeljivanje"
+Category = "Beta 3.2"
+ScenePath = "res://debug/playground/DevSandbox.tscn"
+Description = "STO JE NOVO
+Pribor za prvu pomoc vraca 40 zdravlja odjednom (iz ruksaka ili dzepa); ako nisi ozlijeden, ostaje u ruksaku. Sit i napojen, polako zacjeljujes dok hodas (brze trosis hranu i vodu).
+
+KAKO ISPROBATI
+Ozlijeden si za 50, a pribor lezi ispred tebe: pokupi ga (E), iskoristi ga s hotbara ili iz ruksaka (I) i gledaj zdravlje."
+Controls = "I ruksak | hotbar | WASD | F10 > Alati: Osteti lika"
+Setup = "item=res://inventory/items/med_kit.tres; hurt=50"
+
+[sub_resource type="Resource" id="B32Balance"]
+script = ExtResource("2_entry")
+Id = "b32-balance"
+Title = "Ruksak se njise i vuce ravnotezu"
+Category = "Beta 3.2"
+ScenePath = "res://debug/TestBalance.tscn"
+Description = "STO JE NOVO
+Napunjen ruksak se njise na remenima i vuce te iz ravnoteze. Kazaljka iznad lika pokazuje na koju stranu se nagnuti i upali tipku kad posrnes.
+
+KAKO ISPROBATI
+Odaberi tezak ili visok teret, hodaj i trci po nagibu, pa naglo stani ili skreni."
+Controls = "Gumbi tereta | WASD | Shift | C | F10 izbornik"
+Setup = ""
+
+[sub_resource type="Resource" id="B32Mountain"]
+script = ExtResource("2_entry")
+Id = "b32-mountain"
+Title = "Planina ima oblik"
+Category = "Beta 3.2"
+ScenePath = "res://debug/TestTerrain.tscn"
+Description = "STO JE NOVO
+Jedan prigusen, prirodan izgled za sve. Staze idu dolinama izmedu grebena; skreni sa staze i tlo se dize u stijene i sipar. Trava uz staze, grmlje i bor krivulj uz rubove, deset novih nalaza uz put, tri velika orijentira. Cvrste stvari te zaustave, trava i kamencici ne. Koraci zvuce kao tlo po kojem hodas.
+
+KAKO ISPROBATI
+Pocinjes na vrhu. Spusti se, skreni sa staze, slusaj korake na zemlji, sljunku i stijeni."
+Controls = "WASD | Shift | mis kamera | M karta | F10 > Alati: checkpointi"
+Setup = "skip-start; at=Vrh planine; time=12"
+
+[sub_resource type="Resource" id="B31Roll"]
+script = ExtResource("2_entry")
+Id = "b31-roll"
+Title = "Kolut iz pada: savrsen kolut"
+Category = "Beta 3.1"
+ScenePath = "res://debug/playground/DevSandbox.tscn"
+Description = "STO JE NOVO
+Svaki pad daje jednu priliku za kolut: Space tren prije tla. Tocno na oznaci je savrsen kolut (zadrzis brzinu), unutar zlatnog prozora obican. Jedna prilika po padu; znak kaze zasto si promasio (prerano, preumoran). Tezak ruksak ili prazna stamina suze prozor. Options > Gameplay: Roll on a hard fall (Timed, Automatic, Off).
+
+KAKO ISPROBATI
+Stojis pred padom od 4 m. Sidi s ruba i pogodi oznaku. Probaj i sa staminom na 30% (F10 > Alati)."
+Controls = "W s ruba | Space kolut | F10 > Alati: stamina 30%, drugi pad"
+Setup = "at=Pad 4 m"
+
+[sub_resource type="Resource" id="B31Signs"]
+script = ExtResource("2_entry")
+Id = "b31-signs"
+Title = "Jasniji znakovi i biljeske"
+Category = "Beta 3.1"
+ScenePath = "res://debug/TestTerrain.tscn"
+Description = "STO JE NOVO
+Darovi kod vatre se ne preklapaju i pod imenom pise sto rade. Ploca na stanici ima rijeci naslikane na sebi. Biljeska gore desno kaze gdje si (dubina, krug, vrijeme, doba dana), put do iduce vatre i posao su u biljesci ciljeva.
+
+KAKO ISPROBATI
+Stojis kod prve stanice. Pogledaj plocu i kamenje s darovima, pa biljeske gore desno."
+Controls = "WASD | E interakcija | J dnevnik | F10 izbornik"
+Setup = "skip-start; at=Stanica 1"
+
+[sub_resource type="Resource" id="B30Bargains"]
+script = ExtResource("2_entry")
+Id = "b30-bargains"
+Title = "Pogodbe kod vatre"
+Category = "Beta 3.0"
+ScenePath = "res://debug/TestTerrain.tscn"
+Description = "STO JE NOVO
+Od druge stanice jedan od tri dara je pogodba: nesto daje, nesto uzima i kaze oboje (dar bijelo, cijena crveno). Darovi koji se bude u svom trenutku: Owl's Pace nocu, Carrier's Pride dok nosis posao, Storm-Born po kisi ili snijegu.
+
+KAKO ISPROBATI
+Stojis kod druge stanice. Procitaj sva tri dara i uzmi pogodbu."
+Controls = "WASD | E interakcija | F10 > Alati: noc, vrijeme"
+Setup = "skip-start; at=Stanica 2"
+
+[sub_resource type="Resource" id="B30Hearts"]
+script = ExtResource("2_entry")
+Id = "b30-hearts"
+Title = "Srca pokraj lika i ustajanje iz cucnja"
+Category = "Beta 3.0"
+ScenePath = "res://debug/playground/DevSandbox.tscn"
+Description = "STO JE NOVO
+Srca pokraj lika kad si pogoden ili slab (mogu se iskljuciti ili pomaknuti kao ostatak HUD-a). Nakon pada se lik skupi u cucanj i ustane, umjesto da naglo skoci uspravno.
+
+KAKO ISPROBATI
+Ozlijeden si za 60: pogledaj srca. Onda sidi s pada od 4 m bez koluta i gledaj ustajanje."
+Controls = "WASD | F10 > Alati: Osteti lika, checkpoint"
+Setup = "hurt=60; at=Pad 4 m"
+
+[node name="PatchPlayground" type="Node"]
+script = ExtResource("1_root")
+Labs = Array[Resource]([SubResource("NextLegs"), SubResource("NextLanding"), SubResource("NextPack"), SubResource("NextUi"), SubResource("NextWorld"), SubResource("NextAnimals"), SubResource("NextBeast"), SubResource("B32Animals"), SubResource("B32Wolves"), SubResource("B32Healing"), SubResource("B32Balance"), SubResource("B32Mountain"), SubResource("B31Roll"), SubResource("B31Signs"), SubResource("B30Bargains"), SubResource("B30Hearts")])
+Seed = 1
+HomeLab = "next-legs"
+Heading = "THE DESCENT / STO JE NOVO PO ZAKRPAMA"
+Intro = "Svaka stavka je jedna promjena, s uputom kako je isprobati. Lab te stavi tocno na mjesto gdje se promjena vidi. F10 otvara/zatvara ovaj izbornik i pauzira probu; promjena laboratorija resetira probu. Prvo je ono sto jos nije izaslo (Sljedeca zakrpa), pa 3.2, 3.1, 3.0."

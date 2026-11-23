@@ -7,6 +7,11 @@ the free-fly camera, overlays (COM, foot targets, forces) and automated checks i
 an editable movement/packing course, item spawning, stat tools, weather and station checkpoints.
 **F10** opens the developer menu in any lab. [Developer guide](../docs/dev-playground.md).
 
+**`PatchPlayground.tscn`** is the same window sorted by patch: each change of the next patch, 3.2, 3.1
+and 3.0 says what changed and how to try it, and puts the carrier where it shows (`Setup` on the entry:
+a checkpoint, time of day, an item, a night beast, no title screen). Desktop: `tools/Run-LatestTest.ps1 -Target Patch`,
+with its own trial profile.
+
 New to the editor? Open **`LearnGodot.tscn`**, press **F6**, and follow
 [the project tutorial](../docs/getting-started-godot.md). Its ground and obstacles are normal
 editable nodes; its movement settings are local to the practice scene.
