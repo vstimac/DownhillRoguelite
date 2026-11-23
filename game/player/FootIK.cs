@@ -6,10 +6,16 @@ namespace DownhillRoguelite.Player;
 
 /// <summary>
 /// Procedural foot placement on top of the animation. At startup it adds a modifier chain under the
-/// skeleton: FootPlacementModifier, one TwoBoneIK3D per leg, then FootAlignModifier. Each frame it
-/// detects which feet the animation has planted and locks them in place, raycasts the ground under
-/// each foot (and ahead of a swinging foot, so it lifts onto steps), lowers the hips so the lower
-/// foot can reach, and tilts planted feet to the surface. IK blends out when airborne or sliding.
+/// skeleton: FootPlacementModifier and FootAlignModifier. Each frame it detects which feet the
+/// animation has planted and locks them in place, raycasts the ground under each foot (and ahead of
+/// a swinging foot, so it lifts onto steps), lowers the hips so the lower foot can reach, bends each
+/// leg onto its target (its own two-bone solve) and tilts planted feet to the surface. IK blends out
+/// when airborne or sliding.
+/// The legs are solved here rather than by TwoBoneIK3D: that node reads its target marker's cached
+/// (interpolated) transform, which is filled before this frame's targets are placed, so every leg
+/// reached for where its foot was a frame ago. A swinging foot trailed its clip by up to 10 cm and the
+/// knee stayed bent where the clip straightens it, and the lag changed with the frame rate, so the legs
+/// seemed to stretch and bounce (LegMotionTests).
 /// </summary>
 public partial class FootIK : Node3D
 {
@@ -63,12 +69,36 @@ public partial class FootIK : Node3D
     /// <summary>A planted foot lets go when its target is further from the hip than this fraction of the leg.</summary>
     [Export] public float MaxReachFraction { get; set; } = 0.98f;
 
+    [ExportGroup("Gait bounce")]
+    /// <summary>
+    /// Share of the gait clips' up-and-down hip motion kept while moving. The jog clip (the only clip at
+    /// the normal pace) lifts and drops the hips 24 cm a step, a bound meant for its own 5 m/s, which
+    /// slowed down read as a bouncing, stretching run. The feet keep the clip's heights, so the knees
+    /// take up the difference.
+    /// </summary>
+    [Export(PropertyHint.Range, "0,1")] public float GaitBounceKept { get; set; } = 0.4f;
+    /// <summary>The gait bounce is evened out between these speeds (m/s): none at the first, fully at the second.</summary>
+    [Export] public Vector2 GaitBounceSpeeds { get; set; } = new(1.5f, 2.6f);
+    /// <summary>How quickly the hips' mean height follows the clips, in s (longer than a step).</summary>
+    [Export] public float GaitBounceMeanTime { get; set; } = 0.5f;
+    /// <summary>
+    /// The most the hips are raised (m): lifted further, a planted leg can't reach the ground and lets
+    /// go (MaxReachFraction), worst while the mean is still catching up as he sets off.
+    /// </summary>
+    [Export] public float GaitBounceMaxRaise { get; set; } = 0.06f;
+    /// <summary>Raised hips leave a planted leg at most this share of its length from its foot.</summary>
+    [Export] public float GaitBounceReach { get; set; } = 0.95f;
+
     public IReadOnlyList<FootState> Feet => _feet;
     public float IkWeight { get; private set; }
     public float HipOffset { get; private set; }
+    /// <summary>How far the hips were moved up (+) or down this frame to even out the gait bounce, in m (skeleton space).</summary>
+    public float BounceShift { get; private set; }
 
     private readonly List<FootState> _feet = new();
     private int _hipsIndex = -1;
+    private float _hipsMean = float.NaN;
+    private float _bounceWeight;
     private Vector3 _lastOrigin;
     private bool _hasLastOrigin;
     private Godot.Collections.Array<Rid>? _rayExclude;
@@ -120,31 +150,149 @@ public partial class FootIK : Node3D
         Vector3 footRest = skeleton.GetBoneGlobalRest(foot.FootIndex).Origin;
         foot.RestHeight = footRest.Y;
         foot.LegLength = thighRest.DistanceTo(shinRest) + shinRest.DistanceTo(footRest);
-
-        foot.Target = CreateMarker($"FootTarget{foot.Side}");
-        foot.Pole = CreateMarker($"KneePole{foot.Side}");
-
-        TwoBoneIK3D ik = new() { Name = $"LegIK{foot.Side}", Influence = 0.0f };
-        skeleton.AddChild(ik);
-        ik.SettingCount = 1;
-        ik.SetRootBoneName(0, foot.ThighBone);
-        ik.SetMiddleBoneName(0, foot.ShinBone);
-        ik.SetEndBoneName(0, foot.FootBone);
-        ik.SetTargetNode(0, ik.GetPathTo(foot.Target));
-        ik.SetPoleNode(0, ik.GetPathTo(foot.Pole));
-        foot.Ik = ik;
     }
 
-    private Marker3D CreateMarker(string name)
+    /// <summary>
+    /// Keeps <see cref="GaitBounceKept"/> of the hips' up-and-down motion around their running mean
+    /// while striding at pace (not crouching, not in the air, not in an action that moves the legs).
+    /// Returns the world-space vertical shift applied to the hips.
+    /// </summary>
+    private float EvenOutBounce(Skeleton3D skeleton, Transform3D skeletonWorld, bool teleported, float dt)
     {
-        Marker3D marker = new()
+        BounceShift = 0.0f;
+        if (_hipsIndex < 0 || Body == null)
         {
-            Name = name,
-            TopLevel = true,
-            PhysicsInterpolationMode = PhysicsInterpolationModeEnum.Off,
-        };
-        AddChild(marker);
-        return marker;
+            return 0.0f;
+        }
+        Transform3D hips = skeleton.GetBoneGlobalPose(_hipsIndex);
+        Vector3 up = (skeletonWorld.Basis.Inverse() * Vector3.Up).Normalized();
+        float height = hips.Origin.Dot(up);
+        if (RecoveryPose != null && RecoveryPose.Active)
+        {
+            // The balance recovery's crouch is meant: even out only what the clips do.
+            height -= (skeletonWorld.Basis.Inverse() * (RecoveryPose.HipShift * RecoveryPose.Influence)).Dot(up);
+        }
+        if (float.IsNaN(_hipsMean) || teleported)
+        {
+            _hipsMean = height;
+        }
+        _hipsMean = Mathf.Lerp(_hipsMean, height, 1.0f - Mathf.Exp(-dt / Mathf.Max(GaitBounceMeanTime, 0.01f)));
+
+        float speed = Flat(Body.Velocity).Length();
+        float wanted = 0.0f;
+        if (Body.State == LocomotionState.Striding && !Body.Crouching && !GameEvents.IsVaulting && !GameEvents.IsDowned)
+        {
+            wanted = Mathf.SmoothStep(GaitBounceSpeeds.X, GaitBounceSpeeds.Y, speed);
+        }
+        _bounceWeight = Mathf.MoveToward(_bounceWeight, wanted, dt / IkBlendTime);
+        float keep = Mathf.Lerp(1.0f, GaitBounceKept, _bounceWeight * IkWeight);
+        float shift = Mathf.Min((_hipsMean - height) * (1.0f - keep), GaitBounceMaxRaise);
+        if (shift > 0.0f)
+        {
+            // Never lift the hips past what a planted leg can reach (it would let go of the ground).
+            foreach (FootState foot in _feet)
+            {
+                // Every leg on the ground or swinging to it (its last target): a swinging foot's target
+                // follows the clip, so the limit tightens smoothly as it comes down to plant.
+                if (foot.ThighIndex < 0 || !foot.HasGround) { continue; }
+                Vector3 thigh = skeletonWorld * skeleton.GetBoneGlobalPose(foot.ThighIndex).Origin;
+                float reach = foot.LegLength * Mathf.Min(GaitBounceReach, MaxReachFraction);
+                float across = Flat(thigh - foot.TargetPosition).Length();
+                float room = across < reach ? Mathf.Sqrt(reach * reach - across * across) - (thigh.Y - foot.TargetPosition.Y) : 0.0f;
+                shift = Mathf.Min(shift, Mathf.Max(room, 0.0f));
+            }
+        }
+        if (Mathf.IsZeroApprox(shift))
+        {
+            return 0.0f;
+        }
+        BounceShift = shift;
+        hips.Origin += up * shift;
+        skeleton.SetBoneGlobalPose(_hipsIndex, hips);
+        return (skeletonWorld.Basis * (up * shift)).Y;
+    }
+
+    /// <summary>
+    /// Bends one leg so the ankle reaches its target this frame: the thigh turns toward the knee point
+    /// the two bone lengths allow (in the plane of hip, target and knee pole), the shin toward the
+    /// ankle. Blended by the leg's weight; the foot keeps its pose relative to the shin until
+    /// AfterLegIK turns it back to the animation and the ground.
+    /// </summary>
+    private void SolveLeg(Skeleton3D skeleton, Transform3D skeletonWorld, FootState foot)
+    {
+        float weight = foot.LegWeight;
+        if (weight <= 0.0f || foot.ThighIndex < 0 || foot.ShinIndex < 0 || foot.FootIndex < 0)
+        {
+            return;
+        }
+        Transform3D toSkeleton = skeletonWorld.AffineInverse();
+        Transform3D thigh = skeleton.GetBoneGlobalPose(foot.ThighIndex);
+        Transform3D shin = skeleton.GetBoneGlobalPose(foot.ShinIndex);
+        Vector3 hip = thigh.Origin;
+        Vector3 knee = shin.Origin;
+        Vector3 ankle = skeleton.GetBoneGlobalPose(foot.FootIndex).Origin;
+        Vector3 target = toSkeleton * foot.TargetPosition;
+        Vector3 pole = toSkeleton * foot.PolePosition;
+
+        float upper = hip.DistanceTo(knee);
+        float lower = knee.DistanceTo(ankle);
+        Vector3 reach = target - hip;
+        if (upper < 1e-4f || lower < 1e-4f || reach.LengthSquared() < 1e-8f)
+        {
+            return;
+        }
+        float distance = Mathf.Clamp(reach.Length(), Mathf.Abs(upper - lower) + 1e-4f, upper + lower - 1e-4f);
+        Vector3 along = reach.Normalized();
+        // The knee bends toward the pole, or else the way the clip bends it.
+        Vector3 bend = (pole - hip) - along * (pole - hip).Dot(along);
+        if (bend.LengthSquared() < 1e-8f)
+        {
+            bend = (knee - hip) - along * (knee - hip).Dot(along);
+        }
+        if (bend.LengthSquared() < 1e-8f)
+        {
+            return;
+        }
+        bend = bend.Normalized();
+        float cos = Mathf.Clamp((upper * upper + distance * distance - lower * lower) / (2.0f * upper * distance), -1.0f, 1.0f);
+        Vector3 newKnee = hip + along * (upper * cos) + bend * (upper * Mathf.Sqrt(1.0f - cos * cos));
+        Vector3 newAnkle = hip + along * distance;
+
+        Quaternion thighTurn = Turn(knee - hip, newKnee - hip);
+        Quaternion thighRotation = thigh.Basis.GetRotationQuaternion();
+        Quaternion thighSolved = (thighTurn * thighRotation).Normalized();
+        Quaternion thighFinal = thighRotation.Slerp(thighSolved, weight);
+        skeleton.SetBoneGlobalPose(foot.ThighIndex, new Transform3D(new Basis(thighFinal), hip));
+
+        // The shin as the turned thigh carries it, then turned onto the ankle.
+        Transform3D carried = skeleton.GetBoneGlobalPose(foot.ShinIndex);
+        Vector3 carriedAnkle = carried.Origin + (thighFinal * thighRotation.Inverse()) * (ankle - knee);
+        Vector3 wantedAnkle = ankle.Lerp(newAnkle, weight);
+        Quaternion shinTurn = Turn(carriedAnkle - carried.Origin, wantedAnkle - carried.Origin);
+        Quaternion shinFinal = (shinTurn * carried.Basis.GetRotationQuaternion()).Normalized();
+        skeleton.SetBoneGlobalPose(foot.ShinIndex, new Transform3D(new Basis(shinFinal), carried.Origin));
+    }
+
+    /// <summary>The shortest turn taking direction <paramref name="from"/> onto <paramref name="to"/>.</summary>
+    private static Quaternion Turn(Vector3 from, Vector3 to)
+    {
+        if (from.LengthSquared() < 1e-10f || to.LengthSquared() < 1e-10f)
+        {
+            return Quaternion.Identity;
+        }
+        Vector3 a = from.Normalized();
+        Vector3 b = to.Normalized();
+        if (a.Dot(b) > 0.999999f)
+        {
+            return Quaternion.Identity;
+        }
+        if (a.Dot(b) < -0.999999f)
+        {
+            Vector3 axis = a.Cross(Vector3.Right);
+            if (axis.LengthSquared() < 1e-6f) { axis = a.Cross(Vector3.Up); }
+            return new Quaternion(axis.Normalized(), Mathf.Pi);
+        }
+        return new Quaternion(a, b).Normalized();
     }
 
     /// <summary>Called by FootPlacementModifier with the animated pose, before the leg IK runs.</summary>
@@ -170,6 +318,7 @@ public partial class FootIK : Node3D
             targetWeight = 1.0f;
         }
         IkWeight = Mathf.MoveToward(IkWeight, targetWeight, dt / IkBlendTime);
+        float bounceWorld = EvenOutBounce(skeleton, skeletonWorld, teleported, dt);
 
         PhysicsDirectSpaceState3D space = Body.GetWorld3D().DirectSpaceState;
         Vector3 bodyVelocity = Flat(Body.Velocity);
@@ -192,7 +341,8 @@ public partial class FootIK : Node3D
             }
             foot.AnimatedTransform = animated;
             foot.AnimatedSkeletonBasis = animatedLocal.Basis;
-            foot.AnimatedHeight = animated.Origin.Y - origin.Y;
+            // The clip's own foot height: the evened-out bounce moved the hips, not where the foot steps.
+            foot.AnimatedHeight = animated.Origin.Y - bounceWorld - origin.Y;
 
             Vector3 animatedVelocity = Vector3.Zero;
             if (foot.HasPrevious && !teleported)
@@ -212,6 +362,8 @@ public partial class FootIK : Node3D
             Vector3 locked = new(foot.LockPosition.X, animated.Origin.Y, foot.LockPosition.Z);
             Vector3 planar = animated.Origin.Lerp(locked, foot.PlantWeight);
             PlaceOnGround(space, foot, planar, origin.Y, bodyVelocity);
+            // Against the clip's foot: hips raised to even out the bounce aren't a reason to drop them again.
+            foot.HeightDelta += bounceWorld;
 
             float groundTarget = 0.0f;
             if (foot.HasGround)
@@ -234,7 +386,7 @@ public partial class FootIK : Node3D
         Vector3 forward = Flat(-Body.GetGlobalTransformInterpolated().Basis.Z);
         foreach (FootState foot in _feet)
         {
-            if (foot.Ik == null || foot.Target == null || foot.Pole == null)
+            if (foot.FootIndex < 0 || foot.ThighIndex < 0 || foot.ShinIndex < 0)
             {
                 continue;
             }
@@ -247,10 +399,10 @@ public partial class FootIK : Node3D
                 foot.WaitForLift = true;
             }
 
-            foot.Target.GlobalTransform = new Transform3D(foot.AnimatedTransform.Basis, foot.TargetPosition);
             Vector3 knee = skeletonWorld * skeleton.GetBoneGlobalPose(foot.ShinIndex).Origin;
-            foot.Pole.GlobalPosition = knee + forward * PoleDistance;
-            foot.Ik.Influence = IkWeight * foot.GroundWeight;
+            foot.PolePosition = knee + forward * PoleDistance;
+            foot.LegWeight = IkWeight * foot.GroundWeight;
+            SolveLeg(skeleton, skeletonWorld, foot);
         }
 
         Publish();
@@ -395,17 +547,7 @@ public partial class FootIK : Node3D
 
     private static FootSnapshot Snapshot(FootState foot)
     {
-        Vector3 pole = Vector3.Zero;
-        if (foot.Pole != null)
-        {
-            pole = foot.Pole.GlobalPosition;
-        }
-        float weight = 0.0f;
-        if (foot.Ik != null)
-        {
-            weight = foot.Ik.Influence;
-        }
-        return new FootSnapshot(foot.TargetPosition, foot.Landing, foot.GroundPoint, foot.GroundNormal, pole, foot.Planted, weight, foot.HasGround);
+        return new FootSnapshot(foot.TargetPosition, foot.Landing, foot.GroundPoint, foot.GroundNormal, foot.PolePosition, foot.Planted, foot.LegWeight, foot.HasGround);
     }
 
     private static Vector3 Flat(Vector3 vector)

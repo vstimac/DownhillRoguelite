@@ -2,7 +2,7 @@ using Godot;
 
 namespace DownhillRoguelite.Player;
 
-/// <summary>Per-leg bones, IK nodes and planting state owned by FootIK.</summary>
+/// <summary>Per-leg bones, IK targets and planting state owned by FootIK.</summary>
 public sealed class FootState
 {
     public FootState(string side, string thighBone, string shinBone, string footBone)
@@ -28,9 +28,10 @@ public sealed class FootState
     /// <summary>Set when a lock was dropped because the leg couldn't reach; cleared once the animation lifts the foot.</summary>
     public bool WaitForLift { get; set; }
 
-    public TwoBoneIK3D? Ik { get; set; }
-    public Marker3D? Target { get; set; }
-    public Marker3D? Pole { get; set; }
+    /// <summary>How much of the leg IK applies this frame (0 = the animation as it is).</summary>
+    public float LegWeight { get; set; }
+    /// <summary>Knee pole in world space: the knee bends toward it.</summary>
+    public Vector3 PolePosition { get; set; }
 
     /// <summary>Animated ankle transform in world space, before any IK.</summary>
     public Transform3D AnimatedTransform { get; set; } = Transform3D.Identity;

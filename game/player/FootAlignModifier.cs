@@ -2,7 +2,7 @@ using Godot;
 
 namespace DownhillRoguelite.Player;
 
-/// <summary>Last modifier in the leg chain: after the leg IK, FootIK tilts each foot to the ground.</summary>
+/// <summary>Last modifier in the leg chain: after the legs are bent, FootIK tilts each foot to the ground.</summary>
 public partial class FootAlignModifier : SkeletonModifier3D
 {
     public FootIK? Rig { get; set; }

@@ -115,7 +115,8 @@ public partial class CarrierAnimShots : Node3D
     private int _floatCount;
     private Vector3[] _lastFeet = Array.Empty<Vector3>();
     private Vector3[] _lastDriverToes = Array.Empty<Vector3>();
-    private int _lastDriverFrame = -10;
+    private bool _grounded;
+    private bool _measuring;
     private readonly List<float> _slides = new();
     private readonly List<float> _driverSlips = new();
     private float _lastFootFrame = -1;
@@ -194,6 +195,7 @@ public partial class CarrierAnimShots : Node3D
         _melee = _body.GetNodeOrNull<MeleeCombat>("MeleeCombat");
         _dive = _body.GetNodeOrNull<Dive>("Dive");
         _driver = _body.GetNode<Skeleton3D>("Model/Rig/Skeleton3D");
+        _driver.SkeletonUpdated += OnDrawn;
         _model = _body.GetNode<Node3D>("Model");
         _look = _body.GetNodeOrNull<CarrierModel>("CarrierModel");
         _body.Health?.Refill();
@@ -545,6 +547,7 @@ public partial class CarrierAnimShots : Node3D
         _floatMin = float.MaxValue; _floatMax = float.MinValue; _floatSum = 0; _floatCount = 0;
         _lastFeet = Array.Empty<Vector3>();
         _slides.Clear(); _driverSlips.Clear(); _lastDriverToes = Array.Empty<Vector3>();
+        _grounded = false; _measuring = true;
     }
 
     private static float Median(List<float> values)
@@ -632,26 +635,7 @@ public partial class CarrierAnimShots : Node3D
             _lastFeet = world;
             _lastFootFrame = _frame;
         }
-        // The same as LocomotionTests' foot slip: the driving rig's toes within 4 cm of his feet's level.
-        int[] driverToes = { _driver.FindBone("DEF-toe.L"), _driver.FindBone("DEF-toe.R") };
-        if (driverToes[0] >= 0 && driverToes[1] >= 0)
-        {
-            Vector3[] toes = driverToes.Select(t => _driver.GlobalTransform * _driver.GetBoneGlobalPose(t).Origin).ToArray();
-            if (grounded && _lastDriverToes.Length == 2 && _lastDriverFrame == _frame - 1)
-            {
-                float dt = 1.0f / Engine.PhysicsTicksPerSecond;
-                for (int s = 0; s < 2; s++)
-                {
-                    if (toes[s].Y - _body.GlobalPosition.Y < 0.04f)
-                    {
-                        Vector3 moved = toes[s] - _lastDriverToes[s];
-                        _driverSlips.Add(new Vector2(moved.X, moved.Z).Length() / dt);
-                    }
-                }
-            }
-            _lastDriverToes = toes;
-            _lastDriverFrame = _frame;
-        }
+        _grounded = grounded;
         if (_animator.ActionWeight > 0.3f) { _actionFrames++; }
         // Hips above the ground under him (crouching drops them), and the biggest one-frame jump of any
         // bone relative to the hips (a pop between clips), both on the driving rig, off the ragdoll.
@@ -730,8 +714,40 @@ public partial class CarrierAnimShots : Node3D
         return ((Vector3)hit["position"]).Y;
     }
 
+    /// <summary>
+    /// Toe slip as drawn (the same as LocomotionTests' foot slip: the driving rig's toes within 4 cm of
+    /// his feet's level): the final pose of each drawn frame at the skeleton's interpolated place, over
+    /// the frame's real time. Sampling it on physics ticks paired a drawn pose with another moment's
+    /// transform, so a planted foot seemed to slide at about the body's speed.
+    /// </summary>
+    private void OnDrawn()
+    {
+        int[] driverToes = { _driver.FindBone("DEF-toe.L"), _driver.FindBone("DEF-toe.R") };
+        if (!_measuring || driverToes[0] < 0 || driverToes[1] < 0)
+        {
+            return;
+        }
+        Transform3D drawn = _driver.GetGlobalTransformInterpolated();
+        Vector3[] toes = driverToes.Select(t => drawn * _driver.GetBoneGlobalPose(t).Origin).ToArray();
+        float dt = (float)GetProcessDeltaTime();
+        float sole = drawn.Origin.Y;
+        if (_grounded && _lastDriverToes.Length == 2 && dt > 0.0f)
+        {
+            for (int s = 0; s < 2; s++)
+            {
+                if (toes[s].Y - sole < 0.04f && _lastDriverToes[s].Y - sole < 0.04f)
+                {
+                    Vector3 moved = toes[s] - _lastDriverToes[s];
+                    _driverSlips.Add(new Vector2(moved.X, moved.Z).Length() / dt);
+                }
+            }
+        }
+        _lastDriverToes = toes;
+    }
+
     private void EndMeasure(Segment segment)
     {
+        _measuring = false;
         float slide = _footSlideCount > 0 ? _footSlideSum / _footSlideCount : 0;
         string feet = _floatCount > 0 ? $"feet above ground mean {_floatSum / _floatCount:0.000} m (min {_floatMin:0.000}, max {_floatMax:0.000})" : "feet: not grounded";
         string line = $"{segment.Name,-15} frames {_frames,4}  states [{string.Join(" ", _states.Select(p => $"{p.Key}:{p.Value}"))}]  clips [{string.Join(" ", _clips.Select(p => $"{p.Key}:{p.Value}"))}]  "
