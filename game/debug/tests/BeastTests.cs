@@ -218,6 +218,7 @@ public partial class BeastTests : Node3D
 		bool woundUp = false;
 		bool chargedAfterWindUp = false;
 		int hitsBefore = beast.Hits;
+		string path = ClearChargeLine(player, beast);
 		beast.AttackTimer = 0.0f;
 		float dt = 1.0f / Engine.PhysicsTicksPerSecond;
 		for (float elapsed = 0.0f; elapsed < species.WindUp + 6.0f && _launches == 0; elapsed += dt)
@@ -236,7 +237,7 @@ public partial class BeastTests : Node3D
 		float rise = peak - startY;
 		Check("it growls before it charges, and a hit throws the carrier into the air",
 			woundUp && chargedAfterWindUp && _launches == 1 && beast.Hits == hitsBefore + 1 && rise >= species.ThrowHeight * 0.6f,
-			$"wind-up {woundUp}, charge {chargedAfterWindUp}, launches {_launches}, carrier rose {rise:0.0} m (aim {species.ThrowHeight:0.0} m)");
+			$"wind-up {woundUp}, charge {chargedAfterWindUp}, launches {_launches}, carrier rose {rise:0.0} m (aim {species.ThrowHeight:0.0} m); {path}; beast now {beast.State}, hits {beast.Hits - hitsBefore}");
 		if (_beastFeet.Samples > 0)
 		{
 			// Its walk and gallop play at the rate of its real speed: planted paws stay put instead of gliding.
@@ -542,6 +543,44 @@ public partial class BeastTests : Node3D
 	}
 
 	private static float Flat(Vector3 offset) => new Vector2(offset.X, offset.Z).Length();
+
+	/// <summary>
+	/// The charge runs straight, and a tree or rock in its line stops it ("ran into something", as in
+	/// the game). Where it stalked to is chance, so a blocked line moves the beast to a clear spot 10 m
+	/// from the carrier; the check is about the charge, not the forest. Says what it did.
+	/// </summary>
+	private static string ClearChargeLine(PlayerController player, NightBeast beast)
+	{
+		PhysicsDirectSpaceState3D space = player.GetWorld3D().DirectSpaceState;
+		Godot.Collections.Array<Rid> exclude = new() { player.GetRid(), beast.GetRid() };
+		Vector3 chest = Vector3.Up * 0.6f;
+		bool Clear(Vector3 from)
+		{
+			PhysicsRayQueryParameters3D line = PhysicsRayQueryParameters3D.Create(from + chest, player.GlobalPosition + chest);
+			line.Exclude = exclude;
+			return space.IntersectRay(line).Count == 0;
+		}
+		if (Clear(beast.GlobalPosition))
+		{
+			return $"clear run of {Flat(beast.GlobalPosition - player.GlobalPosition):0.0} m";
+		}
+		for (int i = 0; i < 24; i++)
+		{
+			Vector3 direction = Vector3.Forward.Rotated(Vector3.Up, Mathf.Tau * i / 24.0f);
+			Vector3 spot = player.GlobalPosition + direction * 10.0f;
+			PhysicsRayQueryParameters3D down = PhysicsRayQueryParameters3D.Create(spot + Vector3.Up * 30.0f, spot + Vector3.Down * 30.0f);
+			down.Exclude = exclude;
+			Godot.Collections.Dictionary hit = space.IntersectRay(down);
+			if (hit.Count == 0) { continue; }
+			Vector3 ground = (Vector3)hit["position"];
+			if (Mathf.Abs(ground.Y - player.GlobalPosition.Y) > 2.0f || !Clear(ground)) { continue; }
+			beast.GlobalPosition = ground + Vector3.Up * 0.1f;
+			beast.Velocity = Vector3.Zero;
+			beast.ResetPhysicsInterpolation();
+			return "its line was blocked, moved to a clear spot 10 m away";
+		}
+		return "its line was blocked and no clear spot was found";
+	}
 
 	private async Task Place(PlayerController player, Vector3 position, float settle)
 	{
