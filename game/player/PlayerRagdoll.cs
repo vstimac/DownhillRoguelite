@@ -104,6 +104,10 @@ public partial class PlayerRagdoll : Node
     public bool Downed { get; private set; }
     /// <summary>Down, and already blending out of the ragdoll into the rise (what is seen is the animation by then).</summary>
     public bool GettingUp => Downed && _gettingUp;
+    /// <summary>How long the body has lain still so far (s): the get-up waits for SettleTime of it (tests read it).</summary>
+    public float StillFor => _settledTime;
+    /// <summary>The fastest of the body's heavier parts this step (m/s): under SettleSpeed he counts as lying still.</summary>
+    public float Motion { get; private set; }
     /// <summary>Total damage taken in the current fall.</summary>
     public float FallDamage { get; private set; }
 
@@ -504,6 +508,7 @@ public partial class PlayerRagdoll : Node
             }
             fastest = Mathf.Max(fastest, bone.Body.LinearVelocity.Length());
         }
+        Motion = fastest;
         if (fastest < SettleSpeed)
         {
             _settledTime += dt;
@@ -528,6 +533,11 @@ public partial class PlayerRagdoll : Node
             settleNeeded = TurnOverSettleTime;
             maxDown = _turnEndTime + TurnOverMaxSettle;
         }
+        if (WantsUp())
+        {
+            // A key held: he gets up as soon as the fall allows (MinDownTime stays), not after lying still a while.
+            settleNeeded = Mathf.Min(settleNeeded, EagerSettleTime);
+        }
         bool settled = _downTime >= minDown && _settledTime >= settleNeeded;
         if (!dead && (settled || _downTime >= maxDown))
         {
@@ -546,6 +556,27 @@ public partial class PlayerRagdoll : Node
             _blend = 0.0f;
             BeginRise();
         }
+    }
+
+    /// <summary>With a move key held, he lies still only this long before getting up (s) instead of SettleTime; the fall's MinDownTime still holds.</summary>
+    [Export] public float EagerSettleTime { get; set; } = 0.2f;
+    /// <summary>Walking off while the get-up clip still shows: the clip fades out this fast (s), so the legs walk instead of sliding in a crouch.</summary>
+    [Export] public float WalkOffRiseFade { get; set; } = 0.25f;
+    /// <summary>Moving faster than this (m/s) counts as walking off the get-up.</summary>
+    [Export] public float WalkOffRiseSpeed { get; set; } = 0.4f;
+
+    /// <summary>The player asks to get up: a move key held (or the tests' steering). Not while a partner must revive him.</summary>
+    private bool WantsUp()
+    {
+        if (Body == null || !Body.InputEnabled || GameEvents.CarrierBleeding || GameEvents.IsConversing || (Health != null && Health.Dead))
+        {
+            return false;
+        }
+        if (Body.DirectionOverride is Vector3 steer)
+        {
+            return steer.LengthSquared() > 0.01f;
+        }
+        return Input.GetVector("player_move_left", "player_move_right", "player_move_forward", "player_move_back").LengthSquared() > 0.04f;
     }
 
     [ExportGroup("Getting up")]
@@ -995,6 +1026,18 @@ public partial class PlayerRagdoll : Node
             return;
         }
         _riseTime += dt;
+        if (Body != null && !Downed && new Vector2(Body.Velocity.X, Body.Velocity.Z).Length() > WalkOffRiseSpeed)
+        {
+            // He walks off: the get-up gives way to the walk at once instead of sliding him along in its pose.
+            if (_rise == RisePhase.Hold)
+            {
+                _fadeBefore = animator.ActionFadeTime;
+                animator.StopAction();
+                _rise = RisePhase.Stand;
+                _riseTime = 0.0f;
+            }
+            animator.ActionFadeTime = Mathf.Min(animator.ActionFadeTime, WalkOffRiseFade);
+        }
         // A one-shot get-up holds its last frame (standing) until the whole clip has played.
         bool clipDone = !_riseOnce || animator.ActionTime >= ClipLength(animator, _riseClip) - 0.001f;
         if (_rise == RisePhase.Hold && _riseTime >= GetUpHold && clipDone)

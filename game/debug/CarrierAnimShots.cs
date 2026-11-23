@@ -309,6 +309,7 @@ public partial class CarrierAnimShots : Node3D
             new("stumble", "a push while walking", async () => { await Move(forward, 0.8f); _balance.ApplyImpulse(new Vector2(1.6f, 0.0f)); await Move(forward, 2.2f); }),
             new("fall_back", "knocked down onto his back, gets up", async () => { await Hold(0.3f); _ragdoll.GoDown(_body.GlobalBasis.Z * 2.5f, Vector3.Zero); await UntilStanding(9.0f); }),
             new("fall_belly", "knocked down onto his belly, gets up", async () => { await Hold(0.3f); _ragdoll.GoDown(-_body.GlobalBasis.Z * 2.5f, Vector3.Zero); await UntilStanding(9.0f); }),
+            new("fall_walk_off", "knocked down with a key held, walks off the get-up", async () => { await Hold(0.3f); _ragdoll.GoDown(_body.GlobalBasis.Z * 2.5f, Vector3.Zero); await Move(forward, 5.5f); }),
             new("roll_timed", "falls 6 m and rolls, timed", async () => { await RollFall(false); }),
             new("roll_perfect", "falls 6 m and rolls, perfect", async () => { await RollFall(true); }),
             new("sword_draw", "draws the sword, stands", async () => { await Hold(0.2f); _melee?.ToggleDraw(); await Hold(2.2f); }),

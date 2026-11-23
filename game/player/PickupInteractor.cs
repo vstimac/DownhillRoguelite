@@ -21,6 +21,10 @@ public partial class PickupInteractor : Node
     [Export] public float MaxAngle { get; set; } = 75.0f;
 
     public IInteractable? Focused { get; private set; }
+    /// <summary>E pressed while he can't act yet (down, getting up, the pack coming off or on) is kept this long (s) and used as soon as he can.</summary>
+    [Export] public float KeepPressFor { get; set; } = 0.8f;
+
+    private KeptPress _press;
 
     public override void _PhysicsProcess(double delta)
     {
@@ -40,10 +44,20 @@ public partial class PickupInteractor : Node
             GameEvents.PublishFocus(best);
             Focused?.SetFocused(true);
         }
+        if (_press.Take((float)delta, Focused != null && Body != null && CanAct()))
+        {
+            Focused!.Interact(Body!);
+        }
     }
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        // Down, or the pack coming off or on: the press waits (the open pack page has its own E).
+        if (@event.IsActionPressed(ActionInteract) && Body != null && Body.InputEnabled && (GameEvents.IsDowned || (GameEvents.IsPacking && !GameEvents.IsPackOpen)))
+        {
+            _press.Keep(KeepPressFor);
+            return;
+        }
         if (@event.IsActionPressed(ActionInteract) && Focused != null && Body != null && CanAct())
         {
             Focused.Interact(Body);

@@ -258,6 +258,8 @@ public partial class PlayerController : CharacterBody3D
         FloorMaxAngle = Mathf.DegToRad(WalkableAngle());
 
         bool grounded = IsOnFloor();
+        _offGround = grounded ? 0.0f : _offGround + dt;
+        ReadJumpPress(grounded);
         Sprinting = grounded && Controls && !held && !braking && !GameEvents.IsMapOpen
             && input.Length() > SprintInputThreshold
             && Input.IsActionPressed(ActionSprint)
@@ -268,15 +270,15 @@ public partial class PlayerController : CharacterBody3D
             Vector3 groundNormal = GetFloorNormal();
             Velocity = ComputeGroundVelocity(input, braking, groundNormal, dt);
             TryStepUp(dt);
-            if (!held)
-            {
-                TryJump();
-            }
         }
         else
         {
             _externalVelocity = Vector3.Zero;
             Velocity = ComputeAirVelocity(input, dt);
+        }
+        if (_jump.Take(dt, !held && Controls && (grounded || _offGround <= JumpGroundGrace)))
+        {
+            TryJump();
         }
         if (_launch is Vector3 launch)
         {
@@ -565,16 +567,44 @@ public partial class PlayerController : CharacterBody3D
     /// <summary>Ragdoll jumps made (tests).</summary>
     public int Jumps { get; private set; }
 
-    /// <summary>Jumps if the button was just pressed and there is stamina for it; a heavier load jumps lower.</summary>
-    private void TryJump()
+    /// <summary>A Space press is kept this long (s): pressed a moment before the feet touch down, or while bracing, it jumps as soon as it can.</summary>
+    [Export] public float JumpBuffer { get; set; } = 0.2f;
+    /// <summary>Still counts as on the ground this long after the feet left it (s), as for the dive: uneven ground lifts them for a frame or two all the time.</summary>
+    [Export] public float JumpGroundGrace { get; set; } = 0.12f;
+    /// <summary>Falling faster than this (m/s, the speed at which the roll cue shows: Dive.RollCueSpeed), Space is the roll's (RollSave): never kept as a jump for the landing.</summary>
+    [Export] public float JumpBufferFallSpeed { get; set; } = 5.0f;
+    [Export] public string WindedJumpHint { get; set; } = "Too winded to jump";
+
+    private KeptPress _jump;
+    // How long the feet have been off the ground (s); set past the grace by a jump, so a jump can't be jumped again in the air.
+    private float _offGround;
+
+    /// <summary>
+    /// Space is kept a moment (JumpBuffer) unless it belongs to the roll: a cue is up, or he is falling
+    /// fast. The roll's rules stay as they are (a press outside its window is a miss, not a jump later).
+    /// </summary>
+    private void ReadJumpPress(bool grounded)
     {
         if (!Controls || !Input.IsActionJustPressed(ActionJump))
         {
             return;
         }
+        bool rolls = GameEvents.CurrentVault.Active || GameEvents.RollPrimed || (!grounded && Velocity.Y < -JumpBufferFallSpeed);
+        if (rolls)
+        {
+            _jump.Clear();
+            return;
+        }
+        _jump.Keep(JumpBuffer);
+    }
 
+    /// <summary>Jumps (the press was kept until he could) if there is stamina for it; a heavier load jumps lower.</summary>
+    private void TryJump()
+    {
+        _offGround = JumpGroundGrace + 1.0f;
         if (Stamina != null && !Stamina.TrySpend(Stamina.JumpCost))
         {
+            GameEvents.PublishHint(WindedJumpHint);
             return;
         }
 

@@ -121,8 +121,25 @@ public partial class CarrierNeeds : Node
         Thirst = Mathf.Clamp(thirst, 0.0f, Full);
     }
 
+    /// <summary>F or Q pressed while he can't eat yet (down, getting up, the pack coming off or on) is kept this long (s) and done as soon as he can.</summary>
+    [Export] public float KeepPressFor { get; set; } = 1.0f;
+
+    private KeptPress _eat;
+    private KeptPress _drink;
+
     public override void _UnhandledInput(InputEvent @event)
     {
+        bool waits = Body != null && Body.InputEnabled && ((GameEvents.IsPacking && !GameEvents.IsPackOpen) || GameEvents.IsDowned);
+        if (waits && @event.IsActionPressed(ActionEat))
+        {
+            _eat.Keep(KeepPressFor);
+            return;
+        }
+        if (waits && @event.IsActionPressed(ActionDrink))
+        {
+            _drink.Keep(KeepPressFor);
+            return;
+        }
         if (!CanAct())
         {
             return;
@@ -138,6 +155,20 @@ public partial class CarrierNeeds : Node
     }
 
     public override void _PhysicsProcess(double delta)
+    {
+        bool can = CanAct();
+        if (_eat.Take((float)delta, can))
+        {
+            GameEvents.RequestConsume(SupplyNeed.Hunger, Full - Hunger);
+        }
+        if (_drink.Take((float)delta, can))
+        {
+            GameEvents.RequestConsume(SupplyNeed.Thirst, Full - Thirst);
+        }
+        Needs(delta);
+    }
+
+    private void Needs(double delta)
     {
         if (_clock == null)
         {
@@ -293,6 +324,7 @@ public partial class CarrierNeeds : Node
 
     private bool CanAct()
     {
+        // Packing: the open page has its own keys (Q / E turn, F tips); while the pack comes off or goes on, a press waits.
         if (GameEvents.IsPacking || GameEvents.IsDowned)
         {
             return false;

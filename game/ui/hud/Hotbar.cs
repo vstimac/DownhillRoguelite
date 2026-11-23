@@ -106,6 +106,19 @@ public partial class Hotbar : Control
             }
             return;
         }
+        if (GameEvents.IsPacking && !GameEvents.IsPackOpen && @event is InputEventKey busy && busy.Pressed && !busy.Echo)
+        {
+            // The pack coming off or going on: V and G wait for it instead of being lost.
+            if (busy.PhysicalKeycode == Key.V)
+            {
+                _use.Keep(KeepPressFor);
+            }
+            else if (busy.PhysicalKeycode == Key.G)
+            {
+                _drop.Keep(KeepPressFor);
+            }
+            return;
+        }
         if (GameEvents.IsPacking || @event is not InputEventKey key || !key.Pressed || key.Echo)
         {
             return;
@@ -200,7 +213,27 @@ public partial class Hotbar : Control
         _nameTween.TweenProperty(_name, "modulate:a", 0.0f, 0.6);
     }
 
+    /// <summary>V or G pressed while the pack comes off or goes on is kept this long (s) and done once it is on the back.</summary>
+    [Export] public float KeepPressFor { get; set; } = 1.0f;
+
+    private Player.KeptPress _use;
+    private Player.KeptPress _drop;
+
     public override void _Process(double delta)
+    {
+        bool free = !GameEvents.IsPacking;
+        if (_use.Take((float)delta, free))
+        {
+            UseSelected();
+        }
+        if (_drop.Take((float)delta, free) && SelectedId.Length > 0)
+        {
+            GameEvents.RequestDrop(SelectedId);
+        }
+        ShowCarried();
+    }
+
+    private void ShowCarried()
     {
         IReadOnlyList<string> carried = GameEvents.CarriedItems;
         string signature = string.Join(",", carried);

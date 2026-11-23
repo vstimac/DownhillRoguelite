@@ -32,6 +32,8 @@ public partial class Dive : Node3D
     [Export] public float PressBuffer { get; set; } = 0.25f;
     /// <summary>Still counts as on the ground this long after the feet left it (s): uneven slopes lift them for a frame or two all the time.</summary>
     [Export] public float GroundGrace { get; set; } = 0.2f;
+    /// <summary>A Ctrl press while he is getting up is kept this long (s), so it dives as soon as he stands.</summary>
+    [Export] public float KeepWhileGettingUp { get; set; } = 1.0f;
     [Export] public string WindedHint { get; set; } = "Too winded to dive";
 
     [ExportGroup("Timing (s) and speeds (m/s)")]
@@ -102,6 +104,7 @@ public partial class Dive : Node3D
 
     private Vector3 _forward = Vector3.Forward;
     private float _pressed = -1.0f;
+    private PlayerRagdoll? _ragdoll;
     private float _offGround;
     private Vector3 _direction;
     private float _takeoffY;
@@ -164,9 +167,15 @@ public partial class Dive : Node3D
         {
             _offGround += dt;
         }
-        if (Body.InputEnabled && Input.IsActionJustPressed(ActionDive))
+        if (Body.InputEnabled && Input.IsActionJustPressed(ActionDive) && !GameEvents.RollPrimed)
         {
+            // Pressed while he is getting up (not while falling: that press is the roll's), it waits for him to stand.
+            _ragdoll ??= Body.GetNodeOrNull<PlayerRagdoll>("Ragdoll");
             _pressed = PressBuffer;
+            if (_ragdoll != null && _ragdoll.GettingUp && !_ragdoll.RollingOut)
+            {
+                _pressed = Mathf.Max(PressBuffer, KeepWhileGettingUp);
+            }
         }
         if (_pressed >= 0.0f)
         {

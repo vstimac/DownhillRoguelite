@@ -589,8 +589,22 @@ public partial class MeleeCombat : Node
         else if (State == Stance.Ready || State == Stance.Blocking)
         {
             State = Stance.Sheathing;
+            _queued = Stance.Sheathed;
             _animator?.Play("sheathe", ClipBlend, SheatheSpeed);
         }
+    }
+
+    /// <summary>A swing or kick pressed while the draw or another blow still plays is kept this long (s) and comes right after it.</summary>
+    [Export] public float KeepPressFor { get; set; } = 0.8f;
+
+    // The blow waiting for the one under way (Attacking or Kicking), or Sheathed for none.
+    private Stance _queued = Stance.Sheathed;
+    private ulong _queuedAt;
+
+    private void Queue(Stance blow)
+    {
+        _queued = blow;
+        _queuedAt = Time.GetTicksMsec();
     }
 
     /// <summary>Starts a swing, or chains the next blow if one is under way.</summary>
@@ -602,6 +616,15 @@ public partial class MeleeCombat : Node
             {
                 _chainQueued = true;
             }
+            else
+            {
+                Queue(Stance.Attacking);
+            }
+            return false;
+        }
+        if (State == Stance.Drawing || State == Stance.Kicking)
+        {
+            Queue(Stance.Attacking);
             return false;
         }
         if (State != Stance.Ready && State != Stance.Blocking)
@@ -631,6 +654,11 @@ public partial class MeleeCombat : Node
 
     public bool Kick()
     {
+        if (State == Stance.Drawing || State == Stance.Attacking)
+        {
+            Queue(Stance.Kicking);
+            return false;
+        }
         if (State != Stance.Ready && State != Stance.Blocking)
         {
             return false;
@@ -822,6 +850,21 @@ public partial class MeleeCombat : Node
         State = Stance.Ready;
         _chainQueued = false;
         _animator?.Play("idle", ClipBlend * 1.5f, 1.0f);
+        // A blow pressed while the last one (or the draw) played comes now, if it was pressed recently.
+        Stance next = _queued;
+        _queued = Stance.Sheathed;
+        if (next == Stance.Sheathed || Time.GetTicksMsec() - _queuedAt > (ulong)(KeepPressFor * 1000.0f) || !CanAct())
+        {
+            return;
+        }
+        if (next == Stance.Attacking)
+        {
+            StartSwing(0);
+        }
+        else
+        {
+            Kick();
+        }
     }
 
     /// <summary>The sword motions fade over the walking: the upper body while drawn, the legs for a kick; none while down.</summary>
@@ -1051,6 +1094,7 @@ public partial class MeleeCombat : Node
         Glances++;
         LastGlance = where;
         State = Stance.Staggered;
+        _queued = Stance.Sheathed;
         _chainQueued = false;
         _animator?.Play("block_impact", 0.05f, ImpactSpeed);
         SayOne(BlockSounds);
@@ -1228,6 +1272,7 @@ public partial class MeleeCombat : Node
         if (State == Stance.Ready || State == Stance.Attacking || State == Stance.Kicking || State == Stance.Blocking)
         {
             State = Stance.Staggered;
+            _queued = Stance.Sheathed;
             string clip = "impact";
             if (_random.Randf() < 0.5f)
             {
