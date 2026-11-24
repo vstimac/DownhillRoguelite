@@ -194,14 +194,36 @@ public partial class EnemyTests : Node3D
         rolling.DodgeChance = 1.0f;
         rolling.Attacks = System.Array.Empty<string>();
         HumanoidEnemy roller = Spawn(rolling, new Vector3(0, 0, -1.4f));
+        roller.Follower!.RecordPose = true;
         await Track(roller, carrier, 30);
         Vector3 start = roller.GlobalPosition;
+        // Into the roll and through it: how far it turns, and how far its shown hips move, in one frame.
+        float yawStep = 0.0f;
+        float hipsStep = 0.0f;
+        float lastYaw = roller.Rotation.Y;
+        int hipsBone = roller.HitSkeleton!.FindBone(roller.Follower.HipsBone);
+        Vector3 lastHips = roller.HitSkeleton.GlobalTransform * roller.Follower.TargetPose[hipsBone];
         GameEvents.PublishMeleeSwung(carrier, Vector3.Forward, "swing");
-        await Track(roller, carrier, 2);
-        bool untouchable = !roller.CanBeHit;
-        await Track(roller, carrier, 60);
+        bool untouchable = false;
+        for (int i = 0; i < 80 && (i < 2 || roller.State == HumanoidEnemy.Phase.Dodge); i++)
+        {
+            await Track(roller, carrier, 1);
+            if (i == 1)
+            {
+                untouchable = !roller.CanBeHit;
+            }
+            yawStep = Mathf.Max(yawStep, Mathf.Abs(Mathf.RadToDeg(Mathf.AngleDifference(lastYaw, roller.Rotation.Y))));
+            Vector3 hips = roller.HitSkeleton.GlobalTransform * roller.Follower.TargetPose[hipsBone];
+            hipsStep = Mathf.Max(hipsStep, new Vector2(hips.X - lastHips.X, hips.Z - lastHips.Z).Length());
+            lastYaw = roller.Rotation.Y;
+            lastHips = hips;
+        }
+        await Track(roller, carrier, 20);
         Check($"{name}: it rolls aside from a swing", roller.Dodges == 1 && untouchable && roller.GlobalPosition.DistanceTo(start) > 0.8f,
             $"dodges {roller.Dodges}, untouchable while rolling {untouchable}, moved {roller.GlobalPosition.DistanceTo(start):0.0} m");
+        // It used to snap round to the roll's heading in one frame (up to 180°), its hips jumping aside.
+        Check($"{name}: it turns into the roll instead of snapping round, and its hips never jump", yawStep <= 20.0f && hipsStep <= 0.15f,
+            $"turned at most {yawStep:0} deg in a frame (max 20), hips moved at most {hipsStep * 100:0} cm in a frame (max 15)");
         roller.QueueFree();
 
         // At 0 health it dies, can't be hit, and is gone after a while.
