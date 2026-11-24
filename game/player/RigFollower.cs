@@ -64,6 +64,35 @@ public partial class RigFollower : SkeletonModifier3D
     public Vector3[] TargetPose { get; private set; } = System.Array.Empty<Vector3>();
     public Vector3[] DriverPose { get; private set; } = System.Array.Empty<Vector3>();
 
+    private Transform3D[] _shown = System.Array.Empty<Transform3D>();
+
+    /// <summary>The follower on <paramref name="skeleton"/> that has posed it at least once, if any.</summary>
+    public static RigFollower? Of(Skeleton3D skeleton)
+    {
+        foreach (Node child in skeleton.GetChildren())
+        {
+            if (child is RigFollower follower && follower.Active && follower._shown.Length == skeleton.GetBoneCount())
+            {
+                return follower;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// A bone's pose as last shown (skeleton space). A modifier's pose is only used for skinning: read
+    /// outside its pass, the skeleton gives its rest pose, a T-pose, so hit boxes and a ragdoll thrown
+    /// from it must ask here. Without a follower it is the skeleton's own pose.
+    /// </summary>
+    public static Transform3D ShownPose(Skeleton3D skeleton, int bone, RigFollower? follower)
+    {
+        if (follower != null && bone >= 0 && bone < follower._shown.Length)
+        {
+            return follower._shown[bone];
+        }
+        return skeleton.GetBoneGlobalPose(bone);
+    }
+
     /// <summary>
     /// Sets the pairs, hips and aligned limbs for the rig <paramref name="skeleton"/> uses: Unreal-named
     /// rigs (Quaternius Universal Base Characters: pelvis, spine_01, upperarm_l...) or Mixamo (the default).
@@ -457,6 +486,14 @@ public partial class RigFollower : SkeletonModifier3D
                 }
                 target.SetBonePosePosition(t, parentBasis.Inverse() * (hipsGlobal - parentOrigin));
             }
+        }
+        if (_shown.Length != target.GetBoneCount())
+        {
+            _shown = new Transform3D[target.GetBoneCount()];
+        }
+        for (int i = 0; i < _shown.Length; i++)
+        {
+            _shown[i] = target.GetBoneGlobalPose(i);
         }
         if (RecordPose)
         {

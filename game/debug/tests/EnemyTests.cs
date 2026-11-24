@@ -218,10 +218,19 @@ public partial class EnemyTests : Node3D
         EnemySpecies falling = (EnemySpecies)species.Duplicate();
         falling.CorpseSeconds = 30.0f;
         HumanoidEnemy body = Spawn(falling, new Vector3(2.5f, 0, -3));
+        body.Follower!.RecordPose = true;
         await Track(body, carrier, 10);
+        // The sword's hit boxes sit on the pose it shows, not on its T-pose.
+        BoneHitboxes boxes = BoneHitboxes.For(body.HitSkeleton!)!;
+        float boxOff = PoseGap(body, boxes.Count, i => (boxes.BoneAt(i), boxes.WorldAt(i)), body.Follower.TargetPose);
+        Vector3[] shown = body.Follower.TargetPose;
         float standingTop = body.GlobalPosition.Y + falling.Height * 0.6f;
         body.TakeHit(10000.0f, Vector3.Forward * 4.0f, "sword");
         int parts = body.Ragdoll?.Parts ?? 0;
+        // And the ragdoll starts from the pose it showed when it died (it used to start from a T-pose).
+        float partOff = body.Ragdoll is BodyRagdoll ragdoll ? PoseGap(body, ragdoll.Parts, ragdoll.PartAt, shown) : 99.0f;
+        Check($"{name}: its hit boxes and its ragdoll take the pose it shows, not a T-pose", boxOff < 0.03f && partOff < 0.03f,
+            $"hit boxes at most {boxOff * 100:0.0} cm from the shown bones, ragdoll parts {partOff * 100:0.0} cm");
         Vector3 corePosition = body.Ragdoll?.Core?.GlobalPosition ?? Vector3.Zero;
         await Track(body, carrier, 150);
         Vector3 coreNow = body.Ragdoll?.Core?.GlobalPosition ?? corePosition;
@@ -339,6 +348,19 @@ public partial class EnemyTests : Node3D
         director.QueueFree();
         trees.QueueFree();
         await Frames(2);
+    }
+
+    /// <summary>The farthest any of the given bones (index, world transform) is from where the model showed it (m).</summary>
+    private static float PoseGap(HumanoidEnemy enemy, int count, System.Func<int, (int Bone, Transform3D World)> at, Vector3[] shown)
+    {
+        Skeleton3D skeleton = enemy.HitSkeleton!;
+        float worst = 0.0f;
+        for (int i = 0; i < count; i++)
+        {
+            (int bone, Transform3D world) = at(i);
+            worst = Mathf.Max(worst, world.Origin.DistanceTo(skeleton.GlobalTransform * shown[bone]));
+        }
+        return worst;
     }
 
     private HumanoidEnemy Spawn(EnemySpecies species, Vector3 at)
