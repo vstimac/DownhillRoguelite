@@ -113,6 +113,8 @@ public partial class DevConsole : CanvasLayer
         column.AddChild(_log);
         _input = new LineEdit { PlaceholderText = "type a command (/commands, /help <command>)", CaretBlink = true };
         _input.AddThemeFontSizeOverride("font_size", 16);
+        // Enter runs the line and the line stays open for the next one.
+        _input.KeepEditingOnTextSubmit = true;
         _input.TextSubmitted += OnSubmitted;
         _input.GuiInput += OnInputKey;
         column.AddChild(_input);
@@ -275,8 +277,12 @@ public partial class DevConsole : CanvasLayer
 
     private static string Escape(string text) => text.Replace("[", "[lb]");
 
+    /// <summary>The line typed into (tests).</summary>
+    public LineEdit? Line => _input;
+
     public override void _Process(double delta)
     {
+        KeepTyping();
         if (God)
         {
             PlayerController? player = Player();
@@ -288,6 +294,31 @@ public partial class DevConsole : CanvasLayer
             double frame = Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000.0;
             double physics = Performance.GetMonitor(Performance.Monitor.TimePhysicsProcess) * 1000.0;
             _fps.Text = $"{Engine.GetFramesPerSecond():0} fps  process {frame:0.0} ms  physics {physics:0.0} ms";
+        }
+    }
+
+    /// <summary>
+    /// While the console is open it keeps the keyboard until it is closed: a button the pointer passes
+    /// over (they take the focus on hover), a click elsewhere or another page can't take the typing away,
+    /// and the pointer stays free.
+    /// </summary>
+    private void KeepTyping()
+    {
+        if (!Open || _input == null || !_input.IsVisibleInTree())
+        {
+            return;
+        }
+        if (!_input.HasFocus())
+        {
+            _input.GrabFocus();
+        }
+        if (!_input.IsEditing())
+        {
+            _input.Edit();
+        }
+        if (Input.MouseMode != Input.MouseModeEnum.Visible)
+        {
+            Input.MouseMode = Input.MouseModeEnum.Visible;
         }
     }
 
