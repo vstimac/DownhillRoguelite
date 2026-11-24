@@ -52,6 +52,8 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
     [Export] public string SprintClip { get; set; } = "Sprint";
     [Export] public string GuardClip { get; set; } = "Punch_Enter";
     [Export] public string DodgeClip { get; set; } = "Roll";
+    /// <summary>How fast it turns into a roll (deg/s): a half turn takes the roll clip's crouch, about 0.25 s.</summary>
+    [Export] public float DodgeTurnSpeed { get; set; } = 720.0f;
     [Export] public string[] HurtClips { get; set; } = { "Hit_Chest", "Hit_Head" };
     [Export] public string DeathClip { get; set; } = "Death01";
     [Export] public float ClipBlend { get; set; } = 0.18f;
@@ -519,6 +521,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
                 }
                 break;
             case Phase.Dodge:
+                TurnToward(_dodgeDirection, DodgeTurnSpeed, dt);
                 wanted = _dodgeDirection * Species.DodgeSpeed * (1.0f - Mathf.Clamp(_phaseTime / Mathf.Max(_phaseLength, 0.01f), 0.0f, 1.0f));
                 if (_phaseTime >= _phaseLength)
                 {
@@ -828,7 +831,8 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
         }
         // A little away from the carrier too.
         _dodgeDirection = (side + fromCarrier * 0.5f).Normalized();
-        Rotation = new Vector3(0.0f, Mathf.Atan2(-_dodgeDirection.X, -_dodgeDirection.Z), 0.0f);
+        // It turns into the roll during the clip's crouch (TurnIntoDodge); set at once, it snapped round
+        // up to 180° in one frame and its hips jumped aside: it looked like it teleported.
         Play(DodgeClip, ClipBlend * 0.5f, 1.2f, true);
         _phaseLength = ClipLength(DodgeClip) / 1.2f;
         Dodges++;
@@ -1012,6 +1016,19 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
     }
 
     /// <summary>Turns toward <paramref name="direction"/> at the species' turn speed (times <paramref name="share"/>).</summary>
+    /// <summary>Turns toward <paramref name="direction"/> at <paramref name="degreesPerSecond"/>, whatever its species' turn speed.</summary>
+    private void TurnToward(Vector3 direction, float degreesPerSecond, float dt)
+    {
+        if (direction.LengthSquared() < 0.0001f)
+        {
+            return;
+        }
+        float target = Mathf.Atan2(-direction.X, -direction.Z);
+        float step = Mathf.DegToRad(degreesPerSecond) * dt;
+        float difference = Mathf.Wrap(target - Rotation.Y, -Mathf.Pi, Mathf.Pi);
+        Rotation = new Vector3(0.0f, Rotation.Y + Mathf.Clamp(difference, -step, step), 0.0f);
+    }
+
     private void Face(Vector3 direction, float dt, float share)
     {
         if (direction.LengthSquared() < 0.0001f)
