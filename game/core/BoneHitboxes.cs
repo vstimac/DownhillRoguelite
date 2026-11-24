@@ -183,9 +183,11 @@ public sealed class BoneHitboxes
             return;
         }
         Transform3D skeleton = _skeleton.GlobalTransform;
+        // A followed model (an enemy) shows its follower's pose; its own bone poses are its T-pose.
+        DownhillRoguelite.Player.RigFollower? shown = DownhillRoguelite.Player.RigFollower.Of(_skeleton);
         for (int i = 0; i < _bones.Count; i++)
         {
-            _world[i] = skeleton * _skeleton.GetBoneGlobalPose(_bones[i]);
+            _world[i] = skeleton * DownhillRoguelite.Player.RigFollower.ShownPose(_skeleton, _bones[i], shown);
         }
         Updates++;
     }
@@ -319,6 +321,8 @@ public sealed class BoneHitboxes
     public int BoneAt(int i) => _bones[i];
     /// <summary>Box <paramref name="i"/> in its bone's own space (bind-pose units).</summary>
     public Aabb BoxAt(int i) => _boxes[i];
+    /// <summary>Box <paramref name="i"/>'s bone in the world, as of the last refresh.</summary>
+    public Transform3D WorldAt(int i) => _world[i];
     public BodyZone ZoneAt(int i) => _zones[i];
 
     /// <summary>The middle of the boxes now (world space), e.g. to aim at.</summary>

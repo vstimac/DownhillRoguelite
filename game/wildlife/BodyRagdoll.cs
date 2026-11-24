@@ -31,6 +31,8 @@ public partial class BodyRagdoll : SkeletonModifier3D
     [Export] public float SinkGravity { get; set; } = 0.25f;
 
     public int Parts => _parts.Count;
+    /// <summary>Part <paramref name="i"/>'s bone and where its body holds that bone in the world.</summary>
+    public (int Bone, Transform3D World) PartAt(int i) => (_parts[i].Bone, _parts[i].Body.GlobalTransform * _parts[i].ToBone);
     public bool Sinking { get; private set; }
     /// <summary>The heaviest part (the hips or the chest), for where the body lies.</summary>
     public RigidBody3D? Core { get; private set; }
@@ -74,11 +76,13 @@ public partial class BodyRagdoll : SkeletonModifier3D
     private void Build(Skeleton3D skeleton, BoneHitboxes boxes, Vector3 velocity, Vector3 upperPush)
     {
         Transform3D skeletonWorld = skeleton.GlobalTransform;
+        // Thrown from the pose it shows (a followed model's own bone poses are its T-pose).
+        Player.RigFollower? shown = Player.RigFollower.Of(skeleton);
         // The sizeable parts, biggest first, then in bone order (parents before children).
         List<(int Index, float Volume, Vector3 Size)> candidates = new();
         for (int i = 0; i < boxes.Count; i++)
         {
-            Transform3D world = skeletonWorld * skeleton.GetBoneGlobalPose(boxes.BoneAt(i));
+            Transform3D world = skeletonWorld * Player.RigFollower.ShownPose(skeleton, boxes.BoneAt(i), shown);
             Vector3 scale = world.Basis.Scale;
             Vector3 size = boxes.BoxAt(i).Size * scale * ShapeShare;
             float thinnest = Mathf.Min(size.X, Mathf.Min(size.Y, size.Z));
@@ -108,7 +112,7 @@ public partial class BodyRagdoll : SkeletonModifier3D
         foreach ((int index, float volume, Vector3 size) in candidates)
         {
             int bone = boxes.BoneAt(index);
-            Transform3D world = skeletonWorld * skeleton.GetBoneGlobalPose(bone);
+            Transform3D world = skeletonWorld * Player.RigFollower.ShownPose(skeleton, bone, shown);
             Vector3 centre = world * boxes.BoxAt(index).GetCenter();
             Transform3D place = new(world.Basis.Orthonormalized(), centre);
             float mass = Mathf.Max(TotalMass * volume / Mathf.Max(totalVolume, 0.0001f), 0.5f);
@@ -154,7 +158,7 @@ public partial class BodyRagdoll : SkeletonModifier3D
             {
                 continue;
             }
-            Transform3D head = skeletonWorld * skeleton.GetBoneGlobalPose(part.Bone);
+            Transform3D head = skeletonWorld * Player.RigFollower.ShownPose(skeleton, part.Bone, shown);
             ConeTwistJoint3D joint = new()
             {
                 Name = "Joint_" + skeleton.GetBoneName(part.Bone),
