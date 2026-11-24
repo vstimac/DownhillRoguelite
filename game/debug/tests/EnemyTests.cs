@@ -131,16 +131,24 @@ public partial class EnemyTests : Node3D
         enemy.GlobalPosition = new Vector3(0, 0.1f, -16);
         float before = enemy.GlobalPosition.DistanceTo(carrier);
         float fastest = 0.0f;
+        float slowestRate = float.MaxValue;
         for (int i = 0; i < 60; i++)
         {
             enemy.Track(carrier);
             await Frames(1);
             Vector3 v = enemy.GetRealVelocity();
-            fastest = Mathf.Max(fastest, new Vector2(v.X, v.Z).Length());
+            float speed = new Vector2(v.X, v.Z).Length();
+            fastest = Mathf.Max(fastest, speed);
+            if (i >= 30 && speed > species.WalkSpeed + 0.5f)
+            {
+                slowestRate = Mathf.Min(slowestRate, enemy.NetClipSpeed);
+            }
         }
         float after = enemy.GlobalPosition.DistanceTo(carrier);
-        Check($"{name}: once it sees the carrier it runs in", enemy.Aware && after < before - 2.0f && fastest > species.WalkSpeed + 0.5f && (enemy.Clip == "Jog_Fwd" || enemy.Clip == "Sprint"),
+        Check($"{name}: once it sees the carrier it runs in", enemy.Aware && after < before - 2.0f && fastest > species.WalkSpeed + 0.5f && (enemy.Clip == "Jog_Fwd" || enemy.Clip == "Sprint" || enemy.Clip.StartsWith("Lope")),
             $"{before:0.0} m → {after:0.0} m, fastest {fastest:0.0} m/s, clip {enemy.Clip}");
+        // Its run plays near its own speed: a heavy one running at 3-4 m/s used to play the jog at half speed (a slow-motion run).
+        Check($"{name}: its run isn't in slow motion", slowestRate >= 0.75f && slowestRate < 10.0f, $"slowest run playback {slowestRate:0.00}x, clip {enemy.Clip}");
         // Its walk, jog and sprint follow its real speed (clip paces measured on the mannequin, stride by
         // the model's own legs): its toes stay put on the ground. A biped's toe rolls through each step,
         // so even the bare mannequin measures about 0.2-0.3 here; 3.2's enemies measured 0.48.

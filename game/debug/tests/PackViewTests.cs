@@ -71,6 +71,7 @@ public partial class PackViewTests : Node3D
         await TestSetDown(Packing, Ui);
         TestPointing(Ui.Packing.View);
         TestMoving(Inventory, Ui.Packing);
+        await TestMouse(Ui.Packing);
         await TestPressWhileShouldering(Packing, Ui);
         await TestPutOn(Packing, Ui);
         await TestWalkOffOpen(Packing, Ui);
@@ -284,6 +285,79 @@ public partial class PackViewTests : Node3D
             $"first thing put back {restored}; {small.ItemId} {small.Size} from {small.Origin}, {free.FreeCells} cells free, moved to {spot} {moved}, centre of mass moved {shift * 100.0f:0.0} cm, still {inventory.AllItems.Count} things {whole}");
     }
 
+    /// <summary>
+    /// The page's own mouse path, as a player uses it: a click lifts a thing, and the thing stays in
+    /// sight wherever the pointer is on the pack (over its walls too, not only its open top); a press
+    /// dragged and let go sets it down (click, click does too).
+    /// </summary>
+    private async Task TestMouse(PackingScreen page)
+    {
+        PackGridView view = page.View!;
+        page.Hold("", GridOrientations.Identity);
+        PackLayout layout = GameEvents.CurrentPackLayout;
+        PackLayoutEntry top = Topmost(layout);
+        Aabb box = PackGeometry.CellBox(layout, top.Origin, top.Size, 0.0f);
+        Vector2 onTop = view.Project(box.GetCenter() + Vector3.Up * box.Size.Y * 0.5f);
+
+        // Click (press and let go in place): the thing is lifted and shown under the pointer.
+        Mouse(view, onTop, MouseButton.None, false);
+        await Wait(0.05f);
+        Mouse(view, onTop, MouseButton.Left, true);
+        Mouse(view, onTop, MouseButton.Left, false);
+        await Wait(0.05f);
+        bool held = page.HeldId == top.InstanceId;
+        bool lifted = held && view.GhostShown;
+
+        // Over the pack's near wall, below its open top: still shown, at the nearest column.
+        Vector3 size = layout.SizeMeters;
+        Vector2 wallA = view.Project(new Vector3(0.0f, size.Y * 0.35f, size.Z * 0.5f));
+        Vector2 wallB = view.Project(new Vector3(0.0f, size.Y * 0.35f, -size.Z * 0.5f));
+        Vector2 wall = wallA.Y > wallB.Y ? wallA : wallB;
+        Mouse(view, wall, MouseButton.None, false);
+        await Wait(0.05f);
+        bool overWall = page.HeldId == top.InstanceId && view.GhostShown;
+
+        // Back over its own place, a click sets it down.
+        Mouse(view, onTop, MouseButton.None, false);
+        await Wait(0.05f);
+        Mouse(view, onTop, MouseButton.Left, true);
+        Mouse(view, onTop, MouseButton.Left, false);
+        await Wait(0.05f);
+        bool clickedDown = page.HeldId.Length == 0 && GameEvents.CurrentPackLayout.TryFind(top.InstanceId, out PackLayoutEntry back) && back.Packed;
+
+        // Drag: press on it, move away and back, let go: it is set down where it was let go.
+        Mouse(view, onTop, MouseButton.Left, true);
+        await Wait(0.05f);
+        Mouse(view, wall, MouseButton.None, false);
+        await Wait(0.05f);
+        Mouse(view, onTop, MouseButton.None, false);
+        await Wait(0.05f);
+        Mouse(view, onTop, MouseButton.Left, false);
+        await Wait(0.05f);
+        bool dragged = page.HeldId.Length == 0 && GameEvents.CurrentPackLayout.TryFind(top.InstanceId, out PackLayoutEntry dropped) && dropped.Packed;
+        page.Hold("", GridOrientations.Identity);
+
+        Check("a click lifts a thing and it shows under the pointer", lifted, $"held {held}, shown {lifted}");
+        Check("a lifted thing stays in sight over the pack's walls, not only over its open top", overWall, $"shown over the near wall at {wall} {overWall}");
+        Check("click, click sets it down", clickedDown, $"set down {clickedDown}");
+        Check("dragging it and letting go sets it down", dragged, $"set down {dragged}");
+    }
+
+    /// <summary>Sends the view a pointer move (no button) or a button press or release, at a point of the view.</summary>
+    private void Mouse(PackGridView view, Vector2 at, MouseButton button, bool pressed)
+    {
+        Vector2 global = view.GetGlobalTransformWithCanvas() * at;
+        if (button == MouseButton.None)
+        {
+            GetViewport().PushInput(new InputEventMouseMotion { Position = global, GlobalPosition = global, ButtonMask = _mouseDown ? MouseButtonMask.Left : 0 });
+            return;
+        }
+        _mouseDown = pressed;
+        GetViewport().PushInput(new InputEventMouseButton { Position = global, GlobalPosition = global, ButtonIndex = button, Pressed = pressed, ButtonMask = pressed ? MouseButtonMask.Left : 0 });
+    }
+
+    private bool _mouseDown;
+
     private async Task TestPutOn(PackingMode packing, Hud ui)
     {
         if (packing.Phase != PackingPhase.Open)
@@ -462,18 +536,24 @@ public partial class PackViewTests : Node3D
         bool open = packing.Phase == PackingPhase.Open && ui.Packing!.IsOpen;
         Vector3 start = PlayerBody!.GlobalPosition;
         Press(MoveForward, true);
-        int frames = await FramesUntil(() => packing.Phase == PackingPhase.Carried && !GameEvents.IsPacking && !GameEvents.IsPackOpen, 30);
-        int walking = await FramesUntil(() => Flat(PlayerBody.GlobalPosition - start) > 0.05f, 60);
+        await Wait(0.1f);
         PackSetDown? setDown = PlayerBody.FindChild("PackSetDown", true, false) as PackSetDown;
-        bool swinging = setDown != null && setDown.Off;
-        await Wait(0.6f);
+        bool shouldering = packing.Phase == PackingPhase.PuttingOn && !ui.Packing!.IsOpen && setDown != null && setDown.Off;
+        float stood = Flat(PlayerBody.GlobalPosition - start);
+        int seconds = Mathf.CeilToInt((packing.PutOnTime + TimingSlack + 0.5f) * Engine.PhysicsTicksPerSecond);
+        int frames = await FramesUntil(() => packing.Phase == PackingPhase.Carried && !GameEvents.IsPacking && !GameEvents.IsPackOpen, seconds);
+        float shoulderedIn = frames / (float)Engine.PhysicsTicksPerSecond + 0.1f;
+        Vector3 shouldered = PlayerBody.GlobalPosition;
+        int walking = await FramesUntil(() => Flat(PlayerBody.GlobalPosition - shouldered) > 0.05f, 60);
+        await Wait(0.3f);
         Press(MoveForward, false);
         bool worn = setDown != null && !setDown.Off;
-        bool gone = !ui.Packing!.IsOpen;
         await Wait(0.5f);
-        Check("walking off the open pack shoulders it at once and the carrier walks at once", open && frames <= 1 && walking <= MaxWalkFrames && gone,
-            $"open {open}, carried in {frames} frames, moved 5 cm in {walking} frames (max {MaxWalkFrames}), page gone {gone}");
-        Check("the pack swings onto the back while the carrier walks, then is worn", swinging && worn, $"swinging {swinging}, worn {worn}");
+        Check("walking off the open pack shoulders it the whole way first, as Done does, the carrier standing meanwhile",
+            open && shouldering && stood < 0.05f && Mathf.Abs(shoulderedIn - packing.PutOnTime) <= TimingSlack + 0.1f,
+            $"open {open}, shouldering after 0.1 s {shouldering}, moved {stood * 100.0f:0.0} cm meanwhile, on the back after {shoulderedIn:0.00} s (shouldering takes {packing.PutOnTime:0.00} s)");
+        Check("then, with the key still held, he walks on with the pack worn", walking <= MaxWalkFrames && worn,
+            $"moved 5 cm in {walking} frames (max {MaxWalkFrames}), worn {worn}");
     }
 
     /// <summary>The flat distance of a move, in m.</summary>

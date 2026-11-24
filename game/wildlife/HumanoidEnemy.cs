@@ -287,6 +287,10 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
                 Animations = node as AnimationPlayer;
                 break;
             }
+            if (Animations != null)
+            {
+                _lopes = GaitBlends.AddTo(Animations, _driver, WalkClip, WalkClipSpeed, JogClip, JogClipSpeed);
+            }
         }
         if (ResourceLoader.Load(Species.ModelPath) is not PackedScene modelScene || modelScene.Instantiate() is not Node3D model)
         {
@@ -658,6 +662,21 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
     /// Idle, walk, jog or sprint by how fast it really moves: the clip whose own pace is nearest (the
     /// least sped up or slowed down), at the rate that keeps its planted foot still on the ground.
     /// </summary>
+    /// <summary>The lopes between walk and jog, with their paces at normal speed for the mannequin (m/s).</summary>
+    private List<(string Name, float Pace)> _lopes = new();
+
+    /// <summary>The gaits it can show (walk, the lopes, jog, sprint) with their paces at normal speed for the mannequin.</summary>
+    private IEnumerable<(string Name, float Pace)> Gaits()
+    {
+        yield return (WalkClip, WalkClipSpeed);
+        foreach ((string Name, float Pace) lope in _lopes)
+        {
+            yield return lope;
+        }
+        yield return (JogClip, JogClipSpeed);
+        yield return (SprintClip, SprintClipSpeed);
+    }
+
     private void Gait()
     {
         Vector3 real = GetRealVelocity();
@@ -668,7 +687,7 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
         if (speed > 0.25f)
         {
             float best = float.MaxValue;
-            foreach ((string name, float pace) in new[] { (WalkClip, WalkClipSpeed), (JogClip, JogClipSpeed), (SprintClip, SprintClipSpeed) })
+            foreach ((string name, float pace) in Gaits())
             {
                 float off = Mathf.Abs(Mathf.Log(speed / Mathf.Max(pace * stride, 0.01f)));
                 // A little stickiness to the clip already playing, so it doesn't flicker between two.
@@ -1057,9 +1076,45 @@ public partial class HumanoidEnemy : CharacterBody3D, IMeleeTarget, INetMob
             Animations.SpeedScale = speed;
             return;
         }
+        // From one gait to another the legs carry on in step: the new clip starts where the old one's
+        // step was (all are timed against the jog), not at its first frame with the other foot forward.
+        double from = -1.0;
+        if (Animations.IsPlaying() && StepPhase(Clip, out float oldOffset) && StepPhase(clip, out float newOffset))
+        {
+            float oldLength = ClipLength(Clip);
+            float jogPhase = (float)(Animations.CurrentAnimationPosition / Mathf.Max(oldLength, 0.01f)) - oldOffset;
+            from = Mathf.PosMod(jogPhase + newOffset, 1.0f) * ClipLength(clip);
+        }
         Clip = clip;
         Animations.SpeedScale = speed;
         Animations.Play(clip, blend);
+        if (from >= 0.0)
+        {
+            Animations.Seek(from, false);
+        }
+    }
+
+    /// <summary>Whether a clip is a gait (walk, lope, jog, sprint), and how far ahead of the jog its step runs (share of a cycle).</summary>
+    private bool StepPhase(string clip, out float offset)
+    {
+        offset = 0.0f;
+        if (clip == WalkClip)
+        {
+            offset = GaitBlends.WalkPhase;
+            return true;
+        }
+        if (clip == JogClip || clip == SprintClip)
+        {
+            return true;
+        }
+        foreach ((string Name, float Pace) lope in _lopes)
+        {
+            if (lope.Name == clip)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private float ClipLength(string clip)

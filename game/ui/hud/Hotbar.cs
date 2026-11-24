@@ -73,8 +73,9 @@ public partial class Hotbar : Control
         _right.Pressed += () => Select((Selected + 1) % Slots);
         AddChild(_right);
         _name = UiStyle.MakeLabel("", UiStyle.TextSize, false, UiStyle.Ink);
-        _name.AddThemeColorOverride("font_outline_color", UiStyle.Ink);
-        _name.AddThemeConstantOverride("outline_size", 6);
+        // A dark rim keeps the name readable over snow and fog (a light rim round light letters ran them together).
+        _name.AddThemeColorOverride("font_outline_color", new Color(UiStyle.Paper, 0.85f));
+        _name.AddThemeConstantOverride("outline_size", 4);
         _name.Modulate = new Color(1, 1, 1, 0);
         AddChild(_name);
         Select(0);

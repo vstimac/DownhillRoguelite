@@ -71,6 +71,8 @@ public partial class DevConsoleTests : Node3D
         DevConsole.Register("echo_test", "echo_test <words>", "Says the words back.", args => string.Join(' ', args));
         Check("other systems can add commands", DevConsole.Execute("/echo_test hi there") == "hi there" && DevConsole.Execute("/commands").Contains("/echo_test"), "");
 
+        await TestKeepsTheKeyboard();
+
         if (_failures.Count == 0)
         {
             GD.Print("DEV CONSOLE TESTS: PASS");
@@ -81,6 +83,60 @@ public partial class DevConsoleTests : Node3D
             GD.Print("DEV CONSOLE TESTS: FAIL (" + string.Join(", ", _failures) + ")");
             GetTree().Quit(1);
         }
+    }
+
+    /// <summary>
+    /// Open, the console keeps the keyboard until it is closed: a button that takes the focus (as the
+    /// HUD's do when the pointer passes over them) doesn't take the typing, and after Enter the next
+    /// line can be typed at once.
+    /// </summary>
+    private async Task TestKeepsTheKeyboard()
+    {
+        DevConsole console = DevConsole.Instance!;
+        console.SetOpen(true);
+        await Wait(0.1f);
+        LineEdit line = console.Line!;
+        bool focused = line.HasFocus() && line.IsEditing();
+
+        Button thief = new() { FocusMode = Control.FocusModeEnum.All, Position = new Vector2(10, 400), Size = new Vector2(60, 30) };
+        console.AddChild(thief);
+        thief.GrabFocus();
+        await Wait(0.05f);
+        Type("ab");
+        await Wait(0.05f);
+        bool kept = line.HasFocus() && line.Text == "ab";
+
+        line.Text = "";
+        Type("/heal");
+        Key(Godot.Key.Enter);
+        await Wait(0.05f);
+        Type("x");
+        await Wait(0.05f);
+        bool next = line.HasFocus() && line.Text == "x";
+
+        thief.QueueFree();
+        console.SetOpen(false);
+        await Wait(0.05f);
+        bool released = !line.HasFocus();
+        Check("the open console has the keyboard", focused, $"focused and editing {focused}");
+        Check("a button taking the focus doesn't take the typing", kept, $"typed text kept {kept}");
+        Check("after Enter the next line is typed at once", next, $"next {next}");
+        Check("closed, it lets the keyboard go", released, $"released {released}");
+    }
+
+    private void Type(string text)
+    {
+        foreach (char c in text)
+        {
+            GetViewport().PushInput(new InputEventKey { Pressed = true, Unicode = c, Keycode = Godot.Key.None });
+            GetViewport().PushInput(new InputEventKey { Pressed = false, Unicode = c, Keycode = Godot.Key.None });
+        }
+    }
+
+    private void Key(Godot.Key key)
+    {
+        GetViewport().PushInput(new InputEventKey { Pressed = true, Keycode = key, PhysicalKeycode = key });
+        GetViewport().PushInput(new InputEventKey { Pressed = false, Keycode = key, PhysicalKeycode = key });
     }
 
     private async Task Wait(float seconds)
