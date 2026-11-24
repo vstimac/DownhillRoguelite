@@ -101,14 +101,21 @@ public static class UiStyle
         paragraph.AddString(text, font, size);
         float widest = 0.0f;
         float height = 0.0f;
-        for (int i = 0; i < paragraph.GetLineCount(); i++)
+        int lines = paragraph.GetLineCount();
+        for (int i = 0; i < lines; i++)
         {
             Vector2 line = paragraph.GetLineSize(i);
             widest = Mathf.Max(widest, line.X);
             height += line.Y;
         }
+        // A Label puts its theme's line spacing between lines: counted, or a long text overruns what sits under it.
+        height += Mathf.Max(lines - 1, 0) * LabelLineSpacing;
         return new Vector2(Mathf.Ceil(widest) + 2.0f, Mathf.Ceil(height) + 2.0f);
     }
+
+    private static int? _labelLineSpacing;
+    /// <summary>The px a Label puts between its lines (the default theme's line_spacing).</summary>
+    public static int LabelLineSpacing => _labelLineSpacing ??= ThemeDB.GetDefaultTheme().GetConstant("line_spacing", "Label");
 
     public static Label MakeLabel(string text, int size = TextSize, bool heading = false, Color? colour = null)
     {

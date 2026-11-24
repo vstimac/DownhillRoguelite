@@ -168,6 +168,15 @@ public partial class ContractTests : Node3D
                 + ", board " + distance.ToString("0.0") + " m from the fire, " + height.ToString("0.00") + " m off the ground";
         }
         Check("reaching station 1 pins one job for station 2 on a board by the fire", fine, detail);
+        if (board != null)
+        {
+            float apart = board.Overlap();
+            board.SetFocused(true);
+            float focused = board.Overlap();
+            board.SetFocused(false);
+            Check("the board's title, terms and note stand apart, however long they wrap", apart <= 0.001f && focused <= 0.001f,
+                $"overlap {apart * 100.0f:0.0} cm, pointed at {focused * 100.0f:0.0} cm");
+        }
         return offer;
     }
 

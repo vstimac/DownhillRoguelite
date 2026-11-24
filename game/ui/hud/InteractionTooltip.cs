@@ -57,6 +57,9 @@ public partial class InteractionTooltip : ParchmentPanel
         Position = home;
     }
 
+    /// <summary>The px between the bottom of the description as drawn and the top of the key prompt (tests: never below 0).</summary>
+    public float PromptClearance => _body == null || _prompt == null ? 0.0f : _prompt.Position.Y - (_body.Position.Y + _body.GetCombinedMinimumSize().Y);
+
     private void OnFocus(object? focused)
     {
         if (focused is not IDescribed described || _title == null || _body == null || _prompt == null || _icon == null)

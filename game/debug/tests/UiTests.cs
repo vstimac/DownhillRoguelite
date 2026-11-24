@@ -278,6 +278,24 @@ public partial class UiTests : Node3D
         item.QueueFree();
         Check("the tooltip slides in for what the carrier looks at, and away again", shown && hidden,
             $"shown \"{Ui.Tooltip.TitleText}\" {shown}, hidden after {hidden}");
+
+        // A long description (a job's terms) grows the card: the key prompt stays under the words.
+        LongDescribed job = new();
+        GameEvents.PublishFocus(job);
+        await Wait(0.4f);
+        float clearance = Ui.Tooltip.PromptClearance;
+        GameEvents.PublishFocus(null);
+        await Wait(0.4f);
+        Check("a long description grows the card and the key prompt stays clear of it", clearance >= 0.0f, $"{clearance:0.0} px between the words and the prompt");
+    }
+
+    private sealed class LongDescribed : IDescribed
+    {
+        public string Title => "A Letter Downhill";
+        public string Description => "\"For whoever keeps the next fire. Don't read it. Don't crumple it either.\" (a woman at the fire)";
+        public string Details => "Weight 0,2 kg · 2×3×1 cells\nDeliver to Station 2 for 20 score. Must arrive in at least 35% condition.\nOne job at a time; the cargo goes in your pack. Knocks and falls damage it: packed deep inside, less.";
+        public string Prompt => "E  Take the job";
+        public Resource? IconSource => null;
     }
 
     private void TestNotes()

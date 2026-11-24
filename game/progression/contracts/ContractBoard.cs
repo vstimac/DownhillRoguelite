@@ -203,8 +203,66 @@ public partial class ContractBoard : Node3D, ISharedWorldPickup, IDescribed
         return label;
     }
 
-    /// <summary>Redraws the labels from the contract's state.</summary>
+    /// <summary>Redraws the labels from the contract's state, stacked so a long line never runs into the next.</summary>
     public void Refresh()
+    {
+        RefreshText();
+        Stack();
+    }
+
+    /// <summary>The bottom of the lowest label, in m over the post's foot (just over the board).</summary>
+    private const float StackBase = 1.7f;
+    /// <summary>The gap between stacked labels, in m.</summary>
+    private const float StackGap = 0.03f;
+
+    /// <summary>
+    /// Stacks the labels from the board up, each by its wrapped height: the note (while the board is
+    /// pointed at), the terms, then the title on top.
+    /// </summary>
+    private void Stack()
+    {
+        float bottom = StackBase;
+        foreach (Label3D? label in new[] { _note, _terms, _title })
+        {
+            if (label == null || !label.Visible || label.Text.Length == 0)
+            {
+                continue;
+            }
+            label.VerticalAlignment = VerticalAlignment.Bottom;
+            label.Position = Vector3.Up * bottom;
+            bottom += Height(label) + StackGap;
+        }
+    }
+
+    /// <summary>How tall a label's text stands once wrapped, in m.</summary>
+    private static float Height(Label3D label)
+    {
+        Font font = label.Font ?? ThemeDB.FallbackFont;
+        Vector2 size = font.GetMultilineStringSize(label.Text, HorizontalAlignment.Center, label.Width, label.FontSize);
+        return size.Y * label.PixelSize;
+    }
+
+    /// <summary>The top of each label's text and the bottom of the one above it, in m (tests: nothing overlaps).</summary>
+    public float Overlap()
+    {
+        float worst = 0.0f;
+        Label3D? below = null;
+        foreach (Label3D? label in new[] { _note, _terms, _title })
+        {
+            if (label == null || !label.Visible || label.Text.Length == 0)
+            {
+                continue;
+            }
+            if (below != null)
+            {
+                worst = Mathf.Max(worst, below.Position.Y + Height(below) - label.Position.Y);
+            }
+            below = label;
+        }
+        return worst;
+    }
+
+    private void RefreshText()
     {
         if (Contract == null || _title == null || _terms == null || _note == null)
         {
@@ -297,6 +355,7 @@ public partial class ContractBoard : Node3D, ISharedWorldPickup, IDescribed
         if (_note != null)
         {
             _note.Visible = focused;
+            Stack();
         }
         if (!focused && _armTimer > 0.0f)
         {
