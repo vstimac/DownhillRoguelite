@@ -243,6 +243,9 @@ public partial class PackGridView : Control
         Repaint();
     }
 
+    /// <summary>Whether the held copy is drawn in the pack (where it would go).</summary>
+    public bool GhostShown => _ghost;
+
     /// <summary>Draws the held copy where it would go: green if it fits there, red if not.</summary>
     public void ShowGhost(Vector3I origin, Vector3I size, int orientation, bool valid)
     {
@@ -303,9 +306,10 @@ public partial class PackGridView : Control
 
     /// <summary>
     /// The grid column a box of <paramref name="size"/> cells would drop into from a point of the
-    /// view; false when the pointer is off the pack's open top.
+    /// view; false when the pointer is off the pack's open top, unless <paramref name="nearest"/>
+    /// asks for the column nearest to it (over the pack's walls or beside it).
     /// </summary>
-    public bool ColumnAt(Vector2 at, Vector3I size, out Vector2I column)
+    public bool ColumnAt(Vector2 at, Vector3I size, out Vector2I column, bool nearest = false)
     {
         column = Vector2I.Zero;
         Ray(at, out Vector3 from, out Vector3 direction);
@@ -316,7 +320,12 @@ public partial class PackGridView : Control
             return false;
         }
         float slack = Layout.CellSize;
-        if (Mathf.Abs(point.X) > pack.X * 0.5f + slack || Mathf.Abs(point.Z) > pack.Z * 0.5f + slack)
+        if (nearest)
+        {
+            point.X = Mathf.Clamp(point.X, -pack.X * 0.5f, pack.X * 0.5f);
+            point.Z = Mathf.Clamp(point.Z, -pack.Z * 0.5f, pack.Z * 0.5f);
+        }
+        else if (Mathf.Abs(point.X) > pack.X * 0.5f + slack || Mathf.Abs(point.Z) > pack.Z * 0.5f + slack)
         {
             return false;
         }

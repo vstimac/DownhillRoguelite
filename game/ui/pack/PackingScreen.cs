@@ -83,6 +83,17 @@ public partial class PackingScreen : ParchmentPanel
     private Vector2I _layerColumn = new(-1, -1);
     private Vector3I _ghostOrigin;
     private bool _ghostValid;
+    /// <summary>A press that lifts a thing and moves this far (px) before it is let go is a drag: letting go sets it down.</summary>
+    private const float DragPixels = 8.0f;
+    /// <summary>The pointer over the pack view, from the view's own mouse events.</summary>
+    private Vector2 _pointer;
+    private bool _pointerInView;
+    private bool _pressLifted;
+    private bool _pressMoved;
+    private Vector2 _pressAt;
+    private Control? _mat;
+    /// <summary>The thing in hand, at the pointer while it is off the pack view (over the mat or the sheet).</summary>
+    private ItemSlot? _cursorSlot;
 
     public override void _Ready()
     {
@@ -97,6 +108,13 @@ public partial class PackingScreen : ParchmentPanel
         // Left column: the pack itself.
         View = new PackGridView { Position = new Vector2(20, 56), Size = new Vector2(430, 400), MouseFilter = MouseFilterEnum.Stop };
         View.GuiInput += OnViewInput;
+        View.MouseExited += () =>
+        {
+            if (!_pressLifted)
+            {
+                _pointerInView = false;
+            }
+        };
         AddChild(View);
         InkButton left = new() { Glyph = InkButton.GlyphKind.Left, Position = new Vector2(190, 462), Size = new Vector2(40, 32), TooltipText = "Turn the pack (←)" };
         left.Pressed += () => View.TurnBy(-1);
@@ -122,6 +140,7 @@ public partial class PackingScreen : ParchmentPanel
         Control mat = new() { Position = new Vector2(x - 6, 78), Size = new Vector2(MatColumns * (cell + 6) + 6, MatRows * (cell + 6) + 6), MouseFilter = MouseFilterEnum.Stop };
         mat.GuiInput += OnMatInput;
         AddChild(mat);
+        _mat = mat;
         for (int i = 0; i < MatColumns * MatRows; i++)
         {
             ItemSlot slot = new()
@@ -521,9 +540,9 @@ public partial class PackingScreen : ParchmentPanel
             }
             _shown = "?";
         }
-        PackLayout layout = GameEvents.CurrentPackLayout;
-        Vector2 at = View.GetLocalMousePosition();
-        bool inside = new Rect2(Vector2.Zero, View.Size).HasPoint(at);
+        Vector2 at = _pointer;
+        bool inside = _pointerInView;
+        ShowCursorSlot(!inside);
         if (HeldId.Length == 0)
         {
             View.HideGhost();
@@ -539,14 +558,25 @@ public partial class PackingScreen : ParchmentPanel
 
         View.SetHover("");
         ShowDetail(HeldId, (float)delta);
+        UpdateGhost(at, inside);
+    }
+
+    /// <summary>
+    /// Where the thing in hand would go for a pointer at <paramref name="at"/>: shown in the pack at the
+    /// column under the pointer, or the nearest one when the pointer is over the pack's walls or beside
+    /// it, so it never drops out of sight while the pointer is on the view.
+    /// </summary>
+    private void UpdateGhost(Vector2 at, bool inside)
+    {
+        PackLayout layout = GameEvents.CurrentPackLayout;
         _ghostValid = false;
-        if (!inside || _occupancy == null || !HeldItem(layout, out ItemDefinition? item) || item == null)
+        if (View == null || !inside || _occupancy == null || !HeldItem(layout, out ItemDefinition? item) || item == null)
         {
-            View.HideGhost();
+            View?.HideGhost();
             return;
         }
         Vector3I size = GridOrientations.RotatedSize(item.SizeCells, HeldOrientation);
-        if (!View.ColumnAt(at, size, out Vector2I column))
+        if (!View.ColumnAt(at, size, out Vector2I column, nearest: true))
         {
             View.HideGhost();
             return;
@@ -575,6 +605,72 @@ public partial class PackingScreen : ParchmentPanel
             _ghostOrigin = new Vector3I(column.X, Mathf.Max(0, layout.GridSize.Y - size.Y), column.Y);
         }
         View.ShowGhost(_ghostOrigin, size, HeldOrientation, _ghostValid);
+    }
+
+    /// <summary>Shows the thing in hand at the pointer while the pointer is off the pack view.</summary>
+    private void ShowCursorSlot(bool offView)
+    {
+        ItemDefinition? held = null;
+        bool show = offView && HeldItem(GameEvents.CurrentPackLayout, out held) && held != null;
+        if (!show)
+        {
+            if (_cursorSlot != null)
+            {
+                _cursorSlot.Visible = false;
+            }
+            return;
+        }
+        if (_cursorSlot == null)
+        {
+            _cursorSlot = new ItemSlot { Size = new Vector2(48, 48), ShowFootprint = false, ZIndex = 20 };
+            AddChild(_cursorSlot);
+        }
+        if (_cursorSlot.Item != held)
+        {
+            _cursorSlot.SetItem(held, 1);
+        }
+        IgnoreMouse(_cursorSlot);
+        _cursorSlot.Visible = true;
+        _cursorSlot.Position = GetLocalMousePosition() + new Vector2(10, 10);
+    }
+
+    private static void IgnoreMouse(Control control)
+    {
+        control.MouseFilter = MouseFilterEnum.Ignore;
+        foreach (Node child in control.GetChildren())
+        {
+            if (child is Control inner)
+            {
+                IgnoreMouse(inner);
+            }
+        }
+    }
+
+    /// <summary>A drag let go at a point of the view: into the pack where it fits, onto the mat over the mat, else it stays in hand.</summary>
+    private void DropDragged(Vector2 at)
+    {
+        if (View == null || HeldId.Length == 0)
+        {
+            return;
+        }
+        if (new Rect2(Vector2.Zero, View.Size).HasPoint(at))
+        {
+            UpdateGhost(at, true);
+            if (_ghostValid)
+            {
+                PlaceHeld(_ghostOrigin);
+            }
+            return;
+        }
+        if (_mat != null)
+        {
+            Vector2 global = View.GetGlobalTransformWithCanvas() * at;
+            Vector2 onMat = _mat.GetGlobalTransformWithCanvas().AffineInverse() * global;
+            if (new Rect2(Vector2.Zero, _mat.Size).HasPoint(onMat))
+            {
+                PutHeldOnMat();
+            }
+        }
     }
 
     private static bool Worn(string itemId)
@@ -880,8 +976,33 @@ public partial class PackingScreen : ParchmentPanel
 
     private void OnViewInput(InputEvent @event)
     {
-        if (View == null || @event is not InputEventMouseButton mouse || !mouse.Pressed)
+        if (View == null || @event is not InputEventMouse pointer)
         {
+            return;
+        }
+        // While a button is held the view keeps getting the pointer even past its edge.
+        _pointer = pointer.Position;
+        _pointerInView = new Rect2(Vector2.Zero, View.Size).HasPoint(pointer.Position);
+        if (_pressLifted && pointer.Position.DistanceTo(_pressAt) > DragPixels)
+        {
+            _pressMoved = true;
+        }
+        if (@event is not InputEventMouseButton mouse)
+        {
+            return;
+        }
+        if (!mouse.Pressed)
+        {
+            if (mouse.ButtonIndex == MouseButton.Left && _pressLifted)
+            {
+                // Let go after a drag: set it down there. Let go in place: it stays in hand for a second click.
+                _pressLifted = false;
+                if (_pressMoved)
+                {
+                    DropDragged(mouse.Position);
+                }
+                AcceptEvent();
+            }
             return;
         }
         if (mouse.ButtonIndex == MouseButton.WheelDown || mouse.ButtonIndex == MouseButton.WheelUp)
@@ -917,6 +1038,9 @@ public partial class PackingScreen : ParchmentPanel
             else if (View.EntryAt(mouse.Position, mouse.AltPressed, out PackLayoutEntry entry))
             {
                 Hold(entry.InstanceId, entry.Orientation);
+                _pressLifted = true;
+                _pressMoved = false;
+                _pressAt = mouse.Position;
             }
         }
         AcceptEvent();

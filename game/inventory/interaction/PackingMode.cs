@@ -12,9 +12,8 @@ namespace DownhillRoguelite.Inventory;
 /// page's Done shoulders it again, which takes time too. I does the same without holding: it sets the
 /// pack down (or shoulders it) on its own.
 ///
-/// Nothing here holds the carrier longer than it looks: walking or jumping at any point ends it at
-/// once (setting down is called off; an open or half-shouldered pack is swung onto the back while the
-/// carrier walks on), and a press made while the pack is on its way is kept and acted on (a hold
+/// Nothing here holds the carrier longer than it looks: walking or jumping calls a set-down off at
+/// once, and an open pack is shouldered the whole way (about a second) before he walks on, and a press made while the pack is on its way is kept and acted on (a hold
 /// while shouldering turns it back to the ground from where it is). While the pack is off the back
 /// (GameEvents.IsPacking) movement and balance input are held.
 /// </summary>
@@ -367,9 +366,9 @@ public partial class PackingMode : Node3D
     }
 
     /// <summary>
-    /// Walking or jumping off: nothing waits for the animation. Setting down is called off, and an
-    /// open or half-shouldered pack is on the back again at once (PackSetDown swings the picture of
-    /// it up while the carrier already walks).
+    /// Walking or jumping off. Setting down is called off at once (the pack hasn't left the back). An
+    /// open pack is shouldered the whole way, as Done does: the carrier swings it onto his back and
+    /// walks on after, with the key still held. A shouldering already under way goes on.
     /// </summary>
     public void Interrupt()
     {
@@ -381,12 +380,7 @@ public partial class PackingMode : Node3D
                 break;
             case PackingPhase.Open:
                 Interrupts++;
-                GameEvents.PublishPackOpen(false);
-                Finish();
-                break;
-            case PackingPhase.PuttingOn:
-                Interrupts++;
-                Finish();
+                BeginPutOn();
                 break;
         }
         _queuedSetDown = 0.0f;
