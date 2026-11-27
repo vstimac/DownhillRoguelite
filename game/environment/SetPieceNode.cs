@@ -41,6 +41,7 @@ public partial class SetPieceNode : Node3D
             if (createModel != null) { model = createModel(part.Model); }
             else { model = CreateModel(part.Model); }
             if (model == null) { continue; }
+            DownhillRoguelite.Core.SurfaceType? floor = WorldStyle.FloorOf(model, part.Model);
             WorldStyle.Restyle(model, part.Model);
             Node3D holder = new() { Name = "Model" };
             holder.AddChild(model);
@@ -59,6 +60,7 @@ public partial class SetPieceNode : Node3D
             if (Blocks(part, size.Y))
             {
                 StaticBody3D body = new() { Name = "Solid", Transform = place };
+                if (floor != null) { body.SetMeta(DownhillRoguelite.Core.SurfaceType.MetaKey, floor); }
                 body.AddChild(holder);
                 Shape3D? shaped = size.Y >= ShapedHeight || Shaped(part.Model) ? ShapeOf(holder) : null;
                 if (shaped != null)
