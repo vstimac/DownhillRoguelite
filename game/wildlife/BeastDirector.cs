@@ -307,6 +307,12 @@ public partial class BeastDirector : Node3D
             return null;
         }
         _called = null;
+        return BringAt(species, ground);
+    }
+
+    /// <summary>Puts a beast of that kind on the ground at <paramref name="ground"/> (the console's /spawn; Bring finds the spot itself).</summary>
+    public NightBeast BringAt(BeastSpecies species, Vector3 ground)
+    {
         NightBeast beast = new();
         beast.Setup(species, _random.Randi(), BodyLayer, BodyMask);
         AddChild(beast);
