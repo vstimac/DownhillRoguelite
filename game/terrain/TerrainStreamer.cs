@@ -458,6 +458,35 @@ public partial class TerrainStreamer : Node3D
     }
 
     /// <summary>Chunks to keep loaded around <paramref name="centre"/>; downhill is -Z.</summary>
+    /// <summary>
+    /// Builds the ground round <paramref name="at"/> at once (the chunk under it and <paramref name="ring"/>
+    /// rings round it), so a carrier put there far from the streamed land has ground to stand on; the
+    /// rest streams in as usual. A hitch: for the console's long jumps, not for play.
+    /// </summary>
+    public int BuildAround(Vector3 at, int ring = 1)
+    {
+        if (Generator == null)
+        {
+            return 0;
+        }
+        _focus = at;
+        Vector2I centre = Generator.ChunkAt(at.X, at.Z);
+        int built = 0;
+        for (int dz = -ring; dz <= ring; dz++)
+        {
+            for (int dx = -ring; dx <= ring; dx++)
+            {
+                Vector2I coord = new(centre.X + dx, centre.Y + dz);
+                if (!_chunks.ContainsKey(coord))
+                {
+                    Apply(Generator.BuildChunk(coord, _surfaceColors, _generation));
+                    built++;
+                }
+            }
+        }
+        return built;
+    }
+
     private IEnumerable<Vector2I> Window(Vector2I centre)
     {
         for (int dz = -ChunksAhead; dz <= ChunksBehind; dz++)

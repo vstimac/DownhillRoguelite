@@ -56,6 +56,15 @@ public partial class SpiderWebTests : Node3D
             $"{webs.Webs.Count} webs, centre {centre:0.00}, radius {web?.Radius ?? 0:0.00}");
         string key = web?.Key ?? "";
 
+        // The console's /tp web sets the carrier in front of it, facing it (to try a web in the game).
+        string said = DevConsole.Execute("/tp web");
+        await Frames(2);
+        Vector3 toWeb = centre - Player.GlobalPosition;
+        toWeb.Y = 0.0f;
+        Vector3 forward = -Player.GlobalBasis.Z;
+        bool inFront = toWeb.Length() > 2.0f && toWeb.Length() < 3.0f && forward.Dot(toWeb.Normalized()) > 0.95f;
+        Check("/tp web puts the carrier in front of the nearest web, facing it", inFront, $"{toWeb.Length():0.0} m away, facing {forward.Dot(toWeb.Normalized()):0.00}; {said}");
+
         // Walked through: it tears, and the stride is slow for a while.
         Player.Teleport(new Vector3(0.0f, 0.1f, -4.4f), 0.0f);
         await Frames(3);

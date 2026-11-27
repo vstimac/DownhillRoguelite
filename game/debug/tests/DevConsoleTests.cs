@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using DownhillRoguelite.Inventory;
 using DownhillRoguelite.Player;
 using DownhillRoguelite.Terrain;
+using DownhillRoguelite.Wildlife;
 using Godot;
 
 namespace DownhillRoguelite.Debug;
@@ -72,6 +73,8 @@ public partial class DevConsoleTests : Node3D
         Check("other systems can add commands", DevConsole.Execute("/echo_test hi there") == "hi there" && DevConsole.Execute("/commands").Contains("/echo_test"), "");
 
         await TestKeepsTheKeyboard();
+        await TestSpawnEverything();
+        await TestTravel();
 
         if (_failures.Count == 0)
         {
@@ -122,6 +125,93 @@ public partial class DevConsoleTests : Node3D
         Check("a button taking the focus doesn't take the typing", kept, $"typed text kept {kept}");
         Check("after Enter the next line is typed at once", next, $"next {next}");
         Check("closed, it lets the keyboard go", released, $"released {released}");
+    }
+
+    /// <summary>
+    /// The long jumps for testing: to a station, a circle, a depth and further down; the ground there is
+    /// built at once, so the carrier stands on it (doesn't fall through) and /where says where they are.
+    /// </summary>
+    private async Task TestTravel()
+    {
+        PlayerController player = PlayerBody!;
+        TerrainStreamer streamer = Streamer!;
+        TerrainGenerator generator = streamer.Generator!;
+        string stations = DevConsole.Execute("/stations 6");
+        Check("/stations lists the stations with their depth and circle", stations.Split('\n').Length == 6 && stations.Contains("circle 1 Limbo"), stations.Split('\n')[0]);
+
+        string moved = DevConsole.Execute("/tp station 2");
+        await Wait(1.0f);
+        Vector3 fire = generator.Station(2);
+        float fromFire = new Vector2(player.GlobalPosition.X - fire.X, player.GlobalPosition.Z - fire.Z).Length();
+        Check("/tp station 2 sets the carrier by that station's fire, standing", fromFire < 8.0f && Standing(player, generator), $"{fromFire:0.0} m from the fire; {moved}");
+
+        await Jump("/tp circle greed", 3 * 1050.0f, 3 * 1050.0f + 400.0f, "Greed");
+        await Jump("/tp circle 6", 5 * 1050.0f, 5 * 1050.0f + 400.0f, "Heresy");
+        await Jump("/tp depth 2500", 2500.0f, 2560.0f, "");
+        float before = streamer.SpawnPoint.Y - player.GlobalPosition.Y;
+        await Jump("/tp down 300", before + 300.0f, before + 360.0f, "");
+        string far = DevConsole.Execute("/tp depth 8800");
+        await Wait(1.0f);
+        float deep = streamer.SpawnPoint.Y - player.GlobalPosition.Y;
+        Check("/tp depth reaches the last circle too, standing", deep >= 8800.0f && deep < 8900.0f && Standing(player, generator), $"{deep:0} m; {far}");
+        string biome = DevConsole.Execute("/tp biome " + generator.Settings.Biomes[2].Name);
+        await Wait(0.5f);
+        Check("/tp biome goes into that biome", biome.Contains(generator.Settings.Biomes[2].Name) && Standing(player, generator), biome);
+        Check("a wrong circle or biome lists the right names", DevConsole.Execute("/tp circle nowhere").Contains("Limbo") && DevConsole.Execute("/tp biome").Contains(generator.Settings.Biomes[0].Name), "");
+        string web = DevConsole.Execute("/tp web");
+        Check("/tp web goes to a web, or says where webs are", web.Contains("spider web"), web);
+        DevConsole.Execute("/respawn");
+        await Wait(0.5f);
+    }
+
+    /// <summary>/enemies lists the enemies, the night beasts and the animals, and /spawn brings each kind, one or several.</summary>
+    private async Task TestSpawnEverything()
+    {
+        EnemyDirector enemies = new() { Name = "Enemies", Species = new[] { GD.Load<EnemySpecies>("res://wildlife/enemies/ogre.tres") }, Wakeable = new[] { GD.Load<EnemySpecies>("res://wildlife/enemies/jade_glutton.tres") } };
+        BeastDirector beasts = new() { Name = "Beasts", Roster = GD.Load<BeastRoster>("res://wildlife/default_beasts.tres") };
+        WildlifeSpawner wildlife = new() { Name = "Wildlife", Table = GD.Load<WildlifeTable>("res://wildlife/default_wildlife.tres"), Spawning = false };
+        AddChild(enemies);
+        AddChild(beasts);
+        AddChild(wildlife);
+        await Wait(0.3f);
+        string kinds = DevConsole.Execute("/enemies");
+        bool listed = kinds.Contains("ogre") && kinds.Contains("jade_glutton") && kinds.Contains("she_wolf") && kinds.Contains("giant_spider") && kinds.Contains("deer") && kinds.Contains("wolf");
+        Check("/enemies lists the enemies, the night beasts and the animals", listed, kinds.Replace('\n', ' '));
+
+        int animals = wildlife.Animals.Count;
+        string deer = DevConsole.Execute("/spawn deer 12 3");
+        int beastCount = beasts.Beasts.Count;
+        string wolf = DevConsole.Execute("/spawn she_wolf 15");
+        string glutton = DevConsole.Execute("/spawn jade_glutton 18");
+        await Wait(0.2f);
+        bool spawned = wildlife.Animals.Count == animals + 3 && beasts.Beasts.Count == beastCount + 1 && glutton.Contains("is here");
+        float ahead = wildlife.Animals.Count > 0 ? new Vector2(wildlife.Animals[^1].GlobalPosition.X - PlayerBody!.GlobalPosition.X, wildlife.Animals[^1].GlobalPosition.Z - PlayerBody.GlobalPosition.Z).Length() : 0.0f;
+        Check("/spawn brings an animal herd, a night beast and an enemy ahead", spawned && ahead > 9.0f && ahead < 16.0f, $"{deer} / {wolf} / {glutton}; a deer {ahead:0.0} m away");
+        Check("/spawn of an unknown kind says so", DevConsole.Execute("/spawn dragon").Contains("No kind"), "");
+        DevConsole.Execute("/killall");
+        enemies.QueueFree();
+        beasts.QueueFree();
+        wildlife.QueueFree();
+        await Wait(0.2f);
+    }
+
+    private async Task Jump(string command, float minDepth, float maxDepth, string name)
+    {
+        PlayerController player = PlayerBody!;
+        TerrainStreamer streamer = Streamer!;
+        string said = DevConsole.Execute(command);
+        await Wait(1.0f);
+        float depth = streamer.SpawnPoint.Y - player.GlobalPosition.Y;
+        string where = DevConsole.Execute("/where");
+        bool fine = depth >= minDepth && depth <= maxDepth && Standing(player, streamer.Generator!) && where.Contains(name);
+        Check($"{command} lands {minDepth:0}-{maxDepth:0} m down and the carrier stands there", fine, $"{depth:0} m; {where}");
+    }
+
+    /// <summary>On the ground a second after the jump (not fallen through it, not left in the air).</summary>
+    private static bool Standing(PlayerController player, TerrainGenerator generator)
+    {
+        Vector3 at = player.GlobalPosition;
+        return Mathf.Abs(at.Y - generator.Height(at.X, at.Z)) < 1.0f && player.IsOnFloor();
     }
 
     private void Type(string text)

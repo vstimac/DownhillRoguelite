@@ -413,8 +413,13 @@ public partial class DevConsole : CanvasLayer
             Vector3 at = player.GlobalPosition;
             return $"at ({at.X:0.0}, {at.Y:0.0}, {at.Z:0.0}), facing {Mathf.RadToDeg(player.Rotation.Y):0}°";
         });
-        Register("tp", "tp <x> <y> <z> | tp ahead <m>", "Moves the carrier to a point, or that far ahead (onto the ground).", args =>
+        Register("tp", "tp <x> <y> <z> | ahead <m> | station <n> | depth <m> | down <m> | circle <n|name> | biome <name> | web",
+            "Moves the carrier: to a point, that far ahead, to a station, a depth (m below the start), that much further down the route, a circle, a biome, or the nearest spider web.", args =>
         {
+            if (IsTravel(args))
+            {
+                return Travel(args);
+            }
             PlayerController player = Carrier();
             Vector3 to;
             if (args.Length >= 1 && args[0] == "ahead")
@@ -434,7 +439,7 @@ public partial class DevConsole : CanvasLayer
             }
             else
             {
-                return "Usage: /tp <x> <y> <z> | /tp ahead <m>";
+                return "Usage: /tp <x> <y> <z> | ahead <m> | station <n> | depth <m> | down <m> | circle <n|name> | biome <name> | web";
             }
             player.Teleport(to + Vector3.Up * 0.1f, player.Rotation.Y);
             return $"Moved to ({to.X:0.0}, {to.Y:0.0}, {to.Z:0.0}).";
@@ -484,33 +489,8 @@ public partial class DevConsole : CanvasLayer
             }
             return $"Added {added} {item.DisplayName}.";
         });
-        Register("enemies", "enemies", "Lists the enemy kinds /spawn takes.", args =>
-        {
-            EnemyDirector? director = Find<EnemyDirector>(GetTree().Root);
-            if (director == null)
-            {
-                return "No enemy director in this scene.";
-            }
-            return string.Join("  ", director.Kinds.Select(kind => kind.Id).Distinct());
-        });
-        Register("spawn", "spawn <enemy> [metres]", "Brings an enemy (see /enemies) that far ahead (10 m).", args =>
-        {
-            EnemyDirector? director = Find<EnemyDirector>(GetTree().Root);
-            if (director == null)
-            {
-                return "No enemy director in this scene.";
-            }
-            if (args.Length == 0)
-            {
-                return "Usage: /spawn <enemy> [metres]";
-            }
-            HumanoidEnemy? enemy = director.SpawnAhead(args[0], Number(args, 1, 10.0f));
-            if (enemy == null)
-            {
-                return $"No enemy kind '{args[0]}'. /enemies lists them.";
-            }
-            return $"{enemy.Species?.DisplayName} is here.";
-        });
+        Register("enemies", "enemies", "Lists every kind /spawn takes: enemies, night beasts and animals.", args => Kinds());
+        Register("spawn", "spawn <kind> [metres] [count]", "Brings an enemy, a night beast or an animal (see /enemies) that far ahead (10 m), one or more.", args => Spawn(args));
         Register("wake", "wake <enemy>", "Wakes an enemy kind by the nearest tree, set on the carrier (as the jade urn does).", args =>
         {
             if (args.Length == 0)
@@ -599,5 +579,6 @@ public partial class DevConsole : CanvasLayer
             GameEvents.PublishRespawnRequest();
             return "Respawning.";
         });
+        RegisterTravel();
     }
 }
