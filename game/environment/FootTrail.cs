@@ -100,16 +100,16 @@ public partial class FootTrail : Node3D
 
     private void OnFeet(FootPlacementSnapshot snapshot)
     {
-        if (snapshot.Left.Planted && !_leftPlanted && snapshot.Left.HasGround)
+        if (snapshot.Left.Down && !_leftPlanted && snapshot.Left.HasGround)
         {
             Step(snapshot.Left, true);
         }
-        if (snapshot.Right.Planted && !_rightPlanted && snapshot.Right.HasGround)
+        if (snapshot.Right.Down && !_rightPlanted && snapshot.Right.HasGround)
         {
             Step(snapshot.Right, false);
         }
-        _leftPlanted = snapshot.Left.Planted;
-        _rightPlanted = snapshot.Right.Planted;
+        _leftPlanted = snapshot.Left.Down;
+        _rightPlanted = snapshot.Right.Down;
     }
 
     /// <summary>Presses a print where a foot landed and kicks up a puff, by the ground underfoot.</summary>
