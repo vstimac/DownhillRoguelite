@@ -43,6 +43,11 @@ public sealed class FootState
     public bool HasPrevious { get; set; }
 
     public bool Planted { get; set; }
+    /// <summary>
+    /// The foot came down and is still on the ground: set when it plants, cleared when the animation
+    /// lifts it. Unlike Planted it holds when the lock is dropped because the leg can't reach.
+    /// </summary>
+    public bool Down { get; set; }
     /// <summary>0 = follow the animation, 1 = locked to LockPosition.</summary>
     public float PlantWeight { get; set; }
     public Vector3 LockPosition { get; set; }

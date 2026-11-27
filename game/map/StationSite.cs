@@ -242,6 +242,7 @@ public partial class StationSite : Node3D
             }
             Node3D holder = new() { Name = path.GetFile().GetBaseName() };
             Node3D instance = scene.Instantiate<Node3D>();
+            DownhillRoguelite.Core.SurfaceType? floor = DownhillRoguelite.Environment.WorldStyle.FloorOf(instance, path);
             DownhillRoguelite.Environment.WorldStyle.Restyle(instance, path);
             holder.AddChild(instance);
             Aabb bounds = DownhillRoguelite.Core.ModelFit.Bounds(holder);
@@ -265,6 +266,7 @@ public partial class StationSite : Node3D
                 if (kind == PropBody.Solid)
                 {
                     StaticBody3D solid = new() { Name = "Solid", CollisionLayer = SolidLayer, CollisionMask = 0 };
+                    if (floor != null) { solid.SetMeta(DownhillRoguelite.Core.SurfaceType.MetaKey, floor); }
                     Vector3 box = new(fitted.X * PropFootprint, fitted.Y, fitted.Z * PropFootprint);
                     solid.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = box }, Position = new Vector3(0.0f, box.Y * 0.5f, 0.0f) });
                     place.AddChild(solid);

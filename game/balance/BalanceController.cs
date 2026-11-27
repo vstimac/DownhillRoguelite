@@ -144,16 +144,16 @@ public partial class BalanceController : Node
 
     private void OnFootPlacementUpdated(FootPlacementSnapshot snapshot)
     {
-        if (snapshot.Left.Planted && !_leftWasPlanted)
+        if (snapshot.Left.Down && !_leftWasPlanted)
         {
             QueueFootfall(-1.0f);
         }
-        if (snapshot.Right.Planted && !_rightWasPlanted)
+        if (snapshot.Right.Down && !_rightWasPlanted)
         {
             QueueFootfall(1.0f);
         }
-        _leftWasPlanted = snapshot.Left.Planted;
-        _rightWasPlanted = snapshot.Right.Planted;
+        _leftWasPlanted = snapshot.Left.Down;
+        _rightWasPlanted = snapshot.Right.Down;
         _feet = snapshot;
         _hasFeet = true;
     }

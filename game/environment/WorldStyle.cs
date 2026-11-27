@@ -198,6 +198,48 @@ public static class WorldStyle
         return body;
     }
 
+    private static DownhillRoguelite.Core.SurfaceType? _stonework;
+    private static DownhillRoguelite.Core.SurfaceType? _planks;
+
+    /// <summary>
+    /// What a built thing is underfoot, worked stone or planks, by what most of its surfaces are made of
+    /// (call before Restyle: it reads the art pack's own material names). Untagged, a ruin's floor or a
+    /// cart's bed sounded like grass and left no dust. Both keep the default grip and hardness.
+    /// </summary>
+    public static DownhillRoguelite.Core.SurfaceType? FloorOf(Node root, string modelPath)
+    {
+        int stone = 0;
+        int wood = 0;
+        foreach (MeshInstance3D mesh in Meshes(root))
+        {
+            if (mesh.Mesh == null) { continue; }
+            for (int i = 0; i < mesh.Mesh.GetSurfaceCount(); i++)
+            {
+                Material? material = mesh.MaterialOverride ?? mesh.GetSurfaceOverrideMaterial(i) ?? mesh.Mesh.SurfaceGetMaterial(i);
+                switch (LookOf(material?.ResourceName ?? "", modelPath, out _))
+                {
+                    case Look.Rock:
+                    case Look.Stone:
+                    case Look.Plaster:
+                    case Look.Metal:
+                        stone++;
+                        break;
+                    case Look.Wood:
+                    case Look.Bark:
+                    case Look.Cloth:
+                        wood++;
+                        break;
+                }
+            }
+        }
+        if (stone == 0 && wood == 0) { return null; }
+        if (stone >= wood)
+        {
+            return _stonework ??= ResourceLoader.Load<DownhillRoguelite.Core.SurfaceType>("res://terrain/surfaces/stonework.tres");
+        }
+        return _planks ??= ResourceLoader.Load<DownhillRoguelite.Core.SurfaceType>("res://terrain/surfaces/planks.tres");
+    }
+
     /// <summary>A light or glow, not a surface: embers, beacons, highlights (the style rule leaves them alone).</summary>
     public static bool IsEffect(Material? material)
     {

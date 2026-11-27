@@ -172,16 +172,16 @@ public partial class GroundFog : Node3D
 
     private void OnFeet(FootPlacementSnapshot snapshot)
     {
-        if (snapshot.Left.Planted && !_leftPlanted && snapshot.Left.HasGround)
+        if (snapshot.Left.Down && !_leftPlanted && snapshot.Left.HasGround)
         {
             Footfall(snapshot.Left.GroundPoint, true);
         }
-        if (snapshot.Right.Planted && !_rightPlanted && snapshot.Right.HasGround)
+        if (snapshot.Right.Down && !_rightPlanted && snapshot.Right.HasGround)
         {
             Footfall(snapshot.Right.GroundPoint, false);
         }
-        _leftPlanted = snapshot.Left.Planted;
-        _rightPlanted = snapshot.Right.Planted;
+        _leftPlanted = snapshot.Left.Down;
+        _rightPlanted = snapshot.Right.Down;
     }
 
     /// <summary>A foot comes down here: it stirs the fog if it's in it.</summary>

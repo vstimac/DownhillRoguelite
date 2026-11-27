@@ -355,6 +355,7 @@ public partial class FootIK : Node3D
             if (teleported)
             {
                 foot.Planted = false;
+                foot.Down = false;
                 foot.PlantWeight = 0.0f;
             }
             UpdatePlanting(foot, animated.Origin, animatedVelocity, dt);
@@ -446,6 +447,7 @@ public partial class FootIK : Node3D
         if (!low)
         {
             foot.WaitForLift = false;
+            foot.Down = false;
         }
 
         if (!foot.Planted)
@@ -453,6 +455,7 @@ public partial class FootIK : Node3D
             if (low && still && !foot.WaitForLift)
             {
                 foot.Planted = true;
+                foot.Down = true;
                 foot.LockPosition = animatedPosition;
             }
         }
@@ -547,7 +550,7 @@ public partial class FootIK : Node3D
 
     private static FootSnapshot Snapshot(FootState foot)
     {
-        return new FootSnapshot(foot.TargetPosition, foot.Landing, foot.GroundPoint, foot.GroundNormal, foot.PolePosition, foot.Planted, foot.LegWeight, foot.HasGround);
+        return new FootSnapshot(foot.TargetPosition, foot.Landing, foot.GroundPoint, foot.GroundNormal, foot.PolePosition, foot.Planted, foot.LegWeight, foot.HasGround, foot.Down);
     }
 
     private static Vector3 Flat(Vector3 vector)

@@ -106,16 +106,16 @@ public partial class Footsteps : Node
 
     private void OnFootPlacementUpdated(FootPlacementSnapshot snapshot)
     {
-        if (snapshot.Left.Planted && !_leftPlanted)
+        if (snapshot.Left.Down && !_leftPlanted)
         {
             Step();
         }
-        if (snapshot.Right.Planted && !_rightPlanted)
+        if (snapshot.Right.Down && !_rightPlanted)
         {
             Step();
         }
-        _leftPlanted = snapshot.Left.Planted;
-        _rightPlanted = snapshot.Right.Planted;
+        _leftPlanted = snapshot.Left.Down;
+        _rightPlanted = snapshot.Right.Down;
     }
 
     private void Step()
